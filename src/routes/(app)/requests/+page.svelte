@@ -47,8 +47,18 @@
 			key: 'status' as keyof RequestWithClient,
 			label: 'Status',
 			sortable: true,
-			render: (value: string, row: RequestWithClient) => {
-				return `<span class="status-${value}">${value}</span>`;
+			render: (value: string | null | undefined, row: RequestWithClient) => {
+				const statusValue = String(value || 'draft');
+				const statusClasses: Record<string, string> = {
+					draft: 'inline-flex items-center rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-800',
+					submitted: 'inline-flex items-center rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-medium text-blue-800',
+					in_progress: 'inline-flex items-center rounded-full bg-yellow-100 px-2.5 py-0.5 text-xs font-medium text-yellow-800',
+					completed: 'inline-flex items-center rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-800',
+					cancelled: 'inline-flex items-center rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-medium text-red-800'
+				};
+				const className = statusClasses[statusValue] || statusClasses.draft;
+				const displayValue = statusValue.replace('_', ' ');
+				return `<span class="${className}">${displayValue}</span>`;
 			}
 		},
 		{
@@ -128,22 +138,4 @@
 		</div>
 	{/if}
 </div>
-
-<style>
-	:global(.status-draft) {
-		@apply inline-flex items-center rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-800;
-	}
-	:global(.status-submitted) {
-		@apply inline-flex items-center rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-medium text-blue-800;
-	}
-	:global(.status-in_progress) {
-		@apply inline-flex items-center rounded-full bg-yellow-100 px-2.5 py-0.5 text-xs font-medium text-yellow-800;
-	}
-	:global(.status-completed) {
-		@apply inline-flex items-center rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-800;
-	}
-	:global(.status-cancelled) {
-		@apply inline-flex items-center rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-medium text-red-800;
-	}
-</style>
 
