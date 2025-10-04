@@ -5,7 +5,6 @@
 	import {
 		LayoutDashboard,
 		Users,
-		UserPlus,
 		FileText,
 		FilePlus,
 		ClipboardCheck,
@@ -32,10 +31,7 @@
 		},
 		{
 			label: 'Clients',
-			items: [
-				{ label: 'All Clients', href: '/clients', icon: Users },
-				{ label: 'New Client', href: '/clients/new', icon: UserPlus }
-			]
+			items: [{ label: 'All Clients', href: '/clients', icon: Users }]
 		},
 		{
 			label: 'Requests',
