@@ -3,19 +3,19 @@
 	import { Card } from '$lib/components/ui/card';
 
 	type Props = {
-		date_of_loss?: string;
-		insured_value?: number;
-		incident_type?: string;
-		incident_description?: string;
-		incident_location?: string;
+		date_of_loss: string;
+		insured_value: number | undefined;
+		incident_type: string;
+		incident_description: string;
+		incident_location: string;
 	};
 
 	let {
-		date_of_loss = $bindable(''),
-		insured_value = $bindable(undefined),
-		incident_type = $bindable(''),
-		incident_description = $bindable(''),
-		incident_location = $bindable('')
+		date_of_loss = $bindable(),
+		insured_value = $bindable(),
+		incident_type = $bindable(),
+		incident_description = $bindable(),
+		incident_location = $bindable()
 	}: Props = $props();
 
 	const incidentTypes = [

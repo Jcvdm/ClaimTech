@@ -4,25 +4,25 @@
 	import { Separator } from '$lib/components/ui/separator';
 
 	type Props = {
-		owner_name?: string;
-		owner_phone?: string;
-		owner_email?: string;
-		owner_address?: string;
-		third_party_name?: string;
-		third_party_phone?: string;
-		third_party_email?: string;
-		third_party_insurance?: string;
+		owner_name: string;
+		owner_phone: string;
+		owner_email: string;
+		owner_address: string;
+		third_party_name: string;
+		third_party_phone: string;
+		third_party_email: string;
+		third_party_insurance: string;
 	};
 
 	let {
-		owner_name = $bindable(''),
-		owner_phone = $bindable(''),
-		owner_email = $bindable(''),
-		owner_address = $bindable(''),
-		third_party_name = $bindable(''),
-		third_party_phone = $bindable(''),
-		third_party_email = $bindable(''),
-		third_party_insurance = $bindable('')
+		owner_name = $bindable(),
+		owner_phone = $bindable(),
+		owner_email = $bindable(),
+		owner_address = $bindable(),
+		third_party_name = $bindable(),
+		third_party_phone = $bindable(),
+		third_party_email = $bindable(),
+		third_party_insurance = $bindable()
 	}: Props = $props();
 </script>
 

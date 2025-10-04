@@ -3,23 +3,23 @@
 	import { Card } from '$lib/components/ui/card';
 
 	type Props = {
-		vehicle_make?: string;
-		vehicle_model?: string;
-		vehicle_year?: number;
-		vehicle_vin?: string;
-		vehicle_registration?: string;
-		vehicle_color?: string;
-		vehicle_mileage?: number;
+		vehicle_make: string;
+		vehicle_model: string;
+		vehicle_year: number | undefined;
+		vehicle_vin: string;
+		vehicle_registration: string;
+		vehicle_color: string;
+		vehicle_mileage: number | undefined;
 	};
 
 	let {
-		vehicle_make = $bindable(''),
-		vehicle_model = $bindable(''),
-		vehicle_year = $bindable(undefined),
-		vehicle_vin = $bindable(''),
-		vehicle_registration = $bindable(''),
-		vehicle_color = $bindable(''),
-		vehicle_mileage = $bindable(undefined)
+		vehicle_make = $bindable(),
+		vehicle_model = $bindable(),
+		vehicle_year = $bindable(),
+		vehicle_vin = $bindable(),
+		vehicle_registration = $bindable(),
+		vehicle_color = $bindable(),
+		vehicle_mileage = $bindable()
 	}: Props = $props();
 </script>
 
