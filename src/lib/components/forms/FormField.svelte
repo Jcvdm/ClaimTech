@@ -7,7 +7,7 @@
 		label: string;
 		name: string;
 		type?: 'text' | 'email' | 'number' | 'date' | 'select' | 'textarea';
-		value?: string | number;
+		value?: string | number | undefined;
 		placeholder?: string;
 		required?: boolean;
 		error?: string;
@@ -23,7 +23,7 @@
 		label,
 		name,
 		type = 'text',
-		value = $bindable(''),
+		value = $bindable(),
 		placeholder = '',
 		required = false,
 		error = '',
