@@ -4,7 +4,10 @@
 	import type { ComponentType } from 'svelte';
 	import {
 		LayoutDashboard,
+		Users,
+		UserPlus,
 		FileText,
+		FilePlus,
 		ClipboardCheck,
 		FileCheck,
 		Plus,
@@ -25,14 +28,25 @@
 	const navigation: NavGroup[] = [
 		{
 			label: 'General',
+			items: [{ label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard }]
+		},
+		{
+			label: 'Clients',
 			items: [
-				{ label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard }
+				{ label: 'All Clients', href: '/clients', icon: Users },
+				{ label: 'New Client', href: '/clients/new', icon: UserPlus }
+			]
+		},
+		{
+			label: 'Requests',
+			items: [
+				{ label: 'All Requests', href: '/requests', icon: FileText },
+				{ label: 'New Request', href: '/requests/new', icon: FilePlus }
 			]
 		},
 		{
 			label: 'Work',
 			items: [
-				{ label: 'Requests', href: '/work/requests', icon: FileText },
 				{ label: 'Inspections', href: '/work/inspections', icon: ClipboardCheck },
 				{ label: 'FRC', href: '/work/frc', icon: FileCheck },
 				{ label: 'Additionals', href: '/work/additionals', icon: Plus }
@@ -40,9 +54,7 @@
 		},
 		{
 			label: 'Settings',
-			items: [
-				{ label: 'Settings', href: '/settings', icon: Settings }
-			]
+			items: [{ label: 'Settings', href: '/settings', icon: Settings }]
 		}
 	];
 
