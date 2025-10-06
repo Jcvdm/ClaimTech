@@ -128,8 +128,6 @@ export interface InteriorMechanical {
 	steering?: SystemStatus | null;
 	brakes?: SystemStatus | null;
 	handbrake?: SystemStatus | null;
-	mechanical_notes?: string | null;
-	interior_notes?: string | null;
 	created_at: string;
 	updated_at: string;
 }
@@ -168,7 +166,6 @@ export interface DamageRecord {
 	location_description?: string | null;
 	photos: Array<{ url: string; description: string; panel?: string }>;
 	damage_description?: string | null;
-	repair_notes?: string | null;
 	created_at: string;
 	updated_at: string;
 }
@@ -263,8 +260,6 @@ export interface CreateInteriorMechanicalInput {
 	steering?: SystemStatus;
 	brakes?: SystemStatus;
 	handbrake?: SystemStatus;
-	mechanical_notes?: string;
-	interior_notes?: string;
 }
 
 export interface UpdateInteriorMechanicalInput
@@ -298,7 +293,6 @@ export interface CreateDamageRecordInput {
 	location_description?: string;
 	photos?: Array<{ url: string; description: string; panel?: string }>;
 	damage_description?: string;
-	repair_notes?: string;
 }
 
 export interface UpdateDamageRecordInput
