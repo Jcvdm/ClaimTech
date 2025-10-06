@@ -15,6 +15,7 @@
 	import { interiorMechanicalService } from '$lib/services/interior-mechanical.service';
 	import { tyresService } from '$lib/services/tyres.service';
 	import { damageService } from '$lib/services/damage.service';
+	import { getTabCompletionStatus } from '$lib/utils/validation';
 	import type {
 		VehicleIdentification,
 		Exterior360,
@@ -31,9 +32,37 @@
 	let lastSaved = $state<string | null>(null);
 	let autoSaveInterval: ReturnType<typeof setInterval> | null = null;
 
+	// Check tab completion and update
+	async function updateTabCompletion() {
+		const completionStatus = getTabCompletionStatus({
+			vehicleIdentification: data.vehicleIdentification,
+			exterior360: data.exterior360,
+			interiorMechanical: data.interiorMechanical,
+			tyres: data.tyres,
+			damageRecords: data.damageRecords
+		});
+
+		const completedTabs = completionStatus
+			.filter(tab => tab.isComplete)
+			.map(tab => tab.tabId);
+
+		// Update if changed
+		const currentCompleted = data.assessment.tabs_completed || [];
+		const hasChanged =
+			completedTabs.length !== currentCompleted.length ||
+			completedTabs.some(tab => !currentCompleted.includes(tab));
+
+		if (hasChanged) {
+			await assessmentService.updateAssessment(data.assessment.id, {
+				tabs_completed: completedTabs
+			});
+		}
+	}
+
 	async function handleTabChange(tabId: string) {
-		// Auto-save before switching tabs
+		// Auto-save and check completion before switching tabs
 		await handleSave();
+		await updateTabCompletion();
 		currentTab = tabId;
 		await assessmentService.updateCurrentTab(data.assessment.id, tabId);
 	}
@@ -44,6 +73,7 @@
 		saving = true;
 		try {
 			await invalidateAll();
+			await updateTabCompletion();
 			const now = new Date();
 			lastSaved = now.toLocaleTimeString('en-US', {
 				hour: '2-digit',
