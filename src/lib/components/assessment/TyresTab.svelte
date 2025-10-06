@@ -114,18 +114,49 @@
 						/>
 					</div>
 
-					<!-- Right Column: Photo & Notes -->
+					<!-- Right Column: Photos & Notes -->
 					<div class="space-y-4">
-						<PhotoUpload
-							value={tyre.photo_url || ''}
-							label="Tyre Photo"
-							{assessmentId}
-							category="tyres"
-							subcategory={tyre.position}
-							onUpload={(url) => onUpdateTyre(tyre.id, { photo_url: url })}
-							onRemove={() => onUpdateTyre(tyre.id, { photo_url: '' })}
-							height="h-48"
-						/>
+						<!-- Tyre Photos Grid -->
+						<div>
+							<label class="mb-2 block text-sm font-medium text-gray-700">Tyre Photos</label>
+							<div class="grid gap-3 md:grid-cols-3">
+								<!-- Face Photo -->
+								<PhotoUpload
+									value={tyre.face_photo_url || ''}
+									label="Face/Sidewall"
+									{assessmentId}
+									category="tyres"
+									subcategory={`${tyre.position}_face`}
+									onUpload={(url) => onUpdateTyre(tyre.id, { face_photo_url: url })}
+									onRemove={() => onUpdateTyre(tyre.id, { face_photo_url: '' })}
+									height="h-32"
+								/>
+
+								<!-- Tread Photo -->
+								<PhotoUpload
+									value={tyre.tread_photo_url || ''}
+									label="Tread Pattern"
+									{assessmentId}
+									category="tyres"
+									subcategory={`${tyre.position}_tread`}
+									onUpload={(url) => onUpdateTyre(tyre.id, { tread_photo_url: url })}
+									onRemove={() => onUpdateTyre(tyre.id, { tread_photo_url: '' })}
+									height="h-32"
+								/>
+
+								<!-- Measurement Photo -->
+								<PhotoUpload
+									value={tyre.measurement_photo_url || ''}
+									label="Measurement"
+									{assessmentId}
+									category="tyres"
+									subcategory={`${tyre.position}_measurement`}
+									onUpload={(url) => onUpdateTyre(tyre.id, { measurement_photo_url: url })}
+									onRemove={() => onUpdateTyre(tyre.id, { measurement_photo_url: '' })}
+									height="h-32"
+								/>
+							</div>
+						</div>
 
 						<FormField
 							label="Notes"

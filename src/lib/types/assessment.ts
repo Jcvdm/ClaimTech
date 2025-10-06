@@ -137,7 +137,9 @@ export interface Tyre {
 	speed_rating?: string | null;
 	tread_depth_mm?: number | null;
 	condition?: TyreCondition | null;
-	photo_url?: string | null;
+	face_photo_url?: string | null;
+	tread_photo_url?: string | null;
+	measurement_photo_url?: string | null;
 	notes?: string | null;
 	created_at: string;
 	updated_at: string;
