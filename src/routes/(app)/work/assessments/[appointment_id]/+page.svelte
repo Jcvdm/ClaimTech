@@ -8,6 +8,7 @@
 	import InteriorMechanicalTab from '$lib/components/assessment/InteriorMechanicalTab.svelte';
 	import TyresTab from '$lib/components/assessment/TyresTab.svelte';
 	import DamageTab from '$lib/components/assessment/DamageTab.svelte';
+	import AssessmentNotes from '$lib/components/assessment/AssessmentNotes.svelte';
 	import { assessmentService } from '$lib/services/assessment.service';
 	import { vehicleIdentificationService } from '$lib/services/vehicle-identification.service';
 	import { exterior360Service } from '$lib/services/exterior-360.service';
@@ -341,5 +342,14 @@
 			onComplete={handleCompleteDamage}
 		/>
 	{/if}
+
+	<!-- Global Assessment Notes (visible on all tabs) -->
+	<div class="mt-6">
+		<AssessmentNotes
+			assessmentId={data.assessment.id}
+			notes={data.notes}
+			onUpdate={async () => await invalidateAll()}
+		/>
+	</div>
 </AssessmentLayout>
 

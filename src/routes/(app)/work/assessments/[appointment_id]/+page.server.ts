@@ -7,6 +7,7 @@ import { accessoriesService } from '$lib/services/accessories.service';
 import { interiorMechanicalService } from '$lib/services/interior-mechanical.service';
 import { tyresService } from '$lib/services/tyres.service';
 import { damageService } from '$lib/services/damage.service';
+import { assessmentNotesService } from '$lib/services/assessment-notes.service';
 import { appointmentService } from '$lib/services/appointment.service';
 import { inspectionService } from '$lib/services/inspection.service';
 import { requestService } from '$lib/services/request.service';
@@ -44,6 +45,7 @@ export const load: PageServerLoad = async ({ params }) => {
 			interiorMechanical,
 			tyres,
 			damageRecords,
+			notes,
 			inspection,
 			request
 		] = await Promise.all([
@@ -53,6 +55,7 @@ export const load: PageServerLoad = async ({ params }) => {
 			interiorMechanicalService.getByAssessment(assessment.id),
 			tyresService.listByAssessment(assessment.id),
 			damageService.listByAssessment(assessment.id),
+			assessmentNotesService.getNotesByAssessment(assessment.id),
 			inspectionService.getInspection(appointment.inspection_id),
 			requestService.getRequest(appointment.request_id)
 		]);
@@ -66,6 +69,7 @@ export const load: PageServerLoad = async ({ params }) => {
 			interiorMechanical,
 			tyres,
 			damageRecords,
+			notes,
 			inspection,
 			request
 		};

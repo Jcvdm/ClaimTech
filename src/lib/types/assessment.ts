@@ -7,6 +7,12 @@ export type VehicleCondition = 'excellent' | 'very_good' | 'good' | 'fair' | 'po
 // System status types
 export type SystemStatus = 'working' | 'not_working' | 'issues' | 'warning_light' | 'not_applicable';
 
+// SRS system status types (includes deployed for airbags/seatbelts)
+export type SRSSystemStatus = 'operational' | 'warning_light' | 'not_working' | 'deployed';
+
+// Transmission types
+export type TransmissionType = 'automatic' | 'manual';
+
 // Tyre condition types
 export type TyreCondition = 'excellent' | 'good' | 'fair' | 'poor' | 'replace';
 
@@ -113,9 +119,12 @@ export interface InteriorMechanical {
 	interior_front_photo_url?: string | null;
 	interior_rear_photo_url?: string | null;
 	dashboard_photo_url?: string | null;
+	gear_lever_photo_url?: string | null;
 	mileage_reading?: number | null;
 	interior_condition?: VehicleCondition | null;
-	srs_system?: SystemStatus | null;
+	transmission_type?: TransmissionType | null;
+	vehicle_has_power?: boolean | null;
+	srs_system?: SRSSystemStatus | null;
 	steering?: SystemStatus | null;
 	brakes?: SystemStatus | null;
 	handbrake?: SystemStatus | null;
@@ -161,6 +170,16 @@ export interface DamageRecord {
 	photos: Array<{ url: string; description: string; panel?: string }>;
 	damage_description?: string | null;
 	repair_notes?: string | null;
+	created_at: string;
+	updated_at: string;
+}
+
+// Assessment note interface (global notes visible across all tabs)
+export interface AssessmentNote {
+	id: string;
+	assessment_id: string;
+	note_text: string;
+	created_by?: string | null;
 	created_at: string;
 	updated_at: string;
 }
@@ -236,9 +255,12 @@ export interface CreateInteriorMechanicalInput {
 	interior_front_photo_url?: string;
 	interior_rear_photo_url?: string;
 	dashboard_photo_url?: string;
+	gear_lever_photo_url?: string;
 	mileage_reading?: number;
 	interior_condition?: VehicleCondition;
-	srs_system?: SystemStatus;
+	transmission_type?: TransmissionType;
+	vehicle_has_power?: boolean;
+	srs_system?: SRSSystemStatus;
 	steering?: SystemStatus;
 	brakes?: SystemStatus;
 	handbrake?: SystemStatus;
@@ -284,3 +306,12 @@ export interface CreateDamageRecordInput {
 export interface UpdateDamageRecordInput
 	extends Partial<Omit<CreateDamageRecordInput, 'assessment_id'>> {}
 
+export interface CreateAssessmentNoteInput {
+	assessment_id: string;
+	note_text: string;
+	created_by?: string;
+}
+
+export interface UpdateAssessmentNoteInput {
+	note_text?: string;
+}

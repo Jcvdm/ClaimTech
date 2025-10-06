@@ -24,10 +24,13 @@
 	let interiorFrontPhotoUrl = $state(data?.interior_front_photo_url || '');
 	let interiorRearPhotoUrl = $state(data?.interior_rear_photo_url || '');
 	let dashboardPhotoUrl = $state(data?.dashboard_photo_url || '');
+	let gearLeverPhotoUrl = $state(data?.gear_lever_photo_url || '');
 
 	// Data
 	let mileageReading = $state(data?.mileage_reading?.toString() || '');
 	let interiorCondition = $state(data?.interior_condition || '');
+	let transmissionType = $state(data?.transmission_type || '');
+	let vehicleHasPower = $state(data?.vehicle_has_power !== null ? data?.vehicle_has_power?.toString() : '');
 	let srsSystem = $state(data?.srs_system || '');
 	let steering = $state(data?.steering || '');
 	let brakes = $state(data?.brakes || '');
@@ -45,8 +48,11 @@
 			interior_front_photo_url: interiorFrontPhotoUrl || undefined,
 			interior_rear_photo_url: interiorRearPhotoUrl || undefined,
 			dashboard_photo_url: dashboardPhotoUrl || undefined,
+			gear_lever_photo_url: gearLeverPhotoUrl || undefined,
 			mileage_reading: mileageReading ? parseInt(mileageReading) : undefined,
 			interior_condition: interiorCondition as any,
+			transmission_type: transmissionType as any,
+			vehicle_has_power: vehicleHasPower ? vehicleHasPower === 'true' : undefined,
 			srs_system: srsSystem as any,
 			steering: steering as any,
 			brakes: brakes as any,
@@ -139,6 +145,40 @@
 		</div>
 	</Card>
 
+	<!-- Transmission & Power -->
+	<Card class="p-6">
+		<h3 class="mb-4 text-lg font-semibold text-gray-900">Transmission & Power</h3>
+		<div class="grid gap-6 md:grid-cols-3">
+			<FormField
+				label="Transmission Type"
+				type="select"
+				bind:value={transmissionType}
+				options={[
+					{ value: 'automatic', label: 'Automatic' },
+					{ value: 'manual', label: 'Manual' }
+				]}
+			/>
+			<FormField
+				label="Vehicle Has Power?"
+				type="select"
+				bind:value={vehicleHasPower}
+				options={[
+					{ value: 'true', label: 'Yes' },
+					{ value: 'false', label: 'No' }
+				]}
+			/>
+			<PhotoUpload
+				value={gearLeverPhotoUrl}
+				label="Gear Lever Photo"
+				{assessmentId}
+				category="interior"
+				subcategory="gear_lever"
+				onUpload={(url) => { gearLeverPhotoUrl = url; handleSave(); }}
+				onRemove={() => { gearLeverPhotoUrl = ''; handleSave(); }}
+			/>
+		</div>
+	</Card>
+
 	<!-- Interior Photos -->
 	<Card class="p-6">
 		<h3 class="mb-4 text-lg font-semibold text-gray-900">Interior Photos</h3>
@@ -204,14 +244,14 @@
 		</h3>
 		<div class="grid gap-6 md:grid-cols-2">
 			<FormField
-				label="SRS System (Airbags)"
+				label="SRS System (Airbags/Seatbelts)"
 				type="select"
 				bind:value={srsSystem}
 				options={[
-					{ value: 'working', label: 'Working' },
-					{ value: 'not_working', label: 'Not Working' },
+					{ value: 'operational', label: 'Operational' },
 					{ value: 'warning_light', label: 'Warning Light On' },
-					{ value: 'not_applicable', label: 'Not Applicable' }
+					{ value: 'not_working', label: 'Not Working' },
+					{ value: 'deployed', label: 'Deployed' }
 				]}
 				required
 			/>
