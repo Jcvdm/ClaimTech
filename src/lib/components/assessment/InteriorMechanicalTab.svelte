@@ -35,8 +35,6 @@
 	let steering = $state(data?.steering || '');
 	let brakes = $state(data?.brakes || '');
 	let handbrake = $state(data?.handbrake || '');
-	let mechanicalNotes = $state(data?.mechanical_notes || '');
-	let interiorNotes = $state(data?.interior_notes || '');
 
 	function handleSave() {
 		onUpdate({
@@ -56,9 +54,7 @@
 			srs_system: srsSystem as any,
 			steering: steering as any,
 			brakes: brakes as any,
-			handbrake: handbrake as any,
-			mechanical_notes: mechanicalNotes || undefined,
-			interior_notes: interiorNotes || undefined
+			handbrake: handbrake as any
 		});
 	}
 
@@ -159,7 +155,7 @@
 				]}
 			/>
 			<FormField
-				label="Vehicle Has Power?"
+				label="Battery Charged?"
 				type="select"
 				bind:value={vehicleHasPower}
 				options={[
@@ -287,27 +283,6 @@
 					{ value: 'issues', label: 'Has Issues' }
 				]}
 				required
-			/>
-		</div>
-	</Card>
-
-	<!-- Notes -->
-	<Card class="p-6">
-		<h3 class="mb-4 text-lg font-semibold text-gray-900">Additional Notes</h3>
-		<div class="space-y-4">
-			<FormField
-				label="Mechanical Notes"
-				type="textarea"
-				bind:value={mechanicalNotes}
-				placeholder="Any mechanical issues, concerns, or observations..."
-				rows={3}
-			/>
-			<FormField
-				label="Interior Notes"
-				type="textarea"
-				bind:value={interiorNotes}
-				placeholder="Any interior damage, wear, or observations..."
-				rows={3}
 			/>
 		</div>
 	</Card>

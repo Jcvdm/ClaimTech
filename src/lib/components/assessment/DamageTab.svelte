@@ -105,23 +105,30 @@
 	<!-- Damage Records -->
 	<div class="flex items-center justify-between">
 		<h3 class="text-lg font-semibold text-gray-900">Damage Records</h3>
-		<Button onclick={onAddDamage}>
-			<Plus class="mr-2 h-4 w-4" />
-			Add Damage Record
-		</Button>
+		{#if damageRecords.length > 0}
+			<Button onclick={onAddDamage}>
+				<Plus class="mr-2 h-4 w-4" />
+				Add Another Damage Record
+			</Button>
+		{/if}
 	</div>
 
-	{#if damageRecords.length === 0}
-		<Card class="p-12">
-			<div class="text-center">
-				<p class="text-gray-500">No damage records added yet.</p>
-				<p class="mt-2 text-sm text-gray-400">
-					Click "Add Damage Record" to document vehicle damage
+	<div class="space-y-4">
+		{#if damageRecords.length === 0}
+			<!-- Show empty form when no records exist -->
+			<Card class="p-6 border-2 border-dashed border-blue-300 bg-blue-50/30">
+				<div class="mb-4 flex items-center justify-between">
+					<h4 class="text-lg font-semibold text-gray-900">Damage Record #1</h4>
+					<Button size="sm" onclick={onAddDamage}>
+						<Plus class="mr-2 h-4 w-4" />
+						Create First Damage Record
+					</Button>
+				</div>
+				<p class="text-sm text-gray-600">
+					Click "Create First Damage Record" to start documenting vehicle damage.
 				</p>
-			</div>
-		</Card>
-	{:else}
-		<div class="space-y-4">
+			</Card>
+		{:else}
 			{#each damageRecords as damage, index}
 				<Card class="p-6">
 					<div class="mb-4 flex items-center justify-between">
@@ -161,44 +168,32 @@
 							/>
 						</div>
 
-						<div class="grid gap-6 md:grid-cols-2">
-							<FormField
-								label="Severity"
-								type="select"
-								value={damage.severity || ''}
-								onChange={(e) =>
-									onUpdateDamage(damage.id, {
-										severity: (e.target as HTMLSelectElement).value as DamageSeverity
-									})}
-								options={[
-									{ value: '', label: 'Select severity' },
-									{ value: 'minor', label: 'Minor' },
-									{ value: 'moderate', label: 'Moderate' },
-									{ value: 'severe', label: 'Severe' },
-									{ value: 'total_loss', label: 'Total Loss' }
-								]}
-							/>
-							<FormField
-								label="Repair Method"
-								type="text"
-								value={damage.repair_method || ''}
-								onInput={(e) =>
-									onUpdateDamage(damage.id, {
-										repair_method: (e.target as HTMLInputElement).value
-									})}
-								placeholder="e.g., Repair, Replace, Paint, PDR"
-							/>
-						</div>
+						<FormField
+							label="Severity"
+							type="select"
+							value={damage.severity || ''}
+							onChange={(e) =>
+								onUpdateDamage(damage.id, {
+									severity: (e.target as HTMLSelectElement).value as DamageSeverity
+								})}
+							options={[
+								{ value: '', label: 'Select severity' },
+								{ value: 'minor', label: 'Minor' },
+								{ value: 'moderate', label: 'Moderate' },
+								{ value: 'severe', label: 'Severe' },
+								{ value: 'total_loss', label: 'Total Loss' }
+							]}
+						/>
 
 						<FormField
-							label="Repair Duration (hours)"
+							label="Estimated Repair Duration (days)"
 							type="number"
-							value={damage.repair_duration_hours?.toString() || ''}
+							value={damage.estimated_repair_duration_days?.toString() || ''}
 							onInput={(e) =>
 								onUpdateDamage(damage.id, {
-									repair_duration_hours: parseFloat((e.target as HTMLInputElement).value)
+									estimated_repair_duration_days: parseFloat((e.target as HTMLInputElement).value)
 								})}
-							placeholder="Estimated hours"
+							placeholder="e.g., 1, 3, 7"
 							step="0.5"
 						/>
 
@@ -223,18 +218,6 @@
 									damage_description: (e.target as HTMLTextAreaElement).value
 								})}
 							placeholder="Detailed description of the damage..."
-							rows={3}
-						/>
-
-						<FormField
-							label="Repair Notes"
-							type="textarea"
-							value={damage.repair_notes || ''}
-							onInput={(e) =>
-								onUpdateDamage(damage.id, {
-									repair_notes: (e.target as HTMLTextAreaElement).value
-								})}
-							placeholder="Notes about repair process, parts needed, etc..."
 							rows={3}
 						/>
 
@@ -282,8 +265,8 @@
 					</div>
 				</Card>
 			{/each}
-		</div>
-	{/if}
+		{/if}
+	</div>
 
 	<!-- Actions -->
 	<div class="flex justify-between">

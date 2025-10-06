@@ -164,8 +164,7 @@ export interface DamageRecord {
 	damage_type: DamageType;
 	affected_panels: string[];
 	severity?: DamageSeverity | null;
-	repair_method?: string | null;
-	repair_duration_hours?: number | null;
+	estimated_repair_duration_days?: number | null;
 	location_description?: string | null;
 	photos: Array<{ url: string; description: string; panel?: string }>;
 	damage_description?: string | null;
@@ -295,8 +294,7 @@ export interface CreateDamageRecordInput {
 	damage_type: DamageType;
 	affected_panels?: string[];
 	severity?: DamageSeverity;
-	repair_method?: string;
-	repair_duration_hours?: number;
+	estimated_repair_duration_days?: number;
 	location_description?: string;
 	photos?: Array<{ url: string; description: string; panel?: string }>;
 	damage_description?: string;
