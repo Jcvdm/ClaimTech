@@ -1,4 +1,17 @@
-export type EntityType = 'request' | 'inspection' | 'task' | 'client' | 'engineer' | 'appointment';
+export type EntityType =
+	| 'request'
+	| 'inspection'
+	| 'task'
+	| 'client'
+	| 'engineer'
+	| 'appointment'
+	| 'assessment'
+	| 'vehicle_identification'
+	| 'exterior_360'
+	| 'accessory'
+	| 'interior_mechanical'
+	| 'tyre'
+	| 'damage_record';
 
 export type AuditAction =
 	| 'created'
