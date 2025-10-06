@@ -30,7 +30,9 @@
 	}: Props = $props();
 
 	let uploading = $state(false);
+	let uploadProgress = $state(0);
 	let error = $state<string | null>(null);
+	let isDragging = $state(false);
 	let fileInput: HTMLInputElement;
 	let cameraInput: HTMLInputElement;
 
@@ -52,23 +54,75 @@
 		await uploadFile(file);
 	}
 
+	// Drag and drop handlers
+	function handleDragEnter(event: DragEvent) {
+		event.preventDefault();
+		event.stopPropagation();
+		isDragging = true;
+	}
+
+	function handleDragOver(event: DragEvent) {
+		event.preventDefault();
+		event.stopPropagation();
+		isDragging = true;
+	}
+
+	function handleDragLeave(event: DragEvent) {
+		event.preventDefault();
+		event.stopPropagation();
+		isDragging = false;
+	}
+
+	async function handleDrop(event: DragEvent) {
+		event.preventDefault();
+		event.stopPropagation();
+		isDragging = false;
+
+		const file = event.dataTransfer?.files?.[0];
+		if (!file) return;
+
+		// Validate file type
+		if (!file.type.startsWith('image/')) {
+			error = 'Please drop an image file';
+			return;
+		}
+
+		await uploadFile(file);
+	}
+
 	async function uploadFile(file: File) {
 		uploading = true;
+		uploadProgress = 0;
 		error = null;
 
 		try {
+			// Simulate progress for better UX
+			const progressInterval = setInterval(() => {
+				if (uploadProgress < 90) {
+					uploadProgress += 10;
+				}
+			}, 100);
+
 			const result = await storageService.uploadAssessmentPhoto(
 				file,
 				assessmentId,
 				category,
 				subcategory
 			);
+
+			clearInterval(progressInterval);
+			uploadProgress = 100;
+
+			// Small delay to show 100% before completing
+			await new Promise(resolve => setTimeout(resolve, 300));
+
 			onUpload(result.url);
 		} catch (err) {
 			console.error('Upload error:', err);
 			error = err instanceof Error ? err.message : 'Failed to upload photo';
 		} finally {
 			uploading = false;
+			uploadProgress = 0;
 		}
 	}
 
@@ -128,18 +182,40 @@
 			{/if}
 		</div>
 	{:else}
-		<!-- Upload Buttons -->
-		<div class="flex gap-2">
+		<!-- Upload Area with Drag & Drop -->
+		<div
+			class="flex gap-2"
+			ondragenter={handleDragEnter}
+			ondragover={handleDragOver}
+			ondragleave={handleDragLeave}
+			ondrop={handleDrop}
+		>
 			<button
 				type="button"
-				class="flex {height} flex-1 items-center justify-center rounded-lg border-2 border-dashed border-gray-300 bg-gray-50 hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50"
+				class="flex {height} flex-1 items-center justify-center rounded-lg border-2 border-dashed transition-all {isDragging
+					? 'border-blue-500 bg-blue-50'
+					: 'border-gray-300 bg-gray-50 hover:bg-gray-100'} disabled:cursor-not-allowed disabled:opacity-50"
 				onclick={triggerCameraInput}
 				disabled={disabled || uploading}
 			>
 				<div class="text-center">
 					{#if uploading}
-						<Loader2 class="mx-auto h-8 w-8 animate-spin text-gray-400" />
-						<p class="mt-2 text-sm text-gray-600">Uploading...</p>
+						<div class="space-y-2">
+							<Loader2 class="mx-auto h-8 w-8 animate-spin text-blue-500" />
+							<p class="text-sm font-medium text-gray-700">Uploading...</p>
+							<div class="mx-auto h-2 w-32 overflow-hidden rounded-full bg-gray-200">
+								<div
+									class="h-full bg-blue-500 transition-all duration-300"
+									style="width: {uploadProgress}%"
+								></div>
+							</div>
+							<p class="text-xs text-gray-500">{uploadProgress}%</p>
+						</div>
+					{:else if isDragging}
+						<div>
+							<Upload class="mx-auto h-8 w-8 text-blue-500" />
+							<p class="mt-2 text-sm font-medium text-blue-600">Drop photo here</p>
+						</div>
 					{:else}
 						<Camera class="mx-auto h-8 w-8 text-gray-400" />
 						<p class="mt-2 text-sm text-gray-600">Take Photo</p>
@@ -149,17 +225,34 @@
 
 			<button
 				type="button"
-				class="flex {height} flex-1 items-center justify-center rounded-lg border-2 border-dashed border-gray-300 bg-gray-50 hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50"
+				class="flex {height} flex-1 items-center justify-center rounded-lg border-2 border-dashed transition-all {isDragging
+					? 'border-blue-500 bg-blue-50'
+					: 'border-gray-300 bg-gray-50 hover:bg-gray-100'} disabled:cursor-not-allowed disabled:opacity-50"
 				onclick={triggerFileInput}
 				disabled={disabled || uploading}
 			>
 				<div class="text-center">
 					{#if uploading}
-						<Loader2 class="mx-auto h-8 w-8 animate-spin text-gray-400" />
-						<p class="mt-2 text-sm text-gray-600">Uploading...</p>
+						<div class="space-y-2">
+							<Loader2 class="mx-auto h-8 w-8 animate-spin text-blue-500" />
+							<p class="text-sm font-medium text-gray-700">Uploading...</p>
+							<div class="mx-auto h-2 w-32 overflow-hidden rounded-full bg-gray-200">
+								<div
+									class="h-full bg-blue-500 transition-all duration-300"
+									style="width: {uploadProgress}%"
+								></div>
+							</div>
+							<p class="text-xs text-gray-500">{uploadProgress}%</p>
+						</div>
+					{:else if isDragging}
+						<div>
+							<Upload class="mx-auto h-8 w-8 text-blue-500" />
+							<p class="mt-2 text-sm font-medium text-blue-600">Drop photo here</p>
+						</div>
 					{:else}
 						<Upload class="mx-auto h-8 w-8 text-gray-400" />
 						<p class="mt-2 text-sm text-gray-600">Upload File</p>
+						<p class="mt-1 text-xs text-gray-500">or drag & drop</p>
 					{/if}
 				</div>
 			</button>
