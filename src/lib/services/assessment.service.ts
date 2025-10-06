@@ -120,6 +120,62 @@ export class AssessmentService {
 	}
 
 	/**
+	 * Get all in-progress assessments with related data (for Open Assessments list)
+	 */
+	async getInProgressAssessments(): Promise<any[]> {
+		const { data, error } = await supabase
+			.from('assessments')
+			.select(
+				`
+				*,
+				requests:request_id (
+					request_number,
+					vehicle_make,
+					vehicle_model,
+					vehicle_year,
+					vehicle_registration
+				),
+				inspections:inspection_id (
+					inspection_number
+				),
+				appointments:appointment_id (
+					appointment_number,
+					engineer_id,
+					engineers:engineer_id (
+						name
+					)
+				)
+			`
+			)
+			.eq('status', 'in_progress')
+			.order('updated_at', { ascending: false });
+
+		if (error) {
+			console.error('Error fetching in-progress assessments:', error);
+			throw new Error(`Failed to fetch in-progress assessments: ${error.message}`);
+		}
+
+		return data || [];
+	}
+
+	/**
+	 * Get count of in-progress assessments
+	 */
+	async getInProgressCount(): Promise<number> {
+		const { count, error } = await supabase
+			.from('assessments')
+			.select('*', { count: 'exact', head: true })
+			.eq('status', 'in_progress');
+
+		if (error) {
+			console.error('Error counting in-progress assessments:', error);
+			return 0;
+		}
+
+		return count || 0;
+	}
+
+	/**
 	 * Update assessment
 	 */
 	async updateAssessment(id: string, input: UpdateAssessmentInput): Promise<Assessment> {

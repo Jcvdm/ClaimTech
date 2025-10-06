@@ -117,6 +117,48 @@ export class InspectionService {
 	}
 
 	/**
+	 * List inspections without appointments (for Inspections list page)
+	 * Only shows inspections that haven't had an appointment scheduled yet
+	 */
+	async listInspectionsWithoutAppointments(): Promise<Inspection[]> {
+		// Query inspections and check if they have appointments
+		const { data: inspections, error: inspError } = await supabase
+			.from('inspections')
+			.select('*')
+			.in('status', ['pending', 'scheduled'])
+			.order('created_at', { ascending: false });
+
+		if (inspError) {
+			console.error('Error fetching inspections:', inspError);
+			throw new Error(`Failed to fetch inspections: ${inspError.message}`);
+		}
+
+		if (!inspections || inspections.length === 0) {
+			return [];
+		}
+
+		// Get all appointments for these inspections
+		const inspectionIds = inspections.map((i) => i.id);
+		const { data: appointments, error: appError } = await supabase
+			.from('appointments')
+			.select('inspection_id')
+			.in('inspection_id', inspectionIds);
+
+		if (appError) {
+			console.error('Error fetching appointments:', appError);
+			// Continue without filtering if appointments query fails
+			return inspections;
+		}
+
+		// Filter out inspections that have appointments
+		const inspectionsWithAppointments = new Set(
+			appointments?.map((a) => a.inspection_id) || []
+		);
+
+		return inspections.filter((i) => !inspectionsWithAppointments.has(i.id));
+	}
+
+	/**
 	 * Get single inspection by ID
 	 */
 	async getInspection(id: string): Promise<Inspection | null> {

@@ -4,7 +4,8 @@ import type { PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async () => {
 	try {
-		const inspections = await inspectionService.listInspections();
+		// Only show inspections that don't have appointments yet
+		const inspections = await inspectionService.listInspectionsWithoutAppointments();
 
 		// Get all unique client IDs
 		const clientIds = [...new Set(inspections.map((i) => i.client_id))];
