@@ -246,6 +246,7 @@
 	{:else if currentTab === '360'}
 		<Exterior360Tab
 			data={data.exterior360}
+			assessmentId={data.assessment.id}
 			accessories={data.accessories}
 			onUpdate={handleUpdateExterior360}
 			onAddAccessory={handleAddAccessory}
@@ -255,6 +256,7 @@
 	{:else if currentTab === 'interior'}
 		<InteriorMechanicalTab
 			data={data.interiorMechanical}
+			assessmentId={data.assessment.id}
 			onUpdate={handleUpdateInteriorMechanical}
 			onComplete={handleCompleteInteriorMechanical}
 		/>

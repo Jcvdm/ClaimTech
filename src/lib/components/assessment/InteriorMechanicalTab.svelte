@@ -2,16 +2,18 @@
 	import { Card } from '$lib/components/ui/card';
 	import { Button } from '$lib/components/ui/button';
 	import FormField from '$lib/components/forms/FormField.svelte';
-	import { Camera, CheckCircle } from 'lucide-svelte';
+	import PhotoUpload from '$lib/components/forms/PhotoUpload.svelte';
+	import { CheckCircle } from 'lucide-svelte';
 	import type { InteriorMechanical } from '$lib/types/assessment';
 
 	interface Props {
 		data: InteriorMechanical | null;
+		assessmentId: string;
 		onUpdate: (data: Partial<InteriorMechanical>) => void;
 		onComplete: () => void;
 	}
 
-	let { data, onUpdate, onComplete }: Props = $props();
+	let { data, assessmentId, onUpdate, onComplete }: Props = $props();
 
 	// Photos
 	let engineBayPhotoUrl = $state(data?.engine_bay_photo_url || '');
@@ -62,14 +64,6 @@
 	const isComplete = $derived(
 		mileageReading && interiorCondition && srsSystem && steering && brakes && handbrake
 	);
-
-	function PhotoUpload(props: { label: string; value: string; onChange: (val: string) => void }) {
-		return {
-			label: props.label,
-			value: props.value,
-			onChange: props.onChange
-		};
-	}
 </script>
 
 <div class="space-y-6">
@@ -77,42 +71,46 @@
 	<Card class="p-6">
 		<h3 class="mb-4 text-lg font-semibold text-gray-900">Engine Bay</h3>
 		<div class="grid gap-4 md:grid-cols-4">
-			{#each [
-				{ label: 'Engine Bay', value: engineBayPhotoUrl, setter: (v: string) => (engineBayPhotoUrl = v) },
-				{ label: 'Battery', value: batteryPhotoUrl, setter: (v: string) => (batteryPhotoUrl = v) },
-				{ label: 'Oil Level', value: oilLevelPhotoUrl, setter: (v: string) => (oilLevelPhotoUrl = v) },
-				{ label: 'Coolant', value: coolantPhotoUrl, setter: (v: string) => (coolantPhotoUrl = v) }
-			] as photo}
-				<div>
-					<label class="mb-2 block text-sm font-medium text-gray-700">{photo.label}</label>
-					{#if photo.value}
-						<div class="relative">
-							<img
-								src={photo.value}
-								alt={photo.label}
-								class="h-32 w-full rounded-lg object-cover"
-							/>
-							<Button
-								size="sm"
-								variant="outline"
-								class="absolute right-2 top-2"
-								onclick={() => photo.setter('')}
-							>
-								Change
-							</Button>
-						</div>
-					{:else}
-						<button
-							class="flex h-32 w-full items-center justify-center rounded-lg border-2 border-dashed border-gray-300 bg-gray-50 hover:bg-gray-100"
-						>
-							<div class="text-center">
-								<Camera class="mx-auto h-6 w-6 text-gray-400" />
-								<p class="mt-1 text-xs text-gray-600">Take Photo</p>
-							</div>
-						</button>
-					{/if}
-				</div>
-			{/each}
+			<PhotoUpload
+				value={engineBayPhotoUrl}
+				label="Engine Bay"
+				{assessmentId}
+				category="interior"
+				subcategory="engine_bay"
+				onUpload={(url) => { engineBayPhotoUrl = url; handleSave(); }}
+				onRemove={() => { engineBayPhotoUrl = ''; handleSave(); }}
+				height="h-32"
+			/>
+			<PhotoUpload
+				value={batteryPhotoUrl}
+				label="Battery"
+				{assessmentId}
+				category="interior"
+				subcategory="battery"
+				onUpload={(url) => { batteryPhotoUrl = url; handleSave(); }}
+				onRemove={() => { batteryPhotoUrl = ''; handleSave(); }}
+				height="h-32"
+			/>
+			<PhotoUpload
+				value={oilLevelPhotoUrl}
+				label="Oil Level"
+				{assessmentId}
+				category="interior"
+				subcategory="oil"
+				onUpload={(url) => { oilLevelPhotoUrl = url; handleSave(); }}
+				onRemove={() => { oilLevelPhotoUrl = ''; handleSave(); }}
+				height="h-32"
+			/>
+			<PhotoUpload
+				value={coolantPhotoUrl}
+				label="Coolant"
+				{assessmentId}
+				category="interior"
+				subcategory="coolant"
+				onUpload={(url) => { coolantPhotoUrl = url; handleSave(); }}
+				onRemove={() => { coolantPhotoUrl = ''; handleSave(); }}
+				height="h-32"
+			/>
 		</div>
 	</Card>
 
@@ -129,35 +127,15 @@
 				placeholder="e.g., 125000"
 				required
 			/>
-			<div>
-				<label class="mb-2 block text-sm font-medium text-gray-700">Mileage Photo</label>
-				{#if mileagePhotoUrl}
-					<div class="relative">
-						<img
-							src={mileagePhotoUrl}
-							alt="Mileage"
-							class="h-32 w-full rounded-lg object-cover"
-						/>
-						<Button
-							size="sm"
-							variant="outline"
-							class="absolute right-2 top-2"
-							onclick={() => (mileagePhotoUrl = '')}
-						>
-							Change
-						</Button>
-					</div>
-				{:else}
-					<button
-						class="flex h-32 w-full items-center justify-center rounded-lg border-2 border-dashed border-gray-300 bg-gray-50 hover:bg-gray-100"
-					>
-						<div class="text-center">
-							<Camera class="mx-auto h-6 w-6 text-gray-400" />
-							<p class="mt-1 text-xs text-gray-600">Take Photo</p>
-						</div>
-					</button>
-				{/if}
-			</div>
+			<PhotoUpload
+				value={mileagePhotoUrl}
+				label="Mileage Photo"
+				{assessmentId}
+				category="interior"
+				subcategory="mileage"
+				onUpload={(url) => { mileagePhotoUrl = url; handleSave(); }}
+				onRemove={() => { mileagePhotoUrl = ''; handleSave(); }}
+			/>
 		</div>
 	</Card>
 
@@ -165,41 +143,36 @@
 	<Card class="p-6">
 		<h3 class="mb-4 text-lg font-semibold text-gray-900">Interior Photos</h3>
 		<div class="grid gap-4 md:grid-cols-3">
-			{#each [
-				{ label: 'Front Interior', value: interiorFrontPhotoUrl, setter: (v: string) => (interiorFrontPhotoUrl = v) },
-				{ label: 'Rear Interior', value: interiorRearPhotoUrl, setter: (v: string) => (interiorRearPhotoUrl = v) },
-				{ label: 'Dashboard', value: dashboardPhotoUrl, setter: (v: string) => (dashboardPhotoUrl = v) }
-			] as photo}
-				<div>
-					<label class="mb-2 block text-sm font-medium text-gray-700">{photo.label}</label>
-					{#if photo.value}
-						<div class="relative">
-							<img
-								src={photo.value}
-								alt={photo.label}
-								class="h-32 w-full rounded-lg object-cover"
-							/>
-							<Button
-								size="sm"
-								variant="outline"
-								class="absolute right-2 top-2"
-								onclick={() => photo.setter('')}
-							>
-								Change
-							</Button>
-						</div>
-					{:else}
-						<button
-							class="flex h-32 w-full items-center justify-center rounded-lg border-2 border-dashed border-gray-300 bg-gray-50 hover:bg-gray-100"
-						>
-							<div class="text-center">
-								<Camera class="mx-auto h-6 w-6 text-gray-400" />
-								<p class="mt-1 text-xs text-gray-600">Take Photo</p>
-							</div>
-						</button>
-					{/if}
-				</div>
-			{/each}
+			<PhotoUpload
+				value={interiorFrontPhotoUrl}
+				label="Front Interior"
+				{assessmentId}
+				category="interior"
+				subcategory="front"
+				onUpload={(url) => { interiorFrontPhotoUrl = url; handleSave(); }}
+				onRemove={() => { interiorFrontPhotoUrl = ''; handleSave(); }}
+				height="h-32"
+			/>
+			<PhotoUpload
+				value={interiorRearPhotoUrl}
+				label="Rear Interior"
+				{assessmentId}
+				category="interior"
+				subcategory="rear"
+				onUpload={(url) => { interiorRearPhotoUrl = url; handleSave(); }}
+				onRemove={() => { interiorRearPhotoUrl = ''; handleSave(); }}
+				height="h-32"
+			/>
+			<PhotoUpload
+				value={dashboardPhotoUrl}
+				label="Dashboard"
+				{assessmentId}
+				category="interior"
+				subcategory="dashboard"
+				onUpload={(url) => { dashboardPhotoUrl = url; handleSave(); }}
+				onRemove={() => { dashboardPhotoUrl = ''; handleSave(); }}
+				height="h-32"
+			/>
 		</div>
 	</Card>
 
