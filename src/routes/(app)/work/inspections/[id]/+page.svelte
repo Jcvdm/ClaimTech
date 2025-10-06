@@ -28,7 +28,8 @@
 		RotateCcw,
 		Calendar,
 		MapPin,
-		Clock
+		Clock,
+		ClipboardList
 	} from 'lucide-svelte';
 	import { inspectionService } from '$lib/services/inspection.service';
 	import { requestService } from '$lib/services/request.service';
@@ -402,11 +403,23 @@
 
 					<!-- Schedule Appointment Button -->
 					{#if data.inspection.status === 'scheduled' || data.inspection.status === 'in_progress'}
-						<div class="mt-4 border-t pt-4">
+						<div class="mt-4 border-t pt-4 space-y-2">
 							<Button class="w-full" onclick={handleOpenCreateAppointmentModal}>
 								<Calendar class="mr-2 h-4 w-4" />
 								Schedule Appointment
 							</Button>
+
+							<!-- View Assessment Button (if appointment exists) -->
+							{#if data.appointment}
+								<Button
+									class="w-full"
+									variant="outline"
+									onclick={() => goto(`/work/assessments/${data.appointment?.id}`)}
+								>
+									<ClipboardList class="mr-2 h-4 w-4" />
+									View Assessment
+								</Button>
+							{/if}
 						</div>
 					{/if}
 				</Card>

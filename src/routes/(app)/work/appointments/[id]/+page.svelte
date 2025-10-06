@@ -31,19 +31,18 @@
 		goto('/work/appointments');
 	}
 
-	async function handleStartAppointment() {
-		if (!confirm('Start this appointment?')) return;
-
+	async function handleStartAssessment() {
+		// Update appointment status to in_progress and navigate to assessment
 		loading = true;
 		error = null;
 
 		try {
 			await appointmentService.updateAppointmentStatus(data.appointment.id, 'in_progress');
-			await invalidateAll();
+			// Navigate to assessment page
+			goto(`/work/assessments/${data.appointment.id}`);
 		} catch (err) {
-			console.error('Error starting appointment:', err);
-			error = err instanceof Error ? err.message : 'Failed to start appointment';
-		} finally {
+			console.error('Error starting assessment:', err);
+			error = err instanceof Error ? err.message : 'Failed to start assessment';
 			loading = false;
 		}
 	}
@@ -117,11 +116,11 @@
 				Back to List
 			</Button>
 
-			<!-- Start button for scheduled/confirmed appointments -->
+			<!-- Start Assessment button for scheduled/confirmed appointments -->
 			{#if data.appointment.status === 'scheduled' || data.appointment.status === 'confirmed'}
-				<Button variant="default" onclick={handleStartAppointment} disabled={loading}>
+				<Button variant="default" onclick={handleStartAssessment} disabled={loading}>
 					<Play class="mr-2 h-4 w-4" />
-					Start Appointment
+					Start Assessment
 				</Button>
 			{/if}
 
