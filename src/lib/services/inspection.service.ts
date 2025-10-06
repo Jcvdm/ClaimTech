@@ -1,4 +1,5 @@
 import { supabase } from '$lib/supabase';
+import { auditService } from './audit.service';
 import type {
 	Inspection,
 	CreateInspectionInput,
@@ -57,6 +58,7 @@ export class InspectionService {
 			vehicle_registration: request.vehicle_registration || undefined,
 			vehicle_color: request.vehicle_color || undefined,
 			vehicle_mileage: request.vehicle_mileage || undefined,
+			vehicle_province: request.vehicle_province || undefined,
 			inspection_location: request.incident_location || undefined,
 			notes: request.description || undefined
 		};
@@ -75,6 +77,18 @@ export class InspectionService {
 			console.error('Error creating inspection:', error);
 			throw new Error(`Failed to create inspection: ${error.message}`);
 		}
+
+		// Log inspection creation
+		await auditService.logChange({
+			entity_type: 'inspection',
+			entity_id: data.id,
+			action: 'created',
+			new_value: inspectionNumber,
+			metadata: {
+				request_id: request.id,
+				request_number: request.request_number
+			}
+		});
 
 		return data;
 	}
@@ -149,7 +163,27 @@ export class InspectionService {
 		id: string,
 		status: 'pending' | 'scheduled' | 'in_progress' | 'completed' | 'cancelled'
 	): Promise<Inspection> {
-		return this.updateInspection(id, { status });
+		// Get old inspection for audit logging
+		const oldInspection = await this.getInspection(id);
+
+		const updated = await this.updateInspection(id, { status });
+
+		// Log status change
+		if (oldInspection && status !== oldInspection.status) {
+			await auditService.logChange({
+				entity_type: 'inspection',
+				entity_id: id,
+				action: 'status_changed',
+				field_name: 'status',
+				old_value: oldInspection.status,
+				new_value: status,
+				metadata: {
+					inspection_number: updated.inspection_number
+				}
+			});
+		}
+
+		return updated;
 	}
 
 	/**
@@ -170,6 +204,51 @@ export class InspectionService {
 		}
 
 		return count || 0;
+	}
+
+	/**
+	 * Appoint engineer to inspection
+	 */
+	async appointEngineer(
+		inspectionId: string,
+		engineerId: string,
+		scheduledDate?: string
+	): Promise<Inspection> {
+		const updateData: any = {
+			assigned_engineer_id: engineerId,
+			status: 'scheduled'
+		};
+
+		if (scheduledDate) {
+			updateData.scheduled_date = scheduledDate;
+		}
+
+		const { data, error } = await supabase
+			.from('inspections')
+			.update(updateData)
+			.eq('id', inspectionId)
+			.select()
+			.single();
+
+		if (error) {
+			console.error('Error appointing engineer:', error);
+			throw new Error(`Failed to appoint engineer: ${error.message}`);
+		}
+
+		// Log engineer appointment
+		await auditService.logChange({
+			entity_type: 'inspection',
+			entity_id: inspectionId,
+			action: 'appointed',
+			field_name: 'assigned_engineer_id',
+			new_value: engineerId,
+			metadata: {
+				inspection_number: data.inspection_number,
+				scheduled_date: scheduledDate
+			}
+		});
+
+		return data;
 	}
 }
 

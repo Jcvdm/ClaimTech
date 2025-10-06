@@ -123,6 +123,30 @@ export class EngineerService {
 
 		return data;
 	}
+
+	/**
+	 * List engineers by province
+	 */
+	async listEngineersByProvince(province: string, activeOnly = true): Promise<Engineer[]> {
+		let query = supabase
+			.from('engineers')
+			.select('*')
+			.eq('province', province)
+			.order('name', { ascending: true });
+
+		if (activeOnly) {
+			query = query.eq('is_active', true);
+		}
+
+		const { data, error } = await query;
+
+		if (error) {
+			console.error('Error fetching engineers by province:', error);
+			throw new Error(`Failed to fetch engineers: ${error.message}`);
+		}
+
+		return data || [];
+	}
 }
 
 export const engineerService = new EngineerService();

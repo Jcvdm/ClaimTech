@@ -12,7 +12,9 @@
 		ClipboardCheck,
 		FileCheck,
 		Plus,
-		Settings
+		Settings,
+		UserPlus,
+		Calendar
 	} from 'lucide-svelte';
 
 	type NavItem = {
@@ -49,8 +51,16 @@
 			label: 'Work',
 			items: [
 				{ label: 'Inspections', href: '/work/inspections', icon: ClipboardCheck },
+				{ label: 'Appointments', href: '/work/appointments', icon: Calendar },
 				{ label: 'FRC', href: '/work/frc', icon: FileCheck },
 				{ label: 'Additionals', href: '/work/additionals', icon: Plus }
+			]
+		},
+		{
+			label: 'Engineers',
+			items: [
+				{ label: 'All Engineers', href: '/engineers', icon: Users },
+				{ label: 'New Engineer', href: '/engineers/new', icon: UserPlus }
 			]
 		},
 		{

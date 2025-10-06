@@ -1,3 +1,5 @@
+import type { Province } from './engineer';
+
 export type InspectionStatus = 'pending' | 'scheduled' | 'in_progress' | 'completed' | 'cancelled';
 
 export interface Inspection {
@@ -18,6 +20,7 @@ export interface Inspection {
 	vehicle_registration?: string | null;
 	vehicle_color?: string | null;
 	vehicle_mileage?: number | null;
+	vehicle_province?: Province | null;
 
 	// Inspection details
 	scheduled_date?: string | null;
@@ -45,6 +48,7 @@ export interface CreateInspectionInput {
 	vehicle_registration?: string;
 	vehicle_color?: string;
 	vehicle_mileage?: number;
+	vehicle_province?: Province;
 	inspection_location?: string;
 	notes?: string;
 	accepted_by?: string;

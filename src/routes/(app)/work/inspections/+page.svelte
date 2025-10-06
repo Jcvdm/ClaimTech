@@ -9,7 +9,7 @@
 	import { Badge } from '$lib/components/ui/badge';
 	import * as Dialog from '$lib/components/ui/dialog';
 	import { ClipboardCheck, FileText, ExternalLink } from 'lucide-svelte';
-	import type { Inspection } from '$lib/types/inspection';
+	import type { Inspection, InspectionStatus } from '$lib/types/inspection';
 	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();
@@ -17,8 +17,11 @@
 	let selectedInspection = $state<Inspection | null>(null);
 	let showSummary = $state(false);
 
+	// Status filter state
+	let selectedStatus = $state<InspectionStatus | 'all'>('all');
+
 	// Prepare data for table (no ID column)
-	const inspectionsWithDetails = data.inspections.map((inspection) => ({
+	const allInspectionsWithDetails = data.inspections.map((inspection) => ({
 		...inspection,
 		client_name: data.clientMap[inspection.client_id]?.name || 'Unknown Client',
 		vehicle_display:
@@ -29,6 +32,23 @@
 			day: 'numeric'
 		})
 	}));
+
+	// Filter inspections based on selected status
+	const inspectionsWithDetails = $derived(
+		selectedStatus === 'all'
+			? allInspectionsWithDetails
+			: allInspectionsWithDetails.filter((insp) => insp.status === selectedStatus)
+	);
+
+	// Count inspections by status
+	const statusCounts = $derived({
+		all: allInspectionsWithDetails.length,
+		pending: allInspectionsWithDetails.filter((i) => i.status === 'pending').length,
+		scheduled: allInspectionsWithDetails.filter((i) => i.status === 'scheduled').length,
+		in_progress: allInspectionsWithDetails.filter((i) => i.status === 'in_progress').length,
+		completed: allInspectionsWithDetails.filter((i) => i.status === 'completed').length,
+		cancelled: allInspectionsWithDetails.filter((i) => i.status === 'cancelled').length
+	});
 
 	const columns = [
 		{
@@ -108,6 +128,64 @@
 			<p class="text-sm text-red-800">{data.error}</p>
 		</div>
 	{/if}
+
+	<!-- Status Filter Tabs -->
+	<div class="flex gap-2 border-b border-gray-200">
+		<button
+			class="px-4 py-2 text-sm font-medium transition-colors {selectedStatus === 'all'
+				? 'border-b-2 border-blue-600 text-blue-600'
+				: 'text-gray-500 hover:text-gray-700'}"
+			onclick={() => (selectedStatus = 'all')}
+		>
+			All
+			<Badge variant="secondary" class="ml-2">{statusCounts.all}</Badge>
+		</button>
+		<button
+			class="px-4 py-2 text-sm font-medium transition-colors {selectedStatus === 'pending'
+				? 'border-b-2 border-blue-600 text-blue-600'
+				: 'text-gray-500 hover:text-gray-700'}"
+			onclick={() => (selectedStatus = 'pending')}
+		>
+			Pending
+			<Badge variant="secondary" class="ml-2">{statusCounts.pending}</Badge>
+		</button>
+		<button
+			class="px-4 py-2 text-sm font-medium transition-colors {selectedStatus === 'scheduled'
+				? 'border-b-2 border-blue-600 text-blue-600'
+				: 'text-gray-500 hover:text-gray-700'}"
+			onclick={() => (selectedStatus = 'scheduled')}
+		>
+			Scheduled
+			<Badge variant="secondary" class="ml-2">{statusCounts.scheduled}</Badge>
+		</button>
+		<button
+			class="px-4 py-2 text-sm font-medium transition-colors {selectedStatus === 'in_progress'
+				? 'border-b-2 border-blue-600 text-blue-600'
+				: 'text-gray-500 hover:text-gray-700'}"
+			onclick={() => (selectedStatus = 'in_progress')}
+		>
+			In Progress
+			<Badge variant="secondary" class="ml-2">{statusCounts.in_progress}</Badge>
+		</button>
+		<button
+			class="px-4 py-2 text-sm font-medium transition-colors {selectedStatus === 'completed'
+				? 'border-b-2 border-blue-600 text-blue-600'
+				: 'text-gray-500 hover:text-gray-700'}"
+			onclick={() => (selectedStatus = 'completed')}
+		>
+			Completed
+			<Badge variant="secondary" class="ml-2">{statusCounts.completed}</Badge>
+		</button>
+		<button
+			class="px-4 py-2 text-sm font-medium transition-colors {selectedStatus === 'cancelled'
+				? 'border-b-2 border-blue-600 text-blue-600'
+				: 'text-gray-500 hover:text-gray-700'}"
+			onclick={() => (selectedStatus = 'cancelled')}
+		>
+			Cancelled
+			<Badge variant="secondary" class="ml-2">{statusCounts.cancelled}</Badge>
+		</button>
+	</div>
 
 	{#if inspectionsWithDetails.length === 0}
 		<EmptyState

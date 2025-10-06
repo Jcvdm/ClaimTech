@@ -12,6 +12,7 @@
 	import { clientService } from '$lib/services/client.service';
 	import { Plus } from 'lucide-svelte';
 	import type { CreateRequestInput, RequestType } from '$lib/types/request';
+	import type { Province } from '$lib/types/engineer';
 	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();
@@ -41,6 +42,7 @@
 	let vehicle_registration = $state('');
 	let vehicle_color = $state('');
 	let vehicle_mileage = $state<number | undefined>(undefined);
+	let vehicle_province = $state<Province | ''>('');
 
 	// Owner Details
 	let owner_name = $state('');
@@ -124,6 +126,7 @@
 				vehicle_registration: vehicle_registration || undefined,
 				vehicle_color: vehicle_color || undefined,
 				vehicle_mileage: vehicle_mileage || undefined,
+				vehicle_province: vehicle_province || undefined,
 				owner_name: owner_name || undefined,
 				owner_phone: owner_phone || undefined,
 				owner_email: owner_email || undefined,
@@ -252,6 +255,7 @@
 			bind:vehicle_registration
 			bind:vehicle_color
 			bind:vehicle_mileage
+			bind:vehicle_province
 		/>
 
 		<!-- Owner & Third Party Details -->

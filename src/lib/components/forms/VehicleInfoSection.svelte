@@ -1,6 +1,7 @@
 <script lang="ts">
 	import FormField from './FormField.svelte';
 	import { Card } from '$lib/components/ui/card';
+	import { getProvinceOptions, type Province } from '$lib/types/engineer';
 
 	type Props = {
 		vehicle_make: string;
@@ -10,6 +11,7 @@
 		vehicle_registration: string;
 		vehicle_color: string;
 		vehicle_mileage: number | undefined;
+		vehicle_province: Province | '';
 	};
 
 	let {
@@ -19,8 +21,11 @@
 		vehicle_vin = $bindable(),
 		vehicle_registration = $bindable(),
 		vehicle_color = $bindable(),
-		vehicle_mileage = $bindable()
+		vehicle_mileage = $bindable(),
+		vehicle_province = $bindable()
 	}: Props = $props();
+
+	const provinceOptions = getProvinceOptions();
 </script>
 
 <Card class="p-6">
@@ -85,6 +90,17 @@
 				type="text"
 				bind:value={vehicle_registration}
 				placeholder="CA 123 456"
+			/>
+		</div>
+
+		<div class="grid gap-6 md:grid-cols-2">
+			<FormField
+				label="Province"
+				name="vehicle_province"
+				type="select"
+				bind:value={vehicle_province}
+				required
+				options={provinceOptions}
 			/>
 		</div>
 	</div>

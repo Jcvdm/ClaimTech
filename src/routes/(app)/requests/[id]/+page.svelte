@@ -1,7 +1,8 @@
 <script lang="ts">
-	import { goto } from '$app/navigation';
+	import { goto, invalidateAll } from '$app/navigation';
 	import PageHeader from '$lib/components/layout/PageHeader.svelte';
 	import StatusBadge from '$lib/components/data/StatusBadge.svelte';
+	import ActivityTimeline from '$lib/components/data/ActivityTimeline.svelte';
 	import { Card } from '$lib/components/ui/card';
 	import { Button } from '$lib/components/ui/button';
 	import { Separator } from '$lib/components/ui/separator';
@@ -20,7 +21,8 @@
 		CheckCircle2,
 		Clock,
 		AlertCircle,
-		Check
+		Check,
+		RotateCcw
 	} from 'lucide-svelte';
 	import { requestService } from '$lib/services/request.service';
 	import { inspectionService } from '$lib/services/inspection.service';
@@ -58,7 +60,7 @@
 	}
 
 	async function handleDelete() {
-		if (!confirm('Are you sure you want to delete this request? This action cannot be undone.')) {
+		if (!confirm('Are you sure you want to cancel this request?')) {
 			return;
 		}
 
@@ -67,10 +69,33 @@
 
 		try {
 			await requestService.updateRequest(data.request.id, { status: 'cancelled' });
-			goto('/requests');
+			await invalidateAll();
 		} catch (err) {
-			console.error('Error deleting request:', err);
-			error = err instanceof Error ? err.message : 'Failed to delete request';
+			console.error('Error cancelling request:', err);
+			error = err instanceof Error ? err.message : 'Failed to cancel request';
+		} finally {
+			loading = false;
+		}
+	}
+
+	async function handleReactivate() {
+		if (!confirm('Are you sure you want to reactivate this request?')) {
+			return;
+		}
+
+		loading = true;
+		error = null;
+
+		try {
+			// Reactivate to submitted status
+			await requestService.updateRequest(data.request.id, {
+				status: 'submitted',
+				current_step: 'request'
+			});
+			await invalidateAll();
+		} catch (err) {
+			console.error('Error reactivating request:', err);
+			error = err instanceof Error ? err.message : 'Failed to reactivate request';
 		} finally {
 			loading = false;
 		}
@@ -102,8 +127,16 @@
 				current_step: 'assessment'
 			});
 
-			// Navigate to inspections list
-			goto('/work/inspections');
+			// Refresh page data to show updated status
+			await invalidateAll();
+
+			// Show success message
+			alert(
+				`Request accepted! Inspection ${inspection.inspection_number} has been created. You can now appoint an engineer.`
+			);
+
+			// Navigate to inspection detail page
+			goto(`/work/inspections/${inspection.id}`);
 		} catch (err) {
 			console.error('Error accepting request:', err);
 			error = err instanceof Error ? err.message : 'Failed to accept request';
@@ -132,14 +165,26 @@
 				</Button>
 			{/if}
 
+			<!-- Show Reactivate button only for cancelled requests -->
+			{#if data.request.status === 'cancelled'}
+				<Button variant="default" onclick={handleReactivate} disabled={loading}>
+					<RotateCcw class="mr-2 h-4 w-4" />
+					Reactivate Request
+				</Button>
+			{/if}
+
 			<Button variant="outline" onclick={handleEdit}>
 				<Edit class="mr-2 h-4 w-4" />
 				Edit
 			</Button>
-			<Button variant="destructive" onclick={handleDelete} disabled={loading}>
-				<Trash2 class="mr-2 h-4 w-4" />
-				Delete
-			</Button>
+
+			<!-- Show Cancel/Delete button only for non-cancelled requests -->
+			{#if data.request.status !== 'cancelled'}
+				<Button variant="destructive" onclick={handleDelete} disabled={loading}>
+					<Trash2 class="mr-2 h-4 w-4" />
+					Cancel
+				</Button>
+			{/if}
 		{/snippet}
 	</PageHeader>
 
@@ -489,6 +534,12 @@
 						<p class="mt-1 text-sm text-gray-900">{formatDate(data.request.updated_at)}</p>
 					</div>
 				</div>
+			</Card>
+
+			<!-- Activity Log -->
+			<Card class="p-6">
+				<h3 class="mb-4 text-lg font-semibold text-gray-900">Activity Log</h3>
+				<ActivityTimeline logs={data.auditLogs} />
 			</Card>
 		</div>
 	</div>

@@ -2,15 +2,17 @@ import { requestService } from '$lib/services/request.service';
 import { clientService } from '$lib/services/client.service';
 import { taskService } from '$lib/services/task.service';
 import { engineerService } from '$lib/services/engineer.service';
+import { auditService } from '$lib/services/audit.service';
 import { error } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async ({ params }) => {
 	try {
-		const [request, tasks, engineers] = await Promise.all([
+		const [request, tasks, engineers, auditLogs] = await Promise.all([
 			requestService.getRequest(params.id),
 			taskService.listTasksForRequest(params.id),
-			engineerService.listEngineers(true)
+			engineerService.listEngineers(true),
+			auditService.getEntityHistory('request', params.id)
 		]);
 
 		if (!request) {
@@ -24,7 +26,8 @@ export const load: PageServerLoad = async ({ params }) => {
 			request,
 			client,
 			tasks,
-			engineers
+			engineers,
+			auditLogs
 		};
 	} catch (err) {
 		console.error('Error loading request:', err);

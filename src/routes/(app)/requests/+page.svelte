@@ -5,16 +5,20 @@
 	import EmptyState from '$lib/components/data/EmptyState.svelte';
 	import StatusBadge from '$lib/components/data/StatusBadge.svelte';
 	import { Button } from '$lib/components/ui/button';
+	import { Badge } from '$lib/components/ui/badge';
 	import { FileText, Plus } from 'lucide-svelte';
-	import type { Request } from '$lib/types/request';
+	import type { Request, RequestStatus } from '$lib/types/request';
 	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();
 
 	type RequestWithClient = Request & { client_name: string; formatted_date: string };
 
+	// Status filter state
+	let selectedStatus = $state<RequestStatus | 'all'>('all');
+
 	// Add client names and formatted dates to requests
-	const requestsWithDetails: RequestWithClient[] = data.requests.map((req) => ({
+	const allRequestsWithDetails: RequestWithClient[] = data.requests.map((req) => ({
 		...req,
 		client_name: (data.clientMap as Record<string, string>)[req.client_id] || 'Unknown Client',
 		formatted_date: new Date(req.created_at).toLocaleDateString('en-ZA', {
@@ -23,6 +27,23 @@
 			day: 'numeric'
 		})
 	}));
+
+	// Filter requests based on selected status
+	const requestsWithDetails = $derived(
+		selectedStatus === 'all'
+			? allRequestsWithDetails
+			: allRequestsWithDetails.filter((req) => req.status === selectedStatus)
+	);
+
+	// Count requests by status
+	const statusCounts = $derived({
+		all: allRequestsWithDetails.length,
+		draft: allRequestsWithDetails.filter((r) => r.status === 'draft').length,
+		submitted: allRequestsWithDetails.filter((r) => r.status === 'submitted').length,
+		in_progress: allRequestsWithDetails.filter((r) => r.status === 'in_progress').length,
+		completed: allRequestsWithDetails.filter((r) => r.status === 'completed').length,
+		cancelled: allRequestsWithDetails.filter((r) => r.status === 'cancelled').length
+	});
 
 	const columns = [
 		{
@@ -111,6 +132,55 @@
 			<p class="text-sm text-red-800">{data.error}</p>
 		</div>
 	{/if}
+
+	<!-- Status Filter Tabs -->
+	<div class="flex gap-2 border-b border-gray-200">
+		<button
+			class="px-4 py-2 text-sm font-medium transition-colors {selectedStatus === 'all'
+				? 'border-b-2 border-blue-600 text-blue-600'
+				: 'text-gray-500 hover:text-gray-700'}"
+			onclick={() => (selectedStatus = 'all')}
+		>
+			All
+			<Badge variant="secondary" class="ml-2">{statusCounts.all}</Badge>
+		</button>
+		<button
+			class="px-4 py-2 text-sm font-medium transition-colors {selectedStatus === 'submitted'
+				? 'border-b-2 border-blue-600 text-blue-600'
+				: 'text-gray-500 hover:text-gray-700'}"
+			onclick={() => (selectedStatus = 'submitted')}
+		>
+			New
+			<Badge variant="secondary" class="ml-2">{statusCounts.submitted}</Badge>
+		</button>
+		<button
+			class="px-4 py-2 text-sm font-medium transition-colors {selectedStatus === 'in_progress'
+				? 'border-b-2 border-blue-600 text-blue-600'
+				: 'text-gray-500 hover:text-gray-700'}"
+			onclick={() => (selectedStatus = 'in_progress')}
+		>
+			Accepted
+			<Badge variant="secondary" class="ml-2">{statusCounts.in_progress}</Badge>
+		</button>
+		<button
+			class="px-4 py-2 text-sm font-medium transition-colors {selectedStatus === 'completed'
+				? 'border-b-2 border-blue-600 text-blue-600'
+				: 'text-gray-500 hover:text-gray-700'}"
+			onclick={() => (selectedStatus = 'completed')}
+		>
+			Completed
+			<Badge variant="secondary" class="ml-2">{statusCounts.completed}</Badge>
+		</button>
+		<button
+			class="px-4 py-2 text-sm font-medium transition-colors {selectedStatus === 'draft'
+				? 'border-b-2 border-blue-600 text-blue-600'
+				: 'text-gray-500 hover:text-gray-700'}"
+			onclick={() => (selectedStatus = 'draft')}
+		>
+			Draft
+			<Badge variant="secondary" class="ml-2">{statusCounts.draft}</Badge>
+		</button>
+	</div>
 
 	{#if requestsWithDetails.length === 0}
 		<EmptyState

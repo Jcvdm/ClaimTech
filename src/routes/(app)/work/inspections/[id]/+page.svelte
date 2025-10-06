@@ -1,18 +1,123 @@
 <script lang="ts">
-	import { goto } from '$app/navigation';
+	import { goto, invalidateAll } from '$app/navigation';
 	import PageHeader from '$lib/components/layout/PageHeader.svelte';
 	import StatusBadge from '$lib/components/data/StatusBadge.svelte';
+	import ActivityTimeline from '$lib/components/data/ActivityTimeline.svelte';
+	import FormField from '$lib/components/forms/FormField.svelte';
 	import { Card } from '$lib/components/ui/card';
 	import { Button } from '$lib/components/ui/button';
 	import { Badge } from '$lib/components/ui/badge';
 	import { Separator } from '$lib/components/ui/separator';
-	import { ArrowLeft, Edit, Car, User, FileText, MapPin, Calendar } from 'lucide-svelte';
+	import {
+		Dialog,
+		DialogContent,
+		DialogDescription,
+		DialogFooter,
+		DialogHeader,
+		DialogTitle
+	} from '$lib/components/ui/dialog';
+	import {
+		ArrowLeft,
+		Edit,
+		Car,
+		User,
+		FileText,
+		UserPlus,
+		CheckCircle,
+		XCircle,
+		RotateCcw,
+		Calendar,
+		MapPin,
+		Clock
+	} from 'lucide-svelte';
+	import { inspectionService } from '$lib/services/inspection.service';
+	import { requestService } from '$lib/services/request.service';
+	import { appointmentService } from '$lib/services/appointment.service';
 	import type { PageData } from './$types';
+	import type { AppointmentType } from '$lib/types/appointment';
 
 	let { data }: { data: PageData } = $props();
 
+	let showAppointmentModal = $state(false);
+	let selectedEngineerId = $state('');
+	let scheduledDate = $state('');
+	let loading = $state(false);
+	let error = $state<string | null>(null);
+
+	// Appointment creation modal state
+	let showCreateAppointmentModal = $state(false);
+	let appointmentType = $state<AppointmentType>('in_person');
+	let appointmentDate = $state('');
+	let appointmentTime = $state('');
+	let appointmentDuration = $state(60);
+	let locationAddress = $state('');
+	let locationCity = $state('');
+	let locationProvince = $state('');
+	let locationNotes = $state('');
+	let appointmentNotes = $state('');
+	let specialInstructions = $state('');
+
 	function handleBack() {
 		goto('/work/inspections');
+	}
+
+	async function handleCancelInspection() {
+		if (
+			!confirm(
+				'Are you sure you want to cancel this inspection? This will revert the request status.'
+			)
+		) {
+			return;
+		}
+
+		loading = true;
+		error = null;
+
+		try {
+			// Cancel inspection
+			await inspectionService.updateInspectionStatus(data.inspection.id, 'cancelled');
+
+			// Revert request status back to submitted
+			await requestService.updateRequest(data.inspection.request_id, {
+				status: 'submitted',
+				current_step: 'request',
+				assigned_engineer_id: null
+			});
+
+			await invalidateAll();
+		} catch (err) {
+			console.error('Error cancelling inspection:', err);
+			error = err instanceof Error ? err.message : 'Failed to cancel inspection';
+		} finally {
+			loading = false;
+		}
+	}
+
+	async function handleReactivateInspection() {
+		if (!confirm('Are you sure you want to reactivate this inspection?')) {
+			return;
+		}
+
+		loading = true;
+		error = null;
+
+		try {
+			// Reactivate inspection to pending status
+			await inspectionService.updateInspectionStatus(data.inspection.id, 'pending');
+
+			// Update request status back to in_progress
+			await requestService.updateRequest(data.inspection.request_id, {
+				status: 'in_progress',
+				current_step: 'assessment'
+			});
+
+			await invalidateAll();
+		} catch (err) {
+			console.error('Error reactivating inspection:', err);
+			error = err instanceof Error ? err.message : 'Failed to reactivate inspection';
+		} finally {
+			loading = false;
+		}
 	}
 
 	function formatDate(dateString: string | null | undefined) {
@@ -23,6 +128,115 @@
 			day: 'numeric'
 		});
 	}
+
+	function handleOpenAppointmentModal() {
+		showAppointmentModal = true;
+		selectedEngineerId = '';
+		scheduledDate = '';
+		error = null;
+	}
+
+	async function handleAppointEngineer() {
+		if (!selectedEngineerId) {
+			error = 'Please select an engineer';
+			return;
+		}
+
+		loading = true;
+		error = null;
+
+		try {
+			// Appoint engineer to inspection
+			await inspectionService.appointEngineer(
+				data.inspection.id,
+				selectedEngineerId,
+				scheduledDate || undefined
+			);
+
+			// Update request with assigned engineer and move to assessment step
+			await requestService.updateRequest(data.inspection.request_id, {
+				assigned_engineer_id: selectedEngineerId,
+				current_step: 'assessment'
+			});
+
+			showAppointmentModal = false;
+			await invalidateAll();
+		} catch (err) {
+			console.error('Error appointing engineer:', err);
+			error = err instanceof Error ? err.message : 'Failed to appoint engineer';
+		} finally {
+			loading = false;
+		}
+	}
+
+	function handleReassignEngineer() {
+		handleOpenAppointmentModal();
+	}
+
+	function handleOpenCreateAppointmentModal() {
+		showCreateAppointmentModal = true;
+		appointmentType = 'in_person';
+		appointmentDate = '';
+		appointmentTime = '';
+		appointmentDuration = 60;
+		locationAddress = '';
+		locationCity = '';
+		locationProvince = data.inspection.vehicle_province || '';
+		locationNotes = '';
+		appointmentNotes = '';
+		specialInstructions = '';
+		error = null;
+	}
+
+	async function handleCreateAppointment() {
+		if (!appointmentDate) {
+			error = 'Please select an appointment date';
+			return;
+		}
+
+		loading = true;
+		error = null;
+
+		try {
+			await appointmentService.createAppointment({
+				inspection_id: data.inspection.id,
+				request_id: data.inspection.request_id,
+				client_id: data.inspection.client_id,
+				engineer_id: data.inspection.assigned_engineer_id!,
+				appointment_type: appointmentType,
+				appointment_date: appointmentDate,
+				appointment_time: appointmentTime || undefined,
+				duration_minutes: appointmentDuration,
+				location_address: appointmentType === 'in_person' ? locationAddress : undefined,
+				location_city: appointmentType === 'in_person' ? locationCity : undefined,
+				location_province: appointmentType === 'in_person' ? (locationProvince as any) : undefined,
+				location_notes: appointmentType === 'in_person' ? locationNotes : undefined,
+				notes: appointmentNotes || undefined,
+				special_instructions: specialInstructions || undefined,
+				vehicle_make: data.inspection.vehicle_make || undefined,
+				vehicle_model: data.inspection.vehicle_model || undefined,
+				vehicle_year: data.inspection.vehicle_year || undefined,
+				vehicle_registration: data.inspection.vehicle_registration || undefined
+			});
+
+			showCreateAppointmentModal = false;
+			await invalidateAll();
+			// Optionally redirect to appointments list or show success message
+		} catch (err) {
+			console.error('Error creating appointment:', err);
+			error = err instanceof Error ? err.message : 'Failed to create appointment';
+		} finally {
+			loading = false;
+		}
+	}
+
+	const engineerOptions = [
+		{ value: '', label: 'Select an engineer...' },
+		...(data.availableEngineers || []).map((engineer) => ({
+			value: engineer.id,
+			label: `${engineer.name} - ${engineer.company_name || 'N/A'}`
+		}))
+	];
 </script>
 
 <div class="flex-1 space-y-6 p-8">
@@ -39,6 +253,22 @@
 				<Edit class="mr-2 h-4 w-4" />
 				Edit
 			</Button>
+
+			<!-- Show Cancel button for non-cancelled/non-completed inspections -->
+			{#if data.inspection.status !== 'completed' && data.inspection.status !== 'cancelled'}
+				<Button variant="destructive" onclick={handleCancelInspection} disabled={loading}>
+					<XCircle class="mr-2 h-4 w-4" />
+					Cancel Inspection
+				</Button>
+			{/if}
+
+			<!-- Show Reactivate button for cancelled inspections -->
+			{#if data.inspection.status === 'cancelled'}
+				<Button variant="default" onclick={handleReactivateInspection} disabled={loading}>
+					<RotateCcw class="mr-2 h-4 w-4" />
+					Reactivate Inspection
+				</Button>
+			{/if}
 		{/snippet}
 	</PageHeader>
 
@@ -95,6 +325,124 @@
 					{/if}
 				</div>
 			</Card>
+
+			<!-- Engineer Assignment -->
+			{#if data.assignedEngineer}
+				<!-- Assigned Engineer Card -->
+				<Card class="p-6">
+					<div class="mb-4 flex items-center justify-between">
+						<div class="flex items-center gap-2">
+							<CheckCircle class="h-5 w-5 text-green-600" />
+							<h3 class="text-lg font-semibold text-gray-900">Assigned Engineer</h3>
+						</div>
+						<Button variant="outline" size="sm" onclick={handleReassignEngineer}>
+							<UserPlus class="mr-2 h-4 w-4" />
+							Change Engineer
+						</Button>
+					</div>
+
+					<div class="grid gap-4">
+						<div class="grid gap-4 md:grid-cols-2">
+							<div>
+								<p class="text-sm font-medium text-gray-500">Name</p>
+								<p class="mt-1 text-sm text-gray-900">{data.assignedEngineer.name}</p>
+							</div>
+							<div>
+								<p class="text-sm font-medium text-gray-500">Email</p>
+								<p class="mt-1 text-sm">
+									<a
+										href="mailto:{data.assignedEngineer.email}"
+										class="text-blue-600 hover:underline"
+									>
+										{data.assignedEngineer.email}
+									</a>
+								</p>
+							</div>
+						</div>
+
+						{#if data.assignedEngineer.phone}
+							<div>
+								<p class="text-sm font-medium text-gray-500">Phone</p>
+								<p class="mt-1 text-sm">
+									<a
+										href="tel:{data.assignedEngineer.phone}"
+										class="text-blue-600 hover:underline"
+									>
+										{data.assignedEngineer.phone}
+									</a>
+								</p>
+							</div>
+						{/if}
+
+						<div class="grid gap-4 md:grid-cols-2">
+							{#if data.assignedEngineer.province}
+								<div>
+									<p class="text-sm font-medium text-gray-500">Province</p>
+									<p class="mt-1 text-sm text-gray-900">{data.assignedEngineer.province}</p>
+								</div>
+							{/if}
+
+							{#if data.assignedEngineer.company_name}
+								<div>
+									<p class="text-sm font-medium text-gray-500">Company</p>
+									<p class="mt-1 text-sm text-gray-900">{data.assignedEngineer.company_name}</p>
+								</div>
+							{/if}
+						</div>
+
+						{#if data.inspection.scheduled_date}
+							<div>
+								<p class="text-sm font-medium text-gray-500">Scheduled Date</p>
+								<p class="mt-1 text-sm text-gray-900">
+									{formatDate(data.inspection.scheduled_date)}
+								</p>
+							</div>
+						{/if}
+					</div>
+
+					<!-- Schedule Appointment Button -->
+					{#if data.inspection.status === 'scheduled' || data.inspection.status === 'in_progress'}
+						<div class="mt-4 border-t pt-4">
+							<Button class="w-full" onclick={handleOpenCreateAppointmentModal}>
+								<Calendar class="mr-2 h-4 w-4" />
+								Schedule Appointment
+							</Button>
+						</div>
+					{/if}
+				</Card>
+			{:else if data.inspection.status === 'pending'}
+				<!-- Appoint Engineer Card -->
+				<Card class="border-dashed border-2 border-blue-300 bg-blue-50 p-6">
+					<div class="text-center">
+						<UserPlus class="mx-auto h-12 w-12 text-blue-600" />
+						<h3 class="mt-4 text-lg font-semibold text-gray-900">Appoint an Engineer</h3>
+						<p class="mt-2 text-sm text-gray-600">
+							{#if data.inspection.vehicle_province}
+								Select an engineer from {data.inspection.vehicle_province} to conduct this inspection.
+							{:else}
+								Select an engineer to conduct this inspection.
+							{/if}
+						</p>
+						{#if data.availableEngineers && data.availableEngineers.length > 0}
+							<Button class="mt-4" onclick={handleOpenAppointmentModal}>
+								<UserPlus class="mr-2 h-4 w-4" />
+								Appoint Engineer
+							</Button>
+						{:else}
+							<p class="mt-4 text-sm text-red-600">
+								No engineers available
+								{#if data.inspection.vehicle_province}
+									in {data.inspection.vehicle_province}
+								{/if}
+							</p>
+							<Button variant="outline" class="mt-2" href="/engineers/new">
+								<UserPlus class="mr-2 h-4 w-4" />
+								Add New Engineer
+							</Button>
+						{/if}
+					</div>
+				</Card>
+			{/if}
 
 			<!-- Vehicle Information -->
 			<Card class="p-6">
@@ -270,7 +618,295 @@
 					{/if}
 				</div>
 			</Card>
+
+			<!-- Activity Log -->
+			<Card class="p-6">
+				<h3 class="mb-4 text-lg font-semibold text-gray-900">Activity Log</h3>
+				<ActivityTimeline logs={data.auditLogs} />
+			</Card>
 		</div>
 	</div>
 </div>
+
+<!-- Appointment Modal -->
+<Dialog bind:open={showAppointmentModal}>
+	<DialogContent class="sm:max-w-[500px]">
+		<DialogHeader>
+			<DialogTitle>Appoint Engineer</DialogTitle>
+			<DialogDescription>
+				Select an engineer to conduct this inspection
+				{#if data.inspection.vehicle_province}
+					in {data.inspection.vehicle_province}
+				{/if}.
+			</DialogDescription>
+		</DialogHeader>
+
+		{#if error}
+			<div class="rounded-md bg-red-50 p-3">
+				<p class="text-sm text-red-800">{error}</p>
+			</div>
+		{/if}
+
+		<div class="space-y-4 py-4">
+			<div class="space-y-2">
+				<label for="engineer" class="text-sm font-medium text-gray-900">Engineer</label>
+				<select
+					id="engineer"
+					bind:value={selectedEngineerId}
+					class="flex h-10 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm ring-offset-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+				>
+					{#each engineerOptions as option}
+						<option value={option.value}>{option.label}</option>
+					{/each}
+				</select>
+			</div>
+
+			{#if selectedEngineerId}
+				{@const selectedEngineer = data.availableEngineers?.find(
+					(e) => e.id === selectedEngineerId
+				)}
+				{#if selectedEngineer}
+					<div class="rounded-lg border bg-gray-50 p-4">
+						<p class="text-sm font-medium text-gray-900">Engineer Details</p>
+						<div class="mt-2 space-y-1 text-sm text-gray-600">
+							<p>
+								<span class="font-medium">Email:</span>
+								{selectedEngineer.email}
+							</p>
+							{#if selectedEngineer.phone}
+								<p>
+									<span class="font-medium">Phone:</span>
+									{selectedEngineer.phone}
+								</p>
+							{/if}
+							{#if selectedEngineer.province}
+								<p>
+									<span class="font-medium">Province:</span>
+									{selectedEngineer.province}
+								</p>
+							{/if}
+							{#if selectedEngineer.company_name}
+								<p>
+									<span class="font-medium">Company:</span>
+									{selectedEngineer.company_name}
+								</p>
+							{/if}
+						</div>
+					</div>
+				{/if}
+			{/if}
+
+			<div class="space-y-2">
+				<label for="scheduled_date" class="text-sm font-medium text-gray-900">
+					Scheduled Date (Optional)
+				</label>
+				<input
+					id="scheduled_date"
+					type="date"
+					bind:value={scheduledDate}
+					class="flex h-10 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm ring-offset-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+				/>
+			</div>
+		</div>
+
+		<DialogFooter>
+			<Button variant="outline" onclick={() => (showAppointmentModal = false)} disabled={loading}>
+				Cancel
+			</Button>
+			<Button onclick={handleAppointEngineer} disabled={loading || !selectedEngineerId}>
+				{loading ? 'Appointing...' : 'Appoint Engineer'}
+			</Button>
+		</DialogFooter>
+	</DialogContent>
+</Dialog>
+
+<!-- Create Appointment Modal -->
+<Dialog bind:open={showCreateAppointmentModal}>
+	<DialogContent class="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
+		<DialogHeader>
+			<DialogTitle>Schedule Appointment</DialogTitle>
+			<DialogDescription>
+				Create an appointment for this inspection - choose between in-person or digital assessment
+			</DialogDescription>
+		</DialogHeader>
+
+		<div class="space-y-4 py-4">
+			{#if error}
+				<div class="rounded-md bg-red-50 p-3">
+					<p class="text-sm text-red-800">{error}</p>
+				</div>
+			{/if}
+
+			<!-- Appointment Type -->
+			<div class="space-y-2">
+				<label class="text-sm font-medium text-gray-900">Appointment Type</label>
+				<div class="flex gap-4">
+					<label class="flex items-center gap-2 cursor-pointer">
+						<input
+							type="radio"
+							bind:group={appointmentType}
+							value="in_person"
+							class="h-4 w-4 border-gray-300 text-blue-600 focus:ring-blue-500"
+						/>
+						<span class="text-sm text-gray-700">In-Person Inspection</span>
+					</label>
+					<label class="flex items-center gap-2 cursor-pointer">
+						<input
+							type="radio"
+							bind:group={appointmentType}
+							value="digital"
+							class="h-4 w-4 border-gray-300 text-blue-600 focus:ring-blue-500"
+						/>
+						<span class="text-sm text-gray-700">Digital Assessment</span>
+					</label>
+				</div>
+			</div>
+
+			<!-- Date and Time -->
+			<div class="grid gap-4 md:grid-cols-2">
+				<div class="space-y-2">
+					<label for="appointment_date" class="text-sm font-medium text-gray-900">
+						Date <span class="text-red-500">*</span>
+					</label>
+					<input
+						id="appointment_date"
+						type="date"
+						bind:value={appointmentDate}
+						required
+						class="flex h-10 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm ring-offset-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
+					/>
+				</div>
+				<div class="space-y-2">
+					<label for="appointment_time" class="text-sm font-medium text-gray-900">
+						Time (Optional)
+					</label>
+					<input
+						id="appointment_time"
+						type="time"
+						bind:value={appointmentTime}
+						class="flex h-10 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm ring-offset-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
+					/>
+				</div>
+			</div>
+
+			<!-- Duration -->
+			<div class="space-y-2">
+				<label for="duration" class="text-sm font-medium text-gray-900">Duration</label>
+				<select
+					id="duration"
+					bind:value={appointmentDuration}
+					class="flex h-10 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm ring-offset-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
+				>
+					<option value={30}>30 minutes</option>
+					<option value={60}>1 hour</option>
+					<option value={90}>1.5 hours</option>
+					<option value={120}>2 hours</option>
+					<option value={180}>3 hours</option>
+				</select>
+			</div>
+
+			<!-- Location fields (only for in-person) -->
+			{#if appointmentType === 'in_person'}
+				<div class="space-y-4 border-t pt-4">
+					<h4 class="text-sm font-semibold text-gray-900 flex items-center gap-2">
+						<MapPin class="h-4 w-4" />
+						Location Details
+					</h4>
+
+					<div class="space-y-2">
+						<label for="location_address" class="text-sm font-medium text-gray-900">
+							Address
+						</label>
+						<input
+							id="location_address"
+							type="text"
+							bind:value={locationAddress}
+							placeholder="Street address"
+							class="flex h-10 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm ring-offset-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
+						/>
+					</div>
+
+					<div class="grid gap-4 md:grid-cols-2">
+						<div class="space-y-2">
+							<label for="location_city" class="text-sm font-medium text-gray-900">City</label>
+							<input
+								id="location_city"
+								type="text"
+								bind:value={locationCity}
+								placeholder="City"
+								class="flex h-10 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm ring-offset-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
+							/>
+						</div>
+						<div class="space-y-2">
+							<label for="location_province" class="text-sm font-medium text-gray-900">
+								Province
+							</label>
+							<input
+								id="location_province"
+								type="text"
+								bind:value={locationProvince}
+								placeholder="Province"
+								class="flex h-10 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm ring-offset-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
+							/>
+						</div>
+					</div>
+
+					<div class="space-y-2">
+						<label for="location_notes" class="text-sm font-medium text-gray-900">
+							Location Notes
+						</label>
+						<textarea
+							id="location_notes"
+							bind:value={locationNotes}
+							placeholder="Directions, parking info, access codes, etc."
+							rows="2"
+							class="flex w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm ring-offset-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
+						></textarea>
+					</div>
+				</div>
+			{/if}
+
+			<!-- Special Instructions -->
+			<div class="space-y-2">
+				<label for="special_instructions" class="text-sm font-medium text-gray-900">
+					Special Instructions
+				</label>
+				<textarea
+					id="special_instructions"
+					bind:value={specialInstructions}
+					placeholder="Any special requirements or instructions for the engineer"
+					rows="2"
+					class="flex w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm ring-offset-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
+				></textarea>
+			</div>
+
+			<!-- General Notes -->
+			<div class="space-y-2">
+				<label for="appointment_notes" class="text-sm font-medium text-gray-900">
+					General Notes
+				</label>
+				<textarea
+					id="appointment_notes"
+					bind:value={appointmentNotes}
+					placeholder="Additional notes about this appointment"
+					rows="2"
+					class="flex w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm ring-offset-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
+				></textarea>
+			</div>
+		</div>
+
+		<DialogFooter>
+			<Button
+				variant="outline"
+				onclick={() => (showCreateAppointmentModal = false)}
+				disabled={loading}
+			>
+				Cancel
+			</Button>
+			<Button onclick={handleCreateAppointment} disabled={loading || !appointmentDate}>
+				{loading ? 'Creating...' : 'Create Appointment'}
+			</Button>
+		</DialogFooter>
+	</DialogContent>
+</Dialog>
 

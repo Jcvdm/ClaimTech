@@ -1,3 +1,5 @@
+import type { Province } from './engineer';
+
 export type RequestType = 'insurance' | 'private';
 export type RequestStatus = 'draft' | 'submitted' | 'in_progress' | 'completed' | 'cancelled';
 export type RequestStep = 'request' | 'assessment' | 'quote' | 'approval';
@@ -26,6 +28,7 @@ export interface Request {
 	vehicle_registration?: string | null;
 	vehicle_color?: string | null;
 	vehicle_mileage?: number | null;
+	vehicle_province?: Province | null;
 
 	// Owner Details
 	owner_name?: string | null;
@@ -64,6 +67,7 @@ export interface CreateRequestInput {
 	vehicle_registration?: string;
 	vehicle_color?: string;
 	vehicle_mileage?: number;
+	vehicle_province?: Province;
 	owner_name?: string;
 	owner_phone?: string;
 	owner_email?: string;

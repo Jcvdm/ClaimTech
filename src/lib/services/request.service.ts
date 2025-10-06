@@ -1,4 +1,5 @@
 import { supabase } from '$lib/supabase';
+import { auditService } from './audit.service';
 import type {
 	Request,
 	CreateRequestInput,
@@ -125,6 +126,18 @@ export class RequestService {
 			throw new Error(`Failed to create request: ${error.message}`);
 		}
 
+		// Log creation
+		await auditService.logChange({
+			entity_type: 'request',
+			entity_id: data.id,
+			action: 'created',
+			new_value: requestNumber,
+			metadata: {
+				type: input.type,
+				client_id: input.client_id
+			}
+		});
+
 		return data;
 	}
 
@@ -132,6 +145,9 @@ export class RequestService {
 	 * Update an existing request
 	 */
 	async updateRequest(id: string, input: UpdateRequestInput): Promise<Request | null> {
+		// Get old request for audit logging
+		const oldRequest = await this.getRequest(id);
+
 		const { data, error } = await supabase
 			.from('requests')
 			.update(input)
@@ -145,6 +161,55 @@ export class RequestService {
 			}
 			console.error('Error updating request:', error);
 			throw new Error(`Failed to update request: ${error.message}`);
+		}
+
+		// Log status changes
+		if (input.status && oldRequest && input.status !== oldRequest.status) {
+			await auditService.logChange({
+				entity_type: 'request',
+				entity_id: id,
+				action: 'status_changed',
+				field_name: 'status',
+				old_value: oldRequest.status,
+				new_value: input.status,
+				metadata: {
+					request_number: data.request_number
+				}
+			});
+		}
+
+		// Log step changes
+		if (input.current_step && oldRequest && input.current_step !== oldRequest.current_step) {
+			await auditService.logChange({
+				entity_type: 'request',
+				entity_id: id,
+				action: 'updated',
+				field_name: 'current_step',
+				old_value: oldRequest.current_step,
+				new_value: input.current_step,
+				metadata: {
+					request_number: data.request_number
+				}
+			});
+		}
+
+		// Log engineer assignment
+		if (
+			input.assigned_engineer_id &&
+			oldRequest &&
+			input.assigned_engineer_id !== oldRequest.assigned_engineer_id
+		) {
+			await auditService.logChange({
+				entity_type: 'request',
+				entity_id: id,
+				action: 'assigned',
+				field_name: 'assigned_engineer_id',
+				old_value: oldRequest.assigned_engineer_id || 'None',
+				new_value: input.assigned_engineer_id,
+				metadata: {
+					request_number: data.request_number
+				}
+			});
 		}
 
 		return data;
