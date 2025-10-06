@@ -3,6 +3,7 @@ import { clientService } from '$lib/services/client.service';
 import { requestService } from '$lib/services/request.service';
 import { engineerService } from '$lib/services/engineer.service';
 import { auditService } from '$lib/services/audit.service';
+import { appointmentService } from '$lib/services/appointment.service';
 import { error } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 
@@ -35,13 +36,20 @@ export const load: PageServerLoad = async ({ params }) => {
 			);
 		}
 
+		// Load appointment for this inspection (if exists)
+		const appointments = await appointmentService.listAppointments({
+			inspection_id: params.id
+		});
+		const appointment = appointments.length > 0 ? appointments[0] : null;
+
 		return {
 			inspection,
 			client,
 			request,
 			assignedEngineer,
 			availableEngineers,
-			auditLogs
+			auditLogs,
+			appointment
 		};
 	} catch (err) {
 		console.error('Error loading inspection:', err);
