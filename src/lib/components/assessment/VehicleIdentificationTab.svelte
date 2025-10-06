@@ -2,11 +2,13 @@
 	import { Card } from '$lib/components/ui/card';
 	import { Button } from '$lib/components/ui/button';
 	import FormField from '$lib/components/forms/FormField.svelte';
-	import { Camera, Upload, CheckCircle } from 'lucide-svelte';
+	import PhotoUpload from '$lib/components/forms/PhotoUpload.svelte';
+	import { CheckCircle } from 'lucide-svelte';
 	import type { VehicleIdentification } from '$lib/types/assessment';
 
 	interface Props {
 		data: VehicleIdentification | null;
+		assessmentId: string;
 		vehicleInfo?: {
 			registration?: string | null;
 			vin?: string | null;
@@ -18,7 +20,7 @@
 		onComplete: () => void;
 	}
 
-	let { data, vehicleInfo, onUpdate, onComplete }: Props = $props();
+	let { data, assessmentId, vehicleInfo, onUpdate, onComplete }: Props = $props();
 
 	let registrationNumber = $state(data?.registration_number || vehicleInfo?.registration || '');
 	let vinNumber = $state(data?.vin_number || vehicleInfo?.vin || '');
@@ -98,37 +100,22 @@
 					required
 				/>
 			</div>
-			<div>
-				<label class="mb-2 block text-sm font-medium text-gray-700">
-					Registration Photo <span class="text-red-500">*</span>
-				</label>
-				{#if registrationPhotoUrl}
-					<div class="relative">
-						<img
-							src={registrationPhotoUrl}
-							alt="Registration"
-							class="h-32 w-full rounded-lg object-cover"
-						/>
-						<Button
-							size="sm"
-							variant="outline"
-							class="absolute right-2 top-2"
-							onclick={() => (registrationPhotoUrl = '')}
-						>
-							Change
-						</Button>
-					</div>
-				{:else}
-					<button
-						class="flex h-32 w-full items-center justify-center rounded-lg border-2 border-dashed border-gray-300 bg-gray-50 hover:bg-gray-100"
-					>
-						<div class="text-center">
-							<Camera class="mx-auto h-8 w-8 text-gray-400" />
-							<p class="mt-2 text-sm text-gray-600">Take Photo</p>
-						</div>
-					</button>
-				{/if}
-			</div>
+			<PhotoUpload
+				value={registrationPhotoUrl}
+				label="Registration Photo"
+				required
+				{assessmentId}
+				category="identification"
+				subcategory="registration"
+				onUpload={(url) => {
+					registrationPhotoUrl = url;
+					handleSave();
+				}}
+				onRemove={() => {
+					registrationPhotoUrl = '';
+					handleSave();
+				}}
+			/>
 		</div>
 	</Card>
 
@@ -147,33 +134,22 @@
 					required
 				/>
 			</div>
-			<div>
-				<label class="mb-2 block text-sm font-medium text-gray-700">
-					VIN Photo <span class="text-red-500">*</span>
-				</label>
-				{#if vinPhotoUrl}
-					<div class="relative">
-						<img src={vinPhotoUrl} alt="VIN" class="h-32 w-full rounded-lg object-cover" />
-						<Button
-							size="sm"
-							variant="outline"
-							class="absolute right-2 top-2"
-							onclick={() => (vinPhotoUrl = '')}
-						>
-							Change
-						</Button>
-					</div>
-				{:else}
-					<button
-						class="flex h-32 w-full items-center justify-center rounded-lg border-2 border-dashed border-gray-300 bg-gray-50 hover:bg-gray-100"
-					>
-						<div class="text-center">
-							<Camera class="mx-auto h-8 w-8 text-gray-400" />
-							<p class="mt-2 text-sm text-gray-600">Take Photo</p>
-						</div>
-					</button>
-				{/if}
-			</div>
+			<PhotoUpload
+				value={vinPhotoUrl}
+				label="VIN Photo"
+				required
+				{assessmentId}
+				category="identification"
+				subcategory="vin"
+				onUpload={(url) => {
+					vinPhotoUrl = url;
+					handleSave();
+				}}
+				onRemove={() => {
+					vinPhotoUrl = '';
+					handleSave();
+				}}
+			/>
 		</div>
 	</Card>
 
@@ -183,44 +159,28 @@
 			Engine Number <span class="text-red-500">*</span>
 		</h3>
 		<div class="grid gap-6 md:grid-cols-2">
-			<div>
-				<FormField
-					label="Engine Number"
-					type="text"
-					bind:value={engineNumber}
-					placeholder="Engine number"
-					required
-				/>
-			</div>
-			<div>
-				<label class="mb-2 block text-sm font-medium text-gray-700">Engine Number Photo</label>
-				{#if engineNumberPhotoUrl}
-					<div class="relative">
-						<img
-							src={engineNumberPhotoUrl}
-							alt="Engine Number"
-							class="h-32 w-full rounded-lg object-cover"
-						/>
-						<Button
-							size="sm"
-							variant="outline"
-							class="absolute right-2 top-2"
-							onclick={() => (engineNumberPhotoUrl = '')}
-						>
-							Change
-						</Button>
-					</div>
-				{:else}
-					<button
-						class="flex h-32 w-full items-center justify-center rounded-lg border-2 border-dashed border-gray-300 bg-gray-50 hover:bg-gray-100"
-					>
-						<div class="text-center">
-							<Camera class="mx-auto h-8 w-8 text-gray-400" />
-							<p class="mt-2 text-sm text-gray-600">Take Photo</p>
-						</div>
-					</button>
-				{/if}
-			</div>
+			<FormField
+				label="Engine Number"
+				type="text"
+				bind:value={engineNumber}
+				placeholder="Engine number"
+				required
+			/>
+			<PhotoUpload
+				value={engineNumberPhotoUrl}
+				label="Engine Number Photo"
+				{assessmentId}
+				category="identification"
+				subcategory="engine"
+				onUpload={(url) => {
+					engineNumberPhotoUrl = url;
+					handleSave();
+				}}
+				onRemove={() => {
+					engineNumberPhotoUrl = '';
+					handleSave();
+				}}
+			/>
 		</div>
 	</Card>
 
@@ -228,43 +188,27 @@
 	<Card class="p-6">
 		<h3 class="mb-4 text-lg font-semibold text-gray-900">License Disc</h3>
 		<div class="grid gap-6 md:grid-cols-2">
-			<div>
-				<FormField
-					label="License Disc Expiry Date"
-					type="date"
-					bind:value={licenseDiscExpiry}
-					placeholder="YYYY-MM-DD"
-				/>
-			</div>
-			<div>
-				<label class="mb-2 block text-sm font-medium text-gray-700">License Disc Photo</label>
-				{#if licenseDiscPhotoUrl}
-					<div class="relative">
-						<img
-							src={licenseDiscPhotoUrl}
-							alt="License Disc"
-							class="h-32 w-full rounded-lg object-cover"
-						/>
-						<Button
-							size="sm"
-							variant="outline"
-							class="absolute right-2 top-2"
-							onclick={() => (licenseDiscPhotoUrl = '')}
-						>
-							Change
-						</Button>
-					</div>
-				{:else}
-					<button
-						class="flex h-32 w-full items-center justify-center rounded-lg border-2 border-dashed border-gray-300 bg-gray-50 hover:bg-gray-100"
-					>
-						<div class="text-center">
-							<Camera class="mx-auto h-8 w-8 text-gray-400" />
-							<p class="mt-2 text-sm text-gray-600">Take Photo</p>
-						</div>
-					</button>
-				{/if}
-			</div>
+			<FormField
+				label="License Disc Expiry Date"
+				type="date"
+				bind:value={licenseDiscExpiry}
+				placeholder="YYYY-MM-DD"
+			/>
+			<PhotoUpload
+				value={licenseDiscPhotoUrl}
+				label="License Disc Photo"
+				{assessmentId}
+				category="identification"
+				subcategory="license_disc"
+				onUpload={(url) => {
+					licenseDiscPhotoUrl = url;
+					handleSave();
+				}}
+				onRemove={() => {
+					licenseDiscPhotoUrl = '';
+					handleSave();
+				}}
+			/>
 		</div>
 	</Card>
 
@@ -272,43 +216,27 @@
 	<Card class="p-6">
 		<h3 class="mb-4 text-lg font-semibold text-gray-900">Driver License (Optional)</h3>
 		<div class="grid gap-6 md:grid-cols-2">
-			<div>
-				<FormField
-					label="Driver License Number"
-					type="text"
-					bind:value={driverLicenseNumber}
-					placeholder="License number"
-				/>
-			</div>
-			<div>
-				<label class="mb-2 block text-sm font-medium text-gray-700">Driver License Photo</label>
-				{#if driverLicensePhotoUrl}
-					<div class="relative">
-						<img
-							src={driverLicensePhotoUrl}
-							alt="Driver License"
-							class="h-32 w-full rounded-lg object-cover"
-						/>
-						<Button
-							size="sm"
-							variant="outline"
-							class="absolute right-2 top-2"
-							onclick={() => (driverLicensePhotoUrl = '')}
-						>
-							Change
-						</Button>
-					</div>
-				{:else}
-					<button
-						class="flex h-32 w-full items-center justify-center rounded-lg border-2 border-dashed border-gray-300 bg-gray-50 hover:bg-gray-100"
-					>
-						<div class="text-center">
-							<Camera class="mx-auto h-8 w-8 text-gray-400" />
-							<p class="mt-2 text-sm text-gray-600">Take Photo</p>
-						</div>
-					</button>
-				{/if}
-			</div>
+			<FormField
+				label="Driver License Number"
+				type="text"
+				bind:value={driverLicenseNumber}
+				placeholder="License number"
+			/>
+			<PhotoUpload
+				value={driverLicensePhotoUrl}
+				label="Driver License Photo"
+				{assessmentId}
+				category="identification"
+				subcategory="driver_license"
+				onUpload={(url) => {
+					driverLicensePhotoUrl = url;
+					handleSave();
+				}}
+				onRemove={() => {
+					driverLicensePhotoUrl = '';
+					handleSave();
+				}}
+			/>
 		</div>
 	</Card>
 

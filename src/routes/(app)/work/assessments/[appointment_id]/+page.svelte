@@ -223,15 +223,16 @@
 <AssessmentLayout
 	assessment={data.assessment}
 	bind:currentTab
-	{onTabChange}={handleTabChange}
-	{onSave}={handleSave}
-	{onExit}={handleExit}
+	onTabChange={handleTabChange}
+	onSave={handleSave}
+	onExit={handleExit}
 	{saving}
 	{lastSaved}
 >
 	{#if currentTab === 'identification'}
 		<VehicleIdentificationTab
 			data={data.vehicleIdentification}
+			assessmentId={data.assessment.id}
 			vehicleInfo={{
 				registration: data.inspection?.vehicle_registration,
 				vin: data.inspection?.vehicle_vin,
