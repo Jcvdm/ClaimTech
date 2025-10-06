@@ -13,8 +13,8 @@ export interface UploadPhotoOptions {
 }
 
 class StorageService {
-	private readonly DEFAULT_BUCKET = 'assessment-photos';
-	private readonly MAX_FILE_SIZE_MB = 10;
+	private readonly DEFAULT_BUCKET = 'SVA Photos';
+	private readonly MAX_FILE_SIZE_MB = 50;
 
 	/**
 	 * Initialize storage buckets (call this once during app setup)
