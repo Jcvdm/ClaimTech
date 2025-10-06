@@ -1,6 +1,8 @@
 <script lang="ts">
 	import { page } from '$app/stores';
 	import { cn } from '$lib/utils';
+	import { onMount } from 'svelte';
+	import { inspectionService } from '$lib/services/inspection.service';
 	import type { ComponentType } from 'svelte';
 	import {
 		LayoutDashboard,
@@ -17,12 +19,15 @@
 		label: string;
 		href: string;
 		icon?: ComponentType;
+		badge?: number;
 	};
 
 	type NavGroup = {
 		label: string;
 		items: NavItem[];
 	};
+
+	let inspectionCount = $state(0);
 
 	const navigation: NavGroup[] = [
 		{
@@ -57,6 +62,18 @@
 	function isActive(href: string): boolean {
 		return $page.url.pathname === href || $page.url.pathname.startsWith(href + '/');
 	}
+
+	async function loadInspectionCount() {
+		try {
+			inspectionCount = await inspectionService.getInspectionCount({ status: 'pending' });
+		} catch (error) {
+			console.error('Error loading inspection count:', error);
+		}
+	}
+
+	onMount(() => {
+		loadInspectionCount();
+	});
 </script>
 
 <aside class="hidden lg:block w-60 border-r bg-white">
@@ -71,16 +88,27 @@
 						<a
 							href={item.href}
 							class={cn(
-								'flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors',
+								'flex items-center justify-between gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors',
 								isActive(item.href)
 									? 'bg-blue-50 text-blue-700'
 									: 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'
 							)}
 						>
-							{#if item.icon}
-								<svelte:component this={item.icon} class="h-4 w-4" />
+							<span class="flex items-center gap-3">
+								{#if item.icon}
+									<svelte:component this={item.icon} class="h-4 w-4" />
+								{/if}
+								{item.label}
+							</span>
+
+							<!-- Show badge for Inspections with pending count -->
+							{#if item.href === '/work/inspections' && inspectionCount > 0}
+								<span
+									class="inline-flex items-center justify-center rounded-full bg-blue-600 px-2 py-0.5 text-xs font-medium text-white"
+								>
+									{inspectionCount}
+								</span>
 							{/if}
-							{item.label}
 						</a>
 					{/each}
 				</div>

@@ -19,9 +19,11 @@
 		Users,
 		CheckCircle2,
 		Clock,
-		AlertCircle
+		AlertCircle,
+		Check
 	} from 'lucide-svelte';
 	import { requestService } from '$lib/services/request.service';
+	import { inspectionService } from '$lib/services/inspection.service';
 	import type { PageData } from './$types';
 	import type { RequestStep } from '$lib/types/request';
 
@@ -81,6 +83,34 @@
 	function handleBack() {
 		goto('/requests');
 	}
+
+	async function handleAccept() {
+		if (!confirm('Accept this request and create an inspection?')) {
+			return;
+		}
+
+		loading = true;
+		error = null;
+
+		try {
+			// Create inspection from request
+			const inspection = await inspectionService.createInspectionFromRequest(data.request);
+
+			// Update request status
+			await requestService.updateRequest(data.request.id, {
+				status: 'in_progress',
+				current_step: 'assessment'
+			});
+
+			// Navigate to inspections list
+			goto('/work/inspections');
+		} catch (err) {
+			console.error('Error accepting request:', err);
+			error = err instanceof Error ? err.message : 'Failed to accept request';
+		} finally {
+			loading = false;
+		}
+	}
 </script>
 
 <div class="flex-1 space-y-6 p-8">
@@ -93,6 +123,15 @@
 				<ArrowLeft class="mr-2 h-4 w-4" />
 				Back
 			</Button>
+
+			<!-- Show Accept button only for draft/submitted requests -->
+			{#if data.request.status === 'draft' || data.request.status === 'submitted'}
+				<Button onclick={handleAccept} disabled={loading}>
+					<Check class="mr-2 h-4 w-4" />
+					Accept Request
+				</Button>
+			{/if}
+
 			<Button variant="outline" onclick={handleEdit}>
 				<Edit class="mr-2 h-4 w-4" />
 				Edit
