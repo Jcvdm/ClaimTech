@@ -2,11 +2,13 @@
 	import { Card } from '$lib/components/ui/card';
 	import { Button } from '$lib/components/ui/button';
 	import FormField from '$lib/components/forms/FormField.svelte';
-	import { Plus, CheckCircle, Trash2, Camera } from 'lucide-svelte';
+	import PhotoUpload from '$lib/components/forms/PhotoUpload.svelte';
+	import { Plus, CheckCircle, Trash2 } from 'lucide-svelte';
 	import type { DamageRecord, DamageType, DamageArea, DamageSeverity } from '$lib/types/assessment';
 
 	interface Props {
 		damageRecords: DamageRecord[];
+		assessmentId: string;
 		matchesDescription?: boolean | null;
 		mismatchNotes?: string | null;
 		onUpdateMatch: (matches: boolean, notes?: string) => void;
@@ -18,6 +20,7 @@
 
 	let {
 		damageRecords,
+		assessmentId,
 		matchesDescription = null,
 		mismatchNotes = '',
 		onUpdateMatch,
@@ -243,13 +246,13 @@
 									<div class="relative">
 										<img
 											src={photo.url}
-											alt={photo.description}
+											alt={photo.description || 'Damage photo'}
 											class="h-32 w-full rounded-lg object-cover"
 										/>
 										<Button
 											size="sm"
 											variant="outline"
-											class="absolute right-2 top-2"
+											class="absolute right-2 top-2 bg-white"
 											onclick={() => {
 												const newPhotos = [...(damage.photos || [])];
 												newPhotos.splice(photoIndex, 1);
@@ -260,14 +263,20 @@
 										</Button>
 									</div>
 								{/each}
-								<button
-									class="flex h-32 w-full items-center justify-center rounded-lg border-2 border-dashed border-gray-300 bg-gray-50 hover:bg-gray-100"
-								>
-									<div class="text-center">
-										<Camera class="mx-auto h-6 w-6 text-gray-400" />
-										<p class="mt-1 text-xs text-gray-600">Add Photo</p>
-									</div>
-								</button>
+
+								<!-- Add Photo Upload -->
+								<PhotoUpload
+									value=""
+									label=""
+									{assessmentId}
+									category="damage"
+									subcategory={`damage_${index + 1}`}
+									onUpload={(url) => {
+										const newPhotos = [...(damage.photos || []), { url, description: '' }];
+										onUpdateDamage(damage.id, { photos: newPhotos });
+									}}
+									height="h-32"
+								/>
 							</div>
 						</div>
 					</div>

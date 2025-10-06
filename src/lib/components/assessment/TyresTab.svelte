@@ -2,18 +2,20 @@
 	import { Card } from '$lib/components/ui/card';
 	import { Button } from '$lib/components/ui/button';
 	import FormField from '$lib/components/forms/FormField.svelte';
-	import { Camera, Plus, CheckCircle, Trash2 } from 'lucide-svelte';
+	import PhotoUpload from '$lib/components/forms/PhotoUpload.svelte';
+	import { Plus, CheckCircle, Trash2 } from 'lucide-svelte';
 	import type { Tyre } from '$lib/types/assessment';
 
 	interface Props {
 		tyres: Tyre[];
+		assessmentId: string;
 		onUpdateTyre: (id: string, data: Partial<Tyre>) => void;
 		onAddTyre: () => void;
 		onDeleteTyre: (id: string) => void;
 		onComplete: () => void;
 	}
 
-	let { tyres, onUpdateTyre, onAddTyre, onDeleteTyre, onComplete }: Props = $props();
+	let { tyres, assessmentId, onUpdateTyre, onAddTyre, onDeleteTyre, onComplete }: Props = $props();
 
 	function handleComplete() {
 		onComplete();
@@ -114,35 +116,16 @@
 
 					<!-- Right Column: Photo & Notes -->
 					<div class="space-y-4">
-						<div>
-							<label class="mb-2 block text-sm font-medium text-gray-700">Tyre Photo</label>
-							{#if tyre.photo_url}
-								<div class="relative">
-									<img
-										src={tyre.photo_url}
-										alt={tyre.position_label}
-										class="h-48 w-full rounded-lg object-cover"
-									/>
-									<Button
-										size="sm"
-										variant="outline"
-										class="absolute right-2 top-2"
-										onclick={() => onUpdateTyre(tyre.id, { photo_url: '' })}
-									>
-										Change
-									</Button>
-								</div>
-							{:else}
-								<button
-									class="flex h-48 w-full items-center justify-center rounded-lg border-2 border-dashed border-gray-300 bg-gray-50 hover:bg-gray-100"
-								>
-									<div class="text-center">
-										<Camera class="mx-auto h-8 w-8 text-gray-400" />
-										<p class="mt-2 text-sm text-gray-600">Take Photo</p>
-									</div>
-								</button>
-							{/if}
-						</div>
+						<PhotoUpload
+							value={tyre.photo_url || ''}
+							label="Tyre Photo"
+							{assessmentId}
+							category="tyres"
+							subcategory={tyre.position}
+							onUpload={(url) => onUpdateTyre(tyre.id, { photo_url: url })}
+							onRemove={() => onUpdateTyre(tyre.id, { photo_url: '' })}
+							height="h-48"
+						/>
 
 						<FormField
 							label="Notes"

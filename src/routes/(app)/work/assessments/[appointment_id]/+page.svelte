@@ -263,6 +263,7 @@
 	{:else if currentTab === 'tyres'}
 		<TyresTab
 			tyres={data.tyres}
+			assessmentId={data.assessment.id}
 			onUpdateTyre={handleUpdateTyre}
 			onAddTyre={handleAddTyre}
 			onDeleteTyre={handleDeleteTyre}
@@ -271,6 +272,7 @@
 	{:else if currentTab === 'damage'}
 		<DamageTab
 			damageRecords={data.damageRecords}
+			assessmentId={data.assessment.id}
 			matchesDescription={data.damageRecords[0]?.matches_description}
 			mismatchNotes={data.damageRecords[0]?.mismatch_notes}
 			onUpdateMatch={handleUpdateDamageMatch}
