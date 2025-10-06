@@ -348,6 +348,7 @@
 		<AssessmentNotes
 			assessmentId={data.assessment.id}
 			notes={data.notes}
+			lastSaved={lastSaved}
 			onUpdate={async () => await invalidateAll()}
 		/>
 	</div>

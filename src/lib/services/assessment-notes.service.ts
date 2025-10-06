@@ -68,6 +68,35 @@ class AssessmentNotesService {
 	}
 
 	/**
+	 * Upsert a note (insert or update) - ensures only one note per assessment
+	 */
+	async upsertNote(assessmentId: string, noteText: string, createdBy?: string): Promise<AssessmentNote> {
+		const { data, error } = await supabase
+			.from('assessment_notes')
+			.upsert(
+				{
+					assessment_id: assessmentId,
+					note_text: noteText,
+					created_by: createdBy,
+					updated_at: new Date().toISOString()
+				},
+				{
+					onConflict: 'assessment_id',
+					ignoreDuplicates: false
+				}
+			)
+			.select()
+			.single();
+
+		if (error) {
+			console.error('Error upserting assessment note:', error);
+			throw new Error(`Failed to upsert assessment note: ${error.message}`);
+		}
+
+		return data;
+	}
+
+	/**
 	 * Update a note
 	 */
 	async updateNote(id: string, input: UpdateAssessmentNoteInput): Promise<AssessmentNote> {

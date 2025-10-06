@@ -44,7 +44,66 @@ This document outlines planned future enhancements and features for the Claimtec
 
 ---
 
-### 2. Calendar View for Appointments
+### 2. Real-Time Collaboration for Assessments
+
+**Description:** Enable real-time synchronization of assessment data across multiple users/devices.
+
+**Features:**
+- **Real-Time Notes Sync:**
+  - Multiple engineers can view/edit assessment notes simultaneously
+  - Live updates when another user makes changes
+  - Conflict resolution for concurrent edits
+  - "User is typing..." indicators
+
+- **Live Photo Updates:**
+  - Photos appear in real-time as they're uploaded
+  - Progress indicators for ongoing uploads
+  - Instant visibility across all connected devices
+
+- **Status Synchronization:**
+  - Assessment progress updates in real-time
+  - Tab completion status syncs across users
+  - Live damage record updates
+
+- **Presence Indicators:**
+  - Show who's currently viewing/editing the assessment
+  - Display active users with avatars
+  - Last activity timestamps
+
+**Technical Implementation:**
+- Supabase Realtime with Postgres Changes
+- Subscribe to assessment_notes, assessment_damage, etc.
+- WebSocket connections for live updates
+- Optimistic UI updates with rollback on conflict
+- Debounced saves to prevent excessive updates
+- Channel-based subscriptions per assessment
+
+**Code Example:**
+```javascript
+// Subscribe to assessment notes changes
+const channel = supabase
+  .channel(`assessment:${assessmentId}`)
+  .on('postgres_changes', {
+      event: 'UPDATE',
+      schema: 'public',
+      table: 'assessment_notes',
+      filter: `assessment_id=eq.${assessmentId}`
+    },
+    (payload) => {
+      // Update notes in UI when another user saves
+      notesText = payload.new.note_text;
+      showNotification('Notes updated by another user');
+    }
+  )
+  .subscribe();
+```
+
+**Priority:** Medium
+**Estimated Effort:** 2-3 weeks
+
+---
+
+### 3. Calendar View for Appointments
 
 **Description:** Visual calendar interface for managing appointments.
 
@@ -88,7 +147,7 @@ This document outlines planned future enhancements and features for the Claimtec
 
 ---
 
-### 3. Engineer Mobile App
+### 4. Engineer Mobile App
 
 **Description:** Native or PWA mobile app for engineers to manage their appointments and assessments in the field.
 
@@ -141,7 +200,7 @@ This document outlines planned future enhancements and features for the Claimtec
 
 ---
 
-### 4. Advanced Reporting & Analytics
+### 5. Advanced Reporting & Analytics
 
 **Description:** Comprehensive reporting and analytics dashboard.
 
@@ -182,7 +241,7 @@ This document outlines planned future enhancements and features for the Claimtec
 
 ---
 
-### 5. Document Management System
+### 6. Document Management System
 
 **Description:** Centralized document storage and management.
 
@@ -223,7 +282,7 @@ This document outlines planned future enhancements and features for the Claimtec
 
 ---
 
-### 6. Client Portal
+### 7. Client Portal
 
 **Description:** Self-service portal for clients to manage their requests.
 
@@ -267,7 +326,7 @@ This document outlines planned future enhancements and features for the Claimtec
 
 ---
 
-### 7. Integration APIs
+### 8. Integration APIs
 
 **Description:** REST APIs for third-party integrations.
 
@@ -301,7 +360,7 @@ This document outlines planned future enhancements and features for the Claimtec
 
 ---
 
-### 8. AI-Powered Features
+### 9. AI-Powered Features
 
 **Description:** Machine learning and AI enhancements.
 
@@ -345,6 +404,7 @@ This document outlines planned future enhancements and features for the Claimtec
    - Engineer Mobile App
 
 2. **Medium Priority:**
+   - Real-Time Collaboration for Assessments
    - Calendar View for Appointments
    - Advanced Reporting & Analytics
    - Document Management System
