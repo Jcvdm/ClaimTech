@@ -5,11 +5,14 @@ import { engineerService } from '$lib/services/engineer.service';
 
 export const load: PageServerLoad = async () => {
 	try {
-		const [appointments, clients, engineers] = await Promise.all([
+		const [allAppointments, clients, engineers] = await Promise.all([
 			appointmentService.listAppointments(),
 			clientService.listClients(true),
 			engineerService.listEngineers(true)
 		]);
+
+		// Only show scheduled appointments (hide in_progress, completed, cancelled)
+		const appointments = allAppointments.filter((apt) => apt.status === 'scheduled');
 
 		// Create lookup maps for efficient access
 		const clientMap = Object.fromEntries(clients.map((c) => [c.id, c]));

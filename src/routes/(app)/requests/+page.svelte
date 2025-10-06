@@ -93,16 +93,36 @@
 		},
 		{
 			key: 'current_step' as keyof RequestWithClient,
-			label: 'Step',
+			label: 'Current Phase',
 			sortable: true,
-			render: (value: string) => {
-				const steps: Record<string, string> = {
-					request: 'Request',
-					assessment: 'Assessment',
-					quote: 'Quote',
-					approval: 'Approval'
+			render: (value: string, row: RequestWithClient) => {
+				const phases: Record<
+					string,
+					{ label: string; icon: string; color: string }
+				> = {
+					request: {
+						label: 'New Request',
+						icon: '📝',
+						color: 'bg-gray-100 text-gray-800'
+					},
+					assessment: {
+						label: 'In Assessment',
+						icon: '🔍',
+						color: 'bg-blue-100 text-blue-800'
+					},
+					quote: {
+						label: 'Awaiting Quote',
+						icon: '💰',
+						color: 'bg-purple-100 text-purple-800'
+					},
+					approval: {
+						label: 'Awaiting Approval',
+						icon: '✅',
+						color: 'bg-green-100 text-green-800'
+					}
 				};
-				return steps[value] || value;
+				const phase = phases[value] || phases.request;
+				return `<span class="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium ${phase.color}"><span>${phase.icon}</span><span>${phase.label}</span></span>`;
 			}
 		},
 		{

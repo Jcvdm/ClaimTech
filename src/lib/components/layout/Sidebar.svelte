@@ -3,6 +3,7 @@
 	import { cn } from '$lib/utils';
 	import { onMount } from 'svelte';
 	import { inspectionService } from '$lib/services/inspection.service';
+	import { assessmentService } from '$lib/services/assessment.service';
 	import type { ComponentType } from 'svelte';
 	import {
 		LayoutDashboard,
@@ -14,7 +15,8 @@
 		Plus,
 		Settings,
 		UserPlus,
-		Calendar
+		Calendar,
+		ClipboardList
 	} from 'lucide-svelte';
 
 	type NavItem = {
@@ -30,6 +32,7 @@
 	};
 
 	let inspectionCount = $state(0);
+	let assessmentCount = $state(0);
 
 	const navigation: NavGroup[] = [
 		{
@@ -52,6 +55,7 @@
 			items: [
 				{ label: 'Inspections', href: '/work/inspections', icon: ClipboardCheck },
 				{ label: 'Appointments', href: '/work/appointments', icon: Calendar },
+				{ label: 'Open Assessments', href: '/work/assessments', icon: ClipboardList },
 				{ label: 'FRC', href: '/work/frc', icon: FileCheck },
 				{ label: 'Additionals', href: '/work/additionals', icon: Plus }
 			]
@@ -81,8 +85,17 @@
 		}
 	}
 
+	async function loadAssessmentCount() {
+		try {
+			assessmentCount = await assessmentService.getInProgressCount();
+		} catch (error) {
+			console.error('Error loading assessment count:', error);
+		}
+	}
+
 	onMount(() => {
 		loadInspectionCount();
+		loadAssessmentCount();
 	});
 </script>
 
@@ -117,6 +130,15 @@
 									class="inline-flex items-center justify-center rounded-full bg-blue-600 px-2 py-0.5 text-xs font-medium text-white"
 								>
 									{inspectionCount}
+								</span>
+							{/if}
+
+							<!-- Show badge for Open Assessments with in-progress count -->
+							{#if item.href === '/work/assessments' && assessmentCount > 0}
+								<span
+									class="inline-flex items-center justify-center rounded-full bg-blue-600 px-2 py-0.5 text-xs font-medium text-white"
+								>
+									{assessmentCount}
 								</span>
 							{/if}
 						</a>
