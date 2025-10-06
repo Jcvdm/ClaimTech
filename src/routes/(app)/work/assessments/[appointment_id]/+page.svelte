@@ -1,6 +1,7 @@
 <script lang="ts">
 	import type { PageData } from './$types';
 	import { goto, invalidateAll } from '$app/navigation';
+	import { onMount, onDestroy } from 'svelte';
 	import AssessmentLayout from '$lib/components/assessment/AssessmentLayout.svelte';
 	import VehicleIdentificationTab from '$lib/components/assessment/VehicleIdentificationTab.svelte';
 	import Exterior360Tab from '$lib/components/assessment/Exterior360Tab.svelte';
@@ -28,17 +29,27 @@
 	let currentTab = $state(data.assessment.current_tab || 'identification');
 	let saving = $state(false);
 	let lastSaved = $state<string | null>(null);
+	let autoSaveInterval: ReturnType<typeof setInterval> | null = null;
 
 	async function handleTabChange(tabId: string) {
+		// Auto-save before switching tabs
+		await handleSave();
 		currentTab = tabId;
 		await assessmentService.updateCurrentTab(data.assessment.id, tabId);
 	}
 
 	async function handleSave() {
+		if (saving) return; // Prevent concurrent saves
+
 		saving = true;
 		try {
 			await invalidateAll();
-			lastSaved = new Date().toISOString();
+			const now = new Date();
+			lastSaved = now.toLocaleTimeString('en-US', {
+				hour: '2-digit',
+				minute: '2-digit',
+				second: '2-digit'
+			});
 		} catch (error) {
 			console.error('Error saving:', error);
 		} finally {
@@ -49,6 +60,24 @@
 	function handleExit() {
 		goto(`/work/appointments/${data.appointment.id}`);
 	}
+
+	// Set up auto-save interval (every 30 seconds)
+	onMount(() => {
+		autoSaveInterval = setInterval(handleSave, 30000);
+		// Initial save timestamp
+		lastSaved = new Date().toLocaleTimeString('en-US', {
+			hour: '2-digit',
+			minute: '2-digit',
+			second: '2-digit'
+		});
+	});
+
+	// Clean up interval on component destroy
+	onDestroy(() => {
+		if (autoSaveInterval) {
+			clearInterval(autoSaveInterval);
+		}
+	});
 
 	// Vehicle Identification handlers
 	async function handleUpdateVehicleIdentification(updateData: Partial<VehicleIdentification>) {
