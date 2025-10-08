@@ -11,13 +11,15 @@
 		oemMarkup: number;
 		altMarkup: number;
 		secondHandMarkup: number;
+		outworkMarkup: number;
 		onUpdateRates: (
 			labourRate: number,
 			paintRate: number,
 			vatPercentage: number,
 			oemMarkup: number,
 			altMarkup: number,
-			secondHandMarkup: number
+			secondHandMarkup: number,
+			outworkMarkup: number
 		) => void;
 		disabled?: boolean;
 	}
@@ -29,6 +31,7 @@
 		oemMarkup,
 		altMarkup,
 		secondHandMarkup,
+		outworkMarkup,
 		onUpdateRates,
 		disabled = false
 	}: Props = $props();
@@ -39,6 +42,7 @@
 	let localOemMarkup = $state(oemMarkup);
 	let localAltMarkup = $state(altMarkup);
 	let localSecondHandMarkup = $state(secondHandMarkup);
+	let localOutworkMarkup = $state(outworkMarkup);
 	let isExpanded = $state(false);
 	let hasChanges = $derived(
 		localLabourRate !== labourRate ||
@@ -46,7 +50,8 @@
 			localVatPercentage !== vatPercentage ||
 			localOemMarkup !== oemMarkup ||
 			localAltMarkup !== altMarkup ||
-			localSecondHandMarkup !== secondHandMarkup
+			localSecondHandMarkup !== secondHandMarkup ||
+			localOutworkMarkup !== outworkMarkup
 	);
 
 	function handleUpdateRates() {
@@ -56,7 +61,8 @@
 			localVatPercentage,
 			localOemMarkup,
 			localAltMarkup,
-			localSecondHandMarkup
+			localSecondHandMarkup,
+			localOutworkMarkup
 		);
 	}
 
@@ -67,6 +73,7 @@
 		localOemMarkup = oemMarkup;
 		localAltMarkup = altMarkup;
 		localSecondHandMarkup = secondHandMarkup;
+		localOutworkMarkup = outworkMarkup;
 	}
 
 	// Update local values when props change
@@ -77,6 +84,7 @@
 		localOemMarkup = oemMarkup;
 		localAltMarkup = altMarkup;
 		localSecondHandMarkup = secondHandMarkup;
+		localOutworkMarkup = outworkMarkup;
 	});
 
 	function formatCurrency(amount: number): string {
@@ -102,7 +110,7 @@
 					Labour: {formatCurrency(labourRate)}/hr • Paint: {formatCurrency(paintRate)}/panel • VAT: {vatPercentage}%
 				</p>
 				<p class="text-xs text-gray-500 mt-1">
-					Markup: OEM {oemMarkup}% • ALT {altMarkup}% • 2ND {secondHandMarkup}%
+					Markup: OEM {oemMarkup}% • ALT {altMarkup}% • 2ND {secondHandMarkup}% • Outwork {outworkMarkup}%
 				</p>
 			</div>
 		</div>
@@ -184,13 +192,13 @@
 				</div>
 			</div>
 
-			<!-- Parts Markup Section -->
+			<!-- Markup Percentages Section -->
 			<div class="border-t border-gray-200 pt-4">
-				<h4 class="text-sm font-semibold text-gray-900 mb-3">Parts Markup Percentages</h4>
+				<h4 class="text-sm font-semibold text-gray-900 mb-3">Markup Percentages</h4>
 				<p class="text-xs text-gray-600 mb-4">
-					Markup is applied to nett part prices. Selling Price = Nett Price × (1 + Markup%)
+					Markup is applied to nett prices. Selling Price = Nett Price × (1 + Markup%)
 				</p>
-				<div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+				<div class="grid grid-cols-1 md:grid-cols-4 gap-4">
 					<!-- OEM Markup -->
 					<div>
 						<label for="oem-markup" class="block text-sm font-medium text-gray-700 mb-2">
@@ -257,6 +265,29 @@
 						</div>
 						<p class="mt-1 text-xs text-gray-500">
 							Used/Second Hand parts
+						</p>
+					</div>
+
+					<!-- Outwork Markup -->
+					<div>
+						<label for="outwork-markup" class="block text-sm font-medium text-gray-700 mb-2">
+							Outwork Markup
+						</label>
+						<div class="flex items-center gap-2">
+							<Input
+								id="outwork-markup"
+								type="number"
+								min="0"
+								max="100"
+								step="0.1"
+								bind:value={localOutworkMarkup}
+								{disabled}
+								class="flex-1"
+							/>
+							<span class="text-gray-500">%</span>
+						</div>
+						<p class="mt-1 text-xs text-gray-500">
+							Outsourced work charges
 						</p>
 					</div>
 				</div>

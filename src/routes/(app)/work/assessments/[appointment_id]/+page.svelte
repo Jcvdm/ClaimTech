@@ -295,7 +295,8 @@
 		vatPercentage: number,
 		oemMarkup: number,
 		altMarkup: number,
-		secondHandMarkup: number
+		secondHandMarkup: number,
+		outworkMarkup: number
 	) {
 		try {
 			if (data.estimate) {
@@ -305,7 +306,8 @@
 					vat_percentage: vatPercentage,
 					oem_markup_percentage: oemMarkup,
 					alt_markup_percentage: altMarkup,
-					second_hand_markup_percentage: secondHandMarkup
+					second_hand_markup_percentage: secondHandMarkup,
+					outwork_markup_percentage: outworkMarkup
 				});
 				await invalidateAll();
 			}

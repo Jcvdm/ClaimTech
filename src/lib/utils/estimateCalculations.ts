@@ -72,6 +72,18 @@ export function calculateSACost(hours: number | null | undefined, labourRate: nu
 }
 
 /**
+ * Calculate outwork selling price with markup
+ * @param nettPrice - Nett outwork cost without markup
+ * @param markupPercentage - Markup percentage (e.g., 25 for 25%)
+ * @returns Selling price with markup applied
+ */
+export function calculateOutworkSellingPrice(nettPrice: number | null | undefined, markupPercentage: number): number {
+	if (!nettPrice || nettPrice <= 0) return 0;
+	const markup = 1 + (markupPercentage / 100);
+	return Number((nettPrice * markup).toFixed(2));
+}
+
+/**
  * Calculate labour cost for a line item
  */
 export function calculateLabourCost(labourHours: number | null | undefined, labourRate: number): number {
@@ -199,6 +211,7 @@ export function createEmptyLineItem(processType: ProcessType): Partial<EstimateL
 		labour_cost: 0,
 		paint_panels: null,
 		paint_cost: 0,
+		outwork_charge_nett: null,
 		outwork_charge: null,
 		total: 0
 	};

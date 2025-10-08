@@ -16,10 +16,11 @@
 		oemMarkup: number;
 		altMarkup: number;
 		secondHandMarkup: number;
+		outworkMarkup: number;
 		onAddLineItem: (item: EstimateLineItem) => void;
 	}
 
-	let { labourRate, paintRate, oemMarkup, altMarkup, secondHandMarkup, onAddLineItem }: Props =
+	let { labourRate, paintRate, oemMarkup, altMarkup, secondHandMarkup, outworkMarkup, onAddLineItem }: Props =
 		$props();
 
 	// Form state
@@ -30,7 +31,7 @@
 	let stripAssembleHours = $state<number | null>(null); // Hours for S&A
 	let labourHours = $state<number | null>(null);
 	let paintPanels = $state<number | null>(null);
-	let outworkCharge = $state<number | null>(null);
+	let outworkChargeNett = $state<number | null>(null); // Nett outwork cost without markup
 	let errors = $state<string[]>([]);
 
 	const processTypeOptions = getProcessTypeOptions();
@@ -52,7 +53,7 @@
 		if (!showStripAssemble) stripAssembleHours = null;
 		if (!showLabour) labourHours = null;
 		if (!showPaint) paintPanels = null;
-		if (!showOutwork) outworkCharge = null;
+		if (!showOutwork) outworkChargeNett = null;
 		errors = [];
 	}
 
@@ -70,6 +71,9 @@
 
 		const partPrice = calculatePartSellingPrice(partPriceNett, markupPercentage);
 
+		// Calculate outwork charge with markup
+		const outworkCharge = calculatePartSellingPrice(outworkChargeNett, outworkMarkup);
+
 		const item: EstimateLineItem = {
 			id: crypto.randomUUID(),
 			process_type: processType,
@@ -83,6 +87,7 @@
 			labour_cost: labourCost,
 			paint_panels: paintPanels,
 			paint_cost: paintCost,
+			outwork_charge_nett: outworkChargeNett,
 			outwork_charge: outworkCharge,
 			total: calculateLineItemTotal(
 				{
@@ -110,7 +115,7 @@
 		stripAssembleHours = null;
 		labourHours = null;
 		paintPanels = null;
-		outworkCharge = null;
+		outworkChargeNett = null;
 		errors = [];
 	}
 </script>
@@ -118,7 +123,7 @@
 <Card class="p-4 sm:p-6 bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200">
 	<div class="flex items-center justify-between mb-3 sm:mb-4">
 		<h3 class="text-base sm:text-lg font-semibold text-gray-900">Quick Add Line Item</h3>
-		{#if description || partPriceNett || stripAssembleHours || labourHours || paintPanels || outworkCharge}
+		{#if description || partPriceNett || stripAssembleHours || labourHours || paintPanels || outworkChargeNett}
 			<Button variant="ghost" size="sm" onclick={handleClear}>
 				<X class="h-4 w-4 mr-1" />
 				<span class="hidden sm:inline">Clear</span>
@@ -257,17 +262,18 @@
 			{#if showOutwork}
 				<div>
 					<label for="outwork-charge" class="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
-						Outwork Charge
+						Outwork Charge (Nett)
 					</label>
 					<Input
 						id="outwork-charge"
 						type="number"
 						min="0"
 						step="0.01"
-						bind:value={outworkCharge}
+						bind:value={outworkChargeNett}
 						placeholder="0.00"
 						class="text-xs sm:text-sm"
 					/>
+					<p class="mt-1 text-xs text-gray-500">Enter nett price (without markup)</p>
 				</div>
 			{/if}
 		</div>

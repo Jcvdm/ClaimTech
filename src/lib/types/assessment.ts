@@ -343,7 +343,8 @@ export interface EstimateLineItem {
 	labour_cost?: number; // Calculated: labour_hours × labour_rate
 	paint_panels?: number | null; // N, R, P, B
 	paint_cost?: number; // Calculated: paint_panels × paint_rate
-	outwork_charge?: number | null; // O only
+	outwork_charge_nett?: number | null; // O only - Nett outwork cost without markup (user input)
+	outwork_charge?: number | null; // O only - Selling price with markup (calculated)
 	total: number; // Sum of applicable costs
 }
 
@@ -356,6 +357,7 @@ export interface Estimate {
 	oem_markup_percentage: number; // Markup % for OEM parts (default 25%)
 	alt_markup_percentage: number; // Markup % for Aftermarket parts (default 25%)
 	second_hand_markup_percentage: number; // Markup % for Second Hand parts (default 25%)
+	outwork_markup_percentage: number; // Markup % for outwork charges (default 25%)
 	line_items: EstimateLineItem[];
 	subtotal: number;
 	vat_percentage: number;

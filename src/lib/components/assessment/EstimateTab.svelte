@@ -45,9 +45,11 @@
 	let editingSA = $state<string | null>(null);
 	let editingPaint = $state<string | null>(null);
 	let editingPartPrice = $state<string | null>(null);
+	let editingOutwork = $state<string | null>(null);
 	let tempSAHours = $state<number | null>(null);
 	let tempPaintPanels = $state<number | null>(null);
 	let tempPartPriceNett = $state<number | null>(null);
+	let tempOutworkNett = $state<number | null>(null);
 
 	function handleAddEmptyLineItem() {
 		const newItem = createEmptyLineItem('N') as EstimateLineItem;
@@ -141,6 +143,32 @@
 		tempPartPriceNett = null;
 	}
 
+	// Click-to-edit Outwork (nett price input)
+	// Outwork selling price = nett price × (1 + markup%)
+	function handleOutworkClick(itemId: string, currentNettPrice: number | null) {
+		editingOutwork = itemId;
+		tempOutworkNett = currentNettPrice;
+	}
+
+	function handleOutworkSave(itemId: string) {
+		if (tempOutworkNett !== null && estimate) {
+			const markupPercentage = estimate.outwork_markup_percentage;
+			const sellingPrice = tempOutworkNett * (1 + markupPercentage / 100);
+
+			onUpdateLineItem(itemId, {
+				outwork_charge_nett: tempOutworkNett,
+				outwork_charge: Number(sellingPrice.toFixed(2))
+			});
+		}
+		editingOutwork = null;
+		tempOutworkNett = null;
+	}
+
+	function handleOutworkCancel() {
+		editingOutwork = null;
+		tempOutworkNett = null;
+	}
+
 	function formatCurrency(amount: number): string {
 		return new Intl.NumberFormat('en-ZA', {
 			style: 'currency',
@@ -159,12 +187,21 @@
 		const paintTotal = estimate.line_items.reduce((sum, item) => sum + (item.paint_cost || 0), 0);
 		const outworkTotal = estimate.line_items.reduce((sum, item) => sum + (item.outwork_charge || 0), 0);
 
+		// Calculate total markup (difference between selling price and nett price)
+		const markupTotal = estimate.line_items.reduce((sum, item) => {
+			if (item.part_price && item.part_price_nett) {
+				return sum + (item.part_price - item.part_price_nett);
+			}
+			return sum;
+		}, 0);
+
 		return {
 			partsTotal,
 			saTotal,
 			labourTotal,
 			paintTotal,
-			outworkTotal
+			outworkTotal,
+			markupTotal
 		};
 	});
 
@@ -190,6 +227,7 @@
 			oemMarkup={estimate.oem_markup_percentage}
 			altMarkup={estimate.alt_markup_percentage}
 			secondHandMarkup={estimate.second_hand_markup_percentage}
+			outworkMarkup={estimate.outwork_markup_percentage}
 			onUpdateRates={onUpdateRates}
 		/>
 
@@ -200,6 +238,7 @@
 			oemMarkup={estimate.oem_markup_percentage}
 			altMarkup={estimate.alt_markup_percentage}
 			secondHandMarkup={estimate.second_hand_markup_percentage}
+			outworkMarkup={estimate.outwork_markup_percentage}
 			onAddLineItem={onAddLineItem}
 		/>
 
@@ -262,9 +301,9 @@
 													handleUpdateLineItem(item.id!, 'part_type', e.currentTarget.value)}
 												class="w-full rounded-md border-0 bg-transparent px-2 py-1 text-xs focus:outline-none focus:ring-0"
 											>
-												<option value="OEM">OEM</option>
-												<option value="ALT">ALT</option>
-												<option value="2ND">2ND</option>
+												<option value="OEM">O</option>
+												<option value="ALT">A</option>
+												<option value="2ND">2</option>
 											</select>
 										{:else}
 											<span class="text-gray-400 text-xs">-</span>
@@ -390,18 +429,35 @@
 										{/if}
 									</Table.Cell>
 
-									<!-- Outwork Charge (O only) -->
+									<!-- Outwork Charge (O only) - Click to edit nett price -->
 									<Table.Cell class="text-right px-3 py-2">
 										{#if item.process_type === 'O'}
-											<Input
-												type="number"
-												min="0"
-												step="0.01"
-												value={item.outwork_charge}
-												oninput={(e) =>
-													handleUpdateLineItem(item.id!, 'outwork_charge', Number(e.currentTarget.value))}
-												class="border-0 text-right text-sm focus-visible:ring-0 focus-visible:ring-offset-0"
-											/>
+											{#if editingOutwork === item.id}
+												<div class="space-y-1">
+													<Input
+														type="number"
+														min="0"
+														step="0.01"
+														bind:value={tempOutworkNett}
+														onkeydown={(e) => {
+															if (e.key === 'Enter') handleOutworkSave(item.id!);
+															if (e.key === 'Escape') handleOutworkCancel();
+														}}
+														onblur={() => handleOutworkSave(item.id!)}
+														class="border-0 text-right text-sm focus-visible:ring-0 focus-visible:ring-offset-0"
+														autofocus
+													/>
+													<p class="text-xs text-gray-500 italic">Only input nett price</p>
+												</div>
+											{:else}
+												<button
+													onclick={() => handleOutworkClick(item.id!, item.outwork_charge_nett || null)}
+													class="text-sm font-medium text-blue-600 hover:text-blue-800 cursor-pointer w-full text-right"
+													title="Click to edit nett price (selling price includes markup)"
+												>
+													{formatCurrency(item.outwork_charge || 0)}
+												</button>
+											{/if}
 										{:else}
 											<span class="text-gray-400 text-xs">-</span>
 										{/if}
@@ -445,6 +501,11 @@
 					</div>
 
 					<div class="flex items-center justify-between py-2">
+						<span class="text-sm text-gray-600">Markup Total</span>
+						<span class="text-sm font-medium text-green-600">{formatCurrency(totals?.markupTotal || 0)}</span>
+					</div>
+
+					<div class="flex items-center justify-between py-2">
 						<span class="text-sm text-gray-600">S&A Total</span>
 						<span class="text-sm font-medium">{formatCurrency(totals?.saTotal || 0)}</span>
 					</div>
@@ -483,18 +544,6 @@
 					</div>
 				</div>
 			{/if}
-		</Card>
-
-		<!-- Notes -->
-		<Card class="p-6">
-			<h3 class="mb-4 text-lg font-semibold text-gray-900">Additional Notes</h3>
-			<textarea
-				value={estimate.notes || ''}
-				oninput={(e) => onUpdateEstimate({ notes: e.currentTarget.value })}
-				placeholder="Add any additional notes or comments about this estimate..."
-				rows={4}
-				class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-			></textarea>
 		</Card>
 
 		<!-- Actions -->
