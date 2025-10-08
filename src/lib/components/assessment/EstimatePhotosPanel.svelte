@@ -26,15 +26,15 @@
 	let modalSize = $state<'small' | 'medium' | 'large' | 'fullscreen'>('medium');
 	let photoZoom = $state<number>(1);
 
-	// Derived modal size class for reactivity
+	// Derived modal size class for reactivity with important modifiers to override Dialog defaults
 	let modalSizeClass = $derived(
 		modalSize === 'fullscreen'
-			? 'max-w-full max-h-full w-screen h-screen'
+			? '!max-w-full !max-h-full !w-screen !h-screen !inset-0 !translate-x-0 !translate-y-0 !rounded-none'
 			: modalSize === 'large'
-				? 'max-w-5xl max-h-[90vh]'
+				? 'sm:!max-w-5xl md:!max-w-5xl lg:!max-w-5xl !max-h-[90vh]'
 				: modalSize === 'medium'
-					? 'max-w-3xl max-h-[80vh]'
-					: 'max-w-2xl max-h-[70vh]'
+					? 'sm:!max-w-3xl md:!max-w-3xl lg:!max-w-3xl !max-h-[80vh]'
+					: 'sm:!max-w-2xl md:!max-w-2xl lg:!max-w-2xl !max-h-[70vh]'
 	);
 
 	// Drag and drop handlers
@@ -320,22 +320,22 @@
 				{#each photos as photo, index (photo.id)}
 					<button
 						onclick={() => openPhotoModal(index)}
-						class="relative aspect-square bg-gray-100 rounded-lg overflow-hidden transition-opacity group"
+						class="relative aspect-square bg-gray-100 rounded-lg overflow-hidden group"
 					>
 						<img
 							src={photo.photo_url}
 							alt={photo.label || 'Incident photo'}
 							class="w-full h-full object-cover cursor-pointer"
 						/>
-						<!-- Hover overlay - below label with darker background -->
-						<div class="absolute inset-0 bg-black/0 group-hover:bg-black/50 transition-all duration-200 flex items-center justify-center pointer-events-none">
+						<!-- Hover overlay - excludes bottom area where label sits -->
+						<div class="absolute inset-x-0 top-0 {photo.label ? 'bottom-8' : 'bottom-0'} bg-black/0 group-hover:bg-black/50 transition-all duration-200 flex items-center justify-center pointer-events-none">
 							<span class="text-white opacity-0 group-hover:opacity-100 transition-opacity text-sm font-semibold drop-shadow-lg">
 								Click to view
 							</span>
 						</div>
-						<!-- Label overlay - on top with z-index -->
+						<!-- Label overlay - separate from hover overlay -->
 						{#if photo.label}
-							<div class="absolute bottom-0 left-0 right-0 bg-black/70 text-white text-xs p-2 truncate z-10">
+							<div class="absolute bottom-0 left-0 right-0 bg-black/70 text-white text-xs p-2 truncate">
 								{photo.label}
 							</div>
 						{/if}
