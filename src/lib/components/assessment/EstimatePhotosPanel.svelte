@@ -2,7 +2,8 @@
 	import { Card } from '$lib/components/ui/card';
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
-	import { Upload, Trash2, Image as ImageIcon, Loader2 } from 'lucide-svelte';
+	import * as Dialog from '$lib/components/ui/dialog';
+	import { Upload, Trash2, Image as ImageIcon, Loader2, ChevronLeft, ChevronRight, X } from 'lucide-svelte';
 	import type { EstimatePhoto } from '$lib/types/assessment';
 	import { storageService } from '$lib/services/storage.service';
 	import { estimatePhotosService } from '$lib/services/estimate-photos.service';
@@ -20,7 +21,7 @@
 	let uploadProgress = $state(0);
 	let isDragging = $state(false);
 	let fileInput: HTMLInputElement;
-	let editingLabel = $state<string | null>(null);
+	let selectedPhotoIndex = $state<number | null>(null);
 	let tempLabel = $state<string>('');
 
 	// Drag and drop handlers
@@ -134,24 +135,78 @@
 		}
 	}
 
-	function handleLabelClick(photoId: string, currentLabel: string | null) {
-		editingLabel = photoId;
-		tempLabel = currentLabel || '';
+	// Modal functions
+	function openPhotoModal(index: number) {
+		selectedPhotoIndex = index;
+		tempLabel = photos[index].label || '';
 	}
 
-	async function handleLabelSave(photoId: string) {
+	function closePhotoModal() {
+		selectedPhotoIndex = null;
+		tempLabel = '';
+	}
+
+	function previousPhoto() {
+		if (selectedPhotoIndex !== null && selectedPhotoIndex > 0) {
+			selectedPhotoIndex--;
+			tempLabel = photos[selectedPhotoIndex].label || '';
+		}
+	}
+
+	function nextPhoto() {
+		if (selectedPhotoIndex !== null && selectedPhotoIndex < photos.length - 1) {
+			selectedPhotoIndex++;
+			tempLabel = photos[selectedPhotoIndex].label || '';
+		}
+	}
+
+	async function handleLabelSaveInModal() {
+		if (selectedPhotoIndex === null) return;
+
 		try {
-			await estimatePhotosService.updatePhotoLabel(photoId, tempLabel);
-			editingLabel = null;
+			const photo = photos[selectedPhotoIndex];
+			await estimatePhotosService.updatePhotoLabel(photo.id, tempLabel);
 			await onUpdate();
 		} catch (error) {
 			console.error('Error updating label:', error);
 		}
 	}
 
-	function handleLabelCancel() {
-		editingLabel = null;
-		tempLabel = '';
+	async function handleDeleteInModal() {
+		if (selectedPhotoIndex === null) return;
+
+		const photo = photos[selectedPhotoIndex];
+		if (!confirm('Are you sure you want to delete this photo?')) return;
+
+		try {
+			// Delete from storage
+			await storageService.deletePhoto(photo.photo_path);
+
+			// Delete from database
+			await estimatePhotosService.deletePhoto(photo.id);
+
+			// Close modal and refresh
+			closePhotoModal();
+			await onUpdate();
+		} catch (error) {
+			console.error('Error deleting photo:', error);
+			alert('Failed to delete photo. Please try again.');
+		}
+	}
+
+	// Keyboard navigation
+	function handleKeydown(event: KeyboardEvent) {
+		if (selectedPhotoIndex === null) return;
+
+		if (event.key === 'ArrowLeft') {
+			event.preventDefault();
+			previousPhoto();
+		} else if (event.key === 'ArrowRight') {
+			event.preventDefault();
+			nextPhoto();
+		} else if (event.key === 'Escape') {
+			closePhotoModal();
+		}
 	}
 </script>
 
@@ -231,60 +286,112 @@
 				<p class="text-xs mt-1">Upload photos using the area above</p>
 			</div>
 		{:else}
-			<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 max-h-96 overflow-y-auto">
-				{#each photos as photo (photo.id)}
-					<div class="relative group border border-gray-200 rounded-lg overflow-hidden bg-white">
-						<!-- Photo -->
-						<div class="bg-gray-100 flex items-center justify-center">
-							<img
-								src={photo.photo_url}
-								alt={photo.label || 'Incident photo'}
-								class="w-full h-auto max-h-64 object-contain"
-							/>
+			<!-- Thumbnail Grid -->
+			<div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 max-h-96 overflow-y-auto">
+				{#each photos as photo, index (photo.id)}
+					<button
+						onclick={() => openPhotoModal(index)}
+						class="relative aspect-square bg-gray-100 rounded-lg overflow-hidden hover:opacity-90 transition-opacity group"
+					>
+						<img
+							src={photo.photo_url}
+							alt={photo.label || 'Incident photo'}
+							class="w-full h-full object-cover cursor-pointer"
+						/>
+						{#if photo.label}
+							<div class="absolute bottom-0 left-0 right-0 bg-black/70 text-white text-xs p-2 truncate">
+								{photo.label}
+							</div>
+						{/if}
+						<div class="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors flex items-center justify-center">
+							<span class="text-white opacity-0 group-hover:opacity-100 transition-opacity text-sm font-medium">
+								Click to view
+							</span>
 						</div>
-
-						<!-- Label Input -->
-						<div class="p-3 space-y-2">
-							{#if editingLabel === photo.id}
-								<div class="space-y-2">
-									<Input
-										type="text"
-										bind:value={tempLabel}
-										placeholder="Add label..."
-										onkeydown={(e) => {
-											if (e.key === 'Enter') handleLabelSave(photo.id);
-											if (e.key === 'Escape') handleLabelCancel();
-										}}
-										onblur={() => handleLabelSave(photo.id)}
-										autofocus
-										class="text-sm"
-									/>
-								</div>
-							{:else}
-								<button
-									onclick={() => handleLabelClick(photo.id, photo.label)}
-									class="w-full text-left text-sm text-gray-600 hover:text-gray-900 truncate"
-									title={photo.label || 'Click to add label'}
-								>
-									{photo.label || 'Click to add label...'}
-								</button>
-							{/if}
-
-							<!-- Delete Button -->
-							<Button
-								variant="outline"
-								size="sm"
-								onclick={() => handleDeletePhoto(photo.id, photo.photo_path)}
-								class="w-full text-red-600 hover:bg-red-50 hover:text-red-700"
-							>
-								<Trash2 class="h-4 w-4 mr-1" />
-								Delete
-							</Button>
-						</div>
-					</div>
+					</button>
 				{/each}
 			</div>
 		{/if}
 	</Card>
 </div>
 
+<!-- Photo Modal -->
+{#if selectedPhotoIndex !== null}
+	<Dialog.Root open={true} onOpenChange={closePhotoModal}>
+		<Dialog.Content class="max-w-5xl max-h-[90vh] overflow-y-auto" onkeydown={handleKeydown}>
+			<Dialog.Header>
+				<Dialog.Title>
+					Photo {selectedPhotoIndex + 1} of {photos.length}
+				</Dialog.Title>
+			</Dialog.Header>
+
+			<!-- Large Photo -->
+			<div class="bg-gray-100 rounded-lg flex items-center justify-center p-4">
+				<img
+					src={photos[selectedPhotoIndex].photo_url}
+					alt={photos[selectedPhotoIndex].label || 'Full size photo'}
+					class="w-full h-auto max-h-[60vh] object-contain"
+				/>
+			</div>
+
+			<!-- Label Input -->
+			<div class="space-y-2">
+				<label for="photo-label" class="block text-sm font-medium text-gray-700">
+					Photo Label
+				</label>
+				<Input
+					id="photo-label"
+					type="text"
+					bind:value={tempLabel}
+					placeholder="Add a label or description for this photo..."
+					onkeydown={(e) => {
+						if (e.key === 'Enter') handleLabelSaveInModal();
+					}}
+					onblur={handleLabelSaveInModal}
+					class="w-full"
+				/>
+				<p class="text-xs text-gray-500">Press Enter or click outside to save</p>
+			</div>
+
+			<!-- Actions -->
+			<div class="flex items-center justify-between pt-4 border-t">
+				<!-- Navigation -->
+				<div class="flex gap-2">
+					<Button
+						variant="outline"
+						size="sm"
+						onclick={previousPhoto}
+						disabled={selectedPhotoIndex === 0}
+					>
+						<ChevronLeft class="h-4 w-4 mr-1" />
+						Previous
+					</Button>
+					<Button
+						variant="outline"
+						size="sm"
+						onclick={nextPhoto}
+						disabled={selectedPhotoIndex === photos.length - 1}
+					>
+						Next
+						<ChevronRight class="h-4 w-4 ml-1" />
+					</Button>
+				</div>
+
+				<!-- Delete -->
+				<Button
+					variant="outline"
+					size="sm"
+					onclick={handleDeleteInModal}
+					class="text-red-600 hover:bg-red-50 hover:text-red-700"
+				>
+					<Trash2 class="h-4 w-4 mr-1" />
+					Delete Photo
+				</Button>
+			</div>
+
+			<div class="text-xs text-gray-500 text-center pt-2">
+				Use arrow keys to navigate • Press Escape to close
+			</div>
+		</Dialog.Content>
+	</Dialog.Root>
+{/if}
