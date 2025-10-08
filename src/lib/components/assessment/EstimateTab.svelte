@@ -46,6 +46,10 @@
 
 	const processTypeOptions = getProcessTypeOptions();
 
+	// State for multi-select functionality
+	let selectedItems = $state<Set<string>>(new Set());
+	let selectAll = $state(false);
+
 	// State for click-to-edit functionality
 	let editingSA = $state<string | null>(null);
 	let editingPaint = $state<string | null>(null);
@@ -63,6 +67,42 @@
 
 	function handleUpdateLineItem(itemId: string, field: keyof EstimateLineItem, value: any) {
 		onUpdateLineItem(itemId, { [field]: value });
+	}
+
+	// Multi-select handlers
+	function handleToggleSelect(itemId: string) {
+		if (selectedItems.has(itemId)) {
+			selectedItems.delete(itemId);
+		} else {
+			selectedItems.add(itemId);
+		}
+		selectedItems = new Set(selectedItems); // Trigger reactivity
+		selectAll = selectedItems.size === estimate!.line_items.length;
+	}
+
+	function handleSelectAll() {
+		if (selectAll) {
+			selectedItems.clear();
+		} else {
+			estimate!.line_items.forEach((item) => {
+				if (item.id) selectedItems.add(item.id);
+			});
+		}
+		selectedItems = new Set(selectedItems); // Trigger reactivity
+		selectAll = !selectAll;
+	}
+
+	function handleBulkDelete() {
+		if (!confirm(`Delete ${selectedItems.size} selected item${selectedItems.size > 1 ? 's' : ''}?`))
+			return;
+
+		selectedItems.forEach((itemId) => {
+			onDeleteLineItem(itemId);
+		});
+
+		selectedItems.clear();
+		selectedItems = new Set(selectedItems); // Trigger reactivity
+		selectAll = false;
 	}
 
 	// Click-to-edit S&A (hours input)
@@ -251,18 +291,35 @@
 		<Card class="p-6">
 			<div class="mb-4 flex items-center justify-between">
 				<h3 class="text-lg font-semibold text-gray-900">Line Items</h3>
-				<Button onclick={handleAddEmptyLineItem} size="sm" variant="outline">
-					<Plus class="mr-2 h-4 w-4" />
-					Add Empty Row
-				</Button>
+				<div class="flex gap-2">
+					{#if selectedItems.size > 0}
+						<Button onclick={handleBulkDelete} size="sm" variant="destructive">
+							<Trash2 class="mr-2 h-4 w-4" />
+							Delete Selected ({selectedItems.size})
+						</Button>
+					{/if}
+					<Button onclick={handleAddEmptyLineItem} size="sm" variant="outline">
+						<Plus class="mr-2 h-4 w-4" />
+						Add Empty Row
+					</Button>
+				</div>
 			</div>
 
 			<div class="rounded-lg border overflow-x-auto">
 				<Table.Root>
 					<Table.Header>
 						<Table.Row class="hover:bg-transparent">
+							<Table.Head class="w-[50px] px-3">
+								<input
+									type="checkbox"
+									checked={selectAll}
+									onchange={handleSelectAll}
+									class="rounded border-gray-300 cursor-pointer"
+									aria-label="Select all items"
+								/>
+							</Table.Head>
 							<Table.Head class="w-[80px] px-3">Type</Table.Head>
-							<Table.Head class="w-[60px] px-3">Part</Table.Head>
+							<Table.Head class="w-[100px] px-3">Part Type</Table.Head>
 							<Table.Head class="min-w-[200px] px-3">Description</Table.Head>
 							<Table.Head class="w-[140px] text-right px-3">Part Price</Table.Head>
 							<Table.Head class="w-[140px] text-right px-3">S&A</Table.Head>
@@ -276,13 +333,24 @@
 					<Table.Body>
 						{#if estimate.line_items.length === 0}
 							<Table.Row class="hover:bg-transparent">
-								<Table.Cell colspan={10} class="h-24 text-center text-gray-500">
+								<Table.Cell colspan={11} class="h-24 text-center text-gray-500">
 									No line items added. Use "Quick Add" above or click "Add Empty Row".
 								</Table.Cell>
 							</Table.Row>
 						{:else}
 							{#each estimate.line_items as item (item.id)}
 								<Table.Row class="hover:bg-gray-50">
+									<!-- Checkbox -->
+									<Table.Cell class="px-3 py-2">
+										<input
+											type="checkbox"
+											checked={selectedItems.has(item.id!)}
+											onchange={() => handleToggleSelect(item.id!)}
+											class="rounded border-gray-300 cursor-pointer"
+											aria-label="Select item"
+										/>
+									</Table.Cell>
+
 									<!-- Process Type -->
 									<Table.Cell class="px-3 py-2">
 										<select
@@ -304,14 +372,14 @@
 												value={item.part_type || 'OEM'}
 												onchange={(e) =>
 													handleUpdateLineItem(item.id!, 'part_type', e.currentTarget.value)}
-												class="w-full rounded-md border-0 bg-transparent px-2 py-1 text-xs focus:outline-none focus:ring-0"
+												class="w-full rounded-md border-0 bg-transparent px-2 py-1 text-sm focus:outline-none focus:ring-0"
 											>
-												<option value="OEM">O</option>
-												<option value="ALT">A</option>
-												<option value="2ND">2</option>
+												<option value="OEM">OEM</option>
+												<option value="ALT">ALT</option>
+												<option value="2ND">2ND</option>
 											</select>
 										{:else}
-											<span class="text-gray-400 text-xs">-</span>
+											<span class="text-gray-400 text-sm">-</span>
 										{/if}
 									</Table.Cell>
 
