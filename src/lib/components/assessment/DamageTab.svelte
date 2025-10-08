@@ -174,11 +174,11 @@
 					<h4 class="mb-2 text-sm font-medium text-gray-700">Damage Photos</h4>
 					<div class="grid gap-4 md:grid-cols-4">
 						{#each damageRecord.photos || [] as photo, photoIndex}
-							<div class="relative">
+							<div class="relative bg-gray-100 rounded-lg flex items-center justify-center">
 								<img
 									src={photo.url}
 									alt={photo.description || 'Damage photo'}
-									class="h-32 w-full rounded-lg object-cover"
+									class="h-32 w-full rounded-lg object-contain"
 								/>
 								<Button
 									size="sm"

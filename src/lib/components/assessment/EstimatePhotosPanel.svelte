@@ -235,11 +235,11 @@
 				{#each photos as photo (photo.id)}
 					<div class="relative group border border-gray-200 rounded-lg overflow-hidden bg-white">
 						<!-- Photo -->
-						<div class="aspect-video bg-gray-100">
+						<div class="bg-gray-100 flex items-center justify-center">
 							<img
 								src={photo.photo_url}
 								alt={photo.label || 'Incident photo'}
-								class="w-full h-full object-cover"
+								class="w-full h-auto max-h-64 object-contain"
 							/>
 						</div>
 

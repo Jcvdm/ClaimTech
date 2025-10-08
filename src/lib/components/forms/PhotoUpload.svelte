@@ -154,8 +154,8 @@
 
 	{#if value}
 		<!-- Photo Preview -->
-		<div class="relative">
-			<img src={value} alt={label || 'Photo'} class="{height} w-full rounded-lg object-cover" />
+		<div class="relative bg-gray-100 rounded-lg flex items-center justify-center">
+			<img src={value} alt={label || 'Photo'} class="{height} w-full rounded-lg object-contain" />
 			{#if !disabled}
 				<div class="absolute right-2 top-2 flex gap-2">
 					<Button
