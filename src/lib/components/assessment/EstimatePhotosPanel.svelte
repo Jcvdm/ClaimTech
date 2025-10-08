@@ -23,8 +23,19 @@
 	let fileInput: HTMLInputElement;
 	let selectedPhotoIndex = $state<number | null>(null);
 	let tempLabel = $state<string>('');
-	let modalSize = $state<'small' | 'medium' | 'large' | 'fullscreen'>('large');
+	let modalSize = $state<'small' | 'medium' | 'large' | 'fullscreen'>('medium');
 	let photoZoom = $state<number>(1);
+
+	// Derived modal size class for reactivity
+	let modalSizeClass = $derived(
+		modalSize === 'fullscreen'
+			? 'max-w-full max-h-full w-screen h-screen'
+			: modalSize === 'large'
+				? 'max-w-5xl max-h-[90vh]'
+				: modalSize === 'medium'
+					? 'max-w-3xl max-h-[80vh]'
+					: 'max-w-2xl max-h-[70vh]'
+	);
 
 	// Drag and drop handlers
 	function handleDragEnter(event: DragEvent) {
@@ -142,14 +153,14 @@
 		selectedPhotoIndex = index;
 		tempLabel = photos[index].label || '';
 		photoZoom = 1;
-		modalSize = 'large';
+		modalSize = 'medium';
 	}
 
 	function closePhotoModal() {
 		selectedPhotoIndex = null;
 		tempLabel = '';
 		photoZoom = 1;
-		modalSize = 'large';
+		modalSize = 'medium';
 	}
 
 	function zoomIn() {
@@ -309,16 +320,16 @@
 				{#each photos as photo, index (photo.id)}
 					<button
 						onclick={() => openPhotoModal(index)}
-						class="relative aspect-square bg-gray-100 rounded-lg overflow-hidden hover:opacity-90 transition-opacity group"
+						class="relative aspect-square bg-gray-100 rounded-lg overflow-hidden transition-opacity group"
 					>
 						<img
 							src={photo.photo_url}
 							alt={photo.label || 'Incident photo'}
 							class="w-full h-full object-cover cursor-pointer"
 						/>
-						<!-- Hover overlay - below label -->
-						<div class="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors flex items-center justify-center pointer-events-none">
-							<span class="text-white opacity-0 group-hover:opacity-100 transition-opacity text-sm font-medium">
+						<!-- Hover overlay - below label with darker background -->
+						<div class="absolute inset-0 bg-black/0 group-hover:bg-black/50 transition-all duration-200 flex items-center justify-center pointer-events-none">
+							<span class="text-white opacity-0 group-hover:opacity-100 transition-opacity text-sm font-semibold drop-shadow-lg">
 								Click to view
 							</span>
 						</div>
@@ -339,7 +350,7 @@
 {#if selectedPhotoIndex !== null}
 	<Dialog.Root open={true} onOpenChange={closePhotoModal}>
 		<Dialog.Content
-			class="{modalSize === 'fullscreen' ? 'max-w-full max-h-full w-screen h-screen' : modalSize === 'large' ? 'max-w-5xl max-h-[90vh]' : modalSize === 'medium' ? 'max-w-3xl max-h-[80vh]' : 'max-w-2xl max-h-[70vh]'} overflow-y-auto"
+			class="{modalSizeClass} overflow-y-auto"
 			onkeydown={handleKeydown}
 		>
 			<Dialog.Header>
