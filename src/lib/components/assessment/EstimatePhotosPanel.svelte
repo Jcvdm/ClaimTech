@@ -3,7 +3,7 @@
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
 	import * as Dialog from '$lib/components/ui/dialog';
-	import { Upload, Trash2, Image as ImageIcon, Loader2, ChevronLeft, ChevronRight, X } from 'lucide-svelte';
+	import { Upload, Trash2, Image as ImageIcon, Loader2, ChevronLeft, ChevronRight, ZoomIn, ZoomOut, Maximize2, Minimize2 } from 'lucide-svelte';
 	import type { EstimatePhoto } from '$lib/types/assessment';
 	import { storageService } from '$lib/services/storage.service';
 	import { estimatePhotosService } from '$lib/services/estimate-photos.service';
@@ -23,6 +23,8 @@
 	let fileInput: HTMLInputElement;
 	let selectedPhotoIndex = $state<number | null>(null);
 	let tempLabel = $state<string>('');
+	let modalSize = $state<'small' | 'medium' | 'large' | 'fullscreen'>('large');
+	let photoZoom = $state<number>(1);
 
 	// Drag and drop handlers
 	function handleDragEnter(event: DragEvent) {
@@ -139,11 +141,27 @@
 	function openPhotoModal(index: number) {
 		selectedPhotoIndex = index;
 		tempLabel = photos[index].label || '';
+		photoZoom = 1;
+		modalSize = 'large';
 	}
 
 	function closePhotoModal() {
 		selectedPhotoIndex = null;
 		tempLabel = '';
+		photoZoom = 1;
+		modalSize = 'large';
+	}
+
+	function zoomIn() {
+		photoZoom = Math.min(3, photoZoom + 0.25);
+	}
+
+	function zoomOut() {
+		photoZoom = Math.max(0.5, photoZoom - 0.25);
+	}
+
+	function resetZoom() {
+		photoZoom = 1;
 	}
 
 	function previousPhoto() {
@@ -298,16 +316,18 @@
 							alt={photo.label || 'Incident photo'}
 							class="w-full h-full object-cover cursor-pointer"
 						/>
-						{#if photo.label}
-							<div class="absolute bottom-0 left-0 right-0 bg-black/70 text-white text-xs p-2 truncate">
-								{photo.label}
-							</div>
-						{/if}
-						<div class="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors flex items-center justify-center">
+						<!-- Hover overlay - below label -->
+						<div class="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors flex items-center justify-center pointer-events-none">
 							<span class="text-white opacity-0 group-hover:opacity-100 transition-opacity text-sm font-medium">
 								Click to view
 							</span>
 						</div>
+						<!-- Label overlay - on top with z-index -->
+						{#if photo.label}
+							<div class="absolute bottom-0 left-0 right-0 bg-black/70 text-white text-xs p-2 truncate z-10">
+								{photo.label}
+							</div>
+						{/if}
 					</button>
 				{/each}
 			</div>
@@ -318,19 +338,80 @@
 <!-- Photo Modal -->
 {#if selectedPhotoIndex !== null}
 	<Dialog.Root open={true} onOpenChange={closePhotoModal}>
-		<Dialog.Content class="max-w-5xl max-h-[90vh] overflow-y-auto" onkeydown={handleKeydown}>
+		<Dialog.Content
+			class="{modalSize === 'fullscreen' ? 'max-w-full max-h-full w-screen h-screen' : modalSize === 'large' ? 'max-w-5xl max-h-[90vh]' : modalSize === 'medium' ? 'max-w-3xl max-h-[80vh]' : 'max-w-2xl max-h-[70vh]'} overflow-y-auto"
+			onkeydown={handleKeydown}
+		>
 			<Dialog.Header>
-				<Dialog.Title>
-					Photo {selectedPhotoIndex + 1} of {photos.length}
-				</Dialog.Title>
+				<div class="flex items-center justify-between">
+					<Dialog.Title>
+						Photo {selectedPhotoIndex + 1} of {photos.length}
+					</Dialog.Title>
+
+					<!-- Size Controls -->
+					<div class="flex gap-1">
+						<Button
+							variant="ghost"
+							size="sm"
+							onclick={() => modalSize = 'small'}
+							class={modalSize === 'small' ? 'bg-gray-100' : ''}
+						>
+							S
+						</Button>
+						<Button
+							variant="ghost"
+							size="sm"
+							onclick={() => modalSize = 'medium'}
+							class={modalSize === 'medium' ? 'bg-gray-100' : ''}
+						>
+							M
+						</Button>
+						<Button
+							variant="ghost"
+							size="sm"
+							onclick={() => modalSize = 'large'}
+							class={modalSize === 'large' ? 'bg-gray-100' : ''}
+						>
+							L
+						</Button>
+						<Button
+							variant="ghost"
+							size="sm"
+							onclick={() => modalSize = modalSize === 'fullscreen' ? 'large' : 'fullscreen'}
+						>
+							{#if modalSize === 'fullscreen'}
+								<Minimize2 class="h-4 w-4" />
+							{:else}
+								<Maximize2 class="h-4 w-4" />
+							{/if}
+						</Button>
+					</div>
+				</div>
 			</Dialog.Header>
 
-			<!-- Large Photo -->
-			<div class="bg-gray-100 rounded-lg flex items-center justify-center p-4">
+			<!-- Zoom Controls -->
+			<div class="flex items-center justify-center gap-2 mb-2">
+				<Button variant="outline" size="sm" onclick={zoomOut} disabled={photoZoom <= 0.5}>
+					<ZoomOut class="h-4 w-4 mr-1" />
+					Zoom Out
+				</Button>
+				<span class="text-sm text-gray-600 min-w-16 text-center">{Math.round(photoZoom * 100)}%</span>
+				<Button variant="outline" size="sm" onclick={resetZoom} disabled={photoZoom === 1}>
+					Reset
+				</Button>
+				<Button variant="outline" size="sm" onclick={zoomIn} disabled={photoZoom >= 3}>
+					<ZoomIn class="h-4 w-4 mr-1" />
+					Zoom In
+				</Button>
+			</div>
+
+			<!-- Large Photo with Zoom -->
+			<div class="bg-gray-100 rounded-lg flex items-center justify-center p-4 overflow-auto">
 				<img
 					src={photos[selectedPhotoIndex].photo_url}
 					alt={photos[selectedPhotoIndex].label || 'Full size photo'}
-					class="w-full h-auto max-h-[60vh] object-contain"
+					class="w-full h-auto max-h-[60vh] object-contain transition-transform duration-200"
+					style="transform: scale({photoZoom})"
 				/>
 			</div>
 
