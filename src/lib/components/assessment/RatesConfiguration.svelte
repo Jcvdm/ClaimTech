@@ -7,32 +7,36 @@
 	interface Props {
 		labourRate: number;
 		paintRate: number;
-		onUpdateRates: (labourRate: number, paintRate: number) => void;
+		vatPercentage: number;
+		onUpdateRates: (labourRate: number, paintRate: number, vatPercentage: number) => void;
 		disabled?: boolean;
 	}
 
-	let { labourRate, paintRate, onUpdateRates, disabled = false }: Props = $props();
+	let { labourRate, paintRate, vatPercentage, onUpdateRates, disabled = false }: Props = $props();
 
 	let localLabourRate = $state(labourRate);
 	let localPaintRate = $state(paintRate);
+	let localVatPercentage = $state(vatPercentage);
 	let isExpanded = $state(false);
 	let hasChanges = $derived(
-		localLabourRate !== labourRate || localPaintRate !== paintRate
+		localLabourRate !== labourRate || localPaintRate !== paintRate || localVatPercentage !== vatPercentage
 	);
 
 	function handleUpdateRates() {
-		onUpdateRates(localLabourRate, localPaintRate);
+		onUpdateRates(localLabourRate, localPaintRate, localVatPercentage);
 	}
 
 	function handleReset() {
 		localLabourRate = labourRate;
 		localPaintRate = paintRate;
+		localVatPercentage = vatPercentage;
 	}
 
 	// Update local values when props change
 	$effect(() => {
 		localLabourRate = labourRate;
 		localPaintRate = paintRate;
+		localVatPercentage = vatPercentage;
 	});
 
 	function formatCurrency(amount: number): string {
@@ -55,7 +59,7 @@
 			<div>
 				<h3 class="text-base font-semibold text-gray-900">Rates Configuration</h3>
 				<p class="text-sm text-gray-600">
-					Labour: {formatCurrency(labourRate)}/hr • Paint: {formatCurrency(paintRate)}/panel
+					Labour: {formatCurrency(labourRate)}/hr • Paint: {formatCurrency(paintRate)}/panel • VAT: {vatPercentage}%
 				</p>
 			</div>
 		</div>
@@ -112,6 +116,29 @@
 						Cost per panel painted (e.g., R2000.00)
 					</p>
 				</div>
+
+				<!-- VAT Percentage -->
+				<div>
+					<label for="vat-percentage" class="block text-sm font-medium text-gray-700 mb-2">
+						VAT Percentage
+					</label>
+					<div class="flex items-center gap-2">
+						<Input
+							id="vat-percentage"
+							type="number"
+							min="0"
+							max="100"
+							step="0.1"
+							bind:value={localVatPercentage}
+							{disabled}
+							class="flex-1"
+						/>
+						<span class="text-gray-500">%</span>
+					</div>
+					<p class="mt-1 text-xs text-gray-500">
+						VAT percentage (e.g., 15%)
+					</p>
+				</div>
 			</div>
 
 			{#if hasChanges}
@@ -138,6 +165,7 @@
 				<ul class="list-disc list-inside space-y-1">
 					<li>Labour: Enter hours (e.g., 1.5) × Labour Rate = Labour Cost</li>
 					<li>Paint: Enter panels (e.g., 2) × Paint Rate = Paint Cost</li>
+					<li>VAT: Applied to subtotal to calculate final total</li>
 					<li>Changing rates will recalculate all existing line items</li>
 				</ul>
 			</div>

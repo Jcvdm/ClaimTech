@@ -289,12 +289,13 @@
 		}
 	}
 
-	async function handleUpdateRates(labourRate: number, paintRate: number) {
+	async function handleUpdateRates(labourRate: number, paintRate: number, vatPercentage: number) {
 		try {
 			if (data.estimate) {
 				await estimateService.update(data.estimate.id, {
 					labour_rate: labourRate,
-					paint_rate: paintRate
+					paint_rate: paintRate,
+					vat_percentage: vatPercentage
 				});
 				await invalidateAll();
 			}

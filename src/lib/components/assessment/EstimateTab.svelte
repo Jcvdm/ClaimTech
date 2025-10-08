@@ -17,7 +17,7 @@
 		onAddLineItem: (item: EstimateLineItem) => void;
 		onUpdateLineItem: (itemId: string, data: Partial<EstimateLineItem>) => void;
 		onDeleteLineItem: (itemId: string) => void;
-		onUpdateRates: (labourRate: number, paintRate: number) => void;
+		onUpdateRates: (labourRate: number, paintRate: number, vatPercentage: number) => void;
 		onComplete: () => void;
 	}
 
@@ -103,6 +103,25 @@
 		}).format(amount);
 	}
 
+	// Calculate category totals
+	const categoryTotals = $derived(() => {
+		if (!estimate) return null;
+
+		const partsTotal = estimate.line_items.reduce((sum, item) => sum + (item.part_price || 0), 0);
+		const saTotal = estimate.line_items.reduce((sum, item) => sum + (item.strip_assemble || 0), 0);
+		const labourTotal = estimate.line_items.reduce((sum, item) => sum + (item.labour_cost || 0), 0);
+		const paintTotal = estimate.line_items.reduce((sum, item) => sum + (item.paint_cost || 0), 0);
+		const outworkTotal = estimate.line_items.reduce((sum, item) => sum + (item.outwork_charge || 0), 0);
+
+		return {
+			partsTotal,
+			saTotal,
+			labourTotal,
+			paintTotal,
+			outworkTotal
+		};
+	});
+
 	// Check if estimate is complete
 	const isComplete = $derived(
 		estimate !== null &&
@@ -121,6 +140,7 @@
 		<RatesConfiguration
 			labourRate={estimate.labour_rate}
 			paintRate={estimate.paint_rate}
+			vatPercentage={estimate.vat_percentage}
 			onUpdateRates={onUpdateRates}
 		/>
 
@@ -344,37 +364,56 @@
 
 		<!-- Totals Summary -->
 		<Card class="p-6">
-			<h3 class="mb-4 text-lg font-semibold text-gray-900">Summary</h3>
+			<h3 class="mb-4 text-lg font-semibold text-gray-900">Totals Breakdown</h3>
 
-			<div class="space-y-4">
-				<div class="flex items-center justify-between border-b pb-3">
-					<span class="text-sm text-gray-600">Subtotal</span>
-					<span class="text-lg font-medium">{formatCurrency(estimate.subtotal)}</span>
-				</div>
-
-				<div class="flex items-center justify-between border-b pb-3">
-					<div class="flex items-center gap-2">
-						<span class="text-sm text-gray-600">VAT</span>
-						<Input
-							type="number"
-							min="0"
-							max="100"
-							step="0.1"
-							value={estimate.vat_percentage}
-							oninput={(e) =>
-								onUpdateEstimate({ vat_percentage: Number(e.currentTarget.value) })}
-							class="w-20 h-8 text-sm"
-						/>
-						<span class="text-sm text-gray-600">%</span>
+			{#if categoryTotals()}
+			{@const totals = categoryTotals()}
+				<div class="space-y-2">
+					<!-- Category Totals -->
+					<div class="flex items-center justify-between py-2">
+						<span class="text-sm text-gray-600">Parts Total</span>
+						<span class="text-sm font-medium">{formatCurrency(totals?.partsTotal || 0)}</span>
 					</div>
-					<span class="text-lg font-medium">{formatCurrency(estimate.vat_amount)}</span>
-				</div>
 
-				<div class="flex items-center justify-between border-t-2 pt-3">
-					<span class="text-base font-semibold text-gray-900">Total</span>
-					<span class="text-2xl font-bold text-blue-600">{formatCurrency(estimate.total)}</span>
+					<div class="flex items-center justify-between py-2">
+						<span class="text-sm text-gray-600">S&A Total</span>
+						<span class="text-sm font-medium">{formatCurrency(totals?.saTotal || 0)}</span>
+					</div>
+
+					<div class="flex items-center justify-between py-2">
+						<span class="text-sm text-gray-600">Labour Total</span>
+						<span class="text-sm font-medium">{formatCurrency(totals?.labourTotal || 0)}</span>
+					</div>
+
+					<div class="flex items-center justify-between py-2">
+						<span class="text-sm text-gray-600">Paint Total</span>
+						<span class="text-sm font-medium">{formatCurrency(totals?.paintTotal || 0)}</span>
+					</div>
+
+					<div class="flex items-center justify-between py-2 border-b">
+						<span class="text-sm text-gray-600">Outwork Total</span>
+						<span class="text-sm font-medium">{formatCurrency(totals?.outworkTotal || 0)}</span>
+					</div>
+
+					<!-- Subtotal -->
+					<div class="flex items-center justify-between py-2 border-b-2">
+						<span class="text-base font-semibold text-gray-700">Subtotal (Ex VAT)</span>
+						<span class="text-lg font-semibold">{formatCurrency(estimate.subtotal)}</span>
+					</div>
+
+					<!-- VAT -->
+					<div class="flex items-center justify-between py-2 border-b-2">
+						<span class="text-base font-semibold text-gray-700">VAT ({estimate.vat_percentage}%)</span>
+						<span class="text-lg font-semibold">{formatCurrency(estimate.vat_amount)}</span>
+					</div>
+
+					<!-- Total -->
+					<div class="flex items-center justify-between pt-3">
+						<span class="text-lg font-bold text-gray-900">Total (Inc VAT)</span>
+						<span class="text-2xl font-bold text-blue-600">{formatCurrency(estimate.total)}</span>
+					</div>
 				</div>
-			</div>
+			{/if}
 		</Card>
 
 		<!-- Notes -->
