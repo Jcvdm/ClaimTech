@@ -50,17 +50,22 @@
 	}
 
 	// Click-to-edit S&A (hours input)
-	function handleSAClick(itemId: string, currentHours: number | null) {
+	// S&A cost = hours × labour_rate
+	function handleSAClick(itemId: string, currentCost: number | null) {
 		editingSA = itemId;
-		tempSAHours = currentHours;
+		// Calculate hours from current cost
+		if (currentCost && estimate) {
+			tempSAHours = currentCost / estimate.labour_rate;
+		} else {
+			tempSAHours = null;
+		}
 	}
 
 	function handleSASave(itemId: string) {
 		if (tempSAHours !== null && estimate) {
-			const labourCost = tempSAHours * estimate.labour_rate;
+			const saCost = tempSAHours * estimate.labour_rate;
 			onUpdateLineItem(itemId, {
-				labour_hours: tempSAHours,
-				labour_cost: labourCost
+				strip_assemble: saCost
 			});
 		}
 		editingSA = null;
@@ -267,7 +272,7 @@
 												/>
 											{:else}
 												<button
-													onclick={() => handleSAClick(item.id!, item.labour_hours || null)}
+													onclick={() => handleSAClick(item.id!, item.strip_assemble || null)}
 													class="text-sm font-medium text-blue-600 hover:text-blue-800 cursor-pointer w-full text-right"
 													title="Click to edit hours (S&A = hours × labour rate)"
 												>

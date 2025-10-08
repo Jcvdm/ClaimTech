@@ -186,77 +186,13 @@ export function validateEstimate(data: any): TabValidation {
 	// Must have at least one line item
 	if (!data.line_items || data.line_items.length === 0) {
 		missingFields.push('At least one line item');
-	} else {
-		// Validate each line item has required fields per process type
-		data.line_items.forEach((item: any, index: number) => {
-			if (!item.description || item.description.trim() === '') {
-				missingFields.push(`Line item ${index + 1}: Description required`);
-			}
-			if (!item.total || item.total <= 0) {
-				missingFields.push(`Line item ${index + 1}: Total must be greater than 0`);
-			}
-
-			// Process-type-specific validation
-			switch (item.process_type) {
-				case 'N': // New
-					if (!item.part_type || item.part_type.trim() === '') {
-						missingFields.push(`Line item ${index + 1}: Part type required for New parts`);
-					}
-					if (item.part_price === null || item.part_price === undefined) {
-						missingFields.push(`Line item ${index + 1}: Part price required for New parts`);
-					}
-					if (item.strip_assemble === null || item.strip_assemble === undefined) {
-						missingFields.push(`Line item ${index + 1}: Strip & Assemble required for New parts`);
-					}
-					if (item.labour_hours === null || item.labour_hours === undefined) {
-						missingFields.push(`Line item ${index + 1}: Labour hours required for New parts`);
-					}
-					if (item.paint_panels === null || item.paint_panels === undefined) {
-						missingFields.push(`Line item ${index + 1}: Paint panels required for New parts`);
-					}
-					break;
-				case 'R': // Repair
-					if (item.strip_assemble === null || item.strip_assemble === undefined) {
-						missingFields.push(`Line item ${index + 1}: Strip & Assemble required for Repair`);
-					}
-					if (item.labour_hours === null || item.labour_hours === undefined) {
-						missingFields.push(`Line item ${index + 1}: Labour hours required for Repair`);
-					}
-					if (item.paint_panels === null || item.paint_panels === undefined) {
-						missingFields.push(`Line item ${index + 1}: Paint panels required for Repair`);
-					}
-					break;
-				case 'P': // Paint
-				case 'B': // Blend
-					if (item.strip_assemble === null || item.strip_assemble === undefined) {
-						missingFields.push(
-							`Line item ${index + 1}: Strip & Assemble required for ${item.process_type === 'P' ? 'Paint' : 'Blend'}`
-						);
-					}
-					if (item.paint_panels === null || item.paint_panels === undefined) {
-						missingFields.push(
-							`Line item ${index + 1}: Paint panels required for ${item.process_type === 'P' ? 'Paint' : 'Blend'}`
-						);
-					}
-					break;
-				case 'A': // Align
-					if (item.labour_hours === null || item.labour_hours === undefined) {
-						missingFields.push(`Line item ${index + 1}: Labour hours required for Align`);
-					}
-					break;
-				case 'O': // Outwork
-					if (item.outwork_charge === null || item.outwork_charge === undefined) {
-						missingFields.push(`Line item ${index + 1}: Outwork charge required for Outwork`);
-					}
-					break;
-			}
-		});
 	}
 
-	// Total must be greater than 0
-	if (!data.total || data.total <= 0) {
-		missingFields.push('Total amount must be greater than 0');
-	}
+	// NOTE: All line item fields are now optional to allow users to add empty lines
+	// and fill values later. No field-level validation is performed.
+
+	// Only validate that we have line items, not their content
+	// This gives users freedom to add placeholder lines and complete them incrementally
 
 	return {
 		tabId: 'estimate',

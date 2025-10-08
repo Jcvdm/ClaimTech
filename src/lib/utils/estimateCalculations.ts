@@ -121,6 +121,7 @@ export function recalculateAllLineItems(
 
 /**
  * Validate a line item has all required fields for its process type
+ * NOTE: All fields are now optional to allow users to add empty lines and fill them later
  */
 export function validateLineItem(item: EstimateLineItem): { isValid: boolean; errors: string[] } {
 	const errors: string[] = [];
@@ -131,38 +132,12 @@ export function validateLineItem(item: EstimateLineItem): { isValid: boolean; er
 		return { isValid: false, errors };
 	}
 
-	if (!item.description || item.description.trim() === '') {
-		errors.push('Description is required');
-	}
-
-	// Check part_type for New parts
-	if (item.process_type === 'N' && (!item.part_type || item.part_type.trim() === '')) {
-		errors.push('Part type is required for New parts');
-	}
-
-	if (config.requiredFields.part_price && (!item.part_price || item.part_price <= 0)) {
-		errors.push('Part price is required for New parts');
-	}
-
-	if (config.requiredFields.strip_assemble && (!item.strip_assemble || item.strip_assemble <= 0)) {
-		errors.push('Strip & Assemble cost is required');
-	}
-
-	if (config.requiredFields.labour && (!item.labour_hours || item.labour_hours <= 0)) {
-		errors.push('Labour hours are required');
-	}
-
-	if (config.requiredFields.paint && (!item.paint_panels || item.paint_panels <= 0)) {
-		errors.push('Paint panels are required');
-	}
-
-	if (config.requiredFields.outwork && (!item.outwork_charge || item.outwork_charge <= 0)) {
-		errors.push('Outwork charge is required');
-	}
+	// All fields are optional - no validation errors
+	// Users can add empty lines and fill values later
 
 	return {
-		isValid: errors.length === 0,
-		errors
+		isValid: true,
+		errors: []
 	};
 }
 
