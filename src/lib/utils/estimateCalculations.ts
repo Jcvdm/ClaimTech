@@ -135,6 +135,11 @@ export function validateLineItem(item: EstimateLineItem): { isValid: boolean; er
 		errors.push('Description is required');
 	}
 
+	// Check part_type for New parts
+	if (item.process_type === 'N' && (!item.part_type || item.part_type.trim() === '')) {
+		errors.push('Part type is required for New parts');
+	}
+
 	if (config.requiredFields.part_price && (!item.part_price || item.part_price <= 0)) {
 		errors.push('Part price is required for New parts');
 	}
@@ -186,6 +191,7 @@ export function createEmptyLineItem(processType: ProcessType): Partial<EstimateL
 	return {
 		id: crypto.randomUUID(),
 		process_type: processType,
+		part_type: processType === 'N' ? 'OEM' : null,
 		description: '',
 		part_price: null,
 		strip_assemble: null,

@@ -26,6 +26,7 @@ export type DamageSeverity = 'minor' | 'moderate' | 'severe' | 'total_loss';
 
 // Estimate types
 export type ProcessType = 'N' | 'R' | 'P' | 'B' | 'A' | 'O';
+export type PartType = 'OEM' | 'ALT' | '2ND';
 
 export interface ProcessTypeConfig {
 	code: ProcessType;
@@ -331,6 +332,7 @@ export interface UpdateAssessmentNoteInput {
 export interface EstimateLineItem {
 	id?: string;
 	process_type: ProcessType;
+	part_type?: PartType | null; // Only for process_type='N' (OEM=Original, ALT=Alternative, 2ND=Second Hand)
 	description: string;
 	// Conditional fields based on process_type
 	part_price?: number | null; // N only

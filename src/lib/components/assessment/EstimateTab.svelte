@@ -8,7 +8,7 @@
 	import { Plus, Trash2, Check } from 'lucide-svelte';
 	import type { Estimate, EstimateLineItem } from '$lib/types/assessment';
 	import { getProcessTypeOptions } from '$lib/constants/processTypes';
-	import { createEmptyLineItem } from '$lib/utils/estimateCalculations';
+	import { createEmptyLineItem, calculateLineItemTotal } from '$lib/utils/estimateCalculations';
 
 	interface Props {
 		estimate: Estimate | null;
@@ -93,23 +93,24 @@
 				<Table.Root>
 					<Table.Header>
 						<Table.Row class="hover:bg-transparent">
-							<Table.Head class="w-[60px]">Type</Table.Head>
-							<Table.Head class="min-w-[200px]">Description</Table.Head>
-							<Table.Head class="w-[100px] text-right">Part</Table.Head>
-							<Table.Head class="w-[100px] text-right">S&A</Table.Head>
-							<Table.Head class="w-[80px] text-right">Hrs</Table.Head>
-							<Table.Head class="w-[100px] text-right">Labour</Table.Head>
-							<Table.Head class="w-[80px] text-right">Panels</Table.Head>
-							<Table.Head class="w-[100px] text-right">Paint</Table.Head>
-							<Table.Head class="w-[100px] text-right">Outwork</Table.Head>
-							<Table.Head class="w-[120px] text-right">Total</Table.Head>
-							<Table.Head class="w-[60px]"></Table.Head>
+							<Table.Head class="w-[80px] px-3">Type</Table.Head>
+							<Table.Head class="w-[90px] px-3">Part Type</Table.Head>
+							<Table.Head class="min-w-[200px] px-3">Description</Table.Head>
+							<Table.Head class="w-[120px] text-right px-3">Part</Table.Head>
+							<Table.Head class="w-[120px] text-right px-3">S&A</Table.Head>
+							<Table.Head class="w-[90px] text-right px-3">Hrs</Table.Head>
+							<Table.Head class="w-[130px] text-right px-3">Labour</Table.Head>
+							<Table.Head class="w-[90px] text-right px-3">Panels</Table.Head>
+							<Table.Head class="w-[130px] text-right px-3">Paint</Table.Head>
+							<Table.Head class="w-[130px] text-right px-3">Outwork</Table.Head>
+							<Table.Head class="w-[140px] text-right px-3">Total</Table.Head>
+							<Table.Head class="w-[70px] px-2"></Table.Head>
 						</Table.Row>
 					</Table.Header>
 					<Table.Body>
 						{#if estimate.line_items.length === 0}
 							<Table.Row class="hover:bg-transparent">
-								<Table.Cell colspan={11} class="h-24 text-center text-gray-500">
+								<Table.Cell colspan={12} class="h-24 text-center text-gray-500">
 									No line items added. Use "Quick Add" above or click "Add Empty Row".
 								</Table.Cell>
 							</Table.Row>
@@ -117,12 +118,12 @@
 							{#each estimate.line_items as item (item.id)}
 								<Table.Row class="hover:bg-gray-50">
 									<!-- Process Type -->
-									<Table.Cell>
+									<Table.Cell class="px-3 py-2">
 										<select
 											value={item.process_type}
 											onchange={(e) =>
 												handleUpdateLineItem(item.id!, 'process_type', e.currentTarget.value)}
-											class="w-full rounded-md border-0 bg-transparent px-1 py-1 text-xs font-mono focus:outline-none focus:ring-0"
+											class="w-full rounded-md border-0 bg-transparent px-2 py-1 text-xs font-mono focus:outline-none focus:ring-0"
 										>
 											{#each processTypeOptions as option}
 												<option value={option.value}>{option.value}</option>
@@ -130,8 +131,26 @@
 										</select>
 									</Table.Cell>
 
+									<!-- Part Type (N only) -->
+									<Table.Cell class="px-3 py-2">
+										{#if item.process_type === 'N'}
+											<select
+												value={item.part_type || 'OEM'}
+												onchange={(e) =>
+													handleUpdateLineItem(item.id!, 'part_type', e.currentTarget.value)}
+												class="w-full rounded-md border-0 bg-transparent px-2 py-1 text-xs focus:outline-none focus:ring-0"
+											>
+												<option value="OEM">OEM</option>
+												<option value="ALT">ALT</option>
+												<option value="2ND">2ND</option>
+											</select>
+										{:else}
+											<span class="text-gray-400 text-xs">-</span>
+										{/if}
+									</Table.Cell>
+
 									<!-- Description -->
-									<Table.Cell>
+									<Table.Cell class="px-3 py-2">
 										<Input
 											type="text"
 											placeholder="Description"
@@ -143,7 +162,7 @@
 									</Table.Cell>
 
 									<!-- Part Price (N only) -->
-									<Table.Cell class="text-right">
+									<Table.Cell class="text-right px-3 py-2">
 										{#if item.process_type === 'N'}
 											<Input
 												type="number"
@@ -160,7 +179,7 @@
 									</Table.Cell>
 
 									<!-- Strip & Assemble (N,R,P,B) -->
-									<Table.Cell class="text-right">
+									<Table.Cell class="text-right px-3 py-2">
 										{#if ['N', 'R', 'P', 'B'].includes(item.process_type)}
 											<Input
 												type="number"
@@ -177,7 +196,7 @@
 									</Table.Cell>
 
 									<!-- Labour Hours (N,R,A) -->
-									<Table.Cell class="text-right">
+									<Table.Cell class="text-right px-3 py-2">
 										{#if ['N', 'R', 'A'].includes(item.process_type)}
 											<Input
 												type="number"
@@ -194,7 +213,7 @@
 									</Table.Cell>
 
 									<!-- Labour Cost (calculated) -->
-									<Table.Cell class="text-right">
+									<Table.Cell class="text-right px-3 py-2">
 										{#if ['N', 'R', 'A'].includes(item.process_type)}
 											<span class="text-sm font-medium text-gray-700">
 												{formatCurrency(item.labour_cost || 0)}
@@ -205,7 +224,7 @@
 									</Table.Cell>
 
 									<!-- Paint Panels (N,R,P,B) -->
-									<Table.Cell class="text-right">
+									<Table.Cell class="text-right px-3 py-2">
 										{#if ['N', 'R', 'P', 'B'].includes(item.process_type)}
 											<Input
 												type="number"
@@ -222,7 +241,7 @@
 									</Table.Cell>
 
 									<!-- Paint Cost (calculated) -->
-									<Table.Cell class="text-right">
+									<Table.Cell class="text-right px-3 py-2">
 										{#if ['N', 'R', 'P', 'B'].includes(item.process_type)}
 											<span class="text-sm font-medium text-gray-700">
 												{formatCurrency(item.paint_cost || 0)}
@@ -233,7 +252,7 @@
 									</Table.Cell>
 
 									<!-- Outwork Charge (O only) -->
-									<Table.Cell class="text-right">
+									<Table.Cell class="text-right px-3 py-2">
 										{#if item.process_type === 'O'}
 											<Input
 												type="number"
@@ -250,12 +269,12 @@
 									</Table.Cell>
 
 									<!-- Total -->
-									<Table.Cell class="text-right font-bold">
+									<Table.Cell class="text-right px-3 py-2 font-bold">
 										{formatCurrency(item.total)}
 									</Table.Cell>
 
 									<!-- Actions -->
-									<Table.Cell class="text-center">
+									<Table.Cell class="text-center px-2 py-2">
 										<Button
 											variant="ghost"
 											size="sm"

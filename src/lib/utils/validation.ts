@@ -199,6 +199,9 @@ export function validateEstimate(data: any): TabValidation {
 			// Process-type-specific validation
 			switch (item.process_type) {
 				case 'N': // New
+					if (!item.part_type || item.part_type.trim() === '') {
+						missingFields.push(`Line item ${index + 1}: Part type required for New parts`);
+					}
 					if (item.part_price === null || item.part_price === undefined) {
 						missingFields.push(`Line item ${index + 1}: Part price required for New parts`);
 					}
