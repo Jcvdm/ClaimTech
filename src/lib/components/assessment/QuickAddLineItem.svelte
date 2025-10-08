@@ -4,8 +4,8 @@
 	import { Input } from '$lib/components/ui/input';
 	import { Plus, X } from 'lucide-svelte';
 	import type { EstimateLineItem, ProcessType, PartType } from '$lib/types/assessment';
-	import { getProcessTypeOptions, isFieldRequired } from '$lib/constants/processTypes';
-	import { calculateLineItemTotal, validateLineItem } from '$lib/utils/estimateCalculations';
+	import { getProcessTypeOptions } from '$lib/constants/processTypes';
+	import { calculateLineItemTotal } from '$lib/utils/estimateCalculations';
 
 	interface Props {
 		labourRate: number;
@@ -27,11 +27,6 @@
 	let errors = $state<string[]>([]);
 
 	const processTypeOptions = getProcessTypeOptions();
-	const partTypeOptions: Array<{ value: PartType; label: string; description: string }> = [
-		{ value: 'OEM', label: 'OEM', description: 'Original Equipment Manufacturer' },
-		{ value: 'ALT', label: 'ALT', description: 'Alternative/Aftermarket' },
-		{ value: '2ND', label: '2ND', description: 'Second Hand/Used' }
-	];
 
 	// Conditional field visibility
 	const showPartType = $derived(processType === 'N');
@@ -40,25 +35,6 @@
 	const showLabour = $derived(['N', 'R', 'A'].includes(processType));
 	const showPaint = $derived(['N', 'R', 'P', 'B'].includes(processType));
 	const showOutwork = $derived(processType === 'O');
-
-	// Calculate preview totals
-	const previewLabourCost = $derived(
-		showLabour && labourHours ? labourHours * labourRate : 0
-	);
-	const previewPaintCost = $derived(
-		showPaint && paintPanels ? paintPanels * paintRate : 0
-	);
-	const previewTotal = $derived(() => {
-		const item: Partial<EstimateLineItem> = {
-			process_type: processType,
-			part_price: partPrice,
-			strip_assemble: stripAssemble,
-			labour_hours: labourHours,
-			paint_panels: paintPanels,
-			outwork_charge: outworkCharge
-		};
-		return calculateLineItemTotal(item as EstimateLineItem, labourRate, paintRate);
-	});
 
 	function handleProcessTypeChange(e: Event) {
 		const target = e.target as HTMLSelectElement;
@@ -74,6 +50,10 @@
 	}
 
 	function handleAdd() {
+		// Calculate costs
+		const labourCost = labourHours ? labourHours * labourRate : 0;
+		const paintCost = paintPanels ? paintPanels * paintRate : 0;
+
 		const item: EstimateLineItem = {
 			id: crypto.randomUUID(),
 			process_type: processType,
@@ -82,19 +62,25 @@
 			part_price: partPrice,
 			strip_assemble: stripAssemble,
 			labour_hours: labourHours,
-			labour_cost: previewLabourCost,
+			labour_cost: labourCost,
 			paint_panels: paintPanels,
-			paint_cost: previewPaintCost,
+			paint_cost: paintCost,
 			outwork_charge: outworkCharge,
-			total: previewTotal()
+			total: calculateLineItemTotal(
+				{
+					process_type: processType,
+					part_price: partPrice,
+					strip_assemble: stripAssemble,
+					labour_cost: labourCost,
+					paint_cost: paintCost,
+					outwork_charge: outworkCharge
+				} as EstimateLineItem,
+				labourRate,
+				paintRate
+			)
 		};
 
-		const validation = validateLineItem(item);
-		if (!validation.isValid) {
-			errors = validation.errors;
-			return;
-		}
-
+		// No validation - allow all fields to be optional
 		onAddLineItem(item);
 		handleClear();
 	}
@@ -108,14 +94,6 @@
 		paintPanels = null;
 		outworkCharge = null;
 		errors = [];
-	}
-
-	function formatCurrency(amount: number): string {
-		return new Intl.NumberFormat('en-ZA', {
-			style: 'currency',
-			currency: 'ZAR',
-			minimumFractionDigits: 2
-		}).format(amount);
 	}
 </script>
 
@@ -154,9 +132,27 @@
 				</p>
 			</div>
 
+			<!-- Part Type (N only) - Compact Dropdown -->
+			{#if showPartType}
+				<div class="sm:col-span-1">
+					<label for="part-type" class="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
+						Part Type
+					</label>
+					<select
+						id="part-type"
+						bind:value={partType}
+						class="w-32 rounded-md border border-gray-300 px-2 py-2 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+					>
+						<option value="OEM">OEM</option>
+						<option value="ALT">ALT</option>
+						<option value="2ND">2ND</option>
+					</select>
+				</div>
+			{/if}
+
 			<div class="sm:col-span-1 lg:col-span-3">
 				<label for="description" class="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
-					Description *
+					Description
 				</label>
 				<Input
 					id="description"
@@ -168,39 +164,12 @@
 			</div>
 		</div>
 
-		<!-- Part Type (N only) -->
-		{#if showPartType}
-			<div class="grid grid-cols-3 gap-2 p-3 bg-white rounded-md border border-gray-200">
-				<div class="col-span-3 mb-1">
-					<span class="block text-xs sm:text-sm font-medium text-gray-700">
-						Part Type *
-					</span>
-				</div>
-				{#each partTypeOptions as option}
-					<label class="flex items-center gap-2 cursor-pointer">
-						<input
-							type="radio"
-							name="part-type"
-							value={option.value}
-							checked={partType === option.value}
-							onchange={() => (partType = option.value)}
-							class="text-blue-600 focus:ring-blue-500"
-						/>
-						<div class="flex flex-col">
-							<span class="text-xs sm:text-sm font-medium text-gray-900">{option.label}</span>
-							<span class="text-xs text-gray-500 hidden sm:block">{option.description}</span>
-						</div>
-					</label>
-				{/each}
-			</div>
-		{/if}
-
 		<!-- Conditional Fields Row -->
 		<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4">
 			{#if showPartPrice}
 				<div>
 					<label for="part-price" class="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
-						Part Price *
+						Part Price
 					</label>
 					<Input
 						id="part-price"
@@ -217,7 +186,7 @@
 			{#if showStripAssemble}
 				<div>
 					<label for="strip-assemble" class="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
-						Strip & Assemble *
+						Strip & Assemble
 					</label>
 					<Input
 						id="strip-assemble"
@@ -234,7 +203,7 @@
 			{#if showLabour}
 				<div>
 					<label for="labour-hours" class="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
-						Labour Hours *
+						Labour Hours
 					</label>
 					<Input
 						id="labour-hours"
@@ -245,18 +214,13 @@
 						placeholder="0.00"
 						class="text-xs sm:text-sm"
 					/>
-					{#if labourHours && labourHours > 0}
-						<p class="mt-1 text-xs text-gray-500">
-							= {formatCurrency(previewLabourCost)}
-						</p>
-					{/if}
 				</div>
 			{/if}
 
 			{#if showPaint}
 				<div>
 					<label for="paint-panels" class="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
-						Paint Panels *
+						Paint Panels
 					</label>
 					<Input
 						id="paint-panels"
@@ -267,18 +231,13 @@
 						placeholder="0.0"
 						class="text-xs sm:text-sm"
 					/>
-					{#if paintPanels && paintPanels > 0}
-						<p class="mt-1 text-xs text-gray-500">
-							= {formatCurrency(previewPaintCost)}
-						</p>
-					{/if}
 				</div>
 			{/if}
 
 			{#if showOutwork}
 				<div>
 					<label for="outwork-charge" class="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
-						Outwork Charge *
+						Outwork Charge
 					</label>
 					<Input
 						id="outwork-charge"
@@ -293,32 +252,13 @@
 			{/if}
 		</div>
 
-		<!-- Preview & Actions -->
-		<div class="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-3 sm:pt-4 border-t border-gray-200">
-			<div class="text-xs sm:text-sm text-gray-600">
-				<span class="font-medium">Preview Total:</span>
-				<span class="ml-2 text-base sm:text-lg font-bold text-blue-600">
-					{formatCurrency(previewTotal())}
-				</span>
-			</div>
-
-			<Button onclick={handleAdd} disabled={!description} class="w-full sm:w-auto">
+		<!-- Actions -->
+		<div class="flex justify-end pt-3 sm:pt-4 border-t border-gray-200">
+			<Button onclick={handleAdd} class="w-full sm:w-auto">
 				<Plus class="h-4 w-4 mr-2" />
 				Add Line Item
 			</Button>
 		</div>
-
-		<!-- Errors -->
-		{#if errors.length > 0}
-			<div class="p-3 bg-red-50 border border-red-200 rounded-md">
-				<p class="text-sm font-medium text-red-800 mb-1">Please fix the following errors:</p>
-				<ul class="list-disc list-inside text-sm text-red-700">
-					{#each errors as error}
-						<li>{error}</li>
-					{/each}
-				</ul>
-			</div>
-		{/if}
 	</div>
 </Card>
 

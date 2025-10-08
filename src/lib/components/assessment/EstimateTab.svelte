@@ -34,6 +34,12 @@
 
 	const processTypeOptions = getProcessTypeOptions();
 
+	// State for click-to-edit functionality
+	let editingSA = $state<string | null>(null);
+	let editingPaint = $state<string | null>(null);
+	let tempSAHours = $state<number | null>(null);
+	let tempPaintPanels = $state<number | null>(null);
+
 	function handleAddEmptyLineItem() {
 		const newItem = createEmptyLineItem('N') as EstimateLineItem;
 		onAddLineItem(newItem);
@@ -41,6 +47,52 @@
 
 	function handleUpdateLineItem(itemId: string, field: keyof EstimateLineItem, value: any) {
 		onUpdateLineItem(itemId, { [field]: value });
+	}
+
+	// Click-to-edit S&A (hours input)
+	function handleSAClick(itemId: string, currentHours: number | null) {
+		editingSA = itemId;
+		tempSAHours = currentHours;
+	}
+
+	function handleSASave(itemId: string) {
+		if (tempSAHours !== null && estimate) {
+			const labourCost = tempSAHours * estimate.labour_rate;
+			onUpdateLineItem(itemId, {
+				labour_hours: tempSAHours,
+				labour_cost: labourCost
+			});
+		}
+		editingSA = null;
+		tempSAHours = null;
+	}
+
+	function handleSACancel() {
+		editingSA = null;
+		tempSAHours = null;
+	}
+
+	// Click-to-edit Paint (panels input)
+	function handlePaintClick(itemId: string, currentPanels: number | null) {
+		editingPaint = itemId;
+		tempPaintPanels = currentPanels;
+	}
+
+	function handlePaintSave(itemId: string) {
+		if (tempPaintPanels !== null && estimate) {
+			const paintCost = tempPaintPanels * estimate.paint_rate;
+			onUpdateLineItem(itemId, {
+				paint_panels: tempPaintPanels,
+				paint_cost: paintCost
+			});
+		}
+		editingPaint = null;
+		tempPaintPanels = null;
+	}
+
+	function handlePaintCancel() {
+		editingPaint = null;
+		tempPaintPanels = null;
 	}
 
 	function formatCurrency(amount: number): string {
@@ -94,23 +146,21 @@
 					<Table.Header>
 						<Table.Row class="hover:bg-transparent">
 							<Table.Head class="w-[80px] px-3">Type</Table.Head>
-							<Table.Head class="w-[90px] px-3">Part Type</Table.Head>
+							<Table.Head class="w-[60px] px-3">Part</Table.Head>
 							<Table.Head class="min-w-[200px] px-3">Description</Table.Head>
-							<Table.Head class="w-[120px] text-right px-3">Part</Table.Head>
-							<Table.Head class="w-[120px] text-right px-3">S&A</Table.Head>
-							<Table.Head class="w-[90px] text-right px-3">Hrs</Table.Head>
-							<Table.Head class="w-[130px] text-right px-3">Labour</Table.Head>
-							<Table.Head class="w-[90px] text-right px-3">Panels</Table.Head>
-							<Table.Head class="w-[130px] text-right px-3">Paint</Table.Head>
-							<Table.Head class="w-[130px] text-right px-3">Outwork</Table.Head>
-							<Table.Head class="w-[140px] text-right px-3">Total</Table.Head>
+							<Table.Head class="w-[140px] text-right px-3">Part Price</Table.Head>
+							<Table.Head class="w-[140px] text-right px-3">S&A</Table.Head>
+							<Table.Head class="w-[150px] text-right px-3">Labour</Table.Head>
+							<Table.Head class="w-[150px] text-right px-3">Paint</Table.Head>
+							<Table.Head class="w-[150px] text-right px-3">Outwork</Table.Head>
+							<Table.Head class="w-[160px] text-right px-3">Total</Table.Head>
 							<Table.Head class="w-[70px] px-2"></Table.Head>
 						</Table.Row>
 					</Table.Header>
 					<Table.Body>
 						{#if estimate.line_items.length === 0}
 							<Table.Row class="hover:bg-transparent">
-								<Table.Cell colspan={12} class="h-24 text-center text-gray-500">
+								<Table.Cell colspan={10} class="h-24 text-center text-gray-500">
 									No line items added. Use "Quick Add" above or click "Add Empty Row".
 								</Table.Cell>
 							</Table.Row>
@@ -178,41 +228,38 @@
 										{/if}
 									</Table.Cell>
 
-									<!-- Strip & Assemble (N,R,P,B) -->
+									<!-- Strip & Assemble (N,R,P,B) - Click to edit hours -->
 									<Table.Cell class="text-right px-3 py-2">
 										{#if ['N', 'R', 'P', 'B'].includes(item.process_type)}
-											<Input
-												type="number"
-												min="0"
-												step="0.01"
-												value={item.strip_assemble}
-												oninput={(e) =>
-													handleUpdateLineItem(item.id!, 'strip_assemble', Number(e.currentTarget.value))}
-												class="border-0 text-right text-sm focus-visible:ring-0 focus-visible:ring-offset-0"
-											/>
+											{#if editingSA === item.id}
+												<Input
+													type="number"
+													min="0"
+													step="0.25"
+													bind:value={tempSAHours}
+													onkeydown={(e) => {
+														if (e.key === 'Enter') handleSASave(item.id!);
+														if (e.key === 'Escape') handleSACancel();
+													}}
+													onblur={() => handleSASave(item.id!)}
+													class="border-0 text-right text-sm focus-visible:ring-0 focus-visible:ring-offset-0"
+													autofocus
+												/>
+											{:else}
+												<button
+													onclick={() => handleSAClick(item.id!, item.labour_hours || null)}
+													class="text-sm font-medium text-blue-600 hover:text-blue-800 cursor-pointer w-full text-right"
+													title="Click to edit hours (S&A = hours × labour rate)"
+												>
+													{formatCurrency(item.strip_assemble || 0)}
+												</button>
+											{/if}
 										{:else}
 											<span class="text-gray-400 text-xs">-</span>
 										{/if}
 									</Table.Cell>
 
-									<!-- Labour Hours (N,R,A) -->
-									<Table.Cell class="text-right px-3 py-2">
-										{#if ['N', 'R', 'A'].includes(item.process_type)}
-											<Input
-												type="number"
-												min="0"
-												step="0.25"
-												value={item.labour_hours}
-												oninput={(e) =>
-													handleUpdateLineItem(item.id!, 'labour_hours', Number(e.currentTarget.value))}
-												class="border-0 text-right text-sm focus-visible:ring-0 focus-visible:ring-offset-0"
-											/>
-										{:else}
-											<span class="text-gray-400 text-xs">-</span>
-										{/if}
-									</Table.Cell>
-
-									<!-- Labour Cost (calculated) -->
+									<!-- Labour Cost (calculated from hours × labour_rate) -->
 									<Table.Cell class="text-right px-3 py-2">
 										{#if ['N', 'R', 'A'].includes(item.process_type)}
 											<span class="text-sm font-medium text-gray-700">
@@ -223,29 +270,32 @@
 										{/if}
 									</Table.Cell>
 
-									<!-- Paint Panels (N,R,P,B) -->
+									<!-- Paint Cost (N,R,P,B) - Click to edit panels -->
 									<Table.Cell class="text-right px-3 py-2">
 										{#if ['N', 'R', 'P', 'B'].includes(item.process_type)}
-											<Input
-												type="number"
-												min="0"
-												step="0.5"
-												value={item.paint_panels}
-												oninput={(e) =>
-													handleUpdateLineItem(item.id!, 'paint_panels', Number(e.currentTarget.value))}
-												class="border-0 text-right text-sm focus-visible:ring-0 focus-visible:ring-offset-0"
-											/>
-										{:else}
-											<span class="text-gray-400 text-xs">-</span>
-										{/if}
-									</Table.Cell>
-
-									<!-- Paint Cost (calculated) -->
-									<Table.Cell class="text-right px-3 py-2">
-										{#if ['N', 'R', 'P', 'B'].includes(item.process_type)}
-											<span class="text-sm font-medium text-gray-700">
-												{formatCurrency(item.paint_cost || 0)}
-											</span>
+											{#if editingPaint === item.id}
+												<Input
+													type="number"
+													min="0"
+													step="0.5"
+													bind:value={tempPaintPanels}
+													onkeydown={(e) => {
+														if (e.key === 'Enter') handlePaintSave(item.id!);
+														if (e.key === 'Escape') handlePaintCancel();
+													}}
+													onblur={() => handlePaintSave(item.id!)}
+													class="border-0 text-right text-sm focus-visible:ring-0 focus-visible:ring-offset-0"
+													autofocus
+												/>
+											{:else}
+												<button
+													onclick={() => handlePaintClick(item.id!, item.paint_panels || null)}
+													class="text-sm font-medium text-blue-600 hover:text-blue-800 cursor-pointer w-full text-right"
+													title="Click to edit panels (Paint = panels × paint rate)"
+												>
+													{formatCurrency(item.paint_cost || 0)}
+												</button>
+											{/if}
 										{:else}
 											<span class="text-gray-400 text-xs">-</span>
 										{/if}
