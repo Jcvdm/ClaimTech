@@ -8,6 +8,7 @@
 	import InteriorMechanicalTab from '$lib/components/assessment/InteriorMechanicalTab.svelte';
 	import TyresTab from '$lib/components/assessment/TyresTab.svelte';
 	import DamageTab from '$lib/components/assessment/DamageTab.svelte';
+	import EstimateTab from '$lib/components/assessment/EstimateTab.svelte';
 	import AssessmentNotes from '$lib/components/assessment/AssessmentNotes.svelte';
 	import { assessmentService } from '$lib/services/assessment.service';
 	import { vehicleIdentificationService } from '$lib/services/vehicle-identification.service';
@@ -16,6 +17,7 @@
 	import { interiorMechanicalService } from '$lib/services/interior-mechanical.service';
 	import { tyresService } from '$lib/services/tyres.service';
 	import { damageService } from '$lib/services/damage.service';
+	import { estimateService } from '$lib/services/estimate.service';
 	import { getTabCompletionStatus } from '$lib/utils/validation';
 	import type {
 		VehicleIdentification,
@@ -23,6 +25,8 @@
 		InteriorMechanical,
 		Tyre,
 		DamageRecord,
+		Estimate,
+		EstimateLineItem,
 		AccessoryType
 	} from '$lib/types/assessment';
 
@@ -40,7 +44,8 @@
 			exterior360: data.exterior360,
 			interiorMechanical: data.interiorMechanical,
 			tyres: data.tyres,
-			damageRecords: data.damageRecords
+			damageRecord: data.damageRecord,
+			estimate: data.estimate
 		});
 
 		const completedTabs = completionStatus
@@ -222,57 +227,70 @@
 	}
 
 	// Damage handlers
-	async function handleUpdateDamageMatch(matches: boolean, notes?: string) {
-		// Store in first damage record or create placeholder
-		// This is a simplified approach - you might want a separate table for this
+	async function handleUpdateDamage(updateData: Partial<DamageRecord>) {
 		try {
-			if (data.damageRecords.length > 0) {
-				await damageService.update(data.damageRecords[0].id, {
-					matches_description: matches,
-					mismatch_notes: notes
-				});
+			if (data.damageRecord) {
+				await damageService.update(data.damageRecord.id, updateData);
+				await invalidateAll();
 			}
-			await invalidateAll();
-		} catch (error) {
-			console.error('Error updating damage match:', error);
-		}
-	}
-
-	async function handleAddDamage() {
-		try {
-			await damageService.create({
-				assessment_id: data.assessment.id,
-				damage_area: 'non_structural',
-				damage_type: 'collision',
-				affected_panels: [],
-				photos: []
-			});
-			await invalidateAll();
-		} catch (error) {
-			console.error('Error adding damage record:', error);
-		}
-	}
-
-	async function handleUpdateDamage(id: string, updateData: Partial<DamageRecord>) {
-		try {
-			await damageService.update(id, updateData);
-			await invalidateAll();
 		} catch (error) {
 			console.error('Error updating damage record:', error);
 		}
 	}
 
-	async function handleDeleteDamage(id: string) {
+	async function handleCompleteDamage() {
+		await assessmentService.markTabCompleted(data.assessment.id, 'damage');
+		await invalidateAll();
+		currentTab = 'estimate';
+	}
+
+	// Estimate handlers
+	async function handleUpdateEstimate(updateData: Partial<Estimate>) {
 		try {
-			await damageService.delete(id);
-			await invalidateAll();
+			if (data.estimate) {
+				await estimateService.update(data.estimate.id, updateData);
+				await invalidateAll();
+			}
 		} catch (error) {
-			console.error('Error deleting damage record:', error);
+			console.error('Error updating estimate:', error);
 		}
 	}
 
-	async function handleCompleteDamage() {
-		await assessmentService.markTabCompleted(data.assessment.id, 'damage');
+	async function handleAddLineItem(item: EstimateLineItem) {
+		try {
+			if (data.estimate) {
+				await estimateService.addLineItem(data.estimate.id, item);
+				await invalidateAll();
+			}
+		} catch (error) {
+			console.error('Error adding line item:', error);
+		}
+	}
+
+	async function handleUpdateLineItem(itemId: string, updateData: Partial<EstimateLineItem>) {
+		try {
+			if (data.estimate) {
+				await estimateService.updateLineItem(data.estimate.id, itemId, updateData);
+				await invalidateAll();
+			}
+		} catch (error) {
+			console.error('Error updating line item:', error);
+		}
+	}
+
+	async function handleDeleteLineItem(itemId: string) {
+		try {
+			if (data.estimate) {
+				await estimateService.deleteLineItem(data.estimate.id, itemId);
+				await invalidateAll();
+			}
+		} catch (error) {
+			console.error('Error deleting line item:', error);
+		}
+	}
+
+	async function handleCompleteEstimate() {
+		await assessmentService.markTabCompleted(data.assessment.id, 'estimate');
 		await assessmentService.updateAssessmentStatus(data.assessment.id, 'completed');
 		await invalidateAll();
 		// Redirect to appointment or inspection
@@ -331,15 +349,20 @@
 		/>
 	{:else if currentTab === 'damage'}
 		<DamageTab
-			damageRecords={data.damageRecords}
+			damageRecord={data.damageRecord}
 			assessmentId={data.assessment.id}
-			matchesDescription={data.damageRecords[0]?.matches_description}
-			mismatchNotes={data.damageRecords[0]?.mismatch_notes}
-			onUpdateMatch={handleUpdateDamageMatch}
-			onAddDamage={handleAddDamage}
 			onUpdateDamage={handleUpdateDamage}
-			onDeleteDamage={handleDeleteDamage}
 			onComplete={handleCompleteDamage}
+		/>
+	{:else if currentTab === 'estimate'}
+		<EstimateTab
+			estimate={data.estimate}
+			assessmentId={data.assessment.id}
+			onUpdateEstimate={handleUpdateEstimate}
+			onAddLineItem={handleAddLineItem}
+			onUpdateLineItem={handleUpdateLineItem}
+			onDeleteLineItem={handleDeleteLineItem}
+			onComplete={handleCompleteEstimate}
 		/>
 	{/if}
 

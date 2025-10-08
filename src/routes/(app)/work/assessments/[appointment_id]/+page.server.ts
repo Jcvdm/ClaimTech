@@ -7,6 +7,7 @@ import { accessoriesService } from '$lib/services/accessories.service';
 import { interiorMechanicalService } from '$lib/services/interior-mechanical.service';
 import { tyresService } from '$lib/services/tyres.service';
 import { damageService } from '$lib/services/damage.service';
+import { estimateService } from '$lib/services/estimate.service';
 import { assessmentNotesService } from '$lib/services/assessment-notes.service';
 import { appointmentService } from '$lib/services/appointment.service';
 import { inspectionService } from '$lib/services/inspection.service';
@@ -24,7 +25,7 @@ export const load: PageServerLoad = async ({ params }) => {
 
 		// Get or create assessment
 		let assessment = await assessmentService.getAssessmentByAppointment(appointmentId);
-		
+
 		if (!assessment) {
 			// Create new assessment
 			assessment = await assessmentService.createAssessment({
@@ -35,6 +36,12 @@ export const load: PageServerLoad = async ({ params }) => {
 
 			// Create default tyres (5 standard positions)
 			await tyresService.createDefaultTyres(assessment.id);
+
+			// Create default damage record (one per assessment)
+			await damageService.createDefault(assessment.id);
+
+			// Create default estimate (one per assessment)
+			await estimateService.createDefault(assessment.id);
 		}
 
 		// Load all assessment data
@@ -44,7 +51,8 @@ export const load: PageServerLoad = async ({ params }) => {
 			accessories,
 			interiorMechanical,
 			tyres,
-			damageRecords,
+			damageRecord,
+			estimate,
 			notes,
 			inspection,
 			request
@@ -54,7 +62,8 @@ export const load: PageServerLoad = async ({ params }) => {
 			accessoriesService.listByAssessment(assessment.id),
 			interiorMechanicalService.getByAssessment(assessment.id),
 			tyresService.listByAssessment(assessment.id),
-			damageService.listByAssessment(assessment.id),
+			damageService.getByAssessment(assessment.id),
+			estimateService.getByAssessment(assessment.id),
 			assessmentNotesService.getNotesByAssessment(assessment.id),
 			inspectionService.getInspection(appointment.inspection_id),
 			requestService.getRequest(appointment.request_id)
@@ -68,7 +77,8 @@ export const load: PageServerLoad = async ({ params }) => {
 			accessories,
 			interiorMechanical,
 			tyres,
-			damageRecords,
+			damageRecord,
+			estimate,
 			notes,
 			inspection,
 			request

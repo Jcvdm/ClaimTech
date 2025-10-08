@@ -60,7 +60,26 @@ export class DamageService {
 	}
 
 	/**
+	 * Get damage record by assessment ID (single record per assessment)
+	 */
+	async getByAssessment(assessmentId: string): Promise<DamageRecord | null> {
+		const { data, error } = await supabase
+			.from('assessment_damage')
+			.select('*')
+			.eq('assessment_id', assessmentId)
+			.maybeSingle();
+
+		if (error) {
+			console.error('Error fetching damage record:', error);
+			return null;
+		}
+
+		return data;
+	}
+
+	/**
 	 * List damage records by assessment ID
+	 * @deprecated Use getByAssessment() instead - each assessment should have only one damage record
 	 */
 	async listByAssessment(assessmentId: string): Promise<DamageRecord[]> {
 		const { data, error } = await supabase
@@ -75,6 +94,19 @@ export class DamageService {
 		}
 
 		return data || [];
+	}
+
+	/**
+	 * Create default damage record for a new assessment
+	 */
+	async createDefault(assessmentId: string): Promise<DamageRecord> {
+		return this.create({
+			assessment_id: assessmentId,
+			damage_area: 'non_structural',
+			damage_type: 'collision',
+			affected_panels: [],
+			photos: []
+		});
 	}
 
 	/**

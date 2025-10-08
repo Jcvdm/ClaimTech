@@ -11,7 +11,8 @@
 		Camera,
 		Car,
 		Gauge,
-		AlertTriangle
+		AlertTriangle,
+		DollarSign
 	} from 'lucide-svelte';
 	import type { Assessment } from '$lib/types/assessment';
 
@@ -46,7 +47,8 @@
 		{ id: '360', label: '360° Exterior', icon: Camera },
 		{ id: 'interior', label: 'Interior & Mechanical', icon: Car },
 		{ id: 'tyres', label: 'Tyres', icon: Gauge },
-		{ id: 'damage', label: 'Damage ID', icon: AlertTriangle }
+		{ id: 'damage', label: 'Damage ID', icon: AlertTriangle },
+		{ id: 'estimate', label: 'Estimate', icon: DollarSign }
 	];
 
 	const totalTabs = tabs.length;

@@ -24,6 +24,9 @@ export type DamageArea = 'structural' | 'non_structural';
 export type DamageType = 'collision' | 'fire' | 'hail' | 'theft' | 'vandalism' | 'weather' | 'mechanical' | 'other';
 export type DamageSeverity = 'minor' | 'moderate' | 'severe' | 'total_loss';
 
+// Estimate types
+export type EstimateCategory = 'parts' | 'labour' | 'paint' | 'other';
+
 // Accessory types
 export type AccessoryType =
 	| 'mags'
@@ -306,4 +309,43 @@ export interface CreateAssessmentNoteInput {
 
 export interface UpdateAssessmentNoteInput {
 	note_text?: string;
+}
+
+// Estimate line item interface
+export interface EstimateLineItem {
+	id?: string;
+	description: string;
+	category: EstimateCategory;
+	quantity: number;
+	unit_price: number;
+	total: number;
+}
+
+// Estimate interface
+export interface Estimate {
+	id: string;
+	assessment_id: string;
+	line_items: EstimateLineItem[];
+	subtotal: number;
+	vat_percentage: number;
+	vat_amount: number;
+	total: number;
+	notes?: string | null;
+	currency: string;
+	created_at: string;
+	updated_at: string;
+}
+
+export interface CreateEstimateInput {
+	assessment_id: string;
+	line_items?: EstimateLineItem[];
+	notes?: string;
+	vat_percentage?: number;
+	currency?: string;
+}
+
+export interface UpdateEstimateInput extends Partial<Omit<CreateEstimateInput, 'assessment_id'>> {
+	subtotal?: number;
+	vat_amount?: number;
+	total?: number;
 }

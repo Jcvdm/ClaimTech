@@ -11,7 +11,8 @@ export type EntityType =
 	| 'accessory'
 	| 'interior_mechanical'
 	| 'tyre'
-	| 'damage_record';
+	| 'damage_record'
+	| 'estimate';
 
 export type AuditAction =
 	| 'created'

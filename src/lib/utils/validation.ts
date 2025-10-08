@@ -161,6 +161,38 @@ export function validateAssessment(assessmentData: {
 }
 
 /**
+ * Validate Estimate tab
+ */
+export function validateEstimate(data: any): TabValidation {
+	const missingFields: string[] = [];
+
+	if (!data) {
+		missingFields.push('Estimate data');
+		return {
+			tabId: 'estimate',
+			isComplete: false,
+			missingFields
+		};
+	}
+
+	// Must have at least one line item
+	if (!data.line_items || data.line_items.length === 0) {
+		missingFields.push('At least one line item');
+	}
+
+	// Total must be greater than 0
+	if (!data.total || data.total <= 0) {
+		missingFields.push('Total amount must be greater than 0');
+	}
+
+	return {
+		tabId: 'estimate',
+		isComplete: missingFields.length === 0,
+		missingFields
+	};
+}
+
+/**
  * Get completion status for all tabs
  */
 export function getTabCompletionStatus(assessmentData: {
@@ -168,14 +200,16 @@ export function getTabCompletionStatus(assessmentData: {
 	exterior360: any;
 	interiorMechanical: any;
 	tyres: any[];
-	damageRecords: any[];
+	damageRecord: any;
+	estimate: any;
 }): TabValidation[] {
 	return [
 		validateVehicleIdentification(assessmentData.vehicleIdentification),
 		validateExterior360(assessmentData.exterior360),
 		validateInteriorMechanical(assessmentData.interiorMechanical),
 		validateTyres(assessmentData.tyres),
-		validateDamage(assessmentData.damageRecords)
+		validateDamage(assessmentData.damageRecord ? [assessmentData.damageRecord] : []),
+		validateEstimate(assessmentData.estimate)
 	];
 }
 
