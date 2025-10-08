@@ -318,7 +318,7 @@
 									aria-label="Select all items"
 								/>
 							</Table.Head>
-							<Table.Head class="w-[80px] px-3">Type</Table.Head>
+							<Table.Head class="w-[120px] px-3">Process Type</Table.Head>
 							<Table.Head class="w-[100px] px-3">Part Type</Table.Head>
 							<Table.Head class="min-w-[200px] px-3">Description</Table.Head>
 							<Table.Head class="w-[140px] text-right px-3">Part Price</Table.Head>
@@ -357,10 +357,10 @@
 											value={item.process_type}
 											onchange={(e) =>
 												handleUpdateLineItem(item.id!, 'process_type', e.currentTarget.value)}
-											class="w-full rounded-md border-0 bg-transparent px-2 py-1 text-xs font-mono focus:outline-none focus:ring-0"
+											class="w-full rounded-md border-0 bg-transparent px-2 py-1 text-sm focus:outline-none focus:ring-0"
 										>
 											{#each processTypeOptions as option}
-												<option value={option.value}>{option.value}</option>
+												<option value={option.value}>{option.value}-{option.label}</option>
 											{/each}
 										</select>
 									</Table.Cell>

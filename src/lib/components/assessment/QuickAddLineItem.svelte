@@ -155,7 +155,7 @@
 				</p>
 			</div>
 
-			<!-- Part Type (N only) - Compact Dropdown -->
+			<!-- Part Type (N only) -->
 			{#if showPartType}
 				<div class="sm:col-span-1">
 					<label for="part-type" class="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
@@ -164,7 +164,7 @@
 					<select
 						id="part-type"
 						bind:value={partType}
-						class="w-32 rounded-md border border-gray-300 px-2 py-2 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+						class="w-full rounded-md border border-gray-300 px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
 					>
 						<option value="OEM">OEM</option>
 						<option value="ALT">ALT</option>
