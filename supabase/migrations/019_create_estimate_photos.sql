@@ -24,8 +24,8 @@ ALTER TABLE estimate_photos ENABLE ROW LEVEL SECURITY;
 -- Policy: Allow all operations for authenticated users
 CREATE POLICY "Allow all operations for authenticated users" ON estimate_photos
   FOR ALL
-  USING (auth.role() = 'authenticated')
-  WITH CHECK (auth.role() = 'authenticated');
+  USING (auth.uid() IS NOT NULL)
+  WITH CHECK (auth.uid() IS NOT NULL);
 
 -- Add trigger for updated_at
 CREATE OR REPLACE FUNCTION update_estimate_photos_updated_at()
