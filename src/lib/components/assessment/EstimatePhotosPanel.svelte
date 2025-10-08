@@ -316,30 +316,38 @@
 			</div>
 		{:else}
 			<!-- Thumbnail Grid -->
-			<div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 max-h-96 overflow-y-auto">
+			<div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 max-h-[600px] overflow-y-auto p-1">
 				{#each photos as photo, index (photo.id)}
-					<button
-						onclick={() => openPhotoModal(index)}
-						class="relative aspect-square bg-gray-100 rounded-lg overflow-hidden group"
-					>
-						<img
-							src={photo.photo_url}
-							alt={photo.label || 'Incident photo'}
-							class="w-full h-full object-cover cursor-pointer"
-						/>
-						<!-- Hover overlay - excludes bottom area where label sits -->
-						<div class="absolute inset-x-0 top-0 {photo.label ? 'bottom-8' : 'bottom-0'} bg-black/0 group-hover:bg-black/50 transition-all duration-200 flex items-center justify-center pointer-events-none">
-							<span class="text-white opacity-0 group-hover:opacity-100 transition-opacity text-sm font-semibold drop-shadow-lg">
-								Click to view
-							</span>
-						</div>
-						<!-- Label overlay - separate from hover overlay -->
-						{#if photo.label}
-							<div class="absolute bottom-0 left-0 right-0 bg-black/70 text-white text-xs p-2 truncate">
-								{photo.label}
+					<div class="w-full">
+						<button
+							onclick={() => openPhotoModal(index)}
+							class="relative w-full aspect-square bg-gray-100 rounded-lg overflow-hidden group block"
+							type="button"
+						>
+							<!-- Photo Image -->
+							<div class="absolute inset-0">
+								<img
+									src={photo.photo_url}
+									alt={photo.label || 'Incident photo'}
+									class="w-full h-full object-cover cursor-pointer"
+								/>
 							</div>
-						{/if}
-					</button>
+
+							<!-- Hover overlay - excludes bottom area where label sits -->
+							<div class="absolute inset-x-0 top-0 {photo.label ? 'bottom-10' : 'bottom-0'} bg-black/0 group-hover:bg-black/60 transition-all duration-200 flex items-center justify-center pointer-events-none z-10">
+								<span class="text-white opacity-0 group-hover:opacity-100 transition-opacity text-sm font-semibold drop-shadow-lg">
+									Click to view
+								</span>
+							</div>
+
+							<!-- Label overlay - separate from hover overlay -->
+							{#if photo.label}
+								<div class="absolute bottom-0 left-0 right-0 bg-black/80 text-white text-xs p-2 truncate z-20">
+									{photo.label}
+								</div>
+							{/if}
+						</button>
+					</div>
 				{/each}
 			</div>
 		{/if}
