@@ -289,13 +289,23 @@
 		}
 	}
 
-	async function handleUpdateRates(labourRate: number, paintRate: number, vatPercentage: number) {
+	async function handleUpdateRates(
+		labourRate: number,
+		paintRate: number,
+		vatPercentage: number,
+		oemMarkup: number,
+		altMarkup: number,
+		secondHandMarkup: number
+	) {
 		try {
 			if (data.estimate) {
 				await estimateService.update(data.estimate.id, {
 					labour_rate: labourRate,
 					paint_rate: paintRate,
-					vat_percentage: vatPercentage
+					vat_percentage: vatPercentage,
+					oem_markup_percentage: oemMarkup,
+					alt_markup_percentage: altMarkup,
+					second_hand_markup_percentage: secondHandMarkup
 				});
 				await invalidateAll();
 			}

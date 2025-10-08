@@ -5,22 +5,29 @@
 	import { Plus, X } from 'lucide-svelte';
 	import type { EstimateLineItem, ProcessType, PartType } from '$lib/types/assessment';
 	import { getProcessTypeOptions } from '$lib/constants/processTypes';
-	import { calculateLineItemTotal } from '$lib/utils/estimateCalculations';
+	import {
+		calculateLineItemTotal,
+		calculatePartSellingPrice
+	} from '$lib/utils/estimateCalculations';
 
 	interface Props {
 		labourRate: number;
 		paintRate: number;
+		oemMarkup: number;
+		altMarkup: number;
+		secondHandMarkup: number;
 		onAddLineItem: (item: EstimateLineItem) => void;
 	}
 
-	let { labourRate, paintRate, onAddLineItem }: Props = $props();
+	let { labourRate, paintRate, oemMarkup, altMarkup, secondHandMarkup, onAddLineItem }: Props =
+		$props();
 
 	// Form state
 	let processType = $state<ProcessType>('N');
 	let partType = $state<PartType>('OEM');
 	let description = $state('');
-	let partPrice = $state<number | null>(null);
-	let stripAssemble = $state<number | null>(null);
+	let partPriceNett = $state<number | null>(null); // Nett price without markup
+	let stripAssembleHours = $state<number | null>(null); // Hours for S&A
 	let labourHours = $state<number | null>(null);
 	let paintPanels = $state<number | null>(null);
 	let outworkCharge = $state<number | null>(null);
@@ -41,8 +48,8 @@
 		processType = target.value as ProcessType;
 		// Clear non-applicable fields
 		if (!showPartType) partType = 'OEM';
-		if (!showPartPrice) partPrice = null;
-		if (!showStripAssemble) stripAssemble = null;
+		if (!showPartPrice) partPriceNett = null;
+		if (!showStripAssemble) stripAssembleHours = null;
 		if (!showLabour) labourHours = null;
 		if (!showPaint) paintPanels = null;
 		if (!showOutwork) outworkCharge = null;
@@ -53,14 +60,25 @@
 		// Calculate costs
 		const labourCost = labourHours ? labourHours * labourRate : 0;
 		const paintCost = paintPanels ? paintPanels * paintRate : 0;
+		const stripAssembleCost = stripAssembleHours ? stripAssembleHours * labourRate : 0;
+
+		// Calculate part price with markup based on part type
+		let markupPercentage = 0;
+		if (partType === 'OEM') markupPercentage = oemMarkup;
+		else if (partType === 'ALT') markupPercentage = altMarkup;
+		else if (partType === '2ND') markupPercentage = secondHandMarkup;
+
+		const partPrice = calculatePartSellingPrice(partPriceNett, markupPercentage);
 
 		const item: EstimateLineItem = {
 			id: crypto.randomUUID(),
 			process_type: processType,
 			part_type: showPartType ? partType : null,
 			description,
+			part_price_nett: partPriceNett,
 			part_price: partPrice,
-			strip_assemble: stripAssemble,
+			strip_assemble_hours: stripAssembleHours,
+			strip_assemble: stripAssembleCost,
 			labour_hours: labourHours,
 			labour_cost: labourCost,
 			paint_panels: paintPanels,
@@ -70,7 +88,7 @@
 				{
 					process_type: processType,
 					part_price: partPrice,
-					strip_assemble: stripAssemble,
+					strip_assemble: stripAssembleCost,
 					labour_cost: labourCost,
 					paint_cost: paintCost,
 					outwork_charge: outworkCharge
@@ -88,8 +106,8 @@
 	function handleClear() {
 		partType = 'OEM';
 		description = '';
-		partPrice = null;
-		stripAssemble = null;
+		partPriceNett = null;
+		stripAssembleHours = null;
 		labourHours = null;
 		paintPanels = null;
 		outworkCharge = null;
@@ -100,7 +118,7 @@
 <Card class="p-4 sm:p-6 bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200">
 	<div class="flex items-center justify-between mb-3 sm:mb-4">
 		<h3 class="text-base sm:text-lg font-semibold text-gray-900">Quick Add Line Item</h3>
-		{#if description || partPrice || stripAssemble || labourHours || paintPanels || outworkCharge}
+		{#if description || partPriceNett || stripAssembleHours || labourHours || paintPanels || outworkCharge}
 			<Button variant="ghost" size="sm" onclick={handleClear}>
 				<X class="h-4 w-4 mr-1" />
 				<span class="hidden sm:inline">Clear</span>
@@ -169,34 +187,36 @@
 			{#if showPartPrice}
 				<div>
 					<label for="part-price" class="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
-						Part Price
+						Part Price (Nett)
 					</label>
 					<Input
 						id="part-price"
 						type="number"
 						min="0"
 						step="0.01"
-						bind:value={partPrice}
+						bind:value={partPriceNett}
 						placeholder="0.00"
 						class="text-xs sm:text-sm"
 					/>
+					<p class="text-xs text-gray-500 mt-1">Enter nett price (without markup)</p>
 				</div>
 			{/if}
 
 			{#if showStripAssemble}
 				<div>
 					<label for="strip-assemble" class="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
-						Strip & Assemble
+						S&A Hours
 					</label>
 					<Input
 						id="strip-assemble"
 						type="number"
 						min="0"
-						step="0.01"
-						bind:value={stripAssemble}
+						step="0.25"
+						bind:value={stripAssembleHours}
 						placeholder="0.00"
 						class="text-xs sm:text-sm"
 					/>
+					<p class="text-xs text-gray-500 mt-1">Hours × R{labourRate}/hr</p>
 				</div>
 			{/if}
 

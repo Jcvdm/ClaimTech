@@ -17,7 +17,14 @@
 		onAddLineItem: (item: EstimateLineItem) => void;
 		onUpdateLineItem: (itemId: string, data: Partial<EstimateLineItem>) => void;
 		onDeleteLineItem: (itemId: string) => void;
-		onUpdateRates: (labourRate: number, paintRate: number, vatPercentage: number) => void;
+		onUpdateRates: (
+			labourRate: number,
+			paintRate: number,
+			vatPercentage: number,
+			oemMarkup: number,
+			altMarkup: number,
+			secondHandMarkup: number
+		) => void;
 		onComplete: () => void;
 	}
 
@@ -37,8 +44,10 @@
 	// State for click-to-edit functionality
 	let editingSA = $state<string | null>(null);
 	let editingPaint = $state<string | null>(null);
+	let editingPartPrice = $state<string | null>(null);
 	let tempSAHours = $state<number | null>(null);
 	let tempPaintPanels = $state<number | null>(null);
+	let tempPartPriceNett = $state<number | null>(null);
 
 	function handleAddEmptyLineItem() {
 		const newItem = createEmptyLineItem('N') as EstimateLineItem;
@@ -100,6 +109,38 @@
 		tempPaintPanels = null;
 	}
 
+	// Click-to-edit Part Price (nett price input)
+	// Selling price = nett price × (1 + markup%)
+	function handlePartPriceClick(itemId: string, currentNettPrice: number | null) {
+		editingPartPrice = itemId;
+		tempPartPriceNett = currentNettPrice;
+	}
+
+	function handlePartPriceSave(itemId: string, item: EstimateLineItem) {
+		if (tempPartPriceNett !== null && estimate) {
+			// Get markup percentage based on part type
+			let markupPercentage = 0;
+			if (item.part_type === 'OEM') markupPercentage = estimate.oem_markup_percentage;
+			else if (item.part_type === 'ALT') markupPercentage = estimate.alt_markup_percentage;
+			else if (item.part_type === '2ND') markupPercentage = estimate.second_hand_markup_percentage;
+
+			// Calculate selling price with markup
+			const sellingPrice = tempPartPriceNett * (1 + markupPercentage / 100);
+
+			onUpdateLineItem(itemId, {
+				part_price_nett: tempPartPriceNett,
+				part_price: Number(sellingPrice.toFixed(2))
+			});
+		}
+		editingPartPrice = null;
+		tempPartPriceNett = null;
+	}
+
+	function handlePartPriceCancel() {
+		editingPartPrice = null;
+		tempPartPriceNett = null;
+	}
+
 	function formatCurrency(amount: number): string {
 		return new Intl.NumberFormat('en-ZA', {
 			style: 'currency',
@@ -146,6 +187,9 @@
 			labourRate={estimate.labour_rate}
 			paintRate={estimate.paint_rate}
 			vatPercentage={estimate.vat_percentage}
+			oemMarkup={estimate.oem_markup_percentage}
+			altMarkup={estimate.alt_markup_percentage}
+			secondHandMarkup={estimate.second_hand_markup_percentage}
 			onUpdateRates={onUpdateRates}
 		/>
 
@@ -153,6 +197,9 @@
 		<QuickAddLineItem
 			labourRate={estimate.labour_rate}
 			paintRate={estimate.paint_rate}
+			oemMarkup={estimate.oem_markup_percentage}
+			altMarkup={estimate.alt_markup_percentage}
+			secondHandMarkup={estimate.second_hand_markup_percentage}
 			onAddLineItem={onAddLineItem}
 		/>
 
@@ -236,18 +283,35 @@
 										/>
 									</Table.Cell>
 
-									<!-- Part Price (N only) -->
+									<!-- Part Price (N only) - Click to edit nett price -->
 									<Table.Cell class="text-right px-3 py-2">
 										{#if item.process_type === 'N'}
-											<Input
-												type="number"
-												min="0"
-												step="0.01"
-												value={item.part_price}
-												oninput={(e) =>
-													handleUpdateLineItem(item.id!, 'part_price', Number(e.currentTarget.value))}
-												class="border-0 text-right text-sm focus-visible:ring-0 focus-visible:ring-offset-0"
-											/>
+											{#if editingPartPrice === item.id}
+												<div class="space-y-1">
+													<Input
+														type="number"
+														min="0"
+														step="0.01"
+														bind:value={tempPartPriceNett}
+														onkeydown={(e) => {
+															if (e.key === 'Enter') handlePartPriceSave(item.id!, item);
+															if (e.key === 'Escape') handlePartPriceCancel();
+														}}
+														onblur={() => handlePartPriceSave(item.id!, item)}
+														class="border-0 text-right text-sm focus-visible:ring-0 focus-visible:ring-offset-0"
+														autofocus
+													/>
+													<p class="text-xs text-gray-500 italic">Only input nett price</p>
+												</div>
+											{:else}
+												<button
+													onclick={() => handlePartPriceClick(item.id!, item.part_price_nett || null)}
+													class="text-sm font-medium text-blue-600 hover:text-blue-800 cursor-pointer w-full text-right"
+													title="Click to edit nett price (selling price includes markup)"
+												>
+													{formatCurrency(item.part_price || 0)}
+												</button>
+											{/if}
 										{:else}
 											<span class="text-gray-400 text-xs">-</span>
 										{/if}

@@ -49,6 +49,29 @@ export function calculateLineItemTotal(
 }
 
 /**
+ * Calculate part selling price with markup
+ * @param nettPrice - Nett price without markup
+ * @param markupPercentage - Markup percentage (e.g., 25 for 25%)
+ * @returns Selling price with markup applied
+ */
+export function calculatePartSellingPrice(nettPrice: number | null | undefined, markupPercentage: number): number {
+	if (!nettPrice || nettPrice <= 0) return 0;
+	const markup = 1 + (markupPercentage / 100);
+	return Number((nettPrice * markup).toFixed(2));
+}
+
+/**
+ * Calculate S&A cost from hours
+ * @param hours - Strip & Assemble hours
+ * @param labourRate - Labour rate per hour
+ * @returns S&A cost
+ */
+export function calculateSACost(hours: number | null | undefined, labourRate: number): number {
+	if (!hours || hours <= 0) return 0;
+	return Number((hours * labourRate).toFixed(2));
+}
+
+/**
  * Calculate labour cost for a line item
  */
 export function calculateLabourCost(labourHours: number | null | undefined, labourRate: number): number {
@@ -168,7 +191,9 @@ export function createEmptyLineItem(processType: ProcessType): Partial<EstimateL
 		process_type: processType,
 		part_type: processType === 'N' ? 'OEM' : null,
 		description: '',
+		part_price_nett: null,
 		part_price: null,
+		strip_assemble_hours: null,
 		strip_assemble: null,
 		labour_hours: null,
 		labour_cost: 0,

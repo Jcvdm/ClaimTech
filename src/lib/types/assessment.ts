@@ -335,8 +335,10 @@ export interface EstimateLineItem {
 	part_type?: PartType | null; // Only for process_type='N' (OEM=Original, ALT=Alternative, 2ND=Second Hand)
 	description: string;
 	// Conditional fields based on process_type
-	part_price?: number | null; // N only
-	strip_assemble?: number | null; // N, R, P, B
+	part_price_nett?: number | null; // N only - Nett price without markup (user input)
+	part_price?: number | null; // N only - Selling price with markup (calculated)
+	strip_assemble_hours?: number | null; // N, R, P, B - Hours for S&A (user input)
+	strip_assemble?: number | null; // N, R, P, B - S&A cost = hours × labour_rate (calculated)
 	labour_hours?: number | null; // N, R, A
 	labour_cost?: number; // Calculated: labour_hours × labour_rate
 	paint_panels?: number | null; // N, R, P, B
@@ -351,6 +353,9 @@ export interface Estimate {
 	assessment_id: string;
 	labour_rate: number; // Cost per hour (e.g., 500)
 	paint_rate: number; // Cost per panel (e.g., 2000)
+	oem_markup_percentage: number; // Markup % for OEM parts (default 25%)
+	alt_markup_percentage: number; // Markup % for Aftermarket parts (default 25%)
+	second_hand_markup_percentage: number; // Markup % for Second Hand parts (default 25%)
 	line_items: EstimateLineItem[];
 	subtotal: number;
 	vat_percentage: number;
@@ -366,6 +371,9 @@ export interface CreateEstimateInput {
 	assessment_id: string;
 	labour_rate?: number;
 	paint_rate?: number;
+	oem_markup_percentage?: number;
+	alt_markup_percentage?: number;
+	second_hand_markup_percentage?: number;
 	line_items?: EstimateLineItem[];
 	notes?: string;
 	vat_percentage?: number;

@@ -8,28 +8,65 @@
 		labourRate: number;
 		paintRate: number;
 		vatPercentage: number;
-		onUpdateRates: (labourRate: number, paintRate: number, vatPercentage: number) => void;
+		oemMarkup: number;
+		altMarkup: number;
+		secondHandMarkup: number;
+		onUpdateRates: (
+			labourRate: number,
+			paintRate: number,
+			vatPercentage: number,
+			oemMarkup: number,
+			altMarkup: number,
+			secondHandMarkup: number
+		) => void;
 		disabled?: boolean;
 	}
 
-	let { labourRate, paintRate, vatPercentage, onUpdateRates, disabled = false }: Props = $props();
+	let {
+		labourRate,
+		paintRate,
+		vatPercentage,
+		oemMarkup,
+		altMarkup,
+		secondHandMarkup,
+		onUpdateRates,
+		disabled = false
+	}: Props = $props();
 
 	let localLabourRate = $state(labourRate);
 	let localPaintRate = $state(paintRate);
 	let localVatPercentage = $state(vatPercentage);
+	let localOemMarkup = $state(oemMarkup);
+	let localAltMarkup = $state(altMarkup);
+	let localSecondHandMarkup = $state(secondHandMarkup);
 	let isExpanded = $state(false);
 	let hasChanges = $derived(
-		localLabourRate !== labourRate || localPaintRate !== paintRate || localVatPercentage !== vatPercentage
+		localLabourRate !== labourRate ||
+			localPaintRate !== paintRate ||
+			localVatPercentage !== vatPercentage ||
+			localOemMarkup !== oemMarkup ||
+			localAltMarkup !== altMarkup ||
+			localSecondHandMarkup !== secondHandMarkup
 	);
 
 	function handleUpdateRates() {
-		onUpdateRates(localLabourRate, localPaintRate, localVatPercentage);
+		onUpdateRates(
+			localLabourRate,
+			localPaintRate,
+			localVatPercentage,
+			localOemMarkup,
+			localAltMarkup,
+			localSecondHandMarkup
+		);
 	}
 
 	function handleReset() {
 		localLabourRate = labourRate;
 		localPaintRate = paintRate;
 		localVatPercentage = vatPercentage;
+		localOemMarkup = oemMarkup;
+		localAltMarkup = altMarkup;
+		localSecondHandMarkup = secondHandMarkup;
 	}
 
 	// Update local values when props change
@@ -37,6 +74,9 @@
 		localLabourRate = labourRate;
 		localPaintRate = paintRate;
 		localVatPercentage = vatPercentage;
+		localOemMarkup = oemMarkup;
+		localAltMarkup = altMarkup;
+		localSecondHandMarkup = secondHandMarkup;
 	});
 
 	function formatCurrency(amount: number): string {
@@ -60,6 +100,9 @@
 				<h3 class="text-base font-semibold text-gray-900">Rates Configuration</h3>
 				<p class="text-sm text-gray-600">
 					Labour: {formatCurrency(labourRate)}/hr • Paint: {formatCurrency(paintRate)}/panel • VAT: {vatPercentage}%
+				</p>
+				<p class="text-xs text-gray-500 mt-1">
+					Markup: OEM {oemMarkup}% • ALT {altMarkup}% • 2ND {secondHandMarkup}%
 				</p>
 			</div>
 		</div>
@@ -138,6 +181,84 @@
 					<p class="mt-1 text-xs text-gray-500">
 						VAT percentage (e.g., 15%)
 					</p>
+				</div>
+			</div>
+
+			<!-- Parts Markup Section -->
+			<div class="border-t border-gray-200 pt-4">
+				<h4 class="text-sm font-semibold text-gray-900 mb-3">Parts Markup Percentages</h4>
+				<p class="text-xs text-gray-600 mb-4">
+					Markup is applied to nett part prices. Selling Price = Nett Price × (1 + Markup%)
+				</p>
+				<div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+					<!-- OEM Markup -->
+					<div>
+						<label for="oem-markup" class="block text-sm font-medium text-gray-700 mb-2">
+							OEM Markup
+						</label>
+						<div class="flex items-center gap-2">
+							<Input
+								id="oem-markup"
+								type="number"
+								min="0"
+								max="100"
+								step="0.1"
+								bind:value={localOemMarkup}
+								{disabled}
+								class="flex-1"
+							/>
+							<span class="text-gray-500">%</span>
+						</div>
+						<p class="mt-1 text-xs text-gray-500">
+							Original Equipment Manufacturer
+						</p>
+					</div>
+
+					<!-- Aftermarket Markup -->
+					<div>
+						<label for="alt-markup" class="block text-sm font-medium text-gray-700 mb-2">
+							Aftermarket Markup
+						</label>
+						<div class="flex items-center gap-2">
+							<Input
+								id="alt-markup"
+								type="number"
+								min="0"
+								max="100"
+								step="0.1"
+								bind:value={localAltMarkup}
+								{disabled}
+								class="flex-1"
+							/>
+							<span class="text-gray-500">%</span>
+						</div>
+						<p class="mt-1 text-xs text-gray-500">
+							Alternative/Aftermarket parts
+						</p>
+					</div>
+
+					<!-- Second Hand Markup -->
+					<div>
+						<label for="second-hand-markup" class="block text-sm font-medium text-gray-700 mb-2">
+							Second Hand Markup
+						</label>
+						<div class="flex items-center gap-2">
+							<Input
+								id="second-hand-markup"
+								type="number"
+								min="0"
+								max="100"
+								step="0.1"
+								bind:value={localSecondHandMarkup}
+								{disabled}
+								class="flex-1"
+							/>
+							<span class="text-gray-500">%</span>
+						</div>
+						<p class="mt-1 text-xs text-gray-500">
+							Used/Second Hand parts
+						</p>
+					</div>
 				</div>
 			</div>
 
