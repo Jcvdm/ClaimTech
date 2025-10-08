@@ -385,10 +385,12 @@
 		<EstimateTab
 			estimate={data.estimate}
 			assessmentId={data.assessment.id}
+			estimatePhotos={data.estimatePhotos}
 			onUpdateEstimate={handleUpdateEstimate}
 			onAddLineItem={handleAddLineItem}
 			onUpdateLineItem={handleUpdateLineItem}
 			onDeleteLineItem={handleDeleteLineItem}
+			onPhotosUpdate={async () => await invalidateAll()}
 			onUpdateRates={handleUpdateRates}
 			onComplete={handleCompleteEstimate}
 		/>

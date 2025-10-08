@@ -8,6 +8,7 @@ import { interiorMechanicalService } from '$lib/services/interior-mechanical.ser
 import { tyresService } from '$lib/services/tyres.service';
 import { damageService } from '$lib/services/damage.service';
 import { estimateService } from '$lib/services/estimate.service';
+import { estimatePhotosService } from '$lib/services/estimate-photos.service';
 import { assessmentNotesService } from '$lib/services/assessment-notes.service';
 import { appointmentService } from '$lib/services/appointment.service';
 import { inspectionService } from '$lib/services/inspection.service';
@@ -69,6 +70,11 @@ export const load: PageServerLoad = async ({ params }) => {
 			requestService.getRequest(appointment.request_id)
 		]);
 
+		// Load estimate photos if estimate exists
+		const estimatePhotos = estimate
+			? await estimatePhotosService.getPhotosByEstimate(estimate.id)
+			: [];
+
 		return {
 			appointment,
 			assessment,
@@ -79,6 +85,7 @@ export const load: PageServerLoad = async ({ params }) => {
 			tyres,
 			damageRecord,
 			estimate,
+			estimatePhotos,
 			notes,
 			inspection,
 			request

@@ -387,3 +387,28 @@ export interface UpdateEstimateInput extends Partial<Omit<CreateEstimateInput, '
 	vat_amount?: number;
 	total?: number;
 }
+
+// Estimate Photo interfaces
+export interface EstimatePhoto {
+	id: string;
+	estimate_id: string;
+	photo_url: string;
+	photo_path: string;
+	label?: string | null;
+	display_order: number;
+	created_at: string;
+	updated_at: string;
+}
+
+export interface CreateEstimatePhotoInput {
+	estimate_id: string;
+	photo_url: string;
+	photo_path: string;
+	label?: string | null;
+	display_order?: number;
+}
+
+export interface UpdateEstimatePhotoInput {
+	label?: string | null;
+	display_order?: number;
+}

@@ -5,18 +5,21 @@
 	import * as Table from '$lib/components/ui/table';
 	import RatesConfiguration from './RatesConfiguration.svelte';
 	import QuickAddLineItem from './QuickAddLineItem.svelte';
+	import EstimatePhotosPanel from './EstimatePhotosPanel.svelte';
 	import { Plus, Trash2, Check } from 'lucide-svelte';
-	import type { Estimate, EstimateLineItem } from '$lib/types/assessment';
+	import type { Estimate, EstimateLineItem, EstimatePhoto } from '$lib/types/assessment';
 	import { getProcessTypeOptions } from '$lib/constants/processTypes';
 	import { createEmptyLineItem, calculateLineItemTotal } from '$lib/utils/estimateCalculations';
 
 	interface Props {
 		estimate: Estimate | null;
 		assessmentId: string;
+		estimatePhotos: EstimatePhoto[];
 		onUpdateEstimate: (data: Partial<Estimate>) => void;
 		onAddLineItem: (item: EstimateLineItem) => void;
 		onUpdateLineItem: (itemId: string, data: Partial<EstimateLineItem>) => void;
 		onDeleteLineItem: (itemId: string) => void;
+		onPhotosUpdate: () => void;
 		onUpdateRates: (
 			labourRate: number,
 			paintRate: number,
@@ -31,10 +34,12 @@
 	let {
 		estimate,
 		assessmentId,
+		estimatePhotos,
 		onUpdateEstimate,
 		onAddLineItem,
 		onUpdateLineItem,
 		onDeleteLineItem,
+		onPhotosUpdate,
 		onUpdateRates,
 		onComplete
 	}: Props = $props();
@@ -545,6 +550,14 @@
 				</div>
 			{/if}
 		</Card>
+
+		<!-- Incident Photos -->
+		<EstimatePhotosPanel
+			estimateId={estimate.id}
+			{assessmentId}
+			photos={estimatePhotos}
+			onUpdate={onPhotosUpdate}
+		/>
 
 		<!-- Actions -->
 		<div class="flex justify-between">

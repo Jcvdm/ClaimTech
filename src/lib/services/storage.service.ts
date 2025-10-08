@@ -153,7 +153,7 @@ class StorageService {
 	async uploadAssessmentPhoto(
 		file: File,
 		assessmentId: string,
-		category: 'identification' | '360' | 'interior' | 'tyres' | 'damage',
+		category: 'identification' | '360' | 'interior' | 'tyres' | 'damage' | 'estimate',
 		subcategory?: string
 	): Promise<UploadPhotoResult> {
 		const folder = subcategory
