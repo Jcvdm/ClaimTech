@@ -8,6 +8,7 @@
 	import InteriorMechanicalTab from '$lib/components/assessment/InteriorMechanicalTab.svelte';
 	import TyresTab from '$lib/components/assessment/TyresTab.svelte';
 	import DamageTab from '$lib/components/assessment/DamageTab.svelte';
+	import PreIncidentEstimateTab from '$lib/components/assessment/PreIncidentEstimateTab.svelte';
 	import EstimateTab from '$lib/components/assessment/EstimateTab.svelte';
 	import AssessmentNotes from '$lib/components/assessment/AssessmentNotes.svelte';
 	import { assessmentService } from '$lib/services/assessment.service';
@@ -18,6 +19,7 @@
 	import { tyresService } from '$lib/services/tyres.service';
 	import { damageService } from '$lib/services/damage.service';
 	import { estimateService } from '$lib/services/estimate.service';
+	import { preIncidentEstimateService } from '$lib/services/pre-incident-estimate.service';
 	import { getTabCompletionStatus } from '$lib/utils/validation';
 	import type {
 		VehicleIdentification,
@@ -45,6 +47,7 @@
 			interiorMechanical: data.interiorMechanical,
 			tyres: data.tyres,
 			damageRecord: data.damageRecord,
+			preIncidentEstimate: data.preIncidentEstimate,
 			estimate: data.estimate
 		});
 
@@ -241,6 +244,105 @@
 	async function handleCompleteDamage() {
 		await assessmentService.markTabCompleted(data.assessment.id, 'damage');
 		await invalidateAll();
+		currentTab = 'pre-incident';
+	}
+
+	// Pre-Incident Estimate handlers
+	async function handleUpdatePreIncidentEstimate(updateData: Partial<Estimate>) {
+		try {
+			if (data.preIncidentEstimate) {
+				await preIncidentEstimateService.update(data.preIncidentEstimate.id, updateData);
+				await invalidateAll();
+			}
+		} catch (error) {
+			console.error('Error updating pre-incident estimate:', error);
+		}
+	}
+
+	async function handleAddPreIncidentLineItem(item: EstimateLineItem) {
+		try {
+			if (data.preIncidentEstimate) {
+				await preIncidentEstimateService.addLineItem(data.preIncidentEstimate.id, item);
+				await invalidateAll();
+			}
+		} catch (error) {
+			console.error('Error adding pre-incident line item:', error);
+		}
+	}
+
+	async function handleUpdatePreIncidentLineItem(
+		itemId: string,
+		updateData: Partial<EstimateLineItem>
+	) {
+		try {
+			if (data.preIncidentEstimate) {
+				await preIncidentEstimateService.updateLineItem(
+					data.preIncidentEstimate.id,
+					itemId,
+					updateData
+				);
+				await invalidateAll();
+			}
+		} catch (error) {
+			console.error('Error updating pre-incident line item:', error);
+		}
+	}
+
+	async function handleDeletePreIncidentLineItem(itemId: string) {
+		try {
+			if (data.preIncidentEstimate) {
+				await preIncidentEstimateService.deleteLineItem(data.preIncidentEstimate.id, itemId);
+				await invalidateAll();
+			}
+		} catch (error) {
+			console.error('Error deleting pre-incident line item:', error);
+		}
+	}
+
+	async function handleBulkDeletePreIncidentLineItems(itemIds: string[]) {
+		try {
+			if (data.preIncidentEstimate) {
+				await preIncidentEstimateService.bulkDeleteLineItems(
+					data.preIncidentEstimate.id,
+					itemIds
+				);
+				await invalidateAll();
+			}
+		} catch (error) {
+			console.error('Error bulk deleting pre-incident line items:', error);
+		}
+	}
+
+	async function handleUpdatePreIncidentRates(
+		labourRate: number,
+		paintRate: number,
+		vatPercentage: number,
+		oemMarkup: number,
+		altMarkup: number,
+		secondHandMarkup: number,
+		outworkMarkup: number
+	) {
+		try {
+			if (data.preIncidentEstimate) {
+				await preIncidentEstimateService.update(data.preIncidentEstimate.id, {
+					labour_rate: labourRate,
+					paint_rate: paintRate,
+					vat_percentage: vatPercentage,
+					oem_markup_percentage: oemMarkup,
+					alt_markup_percentage: altMarkup,
+					second_hand_markup_percentage: secondHandMarkup,
+					outwork_markup_percentage: outworkMarkup
+				});
+				await invalidateAll();
+			}
+		} catch (error) {
+			console.error('Error updating pre-incident rates:', error);
+		}
+	}
+
+	async function handleCompletePreIncidentEstimate() {
+		await assessmentService.markTabCompleted(data.assessment.id, 'pre-incident');
+		await invalidateAll();
 		currentTab = 'estimate';
 	}
 
@@ -391,6 +493,20 @@
 			assessmentId={data.assessment.id}
 			onUpdateDamage={handleUpdateDamage}
 			onComplete={handleCompleteDamage}
+		/>
+	{:else if currentTab === 'pre-incident'}
+		<PreIncidentEstimateTab
+			estimate={data.preIncidentEstimate}
+			assessmentId={data.assessment.id}
+			estimatePhotos={data.preIncidentEstimatePhotos}
+			onUpdateEstimate={handleUpdatePreIncidentEstimate}
+			onAddLineItem={handleAddPreIncidentLineItem}
+			onUpdateLineItem={handleUpdatePreIncidentLineItem}
+			onDeleteLineItem={handleDeletePreIncidentLineItem}
+			onBulkDeleteLineItems={handleBulkDeletePreIncidentLineItems}
+			onPhotosUpdate={async () => await invalidateAll()}
+			onUpdateRates={handleUpdatePreIncidentRates}
+			onComplete={handleCompletePreIncidentEstimate}
 		/>
 	{:else if currentTab === 'estimate'}
 		<EstimateTab

@@ -412,3 +412,70 @@ export interface UpdateEstimatePhotoInput {
 	label?: string | null;
 	display_order?: number;
 }
+
+// Pre-Incident Estimate interface (same structure as Estimate but for pre-existing damage)
+export interface PreIncidentEstimate {
+	id: string;
+	assessment_id: string;
+	labour_rate: number; // Cost per hour (e.g., 500)
+	paint_rate: number; // Cost per panel (e.g., 2000)
+	oem_markup_percentage: number; // Markup % for OEM parts (default 25%)
+	alt_markup_percentage: number; // Markup % for Aftermarket parts (default 25%)
+	second_hand_markup_percentage: number; // Markup % for Second Hand parts (default 25%)
+	outwork_markup_percentage: number; // Markup % for outwork charges (default 25%)
+	line_items: EstimateLineItem[]; // Reuse same line item type
+	subtotal: number;
+	vat_percentage: number;
+	vat_amount: number;
+	total: number;
+	notes?: string | null;
+	currency: string;
+	created_at: string;
+	updated_at: string;
+}
+
+export interface CreatePreIncidentEstimateInput {
+	assessment_id: string;
+	labour_rate?: number;
+	paint_rate?: number;
+	oem_markup_percentage?: number;
+	alt_markup_percentage?: number;
+	second_hand_markup_percentage?: number;
+	outwork_markup_percentage?: number;
+	line_items?: EstimateLineItem[];
+	notes?: string;
+	vat_percentage?: number;
+	currency?: string;
+}
+
+export interface UpdatePreIncidentEstimateInput
+	extends Partial<Omit<CreatePreIncidentEstimateInput, 'assessment_id'>> {
+	subtotal?: number;
+	vat_amount?: number;
+	total?: number;
+}
+
+// Pre-Incident Estimate Photo interfaces
+export interface PreIncidentEstimatePhoto {
+	id: string;
+	estimate_id: string;
+	photo_url: string;
+	photo_path: string;
+	label?: string | null;
+	display_order: number;
+	created_at: string;
+	updated_at: string;
+}
+
+export interface CreatePreIncidentEstimatePhotoInput {
+	estimate_id: string;
+	photo_url: string;
+	photo_path: string;
+	label?: string;
+	display_order?: number;
+}
+
+export interface UpdatePreIncidentEstimatePhotoInput {
+	label?: string;
+	display_order?: number;
+}

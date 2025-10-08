@@ -9,6 +9,8 @@ import { tyresService } from '$lib/services/tyres.service';
 import { damageService } from '$lib/services/damage.service';
 import { estimateService } from '$lib/services/estimate.service';
 import { estimatePhotosService } from '$lib/services/estimate-photos.service';
+import { preIncidentEstimateService } from '$lib/services/pre-incident-estimate.service';
+import { preIncidentEstimatePhotosService } from '$lib/services/pre-incident-estimate-photos.service';
 import { assessmentNotesService } from '$lib/services/assessment-notes.service';
 import { appointmentService } from '$lib/services/appointment.service';
 import { inspectionService } from '$lib/services/inspection.service';
@@ -41,6 +43,9 @@ export const load: PageServerLoad = async ({ params }) => {
 			// Create default damage record (one per assessment)
 			await damageService.createDefault(assessment.id);
 
+			// Create default pre-incident estimate (one per assessment)
+			await preIncidentEstimateService.createDefault(assessment.id);
+
 			// Create default estimate (one per assessment)
 			await estimateService.createDefault(assessment.id);
 		}
@@ -53,6 +58,7 @@ export const load: PageServerLoad = async ({ params }) => {
 			interiorMechanical,
 			tyres,
 			damageRecord,
+			preIncidentEstimate,
 			estimate,
 			notes,
 			inspection,
@@ -64,15 +70,27 @@ export const load: PageServerLoad = async ({ params }) => {
 			interiorMechanicalService.getByAssessment(assessment.id),
 			tyresService.listByAssessment(assessment.id),
 			damageService.getByAssessment(assessment.id),
+			preIncidentEstimateService.getByAssessment(assessment.id),
 			estimateService.getByAssessment(assessment.id),
 			assessmentNotesService.getNotesByAssessment(assessment.id),
 			inspectionService.getInspection(appointment.inspection_id),
 			requestService.getRequest(appointment.request_id)
 		]);
 
+		// Auto-create pre-incident estimate if it doesn't exist (for existing assessments)
+		let finalPreIncidentEstimate = preIncidentEstimate;
+		if (!finalPreIncidentEstimate) {
+			finalPreIncidentEstimate = await preIncidentEstimateService.createDefault(assessment.id);
+		}
+
 		// Load estimate photos if estimate exists
 		const estimatePhotos = estimate
 			? await estimatePhotosService.getPhotosByEstimate(estimate.id)
+			: [];
+
+		// Load pre-incident estimate photos if pre-incident estimate exists
+		const preIncidentEstimatePhotos = finalPreIncidentEstimate
+			? await preIncidentEstimatePhotosService.getPhotosByEstimate(finalPreIncidentEstimate.id)
 			: [];
 
 		return {
@@ -84,6 +102,8 @@ export const load: PageServerLoad = async ({ params }) => {
 			interiorMechanical,
 			tyres,
 			damageRecord,
+			preIncidentEstimate: finalPreIncidentEstimate,
+			preIncidentEstimatePhotos,
 			estimate,
 			estimatePhotos,
 			notes,

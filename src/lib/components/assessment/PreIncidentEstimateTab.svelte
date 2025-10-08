@@ -7,15 +7,19 @@
 	import QuickAddLineItem from './QuickAddLineItem.svelte';
 	import EstimatePhotosPanel from './EstimatePhotosPanel.svelte';
 	import { Plus, Trash2, Check } from 'lucide-svelte';
-	import type { Estimate, EstimateLineItem, EstimatePhoto } from '$lib/types/assessment';
+	import type {
+		PreIncidentEstimate,
+		EstimateLineItem,
+		PreIncidentEstimatePhoto
+	} from '$lib/types/assessment';
 	import { getProcessTypeOptions } from '$lib/constants/processTypes';
 	import { createEmptyLineItem, calculateLineItemTotal } from '$lib/utils/estimateCalculations';
 
 	interface Props {
-		estimate: Estimate | null;
+		estimate: PreIncidentEstimate | null;
 		assessmentId: string;
-		estimatePhotos: EstimatePhoto[];
-		onUpdateEstimate: (data: Partial<Estimate>) => void;
+		estimatePhotos: PreIncidentEstimatePhoto[];
+		onUpdateEstimate: (data: Partial<PreIncidentEstimate>) => void;
 		onAddLineItem: (item: EstimateLineItem) => void;
 		onUpdateLineItem: (itemId: string, data: Partial<EstimateLineItem>) => void;
 		onDeleteLineItem: (itemId: string) => void;
@@ -264,7 +268,7 @@
 <div class="space-y-6">
 	{#if !estimate}
 		<Card class="p-6 border-2 border-dashed border-gray-300">
-			<p class="text-center text-gray-600">Loading estimate...</p>
+			<p class="text-center text-gray-600">Loading pre-incident estimate...</p>
 		</Card>
 	{:else}
 		<!-- Rates Configuration -->
@@ -622,7 +626,7 @@
 			{/if}
 		</Card>
 
-		<!-- Incident Photos -->
+		<!-- Pre-Incident Damage Photos -->
 		<EstimatePhotosPanel
 			estimateId={estimate.id}
 			{assessmentId}
@@ -635,7 +639,7 @@
 			<Button variant="outline" onclick={() => {}}>Save Progress</Button>
 			<Button onclick={onComplete} disabled={!isComplete}>
 				<Check class="mr-2 h-4 w-4" />
-				Complete Estimate
+				Complete Pre-Incident Estimate
 			</Button>
 		</div>
 	{/if}

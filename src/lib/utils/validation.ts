@@ -202,6 +202,47 @@ export function validateEstimate(data: any): TabValidation {
 }
 
 /**
+ * Validate Pre-Incident Estimate tab
+ */
+export function validatePreIncidentEstimate(data: any): TabValidation {
+	const missingFields: string[] = [];
+
+	if (!data) {
+		missingFields.push('Pre-incident estimate data');
+		return {
+			tabId: 'pre-incident',
+			isComplete: false,
+			missingFields
+		};
+	}
+
+	// Must have rates configured
+	if (!data.labour_rate || data.labour_rate <= 0) {
+		missingFields.push('Labour rate must be set');
+	}
+
+	if (!data.paint_rate || data.paint_rate <= 0) {
+		missingFields.push('Paint rate must be set');
+	}
+
+	// Must have at least one line item
+	if (!data.line_items || data.line_items.length === 0) {
+		missingFields.push('At least one line item required');
+	}
+
+	// Total must be greater than 0
+	if (!data.total || data.total <= 0) {
+		missingFields.push('Total must be greater than 0');
+	}
+
+	return {
+		tabId: 'pre-incident',
+		isComplete: missingFields.length === 0,
+		missingFields
+	};
+}
+
+/**
  * Get completion status for all tabs
  */
 export function getTabCompletionStatus(assessmentData: {
@@ -210,6 +251,7 @@ export function getTabCompletionStatus(assessmentData: {
 	interiorMechanical: any;
 	tyres: any[];
 	damageRecord: any;
+	preIncidentEstimate: any;
 	estimate: any;
 }): TabValidation[] {
 	return [
@@ -218,6 +260,7 @@ export function getTabCompletionStatus(assessmentData: {
 		validateInteriorMechanical(assessmentData.interiorMechanical),
 		validateTyres(assessmentData.tyres),
 		validateDamage(assessmentData.damageRecord ? [assessmentData.damageRecord] : []),
+		validatePreIncidentEstimate(assessmentData.preIncidentEstimate),
 		validateEstimate(assessmentData.estimate)
 	];
 }

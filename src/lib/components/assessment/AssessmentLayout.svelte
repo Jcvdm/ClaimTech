@@ -48,6 +48,7 @@
 		{ id: 'interior', label: 'Interior & Mechanical', icon: Car },
 		{ id: 'tyres', label: 'Tyres', icon: Gauge },
 		{ id: 'damage', label: 'Damage ID', icon: AlertTriangle },
+		{ id: 'pre-incident', label: 'Pre-Incident', icon: DollarSign },
 		{ id: 'estimate', label: 'Estimate', icon: DollarSign }
 	];
 
