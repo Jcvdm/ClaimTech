@@ -238,6 +238,22 @@ export class EstimateService {
 	}
 
 	/**
+	 * Delete multiple line items from estimate in a single operation
+	 * This prevents race conditions when deleting multiple items
+	 */
+	async bulkDeleteLineItems(id: string, itemIds: string[]): Promise<Estimate> {
+		const estimate = await this.getById(id);
+		if (!estimate) {
+			throw new Error('Estimate not found');
+		}
+
+		// Filter out all items with IDs in the itemIds array
+		const updatedLineItems = estimate.line_items.filter((item) => !itemIds.includes(item.id!));
+
+		return this.update(id, { line_items: updatedLineItems });
+	}
+
+	/**
 	 * Get estimate by ID
 	 */
 	async getById(id: string): Promise<Estimate | null> {

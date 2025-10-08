@@ -19,6 +19,7 @@
 		onAddLineItem: (item: EstimateLineItem) => void;
 		onUpdateLineItem: (itemId: string, data: Partial<EstimateLineItem>) => void;
 		onDeleteLineItem: (itemId: string) => void;
+		onBulkDeleteLineItems: (itemIds: string[]) => void;
 		onPhotosUpdate: () => void;
 		onUpdateRates: (
 			labourRate: number,
@@ -39,6 +40,7 @@
 		onAddLineItem,
 		onUpdateLineItem,
 		onDeleteLineItem,
+		onBulkDeleteLineItems,
 		onPhotosUpdate,
 		onUpdateRates,
 		onComplete
@@ -96,9 +98,9 @@
 		if (!confirm(`Delete ${selectedItems.size} selected item${selectedItems.size > 1 ? 's' : ''}?`))
 			return;
 
-		selectedItems.forEach((itemId) => {
-			onDeleteLineItem(itemId);
-		});
+		// Convert Set to Array and call bulk delete handler
+		const itemIdsArray = Array.from(selectedItems);
+		onBulkDeleteLineItems(itemIdsArray);
 
 		selectedItems.clear();
 		selectedItems = new Set(selectedItems); // Trigger reactivity

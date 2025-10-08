@@ -289,6 +289,17 @@
 		}
 	}
 
+	async function handleBulkDeleteLineItems(itemIds: string[]) {
+		try {
+			if (data.estimate) {
+				await estimateService.bulkDeleteLineItems(data.estimate.id, itemIds);
+				await invalidateAll();
+			}
+		} catch (error) {
+			console.error('Error bulk deleting line items:', error);
+		}
+	}
+
 	async function handleUpdateRates(
 		labourRate: number,
 		paintRate: number,
@@ -390,6 +401,7 @@
 			onAddLineItem={handleAddLineItem}
 			onUpdateLineItem={handleUpdateLineItem}
 			onDeleteLineItem={handleDeleteLineItem}
+			onBulkDeleteLineItems={handleBulkDeleteLineItems}
 			onPhotosUpdate={async () => await invalidateAll()}
 			onUpdateRates={handleUpdateRates}
 			onComplete={handleCompleteEstimate}
