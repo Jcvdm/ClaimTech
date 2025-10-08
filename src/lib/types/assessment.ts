@@ -25,6 +25,22 @@ export type DamageType = 'collision' | 'fire' | 'hail' | 'theft' | 'vandalism' |
 export type DamageSeverity = 'minor' | 'moderate' | 'severe' | 'total_loss';
 
 // Estimate types
+export type ProcessType = 'N' | 'R' | 'P' | 'B' | 'A' | 'O';
+
+export interface ProcessTypeConfig {
+	code: ProcessType;
+	label: string;
+	description: string;
+	requiredFields: {
+		part_price: boolean;
+		strip_assemble: boolean;
+		labour: boolean;
+		paint: boolean;
+		outwork: boolean;
+	};
+}
+
+// Legacy type for backward compatibility
 export type EstimateCategory = 'parts' | 'labour' | 'paint' | 'other';
 
 // Accessory types
@@ -311,20 +327,28 @@ export interface UpdateAssessmentNoteInput {
 	note_text?: string;
 }
 
-// Estimate line item interface
+// Estimate line item interface with process-based fields
 export interface EstimateLineItem {
 	id?: string;
+	process_type: ProcessType;
 	description: string;
-	category: EstimateCategory;
-	quantity: number;
-	unit_price: number;
-	total: number;
+	// Conditional fields based on process_type
+	part_price?: number | null; // N only
+	strip_assemble?: number | null; // N, R, P, B
+	labour_hours?: number | null; // N, R, A
+	labour_cost?: number; // Calculated: labour_hours × labour_rate
+	paint_panels?: number | null; // N, R, P, B
+	paint_cost?: number; // Calculated: paint_panels × paint_rate
+	outwork_charge?: number | null; // O only
+	total: number; // Sum of applicable costs
 }
 
-// Estimate interface
+// Estimate interface with rates
 export interface Estimate {
 	id: string;
 	assessment_id: string;
+	labour_rate: number; // Cost per hour (e.g., 500)
+	paint_rate: number; // Cost per panel (e.g., 2000)
 	line_items: EstimateLineItem[];
 	subtotal: number;
 	vat_percentage: number;
@@ -338,6 +362,8 @@ export interface Estimate {
 
 export interface CreateEstimateInput {
 	assessment_id: string;
+	labour_rate?: number;
+	paint_rate?: number;
 	line_items?: EstimateLineItem[];
 	notes?: string;
 	vat_percentage?: number;

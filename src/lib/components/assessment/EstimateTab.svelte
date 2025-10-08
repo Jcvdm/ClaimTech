@@ -3,10 +3,12 @@
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
 	import * as Table from '$lib/components/ui/table';
-	import * as Select from '$lib/components/ui/select';
-	import FormField from '$lib/components/forms/FormField.svelte';
-	import { Plus, Trash2, CheckCircle2 } from 'lucide-svelte';
-	import type { Estimate, EstimateLineItem, EstimateCategory } from '$lib/types/assessment';
+	import RatesConfiguration from './RatesConfiguration.svelte';
+	import QuickAddLineItem from './QuickAddLineItem.svelte';
+	import { Plus, Trash2, Check } from 'lucide-svelte';
+	import type { Estimate, EstimateLineItem } from '$lib/types/assessment';
+	import { getProcessTypeOptions } from '$lib/constants/processTypes';
+	import { createEmptyLineItem } from '$lib/utils/estimateCalculations';
 
 	interface Props {
 		estimate: Estimate | null;
@@ -15,6 +17,7 @@
 		onAddLineItem: (item: EstimateLineItem) => void;
 		onUpdateLineItem: (itemId: string, data: Partial<EstimateLineItem>) => void;
 		onDeleteLineItem: (itemId: string) => void;
+		onUpdateRates: (labourRate: number, paintRate: number) => void;
 		onComplete: () => void;
 	}
 
@@ -25,42 +28,19 @@
 		onAddLineItem,
 		onUpdateLineItem,
 		onDeleteLineItem,
+		onUpdateRates,
 		onComplete
 	}: Props = $props();
 
-	const categoryOptions: { value: EstimateCategory; label: string }[] = [
-		{ value: 'parts', label: 'Parts' },
-		{ value: 'labour', label: 'Labour' },
-		{ value: 'paint', label: 'Paint' },
-		{ value: 'other', label: 'Other' }
-	];
+	const processTypeOptions = getProcessTypeOptions();
 
-	function handleAddLineItem() {
-		const newItem: EstimateLineItem = {
-			id: crypto.randomUUID(),
-			description: '',
-			category: 'parts',
-			quantity: 1,
-			unit_price: 0,
-			total: 0
-		};
+	function handleAddEmptyLineItem() {
+		const newItem = createEmptyLineItem('N') as EstimateLineItem;
 		onAddLineItem(newItem);
 	}
 
 	function handleUpdateLineItem(itemId: string, field: keyof EstimateLineItem, value: any) {
-		const item = estimate?.line_items.find((i) => i.id === itemId);
-		if (!item) return;
-
-		const updated: Partial<EstimateLineItem> = { [field]: value };
-
-		// Auto-calculate total when quantity or unit_price changes
-		if (field === 'quantity' || field === 'unit_price') {
-			const quantity = field === 'quantity' ? Number(value) : item.quantity;
-			const unitPrice = field === 'unit_price' ? Number(value) : item.unit_price;
-			updated.total = quantity * unitPrice;
-		}
-
-		onUpdateLineItem(itemId, updated);
+		onUpdateLineItem(itemId, { [field]: value });
 	}
 
 	function formatCurrency(amount: number): string {
@@ -85,89 +65,196 @@
 			<p class="text-center text-gray-600">Loading estimate...</p>
 		</Card>
 	{:else}
+		<!-- Rates Configuration -->
+		<RatesConfiguration
+			labourRate={estimate.labour_rate}
+			paintRate={estimate.paint_rate}
+			onUpdateRates={onUpdateRates}
+		/>
+
+		<!-- Quick Add Form -->
+		<QuickAddLineItem
+			labourRate={estimate.labour_rate}
+			paintRate={estimate.paint_rate}
+			onAddLineItem={onAddLineItem}
+		/>
+
 		<!-- Line Items Table -->
 		<Card class="p-6">
 			<div class="mb-4 flex items-center justify-between">
 				<h3 class="text-lg font-semibold text-gray-900">Line Items</h3>
-				<Button onclick={handleAddLineItem} size="sm">
+				<Button onclick={handleAddEmptyLineItem} size="sm" variant="outline">
 					<Plus class="mr-2 h-4 w-4" />
-					Add Line Item
+					Add Empty Row
 				</Button>
 			</div>
 
-			<div class="rounded-lg border">
+			<div class="rounded-lg border overflow-x-auto">
 				<Table.Root>
 					<Table.Header>
 						<Table.Row class="hover:bg-transparent">
-							<Table.Head class="w-[35%]">Description</Table.Head>
-							<Table.Head class="w-[15%]">Category</Table.Head>
-							<Table.Head class="w-[10%] text-right">Qty</Table.Head>
-							<Table.Head class="w-[15%] text-right">Unit Price</Table.Head>
-							<Table.Head class="w-[15%] text-right">Total</Table.Head>
-							<Table.Head class="w-[10%]"></Table.Head>
+							<Table.Head class="w-[60px]">Type</Table.Head>
+							<Table.Head class="min-w-[200px]">Description</Table.Head>
+							<Table.Head class="w-[100px] text-right">Part</Table.Head>
+							<Table.Head class="w-[100px] text-right">S&A</Table.Head>
+							<Table.Head class="w-[80px] text-right">Hrs</Table.Head>
+							<Table.Head class="w-[100px] text-right">Labour</Table.Head>
+							<Table.Head class="w-[80px] text-right">Panels</Table.Head>
+							<Table.Head class="w-[100px] text-right">Paint</Table.Head>
+							<Table.Head class="w-[100px] text-right">Outwork</Table.Head>
+							<Table.Head class="w-[120px] text-right">Total</Table.Head>
+							<Table.Head class="w-[60px]"></Table.Head>
 						</Table.Row>
 					</Table.Header>
 					<Table.Body>
 						{#if estimate.line_items.length === 0}
 							<Table.Row class="hover:bg-transparent">
-								<Table.Cell colspan={6} class="h-24 text-center text-gray-500">
-									No line items added. Click "Add Line Item" to get started.
+								<Table.Cell colspan={11} class="h-24 text-center text-gray-500">
+									No line items added. Use "Quick Add" above or click "Add Empty Row".
 								</Table.Cell>
 							</Table.Row>
 						{:else}
 							{#each estimate.line_items as item (item.id)}
 								<Table.Row class="hover:bg-gray-50">
+									<!-- Process Type -->
+									<Table.Cell>
+										<select
+											value={item.process_type}
+											onchange={(e) =>
+												handleUpdateLineItem(item.id!, 'process_type', e.currentTarget.value)}
+											class="w-full rounded-md border-0 bg-transparent px-1 py-1 text-xs font-mono focus:outline-none focus:ring-0"
+										>
+											{#each processTypeOptions as option}
+												<option value={option.value}>{option.value}</option>
+											{/each}
+										</select>
+									</Table.Cell>
+
+									<!-- Description -->
 									<Table.Cell>
 										<Input
 											type="text"
-											placeholder="Item description"
+											placeholder="Description"
 											value={item.description}
 											oninput={(e) =>
 												handleUpdateLineItem(item.id!, 'description', e.currentTarget.value)}
 											class="border-0 focus-visible:ring-0 focus-visible:ring-offset-0"
 										/>
 									</Table.Cell>
-									<Table.Cell>
-										<select
-											value={item.category}
-											onchange={(e) =>
-												handleUpdateLineItem(item.id!, 'category', e.currentTarget.value)}
-											class="w-full rounded-md border-0 bg-transparent px-2 py-1 text-sm focus:outline-none focus:ring-0"
-										>
-											{#each categoryOptions as option}
-												<option value={option.value}>{option.label}</option>
-											{/each}
-										</select>
-									</Table.Cell>
+
+									<!-- Part Price (N only) -->
 									<Table.Cell class="text-right">
-										<Input
-											type="number"
-											min="0"
-											step="1"
-											value={item.quantity}
-											oninput={(e) =>
-												handleUpdateLineItem(item.id!, 'quantity', Number(e.currentTarget.value))}
-											class="border-0 text-right focus-visible:ring-0 focus-visible:ring-offset-0"
-										/>
+										{#if item.process_type === 'N'}
+											<Input
+												type="number"
+												min="0"
+												step="0.01"
+												value={item.part_price}
+												oninput={(e) =>
+													handleUpdateLineItem(item.id!, 'part_price', Number(e.currentTarget.value))}
+												class="border-0 text-right text-sm focus-visible:ring-0 focus-visible:ring-offset-0"
+											/>
+										{:else}
+											<span class="text-gray-400 text-xs">-</span>
+										{/if}
 									</Table.Cell>
+
+									<!-- Strip & Assemble (N,R,P,B) -->
 									<Table.Cell class="text-right">
-										<Input
-											type="number"
-											min="0"
-											step="0.01"
-											value={item.unit_price}
-											oninput={(e) =>
-												handleUpdateLineItem(
-													item.id!,
-													'unit_price',
-													Number(e.currentTarget.value)
-												)}
-											class="border-0 text-right focus-visible:ring-0 focus-visible:ring-offset-0"
-										/>
+										{#if ['N', 'R', 'P', 'B'].includes(item.process_type)}
+											<Input
+												type="number"
+												min="0"
+												step="0.01"
+												value={item.strip_assemble}
+												oninput={(e) =>
+													handleUpdateLineItem(item.id!, 'strip_assemble', Number(e.currentTarget.value))}
+												class="border-0 text-right text-sm focus-visible:ring-0 focus-visible:ring-offset-0"
+											/>
+										{:else}
+											<span class="text-gray-400 text-xs">-</span>
+										{/if}
 									</Table.Cell>
-									<Table.Cell class="text-right font-medium">
+
+									<!-- Labour Hours (N,R,A) -->
+									<Table.Cell class="text-right">
+										{#if ['N', 'R', 'A'].includes(item.process_type)}
+											<Input
+												type="number"
+												min="0"
+												step="0.25"
+												value={item.labour_hours}
+												oninput={(e) =>
+													handleUpdateLineItem(item.id!, 'labour_hours', Number(e.currentTarget.value))}
+												class="border-0 text-right text-sm focus-visible:ring-0 focus-visible:ring-offset-0"
+											/>
+										{:else}
+											<span class="text-gray-400 text-xs">-</span>
+										{/if}
+									</Table.Cell>
+
+									<!-- Labour Cost (calculated) -->
+									<Table.Cell class="text-right">
+										{#if ['N', 'R', 'A'].includes(item.process_type)}
+											<span class="text-sm font-medium text-gray-700">
+												{formatCurrency(item.labour_cost || 0)}
+											</span>
+										{:else}
+											<span class="text-gray-400 text-xs">-</span>
+										{/if}
+									</Table.Cell>
+
+									<!-- Paint Panels (N,R,P,B) -->
+									<Table.Cell class="text-right">
+										{#if ['N', 'R', 'P', 'B'].includes(item.process_type)}
+											<Input
+												type="number"
+												min="0"
+												step="0.5"
+												value={item.paint_panels}
+												oninput={(e) =>
+													handleUpdateLineItem(item.id!, 'paint_panels', Number(e.currentTarget.value))}
+												class="border-0 text-right text-sm focus-visible:ring-0 focus-visible:ring-offset-0"
+											/>
+										{:else}
+											<span class="text-gray-400 text-xs">-</span>
+										{/if}
+									</Table.Cell>
+
+									<!-- Paint Cost (calculated) -->
+									<Table.Cell class="text-right">
+										{#if ['N', 'R', 'P', 'B'].includes(item.process_type)}
+											<span class="text-sm font-medium text-gray-700">
+												{formatCurrency(item.paint_cost || 0)}
+											</span>
+										{:else}
+											<span class="text-gray-400 text-xs">-</span>
+										{/if}
+									</Table.Cell>
+
+									<!-- Outwork Charge (O only) -->
+									<Table.Cell class="text-right">
+										{#if item.process_type === 'O'}
+											<Input
+												type="number"
+												min="0"
+												step="0.01"
+												value={item.outwork_charge}
+												oninput={(e) =>
+													handleUpdateLineItem(item.id!, 'outwork_charge', Number(e.currentTarget.value))}
+												class="border-0 text-right text-sm focus-visible:ring-0 focus-visible:ring-offset-0"
+											/>
+										{:else}
+											<span class="text-gray-400 text-xs">-</span>
+										{/if}
+									</Table.Cell>
+
+									<!-- Total -->
+									<Table.Cell class="text-right font-bold">
 										{formatCurrency(item.total)}
 									</Table.Cell>
+
+									<!-- Actions -->
 									<Table.Cell class="text-center">
 										<Button
 											variant="ghost"
@@ -224,21 +311,20 @@
 		<!-- Notes -->
 		<Card class="p-6">
 			<h3 class="mb-4 text-lg font-semibold text-gray-900">Additional Notes</h3>
-			<FormField
-				label=""
-				type="textarea"
+			<textarea
 				value={estimate.notes || ''}
-				onInput={(e) => onUpdateEstimate({ notes: (e.target as HTMLTextAreaElement).value })}
+				oninput={(e) => onUpdateEstimate({ notes: e.currentTarget.value })}
 				placeholder="Add any additional notes or comments about this estimate..."
 				rows={4}
-			/>
+				class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+			></textarea>
 		</Card>
 
 		<!-- Actions -->
 		<div class="flex justify-between">
 			<Button variant="outline" onclick={() => {}}>Save Progress</Button>
 			<Button onclick={onComplete} disabled={!isComplete}>
-				<CheckCircle2 class="mr-2 h-4 w-4" />
+				<Check class="mr-2 h-4 w-4" />
 				Complete Estimate
 			</Button>
 		</div>

@@ -289,6 +289,20 @@
 		}
 	}
 
+	async function handleUpdateRates(labourRate: number, paintRate: number) {
+		try {
+			if (data.estimate) {
+				await estimateService.update(data.estimate.id, {
+					labour_rate: labourRate,
+					paint_rate: paintRate
+				});
+				await invalidateAll();
+			}
+		} catch (error) {
+			console.error('Error updating rates:', error);
+		}
+	}
+
 	async function handleCompleteEstimate() {
 		await assessmentService.markTabCompleted(data.assessment.id, 'estimate');
 		await assessmentService.updateAssessmentStatus(data.assessment.id, 'completed');
@@ -362,6 +376,7 @@
 			onAddLineItem={handleAddLineItem}
 			onUpdateLineItem={handleUpdateLineItem}
 			onDeleteLineItem={handleDeleteLineItem}
+			onUpdateRates={handleUpdateRates}
 			onComplete={handleCompleteEstimate}
 		/>
 	{/if}
