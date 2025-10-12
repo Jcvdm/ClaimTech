@@ -114,7 +114,11 @@ export const POST: RequestHandler = async ({ request }) => {
 		const fileName = `${assessment.assessment_number}_Report.pdf`;
 		const filePath = `assessments/${assessmentId}/reports/${fileName}`;
 
-		const { error: uploadError } = await supabase.storage
+		console.log('Uploading PDF to storage...');
+		console.log('File path:', filePath);
+		console.log('PDF size:', pdfBuffer.length, 'bytes');
+
+		const { data: uploadData, error: uploadError } = await supabase.storage
 			.from('documents')
 			.upload(filePath, pdfBuffer, {
 				contentType: 'application/pdf',
@@ -122,9 +126,17 @@ export const POST: RequestHandler = async ({ request }) => {
 			});
 
 		if (uploadError) {
-			console.error('Upload error:', uploadError);
-			throw error(500, 'Failed to upload PDF to storage');
+			console.error('=== Storage Upload Error ===');
+			console.error('Error:', uploadError);
+			console.error('Error message:', uploadError.message);
+			console.error('Error details:', JSON.stringify(uploadError, null, 2));
+			console.error('File path:', filePath);
+			console.error('PDF size:', pdfBuffer.length);
+			console.error('===========================');
+			throw error(500, `Failed to upload PDF to storage: ${uploadError.message}`);
 		}
+
+		console.log('PDF uploaded successfully:', uploadData);
 
 		// Get public URL
 		const {
