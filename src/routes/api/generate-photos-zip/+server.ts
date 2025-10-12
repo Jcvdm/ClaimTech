@@ -22,6 +22,12 @@ export const POST: RequestHandler = async ({ request }) => {
 			throw error(404, 'Assessment not found');
 		}
 
+		// First get the estimates to get their IDs
+		const [{ data: estimate }, { data: preIncidentEstimate }] = await Promise.all([
+			supabase.from('assessment_estimates').select('id').eq('assessment_id', assessmentId).single(),
+			supabase.from('pre_incident_estimates').select('id').eq('assessment_id', assessmentId).single()
+		]);
+
 		// Fetch related data with photos
 		const [
 			{ data: vehicleIdentification },
@@ -31,26 +37,30 @@ export const POST: RequestHandler = async ({ request }) => {
 			{ data: preIncidentPhotos }
 		] = await Promise.all([
 			supabase
-				.from('vehicle_identification')
+				.from('assessment_vehicle_identification')
 				.select('*')
 				.eq('assessment_id', assessmentId)
 				.single(),
-			supabase.from('exterior_360').select('*').eq('assessment_id', assessmentId).single(),
+			supabase.from('assessment_360_exterior').select('*').eq('assessment_id', assessmentId).single(),
 			supabase
-				.from('interior_mechanical')
+				.from('assessment_interior_mechanical')
 				.select('*')
 				.eq('assessment_id', assessmentId)
 				.single(),
-			supabase
-				.from('estimate_photos')
-				.select('*')
-				.eq('assessment_id', assessmentId)
-				.order('created_at', { ascending: true }),
-			supabase
-				.from('pre_incident_estimate_photos')
-				.select('*')
-				.eq('assessment_id', assessmentId)
-				.order('created_at', { ascending: true })
+			estimate?.id
+				? supabase
+						.from('estimate_photos')
+						.select('*')
+						.eq('estimate_id', estimate.id)
+						.order('created_at', { ascending: true })
+				: Promise.resolve({ data: [] }),
+			preIncidentEstimate?.id
+				? supabase
+						.from('pre_incident_estimate_photos')
+						.select('*')
+						.eq('estimate_id', preIncidentEstimate.id)
+						.order('created_at', { ascending: true })
+				: Promise.resolve({ data: [] })
 		]);
 
 		// Create ZIP file

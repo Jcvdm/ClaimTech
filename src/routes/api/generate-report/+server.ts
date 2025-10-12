@@ -31,18 +31,18 @@ export const POST: RequestHandler = async ({ request }) => {
 			{ data: damageRecord },
 			{ data: companySettings },
 			{ data: appointment },
-			{ data: request: requestData },
+			{ data: requestData },
 			{ data: inspection },
 			{ data: client }
 		] = await Promise.all([
 			supabase
-				.from('vehicle_identification')
+				.from('assessment_vehicle_identification')
 				.select('*')
 				.eq('assessment_id', assessmentId)
 				.single(),
-			supabase.from('exterior_360').select('*').eq('assessment_id', assessmentId).single(),
+			supabase.from('assessment_360_exterior').select('*').eq('assessment_id', assessmentId).single(),
 			supabase
-				.from('interior_mechanical')
+				.from('assessment_interior_mechanical')
 				.select('*')
 				.eq('assessment_id', assessmentId)
 				.single(),

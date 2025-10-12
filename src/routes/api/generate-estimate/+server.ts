@@ -27,23 +27,17 @@ export const POST: RequestHandler = async ({ request }) => {
 		const [
 			{ data: vehicleIdentification },
 			{ data: estimate },
-			{ data: lineItems },
 			{ data: companySettings },
-			{ data: request: requestData },
+			{ data: requestData },
 			{ data: client },
 			{ data: repairer }
 		] = await Promise.all([
 			supabase
-				.from('vehicle_identification')
+				.from('assessment_vehicle_identification')
 				.select('*')
 				.eq('assessment_id', assessmentId)
 				.single(),
-			supabase.from('estimates').select('*').eq('assessment_id', assessmentId).single(),
-			supabase
-				.from('estimate_line_items')
-				.select('*')
-				.eq('assessment_id', assessmentId)
-				.order('created_at', { ascending: true }),
+			supabase.from('assessment_estimates').select('*').eq('assessment_id', assessmentId).single(),
 			supabase.from('company_settings').select('*').single(),
 			supabase.from('requests').select('*').eq('id', assessment.request_id).single(),
 			assessment.request_id
@@ -63,12 +57,15 @@ export const POST: RequestHandler = async ({ request }) => {
 				: Promise.resolve({ data: null })
 		]);
 
+		// Line items are stored in the estimate JSONB column
+		const lineItems = estimate?.line_items || [];
+
 		// Generate HTML
 		const html = generateEstimateHTML({
 			assessment,
 			vehicleIdentification,
 			estimate,
-			lineItems: lineItems || [],
+			lineItems,
 			companySettings,
 			request: requestData,
 			client,
