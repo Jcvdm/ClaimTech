@@ -70,6 +70,18 @@
 		</div>
 	</div>
 
+	{#if generating}
+		<div class="mt-4 rounded-md bg-blue-50 p-3">
+			<div class="flex items-center gap-2">
+				<Loader2 class="h-4 w-4 animate-spin text-blue-600" />
+				<p class="text-sm font-medium text-blue-900">Generating document...</p>
+			</div>
+			<p class="mt-1 text-xs text-blue-700">
+				This may take 10-30 seconds. Please wait while we generate your document.
+			</p>
+		</div>
+	{/if}
+
 	<div class="mt-4 flex gap-2">
 		<Button
 			onclick={onGenerate}
