@@ -348,10 +348,23 @@ export interface EstimateLineItem {
 	total: number; // Sum of applicable costs
 }
 
+// Assessment result type
+export type AssessmentResultType = 'repair' | 'code_2' | 'code_3' | 'total_loss';
+
+// Assessment result display info
+export interface AssessmentResultInfo {
+	value: AssessmentResultType;
+	label: string;
+	description: string;
+	color: 'green' | 'yellow' | 'orange' | 'red';
+	icon: 'check' | 'alert' | 'x' | 'ban';
+}
+
 // Estimate interface with rates
 export interface Estimate {
 	id: string;
 	assessment_id: string;
+	repairer_id?: string | null;
 	labour_rate: number; // Cost per hour (e.g., 500)
 	paint_rate: number; // Cost per panel (e.g., 2000)
 	oem_markup_percentage: number; // Markup % for OEM parts (default 25%)
@@ -363,6 +376,7 @@ export interface Estimate {
 	vat_percentage: number;
 	vat_amount: number;
 	total: number;
+	assessment_result?: AssessmentResultType | null; // Final assessment outcome
 	notes?: string | null;
 	currency: string;
 	created_at: string;
@@ -371,12 +385,14 @@ export interface Estimate {
 
 export interface CreateEstimateInput {
 	assessment_id: string;
+	repairer_id?: string | null;
 	labour_rate?: number;
 	paint_rate?: number;
 	oem_markup_percentage?: number;
 	alt_markup_percentage?: number;
 	second_hand_markup_percentage?: number;
 	line_items?: EstimateLineItem[];
+	assessment_result?: AssessmentResultType | null;
 	notes?: string;
 	vat_percentage?: number;
 	currency?: string;
@@ -386,6 +402,8 @@ export interface UpdateEstimateInput extends Partial<Omit<CreateEstimateInput, '
 	subtotal?: number;
 	vat_amount?: number;
 	total?: number;
+	repairer_id?: string | null;
+	assessment_result?: AssessmentResultType | null;
 }
 
 // Estimate Photo interfaces
@@ -479,3 +497,114 @@ export interface UpdatePreIncidentEstimatePhotoInput {
 	label?: string;
 	display_order?: number;
 }
+
+// Vehicle Values interfaces
+export interface VehicleValueExtra {
+	id: string;
+	description: string;
+	trade_value: number;
+	market_value: number;
+	retail_value: number;
+}
+
+export type WarrantyStatus = 'active' | 'expired' | 'void' | 'transferred' | 'unknown';
+export type ServiceHistoryStatus =
+	| 'checked'
+	| 'not_checked'
+	| 'incomplete'
+	| 'up_to_date'
+	| 'overdue'
+	| 'unknown';
+
+export interface VehicleValues {
+	id: string;
+	assessment_id: string;
+
+	// Source information
+	sourced_from?: string | null;
+	sourced_code?: string | null;
+	sourced_date?: string | null;
+
+	// Warranty / Service Details
+	warranty_status?: WarrantyStatus | null;
+	warranty_period_years?: number | null;
+	warranty_start_date?: string | null;
+	warranty_end_date?: string | null;
+	warranty_expiry_mileage?: string | null;
+	service_history_status?: ServiceHistoryStatus | null;
+	warranty_notes?: string | null;
+
+	// Base values
+	trade_value?: number | null;
+	market_value?: number | null;
+	retail_value?: number | null;
+
+	// Optional fields
+	new_list_price?: number | null;
+	depreciation_percentage?: number | null;
+
+	// Adjustments
+	valuation_adjustment?: number | null;
+	valuation_adjustment_percentage?: number | null;
+	condition_adjustment_value?: number | null; // User enters value, system calculates %
+
+	// Adjusted values (calculated)
+	trade_adjusted_value?: number | null;
+	market_adjusted_value?: number | null;
+	retail_adjusted_value?: number | null;
+
+	// Extras
+	extras?: VehicleValueExtra[] | null;
+	trade_extras_total?: number | null;
+	market_extras_total?: number | null;
+	retail_extras_total?: number | null;
+
+	// Total adjusted values (calculated)
+	trade_total_adjusted_value?: number | null;
+	market_total_adjusted_value?: number | null;
+	retail_total_adjusted_value?: number | null;
+
+	// Write-off calculations (calculated)
+	borderline_writeoff_trade?: number | null;
+	borderline_writeoff_market?: number | null;
+	borderline_writeoff_retail?: number | null;
+
+	total_writeoff_trade?: number | null;
+	total_writeoff_market?: number | null;
+	total_writeoff_retail?: number | null;
+
+	salvage_trade?: number | null;
+	salvage_market?: number | null;
+	salvage_retail?: number | null;
+
+	// Documents
+	valuation_pdf_url?: string | null;
+	valuation_pdf_path?: string | null;
+
+	// Notes
+	remarks?: string | null;
+
+	created_at: string;
+	updated_at: string;
+}
+
+export interface CreateVehicleValuesInput {
+	assessment_id: string;
+	sourced_from?: string;
+	sourced_code?: string;
+	sourced_date?: string;
+	trade_value?: number;
+	market_value?: number;
+	retail_value?: number;
+	new_list_price?: number;
+	depreciation_percentage?: number;
+	valuation_adjustment?: number;
+	valuation_adjustment_percentage?: number;
+	condition_adjustment_percentage?: number;
+	extras?: VehicleValueExtra[];
+	valuation_pdf_url?: string;
+	valuation_pdf_path?: string;
+	remarks?: string;
+}
+
+export interface UpdateVehicleValuesInput extends Partial<CreateVehicleValuesInput> {}

@@ -3,18 +3,34 @@
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
 	import * as Table from '$lib/components/ui/table';
-	import RatesConfiguration from './RatesConfiguration.svelte';
+	import RatesAndRepairerConfiguration from './RatesAndRepairerConfiguration.svelte';
 	import QuickAddLineItem from './QuickAddLineItem.svelte';
 	import EstimatePhotosPanel from './EstimatePhotosPanel.svelte';
-	import { Plus, Trash2, Check } from 'lucide-svelte';
-	import type { Estimate, EstimateLineItem, EstimatePhoto } from '$lib/types/assessment';
+	import AssessmentResultSelector from './AssessmentResultSelector.svelte';
+	import { Plus, Trash2, Check, CircleAlert, CircleCheck, CircleX, Info } from 'lucide-svelte';
+	import type {
+		Estimate,
+		EstimateLineItem,
+		EstimatePhoto,
+		VehicleValues,
+		AssessmentResultType
+	} from '$lib/types/assessment';
+	import type { Repairer } from '$lib/types/repairer';
 	import { getProcessTypeOptions } from '$lib/constants/processTypes';
 	import { createEmptyLineItem, calculateLineItemTotal } from '$lib/utils/estimateCalculations';
+	import {
+		calculateEstimateThreshold,
+		getThresholdColorClasses,
+		formatWarrantyStatus,
+		getWarrantyStatusClasses
+	} from '$lib/utils/estimateThresholds';
 
 	interface Props {
 		estimate: Estimate | null;
 		assessmentId: string;
 		estimatePhotos: EstimatePhoto[];
+		vehicleValues: VehicleValues | null;
+		repairers: Repairer[];
 		onUpdateEstimate: (data: Partial<Estimate>) => void;
 		onAddLineItem: (item: EstimateLineItem) => void;
 		onUpdateLineItem: (itemId: string, data: Partial<EstimateLineItem>) => void;
@@ -30,6 +46,9 @@
 			secondHandMarkup: number,
 			outworkMarkup: number
 		) => void;
+		onUpdateRepairer: (repairerId: string | null) => void;
+		onRepairersUpdate: () => void;
+		onUpdateAssessmentResult: (result: AssessmentResultType | null) => void;
 		onComplete: () => void;
 	}
 
@@ -37,6 +56,8 @@
 		estimate,
 		assessmentId,
 		estimatePhotos,
+		vehicleValues,
+		repairers,
 		onUpdateEstimate,
 		onAddLineItem,
 		onUpdateLineItem,
@@ -44,6 +65,9 @@
 		onBulkDeleteLineItems,
 		onPhotosUpdate,
 		onUpdateRates,
+		onUpdateRepairer,
+		onRepairersUpdate,
+		onUpdateAssessmentResult,
 		onComplete
 	}: Props = $props();
 
@@ -225,6 +249,10 @@
 		}).format(amount);
 	}
 
+	function handleUpdateAssessmentResult(result: AssessmentResultType | null) {
+		onUpdateAssessmentResult(result);
+	}
+
 	// Calculate category totals
 	const categoryTotals = $derived(() => {
 		if (!estimate) return null;
@@ -259,6 +287,18 @@
 		estimate.line_items.length > 0 &&
 		estimate.total > 0
 	);
+
+	// Calculate threshold for estimate total vs retail borderline
+	const thresholdResult = $derived(() => {
+		if (!estimate || !vehicleValues) return null;
+		return calculateEstimateThreshold(estimate.total, vehicleValues.borderline_writeoff_retail);
+	});
+
+	// Format warranty status
+	const warrantyInfo = $derived(() => {
+		if (!vehicleValues) return null;
+		return formatWarrantyStatus(vehicleValues.warranty_status);
+	});
 </script>
 
 <div class="space-y-6">
@@ -267,8 +307,50 @@
 			<p class="text-center text-gray-600">Loading estimate...</p>
 		</Card>
 	{:else}
-		<!-- Rates Configuration -->
-		<RatesConfiguration
+		<!-- Warranty Status Hint -->
+		{#if vehicleValues && warrantyInfo()}
+			{@const warranty = warrantyInfo()}
+			{@const statusClasses = getWarrantyStatusClasses(warranty.color)}
+			<Card class="p-4 {statusClasses.bg} border-2 {statusClasses.border}">
+				<div class="flex items-start gap-3">
+					<div class="mt-0.5">
+						{#if warranty.icon === 'check'}
+							<CircleCheck class="h-5 w-5 {statusClasses.text}" />
+						{:else if warranty.icon === 'x'}
+							<CircleX class="h-5 w-5 {statusClasses.text}" />
+						{:else if warranty.icon === 'info'}
+							<Info class="h-5 w-5 {statusClasses.text}" />
+						{:else}
+							<CircleAlert class="h-5 w-5 {statusClasses.text}" />
+						{/if}
+					</div>
+					<div class="flex-1">
+						<h4 class="text-sm font-semibold {statusClasses.text}">
+							Warranty Status: {warranty.label}
+						</h4>
+						{#if vehicleValues.warranty_start_date && vehicleValues.warranty_end_date}
+							<p class="mt-1 text-xs {statusClasses.text}">
+								Valid from {new Date(vehicleValues.warranty_start_date).toLocaleDateString()} to {new Date(
+									vehicleValues.warranty_end_date
+								).toLocaleDateString()}
+							</p>
+						{/if}
+						{#if vehicleValues.warranty_expiry_mileage}
+							<p class="mt-0.5 text-xs {statusClasses.text}">
+								Mileage limit: {vehicleValues.warranty_expiry_mileage === 'unlimited'
+									? 'Unlimited'
+									: `${parseInt(vehicleValues.warranty_expiry_mileage).toLocaleString()} km`}
+							</p>
+						{/if}
+					</div>
+				</div>
+			</Card>
+		{/if}
+
+		<!-- Rates & Repairer Configuration -->
+		<RatesAndRepairerConfiguration
+			repairerId={estimate.repairer_id}
+			{repairers}
 			labourRate={estimate.labour_rate}
 			paintRate={estimate.paint_rate}
 			vatPercentage={estimate.vat_percentage}
@@ -276,7 +358,9 @@
 			altMarkup={estimate.alt_markup_percentage}
 			secondHandMarkup={estimate.second_hand_markup_percentage}
 			outworkMarkup={estimate.outwork_markup_percentage}
-			onUpdateRates={onUpdateRates}
+			{onUpdateRates}
+			{onUpdateRepairer}
+			{onRepairersUpdate}
 		/>
 
 		<!-- Quick Add Form -->
@@ -613,14 +697,72 @@
 						<span class="text-lg font-semibold">{formatCurrency(estimate.vat_amount)}</span>
 					</div>
 
-					<!-- Total -->
-					<div class="flex items-center justify-between pt-3">
-						<span class="text-lg font-bold text-gray-900">Total (Inc VAT)</span>
-						<span class="text-2xl font-bold text-blue-600">{formatCurrency(estimate.total)}</span>
-					</div>
+					<!-- Total with Color Coding -->
+					{#if thresholdResult()}
+						{@const threshold = thresholdResult()}
+						{@const colorClasses = getThresholdColorClasses(threshold.color)}
+						<div class="pt-3 space-y-3">
+							<div class="flex items-center justify-between">
+								<span class="text-lg font-bold text-gray-900">Total (Inc VAT)</span>
+								<span
+									class="text-2xl font-bold {threshold.color === 'red'
+										? 'text-red-600'
+										: threshold.color === 'orange'
+											? 'text-orange-600'
+											: threshold.color === 'yellow'
+												? 'text-yellow-600'
+												: threshold.color === 'green'
+													? 'text-green-600'
+													: 'text-blue-600'}"
+								>
+									{formatCurrency(estimate.total)}
+								</span>
+							</div>
+
+							<!-- Threshold Warning/Info -->
+							{#if threshold.message}
+								<div
+									class="rounded-md border-2 p-3 {colorClasses.bg} {colorClasses.border}"
+								>
+									<div class="flex items-start gap-2">
+										{#if threshold.showWarning}
+											<CircleAlert class="mt-0.5 h-5 w-5 flex-shrink-0 {colorClasses.text}" />
+										{:else}
+											<Info class="mt-0.5 h-5 w-5 flex-shrink-0 {colorClasses.text}" />
+										{/if}
+										<div class="flex-1">
+											<p class="text-sm font-medium {colorClasses.text}">
+												{threshold.message}
+											</p>
+											{#if vehicleValues?.borderline_writeoff_retail}
+												<p class="mt-1 text-xs {colorClasses.text}">
+													Retail Borderline: {formatCurrency(
+														vehicleValues.borderline_writeoff_retail
+													)}
+												</p>
+											{/if}
+										</div>
+									</div>
+								</div>
+							{/if}
+						</div>
+					{:else}
+						<!-- Fallback if no threshold data -->
+						<div class="flex items-center justify-between pt-3">
+							<span class="text-lg font-bold text-gray-900">Total (Inc VAT)</span>
+							<span class="text-2xl font-bold text-blue-600">{formatCurrency(estimate.total)}</span>
+						</div>
+					{/if}
 				</div>
 			{/if}
 		</Card>
+
+		<!-- Assessment Result Selector -->
+		<AssessmentResultSelector
+			assessmentResult={estimate.assessment_result}
+			onUpdate={handleUpdateAssessmentResult}
+			disabled={!estimate || estimate.line_items.length === 0}
+		/>
 
 		<!-- Incident Photos -->
 		<EstimatePhotosPanel

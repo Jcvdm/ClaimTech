@@ -96,6 +96,60 @@ class StorageService {
 	}
 
 	/**
+	 * Upload a PDF file to Supabase Storage
+	 */
+	async uploadPdf(
+		file: File,
+		options: UploadPhotoOptions = {}
+	): Promise<UploadPhotoResult> {
+		const {
+			bucket = this.DEFAULT_BUCKET,
+			folder = 'documents',
+			fileName,
+			maxSizeMB = this.MAX_FILE_SIZE_MB
+		} = options;
+
+		// Validate file size
+		const fileSizeMB = file.size / (1024 * 1024);
+		if (fileSizeMB > maxSizeMB) {
+			throw new Error(`File size exceeds ${maxSizeMB}MB limit`);
+		}
+
+		// Validate file type
+		if (file.type !== 'application/pdf') {
+			throw new Error('Only PDF files are allowed');
+		}
+
+		// Generate unique file name
+		const timestamp = Date.now();
+		const randomString = Math.random().toString(36).substring(2, 8);
+		const uniqueFileName = fileName || `${timestamp}-${randomString}.pdf`;
+		const filePath = `${folder}/${uniqueFileName}`;
+
+		// Upload file
+		const { data, error } = await supabase.storage.from(bucket).upload(filePath, file, {
+			cacheControl: '3600',
+			upsert: false,
+			contentType: 'application/pdf'
+		});
+
+		if (error) {
+			console.error('Upload error:', error);
+			throw new Error(`Failed to upload PDF: ${error.message}`);
+		}
+
+		// Get public URL
+		const {
+			data: { publicUrl }
+		} = supabase.storage.from(bucket).getPublicUrl(filePath);
+
+		return {
+			url: publicUrl,
+			path: filePath
+		};
+	}
+
+	/**
 	 * Upload photo from base64 data (for camera captures)
 	 */
 	async uploadPhotoFromBase64(
@@ -177,6 +231,18 @@ class StorageService {
 			: `assessments/${assessmentId}/${category}`;
 
 		return this.uploadPhotoFromBase64(base64Data, { folder });
+	}
+
+	/**
+	 * Upload assessment PDF with proper folder structure
+	 */
+	async uploadAssessmentPdf(
+		file: File,
+		assessmentId: string,
+		category: 'values' | 'reports' | 'documents'
+	): Promise<UploadPhotoResult> {
+		const folder = `assessments/${assessmentId}/${category}`;
+		return this.uploadPdf(file, { folder });
 	}
 }
 

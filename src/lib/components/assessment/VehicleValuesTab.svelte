@@ -1,0 +1,685 @@
+<script lang="ts">
+	import { Card } from '$lib/components/ui/card';
+	import { Button } from '$lib/components/ui/button';
+	import FormField from '$lib/components/forms/FormField.svelte';
+	import PdfUpload from '$lib/components/forms/PdfUpload.svelte';
+	import VehicleValueExtrasTable from './VehicleValueExtrasTable.svelte';
+	import { CheckCircle } from 'lucide-svelte';
+	import type {
+		VehicleValues,
+		VehicleValueExtra,
+		WarrantyStatus,
+		ServiceHistoryStatus
+	} from '$lib/types/assessment';
+	import type { Client } from '$lib/types/client';
+	import {
+		formatCurrency,
+		getMonthFromDate,
+		createEmptyExtra,
+		calculateConditionAdjustmentPercentage
+	} from '$lib/utils/vehicleValuesCalculations';
+
+	interface Props {
+		data: VehicleValues | null;
+		assessmentId: string;
+		client: Client | null;
+		requestInfo?: {
+			request_number?: string;
+			claim_number?: string | null;
+			date_of_loss?: string | null;
+			vehicle_make?: string | null;
+			vehicle_model?: string | null;
+			vehicle_year?: number | null;
+			vehicle_vin?: string | null;
+			vehicle_mileage?: number | null;
+		};
+		onUpdate: (data: Partial<VehicleValues>) => void;
+		onComplete: () => void;
+	}
+
+	let { data, assessmentId, client, requestInfo, onUpdate, onComplete }: Props = $props();
+
+	// Source information
+	let sourcedFrom = $state(data?.sourced_from || '');
+	let sourcedCode = $state(data?.sourced_code || '');
+	let sourcedDate = $state(data?.sourced_date || '');
+
+	// Warranty / Service Details
+	let warrantyStatus = $state<WarrantyStatus | ''>(data?.warranty_status || '');
+	let warrantyPeriodYears = $state(data?.warranty_period_years || null);
+	let warrantyStartDate = $state(data?.warranty_start_date || '');
+	let warrantyEndDate = $state(data?.warranty_end_date || '');
+	let warrantyExpiryMileage = $state(data?.warranty_expiry_mileage || '');
+	let serviceHistoryStatus = $state<ServiceHistoryStatus | ''>(
+		data?.service_history_status || ''
+	);
+	let warrantyNotes = $state(data?.warranty_notes || '');
+
+	// Base values
+	let tradeValue = $state(data?.trade_value || 0);
+	let marketValue = $state(data?.market_value || 0);
+	let retailValue = $state(data?.retail_value || 0);
+
+	// Optional fields
+	let newListPrice = $state(data?.new_list_price || 0);
+	let depreciationPercentage = $state(data?.depreciation_percentage || 0);
+
+	// Adjustments
+	let valuationAdjustment = $state(data?.valuation_adjustment || 0);
+	let valuationAdjustmentPercentage = $state(data?.valuation_adjustment_percentage || 0);
+	let conditionAdjustmentValue = $state(data?.condition_adjustment_value || 0);
+
+	// Extras - ensure all extras have IDs
+	const initializeExtras = (): VehicleValueExtra[] => {
+		if (!data || !data.extras) {
+			return [];
+		}
+
+		// Handle case where extras might be a string or other non-array type
+		if (!Array.isArray(data.extras)) {
+			console.warn('VehicleValuesTab - extras is not an array:', data.extras);
+			return [];
+		}
+
+		return data.extras.map((extra: any) => ({
+			...extra,
+			id: extra.id || crypto.randomUUID() // Ensure ID exists
+		}));
+	};
+	let extras = $state<VehicleValueExtra[]>(initializeExtras());
+
+	// PDF
+	let valuationPdfUrl = $state(data?.valuation_pdf_url || '');
+	let valuationPdfPath = $state(data?.valuation_pdf_path || '');
+
+	// Remarks
+	let remarks = $state(data?.remarks || '');
+
+	// Derived month from date
+	const sourcedMonth = $derived(sourcedDate ? getMonthFromDate(sourcedDate) : '');
+
+	// Write-off percentages from client
+	const borderlinePercentage = $derived(client?.borderline_writeoff_percentage || 65);
+	const totalWriteoffPercentage = $derived(client?.total_writeoff_percentage || 70);
+	const salvagePercentage = $derived(client?.salvage_percentage || 28);
+
+	// Calculate condition adjustment percentages for display
+	const tradeConditionPercentage = $derived(
+		calculateConditionAdjustmentPercentage(tradeValue, conditionAdjustmentValue)
+	);
+	const marketConditionPercentage = $derived(
+		calculateConditionAdjustmentPercentage(marketValue, conditionAdjustmentValue)
+	);
+	const retailConditionPercentage = $derived(
+		calculateConditionAdjustmentPercentage(retailValue, conditionAdjustmentValue)
+	);
+
+	// Calculated adjusted values
+	const tradeAdjusted = $derived(
+		calculateAdjustedValue(tradeValue, valuationAdjustment, valuationAdjustmentPercentage, conditionAdjustmentValue)
+	);
+	const marketAdjusted = $derived(
+		calculateAdjustedValue(marketValue, valuationAdjustment, valuationAdjustmentPercentage, conditionAdjustmentValue)
+	);
+	const retailAdjusted = $derived(
+		calculateAdjustedValue(retailValue, valuationAdjustment, valuationAdjustmentPercentage, conditionAdjustmentValue)
+	);
+
+	// Extras totals
+	const tradeExtrasTotal = $derived(
+		extras.reduce((sum, extra) => sum + (extra.trade_value || 0), 0)
+	);
+	const marketExtrasTotal = $derived(
+		extras.reduce((sum, extra) => sum + (extra.market_value || 0), 0)
+	);
+	const retailExtrasTotal = $derived(
+		extras.reduce((sum, extra) => sum + (extra.retail_value || 0), 0)
+	);
+
+	// Total adjusted values
+	const tradeTotalAdjusted = $derived(tradeAdjusted + tradeExtrasTotal);
+	const marketTotalAdjusted = $derived(marketAdjusted + marketExtrasTotal);
+	const retailTotalAdjusted = $derived(retailAdjusted + retailExtrasTotal);
+
+	// Write-off calculations
+	const borderlineWriteoffTrade = $derived(tradeTotalAdjusted * (borderlinePercentage / 100));
+	const borderlineWriteoffMarket = $derived(marketTotalAdjusted * (borderlinePercentage / 100));
+	const borderlineWriteoffRetail = $derived(retailTotalAdjusted * (borderlinePercentage / 100));
+
+	const totalWriteoffTrade = $derived(tradeTotalAdjusted * (totalWriteoffPercentage / 100));
+	const totalWriteoffMarket = $derived(marketTotalAdjusted * (totalWriteoffPercentage / 100));
+	const totalWriteoffRetail = $derived(retailTotalAdjusted * (totalWriteoffPercentage / 100));
+
+	const salvageTrade = $derived(tradeTotalAdjusted * (salvagePercentage / 100));
+	const salvageMarket = $derived(marketTotalAdjusted * (salvagePercentage / 100));
+	const salvageRetail = $derived(retailTotalAdjusted * (salvagePercentage / 100));
+
+	// Validation
+	const isComplete = $derived(
+		(tradeValue > 0 || marketValue > 0 || retailValue > 0) &&
+			sourcedFrom &&
+			sourcedDate &&
+			valuationPdfUrl
+	);
+
+	function calculateAdjustedValue(
+		baseValue: number,
+		adjustment: number,
+		adjustmentPercentage: number,
+		conditionValue: number
+	): number {
+		let adjusted = baseValue + adjustment;
+		if (adjustmentPercentage > 0) {
+			adjusted += baseValue * (adjustmentPercentage / 100);
+		}
+		// Add condition adjustment value directly
+		adjusted += conditionValue;
+		return Math.round(adjusted * 100) / 100;
+	}
+
+	function handleSave() {
+		onUpdate({
+			sourced_from: sourcedFrom || undefined,
+			sourced_code: sourcedCode || undefined,
+			sourced_date: sourcedDate || undefined,
+			warranty_status: warrantyStatus || undefined,
+			warranty_period_years: warrantyPeriodYears || undefined,
+			warranty_start_date: warrantyStartDate || undefined,
+			warranty_end_date: warrantyEndDate || undefined,
+			warranty_expiry_mileage: warrantyExpiryMileage || undefined,
+			service_history_status: serviceHistoryStatus || undefined,
+			warranty_notes: warrantyNotes || undefined,
+			trade_value: tradeValue || undefined,
+			market_value: marketValue || undefined,
+			retail_value: retailValue || undefined,
+			new_list_price: newListPrice || undefined,
+			depreciation_percentage: depreciationPercentage || undefined,
+			valuation_adjustment: valuationAdjustment || undefined,
+			valuation_adjustment_percentage: valuationAdjustmentPercentage || undefined,
+			condition_adjustment_value: conditionAdjustmentValue || undefined,
+			extras,
+			valuation_pdf_url: valuationPdfUrl || undefined,
+			valuation_pdf_path: valuationPdfPath || undefined,
+			remarks: remarks || undefined
+		});
+	}
+
+	function handleComplete() {
+		handleSave();
+		onComplete();
+	}
+
+	function handleAddExtra() {
+		extras = [...extras, createEmptyExtra()];
+	}
+
+	function handleUpdateExtra(extraId: string, updates: Partial<VehicleValueExtra>) {
+		extras = extras.map((e) => (e.id === extraId ? { ...e, ...updates } : e));
+	}
+
+	function handleDeleteExtra(extraId: string) {
+		extras = extras.filter((e) => e.id !== extraId);
+	}
+
+	function handlePdfUpload(url: string, path: string) {
+		valuationPdfUrl = url;
+		valuationPdfPath = path;
+	}
+
+	function handlePdfRemove() {
+		valuationPdfUrl = '';
+		valuationPdfPath = '';
+	}
+</script>
+
+<div class="space-y-6">
+	<!-- Section 1: Vehicle & Source Information -->
+	{#if requestInfo}
+		<Card class="bg-blue-50 p-6">
+			<h3 class="mb-4 text-lg font-semibold text-gray-900">Vehicle & Request Information</h3>
+			<div class="grid gap-4 md:grid-cols-3">
+				<div>
+					<p class="text-sm text-gray-600">Report No.</p>
+					<p class="font-medium text-gray-900">{requestInfo.request_number || 'N/A'}</p>
+				</div>
+				<div>
+					<p class="text-sm text-gray-600">Insurer</p>
+					<p class="font-medium text-gray-900">{client?.name || 'N/A'}</p>
+				</div>
+				<div>
+					<p class="text-sm text-gray-600">Date of Loss</p>
+					<p class="font-medium text-gray-900">
+						{requestInfo.date_of_loss
+							? new Date(requestInfo.date_of_loss).toLocaleDateString()
+							: 'N/A'}
+					</p>
+				</div>
+			</div>
+			<div class="mt-4 grid gap-4 md:grid-cols-4">
+				<div>
+					<p class="text-sm text-gray-600">Make</p>
+					<p class="font-medium text-gray-900">{requestInfo.vehicle_make || 'N/A'}</p>
+				</div>
+				<div>
+					<p class="text-sm text-gray-600">Model</p>
+					<p class="font-medium text-gray-900">{requestInfo.vehicle_model || 'N/A'}</p>
+				</div>
+				<div>
+					<p class="text-sm text-gray-600">Year</p>
+					<p class="font-medium text-gray-900">{requestInfo.vehicle_year || 'N/A'}</p>
+				</div>
+				<div>
+					<p class="text-sm text-gray-600">Mileage</p>
+					<p class="font-medium text-gray-900">
+						{requestInfo.vehicle_mileage
+							? requestInfo.vehicle_mileage.toLocaleString() + ' km'
+							: 'N/A'}
+					</p>
+				</div>
+			</div>
+			<div class="mt-4">
+				<p class="text-sm text-gray-600">VIN</p>
+				<p class="font-medium text-gray-900">{requestInfo.vehicle_vin || 'N/A'}</p>
+			</div>
+		</Card>
+	{/if}
+
+	<!-- Valuation Source -->
+	<Card class="p-6">
+		<h3 class="mb-4 text-lg font-semibold text-gray-900">
+			Valuation Source <span class="text-red-500">*</span>
+		</h3>
+		<div class="grid gap-4 md:grid-cols-2">
+			<FormField
+				name="sourced_from"
+				label="Sourced From"
+				type="text"
+				bind:value={sourcedFrom}
+				placeholder="e.g., TransUnion - iCheck, Lightstone Auto"
+				required
+			/>
+			<FormField
+				name="sourced_code"
+				label="Source Code"
+				type="text"
+				bind:value={sourcedCode}
+				placeholder="e.g., 22035630"
+			/>
+		</div>
+		<div class="mt-4 grid gap-4 md:grid-cols-2">
+			<FormField
+				name="sourced_date"
+				label="Sourced Date"
+				type="date"
+				bind:value={sourcedDate}
+				required
+			/>
+			<div>
+				<label class="mb-2 block text-sm font-medium text-gray-700">Month (Auto-calculated)</label>
+				<div class="rounded-md border border-gray-300 bg-gray-50 px-3 py-2 text-sm text-gray-700">
+					{sourcedMonth || 'Select a date'}
+				</div>
+			</div>
+		</div>
+	</Card>
+
+	<!-- Warranty / Service Details -->
+	<Card class="p-6">
+		<h3 class="mb-4 text-lg font-semibold text-gray-900">Warranty / Service Details</h3>
+
+		<div class="space-y-6">
+			<!-- Status -->
+			<FormField
+				name="warranty_status"
+				label="Status"
+				type="select"
+				bind:value={warrantyStatus}
+				placeholder="Select status..."
+				options={[
+					{ value: 'active', label: 'Active' },
+					{ value: 'expired', label: 'Expired' },
+					{ value: 'void', label: 'Void' },
+					{ value: 'transferred', label: 'Transferred' },
+					{ value: 'unknown', label: 'Unknown' }
+				]}
+			/>
+
+			<!-- Period (Years) -->
+			<div class="space-y-2">
+				<label for="warranty_period_years" class="block text-sm font-medium text-gray-700">
+					Period (Years)
+				</label>
+				<select
+					id="warranty_period_years"
+					name="warranty_period_years"
+					bind:value={warrantyPeriodYears}
+					class="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+				>
+					<option value={null}>Select period...</option>
+					<option value={1}>1 Year</option>
+					<option value={2}>2 Years</option>
+					<option value={3}>3 Years</option>
+					<option value={4}>4 Years</option>
+					<option value={5}>5 Years</option>
+					<option value={6}>6 Years</option>
+					<option value={7}>7 Years</option>
+				</select>
+			</div>
+
+			<!-- Date Range: From - To -->
+			<div>
+				<label class="mb-2 block text-sm font-medium text-gray-700">Date</label>
+				<div class="grid gap-4 md:grid-cols-2">
+					<FormField
+						name="warranty_start_date"
+						label="From"
+						type="date"
+						bind:value={warrantyStartDate}
+					/>
+					<FormField
+						name="warranty_end_date"
+						label="To"
+						type="date"
+						bind:value={warrantyEndDate}
+					/>
+				</div>
+			</div>
+
+			<!-- Expiry Mileage -->
+			<FormField
+				name="warranty_expiry_mileage"
+				label="Expiry Mileage"
+				type="select"
+				bind:value={warrantyExpiryMileage}
+				placeholder="Select mileage..."
+				options={[
+					{ value: 'unlimited', label: 'Unlimited' },
+					{ value: '50000', label: '50,000 km' },
+					{ value: '100000', label: '100,000 km' },
+					{ value: '120000', label: '120,000 km' },
+					{ value: '150000', label: '150,000 km' },
+					{ value: '200000', label: '200,000 km' }
+				]}
+			/>
+
+			<!-- Service History -->
+			<FormField
+				name="service_history_status"
+				label="Service History"
+				type="select"
+				bind:value={serviceHistoryStatus}
+				placeholder="Select status..."
+				options={[
+					{ value: 'checked', label: 'Checked' },
+					{ value: 'not_checked', label: 'Not Checked' },
+					{ value: 'incomplete', label: 'Incomplete' },
+					{ value: 'up_to_date', label: 'Up to Date' },
+					{ value: 'overdue', label: 'Overdue' },
+					{ value: 'unknown', label: 'Unknown' }
+				]}
+			/>
+
+			<!-- Additional Notes -->
+			<FormField
+				name="warranty_notes"
+				label="Additional Notes"
+				type="textarea"
+				bind:value={warrantyNotes}
+				placeholder="Additional warranty or service information..."
+				rows={3}
+			/>
+		</div>
+	</Card>
+
+	<!-- Section 2: Base Values & Adjustments -->
+	<Card class="p-6">
+		<h3 class="mb-4 text-lg font-semibold text-gray-900">
+			Vehicle Values <span class="text-red-500">*</span>
+		</h3>
+
+		<!-- Optional fields -->
+		<div class="mb-6 grid gap-4 md:grid-cols-2">
+			<FormField
+				name="new_list_price"
+				label="New List Price"
+				type="number"
+				bind:value={newListPrice}
+				placeholder="0.00"
+				step="0.01"
+			/>
+			<FormField
+				name="depreciation_percentage"
+				label="Depreciation %"
+				type="number"
+				bind:value={depreciationPercentage}
+				placeholder="0.00"
+				step="0.01"
+			/>
+		</div>
+
+		<!-- Base values -->
+		<div class="mb-6 grid gap-4 md:grid-cols-3">
+			<FormField
+				name="trade_value"
+				label="Trade Value"
+				type="number"
+				bind:value={tradeValue}
+				placeholder="0.00"
+				step="0.01"
+			/>
+			<FormField
+				name="market_value"
+				label="Market Value"
+				type="number"
+				bind:value={marketValue}
+				placeholder="0.00"
+				step="0.01"
+			/>
+			<FormField
+				name="retail_value"
+				label="Retail Value"
+				type="number"
+				bind:value={retailValue}
+				placeholder="0.00"
+				step="0.01"
+			/>
+		</div>
+
+		<!-- Adjustments -->
+		<div class="mb-6 space-y-4">
+			<h4 class="text-sm font-semibold text-gray-700">Adjustments</h4>
+			<div class="grid gap-4 md:grid-cols-2">
+				<FormField
+					name="valuation_adjustment"
+					label="Valuation Adjustment (Amount)"
+					type="number"
+					bind:value={valuationAdjustment}
+					placeholder="0.00"
+					step="0.01"
+				/>
+				<FormField
+					name="valuation_adjustment_percentage"
+					label="Valuation Adjustment %"
+					type="number"
+					bind:value={valuationAdjustmentPercentage}
+					placeholder="0.00"
+					step="0.01"
+				/>
+			</div>
+			<div class="space-y-2">
+				<FormField
+					name="condition_adjustment_value"
+					label="Condition Adjustment Value"
+					type="number"
+					bind:value={conditionAdjustmentValue}
+					placeholder="0.00"
+					step="0.01"
+				/>
+				<!-- Display calculated percentages -->
+				<div class="rounded-md bg-blue-50 p-3">
+					<p class="text-xs font-medium text-blue-900 mb-1">Calculated Percentages:</p>
+					<div class="grid grid-cols-3 gap-2 text-xs text-blue-700">
+						<div>
+							<span class="font-medium">Trade:</span> {tradeConditionPercentage.toFixed(2)}%
+						</div>
+						<div>
+							<span class="font-medium">Market:</span> {marketConditionPercentage.toFixed(2)}%
+						</div>
+						<div>
+							<span class="font-medium">Retail:</span> {retailConditionPercentage.toFixed(2)}%
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<!-- Adjusted Values Display -->
+		<div class="rounded-lg bg-gray-50 p-4">
+			<h4 class="mb-3 text-sm font-semibold text-gray-700">Adjusted Values</h4>
+			<div class="grid gap-4 md:grid-cols-3">
+				<div>
+					<p class="text-xs text-gray-600">Trade</p>
+					<p class="text-lg font-semibold text-gray-900">{formatCurrency(tradeAdjusted)}</p>
+				</div>
+				<div>
+					<p class="text-xs text-gray-600">Market</p>
+					<p class="text-lg font-semibold text-gray-900">{formatCurrency(marketAdjusted)}</p>
+				</div>
+				<div>
+					<p class="text-xs text-gray-600">Retail</p>
+					<p class="text-lg font-semibold text-gray-900">{formatCurrency(retailAdjusted)}</p>
+				</div>
+			</div>
+		</div>
+	</Card>
+
+	<!-- Section 3: Optional Extras -->
+	<VehicleValueExtrasTable
+		{extras}
+		onAddExtra={handleAddExtra}
+		onUpdateExtra={handleUpdateExtra}
+		onDeleteExtra={handleDeleteExtra}
+	/>
+
+	<!-- Section 4: Total Adjusted Values -->
+	<Card class="p-6">
+		<h3 class="mb-4 text-lg font-semibold text-gray-900">Total Adjusted Values</h3>
+		<div class="grid gap-4 md:grid-cols-3">
+			<div class="rounded-lg bg-blue-50 p-4">
+				<p class="text-sm text-gray-600">Trade Total</p>
+				<p class="text-xl font-bold text-blue-900">{formatCurrency(tradeTotalAdjusted)}</p>
+				<p class="mt-1 text-xs text-gray-500">
+					Adjusted: {formatCurrency(tradeAdjusted)} + Extras: {formatCurrency(tradeExtrasTotal)}
+				</p>
+			</div>
+			<div class="rounded-lg bg-blue-50 p-4">
+				<p class="text-sm text-gray-600">Market Total</p>
+				<p class="text-xl font-bold text-blue-900">{formatCurrency(marketTotalAdjusted)}</p>
+				<p class="mt-1 text-xs text-gray-500">
+					Adjusted: {formatCurrency(marketAdjusted)} + Extras: {formatCurrency(marketExtrasTotal)}
+				</p>
+			</div>
+			<div class="rounded-lg bg-blue-50 p-4">
+				<p class="text-sm text-gray-600">Retail Total</p>
+				<p class="text-xl font-bold text-blue-900">{formatCurrency(retailTotalAdjusted)}</p>
+				<p class="mt-1 text-xs text-gray-500">
+					Adjusted: {formatCurrency(retailAdjusted)} + Extras: {formatCurrency(retailExtrasTotal)}
+				</p>
+			</div>
+		</div>
+	</Card>
+
+	<!-- Section 5: Write-Off Calculations -->
+	<Card class="p-6">
+		<h3 class="mb-4 text-lg font-semibold text-gray-900">Write-Off Calculations</h3>
+		<div class="mb-4 rounded-lg bg-yellow-50 p-3">
+			<p class="text-sm text-gray-700">
+				Using client's write-off percentages: Borderline ({borderlinePercentage}%), Total Write-Off
+				({totalWriteoffPercentage}%), Salvage ({salvagePercentage}%)
+			</p>
+		</div>
+
+		<div class="overflow-x-auto">
+			<table class="w-full">
+				<thead>
+					<tr class="border-b border-gray-200 bg-gray-50">
+						<th class="px-4 py-3 text-left text-sm font-semibold text-gray-700">Value Type</th>
+						<th class="px-4 py-3 text-right text-sm font-semibold text-gray-700">
+							Borderline ({borderlinePercentage}%)
+						</th>
+						<th class="px-4 py-3 text-right text-sm font-semibold text-gray-700">
+							Write-Off ({totalWriteoffPercentage}%)
+						</th>
+						<th class="px-4 py-3 text-right text-sm font-semibold text-gray-700">
+							Salvage ({salvagePercentage}%)
+						</th>
+					</tr>
+				</thead>
+				<tbody>
+					<tr class="border-b border-gray-100">
+						<td class="px-4 py-3 font-medium text-gray-900">Trade</td>
+						<td class="px-4 py-3 text-right text-gray-900">
+							{formatCurrency(borderlineWriteoffTrade)}
+						</td>
+						<td class="px-4 py-3 text-right text-gray-900">
+							{formatCurrency(totalWriteoffTrade)}
+						</td>
+						<td class="px-4 py-3 text-right text-gray-900">{formatCurrency(salvageTrade)}</td>
+					</tr>
+					<tr class="border-b border-gray-100">
+						<td class="px-4 py-3 font-medium text-gray-900">Market</td>
+						<td class="px-4 py-3 text-right text-gray-900">
+							{formatCurrency(borderlineWriteoffMarket)}
+						</td>
+						<td class="px-4 py-3 text-right text-gray-900">
+							{formatCurrency(totalWriteoffMarket)}
+						</td>
+						<td class="px-4 py-3 text-right text-gray-900">{formatCurrency(salvageMarket)}</td>
+					</tr>
+					<tr class="border-b border-gray-100">
+						<td class="px-4 py-3 font-medium text-gray-900">Retail</td>
+						<td class="px-4 py-3 text-right text-gray-900">
+							{formatCurrency(borderlineWriteoffRetail)}
+						</td>
+						<td class="px-4 py-3 text-right text-gray-900">
+							{formatCurrency(totalWriteoffRetail)}
+						</td>
+						<td class="px-4 py-3 text-right text-gray-900">{formatCurrency(salvageRetail)}</td>
+					</tr>
+				</tbody>
+			</table>
+		</div>
+	</Card>
+
+	<!-- Section 6: Supporting Documents -->
+	<Card class="p-6">
+		<h3 class="mb-4 text-lg font-semibold text-gray-900">
+			Supporting Documents <span class="text-red-500">*</span>
+		</h3>
+
+		<div class="mb-6">
+			<PdfUpload
+				value={valuationPdfUrl}
+				label="Valuation Report (PDF)"
+				{assessmentId}
+				category="values"
+				onUpload={handlePdfUpload}
+				onRemove={handlePdfRemove}
+			/>
+		</div>
+
+		<FormField name="remarks" label="Remarks" type="textarea" bind:value={remarks} rows={4} />
+	</Card>
+
+	<!-- Action Buttons -->
+	<div class="flex justify-between">
+		<Button variant="outline" onclick={handleSave}>Save Progress</Button>
+		<Button onclick={handleComplete} disabled={!isComplete}>
+			{#if isComplete}
+				<CheckCircle class="mr-2 h-4 w-4" />
+			{/if}
+			Complete Values Tab
+		</Button>
+	</div>
+</div>
+

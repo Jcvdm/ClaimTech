@@ -3,11 +3,13 @@
 	import { goto, invalidateAll } from '$app/navigation';
 	import { onMount, onDestroy } from 'svelte';
 	import AssessmentLayout from '$lib/components/assessment/AssessmentLayout.svelte';
+	import SummaryTab from '$lib/components/assessment/SummaryTab.svelte';
 	import VehicleIdentificationTab from '$lib/components/assessment/VehicleIdentificationTab.svelte';
 	import Exterior360Tab from '$lib/components/assessment/Exterior360Tab.svelte';
 	import InteriorMechanicalTab from '$lib/components/assessment/InteriorMechanicalTab.svelte';
 	import TyresTab from '$lib/components/assessment/TyresTab.svelte';
 	import DamageTab from '$lib/components/assessment/DamageTab.svelte';
+	import VehicleValuesTab from '$lib/components/assessment/VehicleValuesTab.svelte';
 	import PreIncidentEstimateTab from '$lib/components/assessment/PreIncidentEstimateTab.svelte';
 	import EstimateTab from '$lib/components/assessment/EstimateTab.svelte';
 	import AssessmentNotes from '$lib/components/assessment/AssessmentNotes.svelte';
@@ -20,6 +22,7 @@
 	import { damageService } from '$lib/services/damage.service';
 	import { estimateService } from '$lib/services/estimate.service';
 	import { preIncidentEstimateService } from '$lib/services/pre-incident-estimate.service';
+	import { vehicleValuesService } from '$lib/services/vehicle-values.service';
 	import { getTabCompletionStatus } from '$lib/utils/validation';
 	import type {
 		VehicleIdentification,
@@ -27,9 +30,11 @@
 		InteriorMechanical,
 		Tyre,
 		DamageRecord,
+		VehicleValues,
 		Estimate,
 		EstimateLineItem,
-		AccessoryType
+		AccessoryType,
+		AssessmentResultType
 	} from '$lib/types/assessment';
 
 	let { data }: { data: PageData } = $props();
@@ -47,6 +52,7 @@
 			interiorMechanical: data.interiorMechanical,
 			tyres: data.tyres,
 			damageRecord: data.damageRecord,
+			vehicleValues: data.vehicleValues,
 			preIncidentEstimate: data.preIncidentEstimate,
 			estimate: data.estimate
 		});
@@ -244,6 +250,33 @@
 	async function handleCompleteDamage() {
 		await assessmentService.markTabCompleted(data.assessment.id, 'damage');
 		await invalidateAll();
+		currentTab = 'values';
+	}
+
+	// Vehicle Values handlers
+	async function handleUpdateVehicleValues(updateData: Partial<VehicleValues>) {
+		try {
+			if (data.vehicleValues) {
+				// Get write-off percentages from client
+				const writeOffPercentages = data.client
+					? {
+							borderline: data.client.borderline_writeoff_percentage,
+							totalWriteoff: data.client.total_writeoff_percentage,
+							salvage: data.client.salvage_percentage
+						}
+					: undefined;
+
+				await vehicleValuesService.update(data.vehicleValues.id, updateData, writeOffPercentages);
+				await invalidateAll();
+			}
+		} catch (error) {
+			console.error('Error updating vehicle values:', error);
+		}
+	}
+
+	async function handleCompleteVehicleValues() {
+		await assessmentService.markTabCompleted(data.assessment.id, 'values');
+		await invalidateAll();
 		currentTab = 'pre-incident';
 	}
 
@@ -429,6 +462,36 @@
 		}
 	}
 
+	async function handleUpdateRepairer(repairerId: string | null) {
+		try {
+			if (data.estimate) {
+				await estimateService.update(data.estimate.id, {
+					repairer_id: repairerId
+				});
+				await invalidateAll();
+			}
+		} catch (error) {
+			console.error('Error updating repairer:', error);
+		}
+	}
+
+	async function handleRepairersUpdate() {
+		await invalidateAll(); // Refresh repairers list
+	}
+
+	async function handleUpdateAssessmentResult(result: AssessmentResultType | null) {
+		try {
+			if (data.estimate) {
+				await estimateService.update(data.estimate.id, {
+					assessment_result: result
+				});
+				await invalidateAll();
+			}
+		} catch (error) {
+			console.error('Error updating assessment result:', error);
+		}
+	}
+
 	async function handleCompleteEstimate() {
 		await assessmentService.markTabCompleted(data.assessment.id, 'estimate');
 		await assessmentService.updateAssessmentStatus(data.assessment.id, 'completed');
@@ -447,7 +510,17 @@
 	{saving}
 	{lastSaved}
 >
-	{#if currentTab === 'identification'}
+	{#if currentTab === 'summary'}
+		<SummaryTab
+			assessment={data.assessment}
+			vehicleValues={data.vehicleValues}
+			estimate={data.estimate}
+			preIncidentEstimate={data.preIncidentEstimate}
+			inspection={data.inspection}
+			request={data.request}
+			client={data.client}
+		/>
+	{:else if currentTab === 'identification'}
 		<VehicleIdentificationTab
 			data={data.vehicleIdentification}
 			assessmentId={data.assessment.id}
@@ -494,6 +567,24 @@
 			onUpdateDamage={handleUpdateDamage}
 			onComplete={handleCompleteDamage}
 		/>
+	{:else if currentTab === 'values'}
+		<VehicleValuesTab
+			data={data.vehicleValues}
+			assessmentId={data.assessment.id}
+			client={data.client}
+			requestInfo={{
+				request_number: data.request?.request_number,
+				claim_number: data.request?.claim_number,
+				date_of_loss: data.request?.date_of_loss,
+				vehicle_make: data.request?.vehicle_make,
+				vehicle_model: data.request?.vehicle_model,
+				vehicle_year: data.request?.vehicle_year,
+				vehicle_vin: data.request?.vehicle_vin,
+				vehicle_mileage: data.request?.vehicle_mileage
+			}}
+			onUpdate={handleUpdateVehicleValues}
+			onComplete={handleCompleteVehicleValues}
+		/>
 	{:else if currentTab === 'pre-incident'}
 		<PreIncidentEstimateTab
 			estimate={data.preIncidentEstimate}
@@ -513,6 +604,8 @@
 			estimate={data.estimate}
 			assessmentId={data.assessment.id}
 			estimatePhotos={data.estimatePhotos}
+			vehicleValues={data.vehicleValues}
+			repairers={data.repairers}
 			onUpdateEstimate={handleUpdateEstimate}
 			onAddLineItem={handleAddLineItem}
 			onUpdateLineItem={handleUpdateLineItem}
@@ -520,6 +613,9 @@
 			onBulkDeleteLineItems={handleBulkDeleteLineItems}
 			onPhotosUpdate={async () => await invalidateAll()}
 			onUpdateRates={handleUpdateRates}
+			onUpdateRepairer={handleUpdateRepairer}
+			onRepairersUpdate={handleRepairersUpdate}
+			onUpdateAssessmentResult={handleUpdateAssessmentResult}
 			onComplete={handleCompleteEstimate}
 		/>
 	{/if}

@@ -12,6 +12,7 @@ export type EntityType =
 	| 'interior_mechanical'
 	| 'tyre'
 	| 'damage_record'
+	| 'vehicle_values'
 	| 'estimate'
 	| 'pre_incident_estimate';
 

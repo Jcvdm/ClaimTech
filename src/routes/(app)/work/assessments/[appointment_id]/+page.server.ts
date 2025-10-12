@@ -15,6 +15,9 @@ import { assessmentNotesService } from '$lib/services/assessment-notes.service';
 import { appointmentService } from '$lib/services/appointment.service';
 import { inspectionService } from '$lib/services/inspection.service';
 import { requestService } from '$lib/services/request.service';
+import { vehicleValuesService } from '$lib/services/vehicle-values.service';
+import { clientService } from '$lib/services/client.service';
+import { repairerService } from '$lib/services/repairer.service';
 
 export const load: PageServerLoad = async ({ params }) => {
 	try {
@@ -43,6 +46,9 @@ export const load: PageServerLoad = async ({ params }) => {
 			// Create default damage record (one per assessment)
 			await damageService.createDefault(assessment.id);
 
+			// Create default vehicle values (one per assessment)
+			await vehicleValuesService.createDefault(assessment.id);
+
 			// Create default pre-incident estimate (one per assessment)
 			await preIncidentEstimateService.createDefault(assessment.id);
 
@@ -58,11 +64,13 @@ export const load: PageServerLoad = async ({ params }) => {
 			interiorMechanical,
 			tyres,
 			damageRecord,
+			vehicleValues,
 			preIncidentEstimate,
 			estimate,
 			notes,
 			inspection,
-			request
+			request,
+			repairers
 		] = await Promise.all([
 			vehicleIdentificationService.getByAssessment(assessment.id),
 			exterior360Service.getByAssessment(assessment.id),
@@ -70,12 +78,20 @@ export const load: PageServerLoad = async ({ params }) => {
 			interiorMechanicalService.getByAssessment(assessment.id),
 			tyresService.listByAssessment(assessment.id),
 			damageService.getByAssessment(assessment.id),
+			vehicleValuesService.getByAssessment(assessment.id),
 			preIncidentEstimateService.getByAssessment(assessment.id),
 			estimateService.getByAssessment(assessment.id),
 			assessmentNotesService.getNotesByAssessment(assessment.id),
 			inspectionService.getInspection(appointment.inspection_id),
-			requestService.getRequest(appointment.request_id)
+			requestService.getRequest(appointment.request_id),
+			repairerService.listRepairers(true)
 		]);
+
+		// Auto-create vehicle values if it doesn't exist (for existing assessments)
+		let finalVehicleValues = vehicleValues;
+		if (!finalVehicleValues) {
+			finalVehicleValues = await vehicleValuesService.createDefault(assessment.id);
+		}
 
 		// Auto-create pre-incident estimate if it doesn't exist (for existing assessments)
 		let finalPreIncidentEstimate = preIncidentEstimate;
@@ -93,6 +109,9 @@ export const load: PageServerLoad = async ({ params }) => {
 			? await preIncidentEstimatePhotosService.getPhotosByEstimate(finalPreIncidentEstimate.id)
 			: [];
 
+		// Load client for write-off percentages
+		const client = request ? await clientService.getClient(request.client_id) : null;
+
 		return {
 			appointment,
 			assessment,
@@ -102,13 +121,16 @@ export const load: PageServerLoad = async ({ params }) => {
 			interiorMechanical,
 			tyres,
 			damageRecord,
+			vehicleValues: finalVehicleValues,
 			preIncidentEstimate: finalPreIncidentEstimate,
 			preIncidentEstimatePhotos,
 			estimate,
 			estimatePhotos,
 			notes,
 			inspection,
-			request
+			request,
+			client,
+			repairers
 		};
 	} catch (err) {
 		console.error('Error loading assessment:', err);

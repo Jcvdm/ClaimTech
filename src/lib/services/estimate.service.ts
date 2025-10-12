@@ -67,6 +67,7 @@ export class EstimateService {
 			.from('assessment_estimates')
 			.insert({
 				assessment_id: input.assessment_id,
+				repairer_id: input.repairer_id || null,
 				labour_rate: labourRate,
 				paint_rate: paintRate,
 				line_items: lineItems,
@@ -74,6 +75,7 @@ export class EstimateService {
 				vat_percentage: vatPercentage,
 				vat_amount: vatAmount,
 				total,
+				assessment_result: input.assessment_result || null,
 				notes: input.notes || null,
 				currency: input.currency || 'ZAR'
 			})

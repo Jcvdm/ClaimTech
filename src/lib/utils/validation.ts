@@ -243,6 +243,47 @@ export function validatePreIncidentEstimate(data: any): TabValidation {
 }
 
 /**
+ * Validate vehicle values tab
+ */
+export function validateVehicleValues(vehicleValues: any): TabValidation {
+	if (!vehicleValues) {
+		return {
+			tabId: 'values',
+			isComplete: false,
+			errors: ['Vehicle values data not found']
+		};
+	}
+
+	const errors: string[] = [];
+
+	// Required: At least one value type must be entered
+	if (!vehicleValues.trade_value && !vehicleValues.market_value && !vehicleValues.retail_value) {
+		errors.push('At least one vehicle value (Trade, Market, or Retail) is required');
+	}
+
+	// Required: Valuation source
+	if (!vehicleValues.sourced_from) {
+		errors.push('Valuation source is required');
+	}
+
+	// Required: Sourced date
+	if (!vehicleValues.sourced_date) {
+		errors.push('Sourced date is required');
+	}
+
+	// Required: PDF proof
+	if (!vehicleValues.valuation_pdf_url) {
+		errors.push('Valuation report PDF is required');
+	}
+
+	return {
+		tabId: 'values',
+		isComplete: errors.length === 0,
+		errors
+	};
+}
+
+/**
  * Get completion status for all tabs
  */
 export function getTabCompletionStatus(assessmentData: {
@@ -251,6 +292,7 @@ export function getTabCompletionStatus(assessmentData: {
 	interiorMechanical: any;
 	tyres: any[];
 	damageRecord: any;
+	vehicleValues: any;
 	preIncidentEstimate: any;
 	estimate: any;
 }): TabValidation[] {
@@ -260,6 +302,7 @@ export function getTabCompletionStatus(assessmentData: {
 		validateInteriorMechanical(assessmentData.interiorMechanical),
 		validateTyres(assessmentData.tyres),
 		validateDamage(assessmentData.damageRecord ? [assessmentData.damageRecord] : []),
+		validateVehicleValues(assessmentData.vehicleValues),
 		validatePreIncidentEstimate(assessmentData.preIncidentEstimate),
 		validateEstimate(assessmentData.estimate)
 	];

@@ -22,6 +22,9 @@
 	let city = $state(client?.city || '');
 	let postal_code = $state(client?.postal_code || '');
 	let notes = $state(client?.notes || '');
+	let borderline_writeoff_percentage = $state(client?.borderline_writeoff_percentage || 65);
+	let total_writeoff_percentage = $state(client?.total_writeoff_percentage || 70);
+	let salvage_percentage = $state(client?.salvage_percentage || 28);
 
 	async function handleSubmit(e: Event) {
 		e.preventDefault();
@@ -108,6 +111,47 @@
 					placeholder="2000"
 				/>
 			</div>
+		</div>
+	</Card>
+
+	<Card class="p-6">
+		<h3 class="mb-4 text-lg font-semibold text-gray-900">Vehicle Valuation Settings</h3>
+		<p class="mb-4 text-sm text-gray-600">
+			These percentages are used to calculate write-off thresholds in vehicle assessments.
+		</p>
+		<div class="grid gap-6 md:grid-cols-3">
+			<FormField
+				label="Borderline Write-Off %"
+				name="borderline_writeoff_percentage"
+				type="number"
+				bind:value={borderline_writeoff_percentage}
+				placeholder="65.00"
+				step="0.01"
+				min="0"
+				max="100"
+			/>
+
+			<FormField
+				label="Total Write-Off %"
+				name="total_writeoff_percentage"
+				type="number"
+				bind:value={total_writeoff_percentage}
+				placeholder="70.00"
+				step="0.01"
+				min="0"
+				max="100"
+			/>
+
+			<FormField
+				label="Salvage %"
+				name="salvage_percentage"
+				type="number"
+				bind:value={salvage_percentage}
+				placeholder="28.00"
+				step="0.01"
+				min="0"
+				max="100"
+			/>
 		</div>
 	</Card>
 
