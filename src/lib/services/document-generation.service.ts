@@ -1,4 +1,4 @@
-import { supabase } from '$lib/supabaseClient';
+import { supabase } from '$lib/supabase';
 import type { DocumentGenerationStatus, DocumentType } from '$lib/types/assessment';
 
 class DocumentGenerationService {

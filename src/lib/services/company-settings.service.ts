@@ -1,4 +1,4 @@
-import { supabase } from '$lib/supabaseClient';
+import { supabase } from '$lib/supabase';
 import type { CompanySettings, UpdateCompanySettingsInput } from '$lib/types/assessment';
 
 class CompanySettingsService {
