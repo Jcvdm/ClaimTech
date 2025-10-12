@@ -5,8 +5,10 @@ import { generatePDF } from '$lib/utils/pdf-generator';
 import { generatePhotosHTML } from '$lib/templates/photos-template';
 
 export const POST: RequestHandler = async ({ request }) => {
+	let assessmentId: string | undefined;
 	try {
-		const { assessmentId } = await request.json();
+		const body = await request.json();
+		assessmentId = body.assessmentId;
 
 		if (!assessmentId) {
 			throw error(400, 'Assessment ID is required');
@@ -259,11 +261,28 @@ export const POST: RequestHandler = async ({ request }) => {
 			fileName
 		});
 	} catch (err) {
-		console.error('Error generating photos PDF:', err);
+		// Detailed error logging
+		console.error('=== Error generating photos PDF ===');
+		console.error('Error:', err);
+		if (err instanceof Error) {
+			console.error('Error message:', err.message);
+			console.error('Error stack:', err.stack);
+		}
+		console.error('Assessment ID:', assessmentId);
+		console.error('===================================');
+
+		// Return appropriate error
 		if (err && typeof err === 'object' && 'status' in err) {
 			throw err;
 		}
-		throw error(500, 'Failed to generate photos PDF');
+
+		// Provide more specific error message
+		const errorMessage =
+			err instanceof Error
+				? err.message
+				: 'An unknown error occurred while generating the photos PDF';
+
+		throw error(500, errorMessage);
 	}
 };
 

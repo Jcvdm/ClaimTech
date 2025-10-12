@@ -46,19 +46,34 @@ class DocumentGenerationService {
 	 * Generate a specific document
 	 */
 	async generateDocument(assessmentId: string, documentType: DocumentType): Promise<string> {
-		const response = await fetch(`/api/generate-${documentType}`, {
-			method: 'POST',
-			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify({ assessmentId })
-		});
+		try {
+			const response = await fetch(`/api/generate-${documentType}`, {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ assessmentId })
+			});
 
-		if (!response.ok) {
-			const error = await response.json();
-			throw new Error(error.message || 'Failed to generate document');
+			if (!response.ok) {
+				// Try to parse JSON error response
+				let errorMessage = `Failed to generate ${documentType}`;
+				try {
+					const error = await response.json();
+					errorMessage = error.message || errorMessage;
+				} catch (jsonError) {
+					// Response is not JSON (probably HTML error page)
+					const text = await response.text();
+					console.error('Non-JSON error response:', text.substring(0, 500));
+					errorMessage = `Server error (${response.status}): ${response.statusText}`;
+				}
+				throw new Error(errorMessage);
+			}
+
+			const { url } = await response.json();
+			return url;
+		} catch (error) {
+			console.error(`Error generating ${documentType}:`, error);
+			throw error;
 		}
-
-		const { url } = await response.json();
-		return url;
 	}
 
 	/**
@@ -70,18 +85,33 @@ class DocumentGenerationService {
 		photosPdfUrl: string;
 		photosZipUrl: string;
 	}> {
-		const response = await fetch('/api/generate-all-documents', {
-			method: 'POST',
-			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify({ assessmentId })
-		});
+		try {
+			const response = await fetch('/api/generate-all-documents', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ assessmentId })
+			});
 
-		if (!response.ok) {
-			const error = await response.json();
-			throw new Error(error.message || 'Failed to generate documents');
+			if (!response.ok) {
+				// Try to parse JSON error response
+				let errorMessage = 'Failed to generate documents';
+				try {
+					const error = await response.json();
+					errorMessage = error.message || errorMessage;
+				} catch (jsonError) {
+					// Response is not JSON (probably HTML error page)
+					const text = await response.text();
+					console.error('Non-JSON error response:', text.substring(0, 500));
+					errorMessage = `Server error (${response.status}): ${response.statusText}`;
+				}
+				throw new Error(errorMessage);
+			}
+
+			return await response.json();
+		} catch (error) {
+			console.error('Error generating all documents:', error);
+			throw error;
 		}
-
-		return await response.json();
 	}
 
 	/**

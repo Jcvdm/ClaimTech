@@ -5,8 +5,10 @@ import { generatePDF } from '$lib/utils/pdf-generator';
 import { generateEstimateHTML } from '$lib/templates/estimate-template';
 
 export const POST: RequestHandler = async ({ request }) => {
+	let assessmentId: string | undefined;
 	try {
-		const { assessmentId } = await request.json();
+		const body = await request.json();
+		assessmentId = body.assessmentId;
 
 		if (!assessmentId) {
 			throw error(400, 'Assessment ID is required');
@@ -125,11 +127,28 @@ export const POST: RequestHandler = async ({ request }) => {
 			fileName
 		});
 	} catch (err) {
-		console.error('Error generating estimate:', err);
+		// Detailed error logging
+		console.error('=== Error generating estimate ===');
+		console.error('Error:', err);
+		if (err instanceof Error) {
+			console.error('Error message:', err.message);
+			console.error('Error stack:', err.stack);
+		}
+		console.error('Assessment ID:', assessmentId);
+		console.error('=================================');
+
+		// Return appropriate error
 		if (err && typeof err === 'object' && 'status' in err) {
 			throw err;
 		}
-		throw error(500, 'Failed to generate estimate');
+
+		// Provide more specific error message
+		const errorMessage =
+			err instanceof Error
+				? err.message
+				: 'An unknown error occurred while generating the estimate';
+
+		throw error(500, errorMessage);
 	}
 };
 
