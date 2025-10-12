@@ -1,0 +1,259 @@
+import { json, error } from '@sveltejs/kit';
+import type { RequestHandler } from './$types';
+import { supabase } from '$lib/supabase';
+import { generatePDF } from '$lib/utils/pdf-generator';
+import { generatePhotosHTML } from '$lib/templates/photos-template';
+
+export const POST: RequestHandler = async ({ request }) => {
+	try {
+		const { assessmentId } = await request.json();
+
+		if (!assessmentId) {
+			throw error(400, 'Assessment ID is required');
+		}
+
+		// Fetch assessment data
+		const { data: assessment, error: assessmentError } = await supabase
+			.from('assessments')
+			.select('*')
+			.eq('id', assessmentId)
+			.single();
+
+		if (assessmentError || !assessment) {
+			throw error(404, 'Assessment not found');
+		}
+
+		// Fetch related data with photos
+		const [
+			{ data: vehicleIdentification },
+			{ data: exterior360 },
+			{ data: interiorMechanical },
+			{ data: estimatePhotos },
+			{ data: preIncidentPhotos },
+			{ data: companySettings }
+		] = await Promise.all([
+			supabase
+				.from('vehicle_identification')
+				.select('*')
+				.eq('assessment_id', assessmentId)
+				.single(),
+			supabase.from('exterior_360').select('*').eq('assessment_id', assessmentId).single(),
+			supabase
+				.from('interior_mechanical')
+				.select('*')
+				.eq('assessment_id', assessmentId)
+				.single(),
+			supabase
+				.from('estimate_photos')
+				.select('*')
+				.eq('assessment_id', assessmentId)
+				.order('created_at', { ascending: true }),
+			supabase
+				.from('pre_incident_estimate_photos')
+				.select('*')
+				.eq('assessment_id', assessmentId)
+				.order('created_at', { ascending: true }),
+			supabase.from('company_settings').select('*').single()
+		]);
+
+		// Organize photos into sections
+		const sections = [];
+
+		// Vehicle Identification Photos
+		const identificationPhotos = [];
+		if (vehicleIdentification?.vin_photo_url) {
+			identificationPhotos.push({
+				url: vehicleIdentification.vin_photo_url,
+				caption: 'VIN Number'
+			});
+		}
+		if (vehicleIdentification?.registration_photo_url) {
+			identificationPhotos.push({
+				url: vehicleIdentification.registration_photo_url,
+				caption: 'Registration Document'
+			});
+		}
+		if (vehicleIdentification?.odometer_photo_url) {
+			identificationPhotos.push({
+				url: vehicleIdentification.odometer_photo_url,
+				caption: 'Odometer Reading'
+			});
+		}
+		if (identificationPhotos.length > 0) {
+			sections.push({
+				title: 'Vehicle Identification',
+				photos: identificationPhotos
+			});
+		}
+
+		// Exterior 360 Photos
+		const exteriorPhotos = [];
+		if (exterior360?.front_photo_url) {
+			exteriorPhotos.push({ url: exterior360.front_photo_url, caption: 'Front View' });
+		}
+		if (exterior360?.rear_photo_url) {
+			exteriorPhotos.push({ url: exterior360.rear_photo_url, caption: 'Rear View' });
+		}
+		if (exterior360?.left_side_photo_url) {
+			exteriorPhotos.push({ url: exterior360.left_side_photo_url, caption: 'Left Side View' });
+		}
+		if (exterior360?.right_side_photo_url) {
+			exteriorPhotos.push({ url: exterior360.right_side_photo_url, caption: 'Right Side View' });
+		}
+		if (exterior360?.front_left_photo_url) {
+			exteriorPhotos.push({
+				url: exterior360.front_left_photo_url,
+				caption: 'Front Left Corner'
+			});
+		}
+		if (exterior360?.front_right_photo_url) {
+			exteriorPhotos.push({
+				url: exterior360.front_right_photo_url,
+				caption: 'Front Right Corner'
+			});
+		}
+		if (exterior360?.rear_left_photo_url) {
+			exteriorPhotos.push({ url: exterior360.rear_left_photo_url, caption: 'Rear Left Corner' });
+		}
+		if (exterior360?.rear_right_photo_url) {
+			exteriorPhotos.push({
+				url: exterior360.rear_right_photo_url,
+				caption: 'Rear Right Corner'
+			});
+		}
+		if (exteriorPhotos.length > 0) {
+			sections.push({
+				title: '360° Exterior Views',
+				photos: exteriorPhotos
+			});
+		}
+
+		// Interior & Mechanical Photos
+		const interiorPhotos = [];
+		if (interiorMechanical?.dashboard_photo_url) {
+			interiorPhotos.push({
+				url: interiorMechanical.dashboard_photo_url,
+				caption: 'Dashboard'
+			});
+		}
+		if (interiorMechanical?.front_seats_photo_url) {
+			interiorPhotos.push({
+				url: interiorMechanical.front_seats_photo_url,
+				caption: 'Front Seats'
+			});
+		}
+		if (interiorMechanical?.rear_seats_photo_url) {
+			interiorPhotos.push({
+				url: interiorMechanical.rear_seats_photo_url,
+				caption: 'Rear Seats'
+			});
+		}
+		if (interiorMechanical?.gear_lever_photo_url) {
+			interiorPhotos.push({
+				url: interiorMechanical.gear_lever_photo_url,
+				caption: 'Gear Lever'
+			});
+		}
+		if (interiorMechanical?.engine_bay_photo_url) {
+			interiorPhotos.push({
+				url: interiorMechanical.engine_bay_photo_url,
+				caption: 'Engine Bay'
+			});
+		}
+		if (interiorPhotos.length > 0) {
+			sections.push({
+				title: 'Interior & Mechanical',
+				photos: interiorPhotos
+			});
+		}
+
+		// Damage Photos (from estimate)
+		if (estimatePhotos && estimatePhotos.length > 0) {
+			sections.push({
+				title: 'Damage Documentation',
+				photos: estimatePhotos.map((photo: any) => ({
+					url: photo.photo_url,
+					caption: photo.description || 'Damage Photo'
+				}))
+			});
+		}
+
+		// Pre-Incident Photos
+		if (preIncidentPhotos && preIncidentPhotos.length > 0) {
+			sections.push({
+				title: 'Pre-Incident Condition',
+				photos: preIncidentPhotos.map((photo: any) => ({
+					url: photo.photo_url,
+					caption: photo.description || 'Pre-Incident Photo'
+				}))
+			});
+		}
+
+		// Generate HTML
+		const html = generatePhotosHTML({
+			assessment,
+			companySettings,
+			sections
+		});
+
+		// Generate PDF
+		const pdfBuffer = await generatePDF(html, {
+			format: 'A4',
+			margin: {
+				top: '15mm',
+				right: '15mm',
+				bottom: '15mm',
+				left: '15mm'
+			}
+		});
+
+		// Upload to Supabase Storage
+		const fileName = `${assessment.assessment_number}_Photos.pdf`;
+		const filePath = `assessments/${assessmentId}/photos/${fileName}`;
+
+		const { error: uploadError } = await supabase.storage
+			.from('documents')
+			.upload(filePath, pdfBuffer, {
+				contentType: 'application/pdf',
+				upsert: true
+			});
+
+		if (uploadError) {
+			console.error('Upload error:', uploadError);
+			throw error(500, 'Failed to upload PDF to storage');
+		}
+
+		// Get public URL
+		const {
+			data: { publicUrl }
+		} = supabase.storage.from('documents').getPublicUrl(filePath);
+
+		// Update assessment with PDF URL
+		const { error: updateError } = await supabase
+			.from('assessments')
+			.update({
+				photos_pdf_url: publicUrl,
+				photos_pdf_path: filePath,
+				documents_generated_at: new Date().toISOString()
+			})
+			.eq('id', assessmentId);
+
+		if (updateError) {
+			console.error('Update error:', updateError);
+			throw error(500, 'Failed to update assessment record');
+		}
+
+		return json({
+			success: true,
+			url: publicUrl,
+			fileName
+		});
+	} catch (err) {
+		console.error('Error generating photos PDF:', err);
+		if (err && typeof err === 'object' && 'status' in err) {
+			throw err;
+		}
+		throw error(500, 'Failed to generate photos PDF');
+	}
+};
+
