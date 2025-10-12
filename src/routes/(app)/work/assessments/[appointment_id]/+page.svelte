@@ -12,6 +12,7 @@
 	import VehicleValuesTab from '$lib/components/assessment/VehicleValuesTab.svelte';
 	import PreIncidentEstimateTab from '$lib/components/assessment/PreIncidentEstimateTab.svelte';
 	import EstimateTab from '$lib/components/assessment/EstimateTab.svelte';
+	import FinalizeTab from '$lib/components/assessment/FinalizeTab.svelte';
 	import AssessmentNotes from '$lib/components/assessment/AssessmentNotes.svelte';
 	import { assessmentService } from '$lib/services/assessment.service';
 	import { vehicleIdentificationService } from '$lib/services/vehicle-identification.service';
@@ -23,6 +24,7 @@
 	import { estimateService } from '$lib/services/estimate.service';
 	import { preIncidentEstimateService } from '$lib/services/pre-incident-estimate.service';
 	import { vehicleValuesService } from '$lib/services/vehicle-values.service';
+	import { documentGenerationService } from '$lib/services/document-generation.service';
 	import { getTabCompletionStatus } from '$lib/utils/validation';
 	import type {
 		VehicleIdentification,
@@ -499,6 +501,59 @@
 		// Redirect to appointment or inspection
 		goto(`/work/appointments/${data.appointment.id}`);
 	}
+
+	// Document generation handlers
+	async function handleGenerateDocument(type: string) {
+		try {
+			await documentGenerationService.generateDocument(data.assessment.id, type as any);
+			await invalidateAll();
+		} catch (error) {
+			console.error('Error generating document:', error);
+			throw error;
+		}
+	}
+
+	function handleDownloadDocument(type: string) {
+		const assessment = data.assessment;
+		let url: string | null = null;
+		let filename = '';
+
+		switch (type) {
+			case 'report':
+				url = assessment.report_pdf_url || null;
+				filename = `${assessment.assessment_number}_Report.pdf`;
+				break;
+			case 'estimate':
+				url = assessment.estimate_pdf_url || null;
+				filename = `${assessment.assessment_number}_Estimate.pdf`;
+				break;
+			case 'photos_pdf':
+				url = assessment.photos_pdf_url || null;
+				filename = `${assessment.assessment_number}_Photos.pdf`;
+				break;
+			case 'photos_zip':
+				url = assessment.photos_zip_url || null;
+				filename = `${assessment.assessment_number}_Photos.zip`;
+				break;
+			case 'complete':
+				// TODO: Generate complete package ZIP
+				break;
+		}
+
+		if (url) {
+			documentGenerationService.downloadDocument(url, filename);
+		}
+	}
+
+	async function handleGenerateAll() {
+		try {
+			await documentGenerationService.generateAllDocuments(data.assessment.id);
+			await invalidateAll();
+		} catch (error) {
+			console.error('Error generating all documents:', error);
+			throw error;
+		}
+	}
 </script>
 
 <AssessmentLayout
@@ -618,16 +673,25 @@
 			onUpdateAssessmentResult={handleUpdateAssessmentResult}
 			onComplete={handleCompleteEstimate}
 		/>
+	{:else if currentTab === 'finalize'}
+		<FinalizeTab
+			assessment={data.assessment}
+			onGenerateDocument={handleGenerateDocument}
+			onDownloadDocument={handleDownloadDocument}
+			onGenerateAll={handleGenerateAll}
+		/>
 	{/if}
 
-	<!-- Global Assessment Notes (visible on all tabs) -->
-	<div class="mt-6">
-		<AssessmentNotes
-			assessmentId={data.assessment.id}
-			notes={data.notes}
-			lastSaved={lastSaved}
-			onUpdate={async () => await invalidateAll()}
-		/>
-	</div>
+	<!-- Global Assessment Notes (visible on all tabs except finalize) -->
+	{#if currentTab !== 'finalize'}
+		<div class="mt-6">
+			<AssessmentNotes
+				assessmentId={data.assessment.id}
+				notes={data.notes}
+				lastSaved={lastSaved}
+				onUpdate={async () => await invalidateAll()}
+			/>
+		</div>
+	{/if}
 </AssessmentLayout>
 

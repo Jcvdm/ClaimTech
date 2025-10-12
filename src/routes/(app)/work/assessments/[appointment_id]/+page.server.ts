@@ -18,6 +18,7 @@ import { requestService } from '$lib/services/request.service';
 import { vehicleValuesService } from '$lib/services/vehicle-values.service';
 import { clientService } from '$lib/services/client.service';
 import { repairerService } from '$lib/services/repairer.service';
+import { companySettingsService } from '$lib/services/company-settings.service';
 
 export const load: PageServerLoad = async ({ params }) => {
 	try {
@@ -70,7 +71,8 @@ export const load: PageServerLoad = async ({ params }) => {
 			notes,
 			inspection,
 			request,
-			repairers
+			repairers,
+			companySettings
 		] = await Promise.all([
 			vehicleIdentificationService.getByAssessment(assessment.id),
 			exterior360Service.getByAssessment(assessment.id),
@@ -84,7 +86,8 @@ export const load: PageServerLoad = async ({ params }) => {
 			assessmentNotesService.getNotesByAssessment(assessment.id),
 			inspectionService.getInspection(appointment.inspection_id),
 			requestService.getRequest(appointment.request_id),
-			repairerService.listRepairers(true)
+			repairerService.listRepairers(true),
+			companySettingsService.getSettings()
 		]);
 
 		// Auto-create vehicle values if it doesn't exist (for existing assessments)
@@ -130,7 +133,8 @@ export const load: PageServerLoad = async ({ params }) => {
 			inspection,
 			request,
 			client,
-			repairers
+			repairers,
+			companySettings
 		};
 	} catch (err) {
 		console.error('Error loading assessment:', err);

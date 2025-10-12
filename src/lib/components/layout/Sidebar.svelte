@@ -74,7 +74,7 @@
 		},
 		{
 			label: 'Settings',
-			items: [{ label: 'Settings', href: '/settings', icon: Settings }]
+			items: [{ label: 'Company Settings', href: '/settings', icon: Settings }]
 		}
 	];
 

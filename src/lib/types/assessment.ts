@@ -75,6 +75,21 @@ export interface Assessment {
 	submitted_at?: string | null;
 	created_at: string;
 	updated_at: string;
+
+	// Document generation fields
+	report_pdf_url?: string | null;
+	report_pdf_path?: string | null;
+	estimate_pdf_url?: string | null;
+	estimate_pdf_path?: string | null;
+	photos_pdf_url?: string | null;
+	photos_pdf_path?: string | null;
+	photos_zip_url?: string | null;
+	photos_zip_path?: string | null;
+	documents_generated_at?: string | null;
+	report_number?: string | null;
+	assessor_name?: string | null;
+	assessor_contact?: string | null;
+	assessor_email?: string | null;
 }
 
 // Vehicle identification interface
@@ -608,3 +623,47 @@ export interface CreateVehicleValuesInput {
 }
 
 export interface UpdateVehicleValuesInput extends Partial<CreateVehicleValuesInput> {}
+
+// Company settings for document headers
+export interface CompanySettings {
+	id: string;
+	company_name: string;
+	po_box: string;
+	city: string;
+	province: string;
+	postal_code: string;
+	phone: string;
+	fax: string;
+	email: string;
+	website: string;
+	logo_url?: string | null;
+	created_at: string;
+	updated_at: string;
+}
+
+// Document generation status
+export interface DocumentGenerationStatus {
+	report_generated: boolean;
+	estimate_generated: boolean;
+	photos_pdf_generated: boolean;
+	photos_zip_generated: boolean;
+	all_generated: boolean;
+	generated_at?: string | null;
+}
+
+// Document types
+export type DocumentType = 'report' | 'estimate' | 'photos_pdf' | 'photos_zip' | 'complete';
+
+// Input types for company settings
+export interface UpdateCompanySettingsInput {
+	company_name?: string;
+	po_box?: string;
+	city?: string;
+	province?: string;
+	postal_code?: string;
+	phone?: string;
+	fax?: string;
+	email?: string;
+	website?: string;
+	logo_url?: string;
+}

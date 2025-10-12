@@ -1,0 +1,97 @@
+<script lang="ts">
+	import { Card } from '$lib/components/ui/card';
+	import { Button } from '$lib/components/ui/button';
+	import { Badge } from '$lib/components/ui/badge';
+	import { CheckCircle, Circle, Loader2, Download, FileText } from 'lucide-svelte';
+	import type { ComponentType } from 'svelte';
+
+	interface Props {
+		title: string;
+		description: string;
+		icon: ComponentType;
+		generated: boolean;
+		generatedAt?: string | null;
+		generating: boolean;
+		onGenerate: () => void;
+		onDownload: () => void;
+	}
+
+	let {
+		title,
+		description,
+		icon,
+		generated,
+		generatedAt = null,
+		generating,
+		onGenerate,
+		onDownload
+	}: Props = $props();
+
+	function formatDate(dateString: string): string {
+		return new Date(dateString).toLocaleString('en-ZA', {
+			year: 'numeric',
+			month: '2-digit',
+			day: '2-digit',
+			hour: '2-digit',
+			minute: '2-digit'
+		});
+	}
+</script>
+
+<Card class="p-6">
+	<div class="flex items-start justify-between">
+		<div class="flex items-start gap-4">
+			<div class="rounded-lg bg-blue-50 p-3">
+				<svelte:component this={icon} class="h-6 w-6 text-blue-600" />
+			</div>
+			<div class="flex-1">
+				<h3 class="text-lg font-semibold text-gray-900">{title}</h3>
+				<p class="mt-1 text-sm text-gray-600">{description}</p>
+
+				<div class="mt-3 flex items-center gap-2">
+					{#if generated}
+						<Badge variant="default" class="bg-green-100 text-green-800">
+							<CheckCircle class="mr-1 h-3 w-3" />
+							Generated
+						</Badge>
+						{#if generatedAt}
+							<span class="text-xs text-gray-500">
+								{formatDate(generatedAt)}
+							</span>
+						{/if}
+					{:else}
+						<Badge variant="secondary">
+							<Circle class="mr-1 h-3 w-3" />
+							Not Generated
+						</Badge>
+					{/if}
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<div class="mt-4 flex gap-2">
+		<Button
+			onclick={onGenerate}
+			disabled={generating}
+			variant={generated ? 'outline' : 'default'}
+			class="flex-1"
+		>
+			{#if generating}
+				<Loader2 class="mr-2 h-4 w-4 animate-spin" />
+				Generating...
+			{:else}
+				<FileText class="mr-2 h-4 w-4" />
+				{generated ? 'Regenerate' : 'Generate'}
+			{/if}
+		</Button>
+
+		{#if generated}
+			<Button onclick={onDownload} variant="outline">
+				<Download class="mr-2 h-4 w-4" />
+				Download
+			</Button>
+		{/if}
+	</div>
+</Card>
+

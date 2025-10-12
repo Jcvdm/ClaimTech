@@ -13,7 +13,8 @@
 		Gauge,
 		AlertTriangle,
 		DollarSign,
-		ClipboardList
+		ClipboardList,
+		FileCheck
 	} from 'lucide-svelte';
 	import type { Assessment } from '$lib/types/assessment';
 
@@ -52,7 +53,8 @@
 		{ id: 'damage', label: 'Damage ID', icon: AlertTriangle },
 		{ id: 'values', label: 'Values', icon: DollarSign },
 		{ id: 'pre-incident', label: 'Pre-Incident', icon: DollarSign },
-		{ id: 'estimate', label: 'Estimate', icon: DollarSign }
+		{ id: 'estimate', label: 'Estimate', icon: DollarSign },
+		{ id: 'finalize', label: 'Finalize', icon: FileCheck }
 	];
 
 	const totalTabs = tabs.length;
@@ -79,7 +81,8 @@
 			'Damage ID': 'Dmg',
 			'Values': 'Val',
 			'Pre-Incident': 'Pre',
-			'Estimate': 'Est'
+			'Estimate': 'Est',
+			'Finalize': 'Fin'
 		};
 		return shortLabels[label] || label;
 	}
