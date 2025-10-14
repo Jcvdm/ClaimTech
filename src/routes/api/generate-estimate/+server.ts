@@ -25,14 +25,13 @@ export const POST: RequestHandler = async ({ request }) => {
 			throw error(404, 'Assessment not found');
 		}
 
-		// Fetch related data
+		// Fetch related data (Step 1: fetch everything except repairer)
 		const [
 			{ data: vehicleIdentification },
 			{ data: estimate },
 			{ data: companySettings },
 			{ data: requestData },
-			{ data: client },
-			{ data: repairer }
+			{ data: client }
 		] = await Promise.all([
 			supabase
 				.from('assessment_vehicle_identification')
@@ -53,11 +52,13 @@ export const POST: RequestHandler = async ({ request }) => {
 								? supabase.from('clients').select('*').eq('id', data.client_id).single()
 								: { data: null }
 						)
-				: Promise.resolve({ data: null }),
-			estimate?.repairer_id
-				? supabase.from('repairers').select('*').eq('id', estimate.repairer_id).single()
 				: Promise.resolve({ data: null })
 		]);
+
+		// Step 2: Fetch repairer using estimate data (now that estimate is available)
+		const { data: repairer } = estimate?.repairer_id
+			? await supabase.from('repairers').select('*').eq('id', estimate.repairer_id).single()
+			: { data: null };
 
 		// Line items are stored in the estimate JSONB column
 		const lineItems = estimate?.line_items || [];

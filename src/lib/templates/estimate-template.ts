@@ -43,28 +43,34 @@ export function generateEstimateHTML(data: EstimateData): string {
 		return `R ${amount.toLocaleString('en-ZA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 	};
 
-	// Group line items by category
-	const parts = lineItems.filter((item) => item.category === 'parts');
-	const repairs = lineItems.filter((item) => item.category === 'repairs');
-	const other = lineItems.filter((item) => item.category === 'other');
+	// Calculate totals from all line items (don't filter by category - use process_type instead)
+	const calculatedSubtotal = lineItems.reduce((sum, item) => sum + (item.total || 0), 0);
 
-	// Calculate totals
-	const partsTotal = parts.reduce((sum, item) => sum + (item.total || 0), 0);
-	const repairsTotal = repairs.reduce((sum, item) => sum + (item.total || 0), 0);
-	const otherTotal = other.reduce((sum, item) => sum + (item.total || 0), 0);
-	const subtotal = partsTotal + repairsTotal + otherTotal;
-	const vat = subtotal * 0.15;
-	const grandTotal = subtotal + vat;
+	// Convert database values to numbers (they come as strings from PostgreSQL DECIMAL type)
+	const dbSubtotal = estimate?.subtotal ? Number(estimate.subtotal) : 0;
+	const dbVatAmount = estimate?.vat_amount ? Number(estimate.vat_amount) : 0;
+	const dbTotal = estimate?.total ? Number(estimate.total) : 0;
 
-	const renderLineItems = (items: EstimateLineItem[], prefix: string) => {
+	// Use calculated totals if line items exist, otherwise use database values
+	const subtotal = lineItems.length > 0 && calculatedSubtotal > 0
+		? calculatedSubtotal
+		: dbSubtotal;
+	const vat = lineItems.length > 0 && calculatedSubtotal > 0
+		? (subtotal * ((estimate?.vat_percentage || 15) / 100))
+		: dbVatAmount;
+	const grandTotal = lineItems.length > 0 && calculatedSubtotal > 0
+		? (subtotal + vat)
+		: dbTotal;
+
+	const renderLineItems = (items: EstimateLineItem[]) => {
 		return items
 			.map(
 				(item, index) => `
 			<tr>
-				<td>${prefix}${(index + 1).toString().padStart(3, '0')}</td>
+				<td>${item.process_type}${(index + 1).toString().padStart(3, '0')}</td>
 				<td>${item.description || ''}</td>
-				<td style="text-align: right;">${item.quantity || 0}</td>
-				<td style="text-align: right;">${formatCurrency(item.unit_price)}</td>
+				<td style="text-align: right;">-</td>
+				<td style="text-align: right;">-</td>
 				<td style="text-align: right;">${formatCurrency(item.total)}</td>
 			</tr>
 		`
@@ -381,38 +387,11 @@ export function generateEstimateHTML(data: EstimateData): string {
 			</tr>
 		</thead>
 		<tbody>
-			${parts.length > 0 ? `
+			${lineItems.length > 0 ? renderLineItems(lineItems) : `
 			<tr>
-				<td colspan="5" class="category-header">PARTS</td>
+				<td colspan="5" style="text-align: center; padding: 20px;">No line items</td>
 			</tr>
-			${renderLineItems(parts, 'P')}
-			<tr class="subtotal-row">
-				<td colspan="4" style="text-align: right;">Parts Subtotal:</td>
-				<td style="text-align: right;">${formatCurrency(partsTotal)}</td>
-			</tr>
-			` : ''}
-
-			${repairs.length > 0 ? `
-			<tr>
-				<td colspan="5" class="category-header">REPAIRS</td>
-			</tr>
-			${renderLineItems(repairs, 'R')}
-			<tr class="subtotal-row">
-				<td colspan="4" style="text-align: right;">Repairs Subtotal:</td>
-				<td style="text-align: right;">${formatCurrency(repairsTotal)}</td>
-			</tr>
-			` : ''}
-
-			${other.length > 0 ? `
-			<tr>
-				<td colspan="5" class="category-header">OTHER</td>
-			</tr>
-			${renderLineItems(other, 'O')}
-			<tr class="subtotal-row">
-				<td colspan="4" style="text-align: right;">Other Subtotal:</td>
-				<td style="text-align: right;">${formatCurrency(otherTotal)}</td>
-			</tr>
-			` : ''}
+			`}
 		</tbody>
 	</table>
 

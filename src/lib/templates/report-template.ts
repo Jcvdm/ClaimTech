@@ -268,7 +268,7 @@ export function generateReportHTML(data: ReportData): string {
 			</div>
 			<div class="info-row">
 				<span class="info-label">Odometer:</span>
-				<span class="info-value">${vehicleIdentification?.odometer_reading ? `${vehicleIdentification.odometer_reading.toLocaleString()} km` : 'N/A'}</span>
+				<span class="info-value">${interiorMechanical?.mileage_reading ? `${interiorMechanical.mileage_reading.toLocaleString()} km` : 'N/A'}</span>
 			</div>
 		</div>
 	</div>

@@ -47,7 +47,9 @@ class DocumentGenerationService {
 	 */
 	async generateDocument(assessmentId: string, documentType: DocumentType): Promise<string> {
 		try {
-			const response = await fetch(`/api/generate-${documentType}`, {
+			// Convert underscores to hyphens for API route (e.g., photos_pdf -> photos-pdf)
+			const apiPath = documentType.replace(/_/g, '-');
+			const response = await fetch(`/api/generate-${apiPath}`, {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({ assessmentId })
@@ -116,12 +118,11 @@ class DocumentGenerationService {
 
 	/**
 	 * Download a document
+	 * Opens in new tab instead of navigating current page
 	 */
 	downloadDocument(url: string, filename: string): void {
-		const link = document.createElement('a');
-		link.href = url;
-		link.download = filename;
-		link.click();
+		// Open in new tab - this prevents navigating away from current page
+		window.open(url, '_blank');
 	}
 }
 
