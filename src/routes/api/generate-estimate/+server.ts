@@ -125,8 +125,9 @@ export const POST: RequestHandler = async ({ request }) => {
 			}
 		});
 
-		// Upload to Supabase Storage
-		const fileName = `${assessment.assessment_number}_Estimate.pdf`;
+		// Upload to Supabase Storage with timestamp to avoid caching
+		const timestamp = new Date().getTime();
+		const fileName = `${assessment.assessment_number}_Estimate_${timestamp}.pdf`;
 		const filePath = `assessments/${assessmentId}/estimates/${fileName}`;
 
 		const { error: uploadError } = await supabase.storage
