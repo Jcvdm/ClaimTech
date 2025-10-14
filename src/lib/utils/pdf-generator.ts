@@ -123,12 +123,25 @@ async function generatePDFInternal(
 
 		// Wait longer for any dynamic content to render and CSS to apply
 		console.log('Waiting for content to fully render...');
-		await new Promise((resolve) => setTimeout(resolve, 2500));
+		await new Promise((resolve) => setTimeout(resolve, 3000));
 
 		// Wait for specific elements to ensure they're rendered
 		try {
 			await page.waitForSelector('table', { timeout: 5000 });
 			console.log('Table elements found');
+
+			// Check if group headers exist and wait for them
+			const groupHeadersExist = await page.evaluate(() => {
+				return document.querySelectorAll('.group-header').length > 0;
+			});
+
+			if (groupHeadersExist) {
+				console.log('Group headers found in DOM');
+				// Extra wait to ensure styles are applied
+				await new Promise((resolve) => setTimeout(resolve, 1000));
+			} else {
+				console.warn('No group headers found in DOM');
+			}
 		} catch (e) {
 			console.warn('Table elements not found, continuing anyway');
 		}
@@ -143,6 +156,14 @@ async function generatePDFInternal(
 		} catch (screenshotError) {
 			console.error('Failed to save screenshot:', screenshotError);
 		}
+
+		// Force browser to compute all styles before PDF generation
+		await page.evaluate(() => {
+			// Force reflow by accessing offsetHeight
+			document.body.offsetHeight;
+			// Force style recalculation
+			window.getComputedStyle(document.body).getPropertyValue('color');
+		});
 
 		// Debug: Extract the actual HTML content that Puppeteer is rendering
 		try {
@@ -165,6 +186,22 @@ async function generatePDFInternal(
 			console.log('Contains "N - New Part":', renderedHTML.includes('N - New Part'));
 			console.log('Contains "R - Repair":', renderedHTML.includes('R - Repair'));
 			console.log('Contains "group-header":', renderedHTML.includes('group-header'));
+
+			// Check computed styles on group headers
+			const groupHeaderStyles = await page.evaluate(() => {
+				const header = document.querySelector('.group-header td');
+				if (header) {
+					const styles = window.getComputedStyle(header);
+					return {
+						backgroundColor: styles.backgroundColor,
+						fontWeight: styles.fontWeight,
+						borderTop: styles.borderTop,
+						display: styles.display
+					};
+				}
+				return null;
+			});
+			console.log('Group header computed styles:', groupHeaderStyles);
 
 			// Extract totals section from rendered HTML
 			const totalsMatch = renderedHTML.match(/<!-- Totals Section -->([\s\S]*?)<\/div>/);
