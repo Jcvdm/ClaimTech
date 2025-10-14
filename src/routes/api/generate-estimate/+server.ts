@@ -27,11 +27,11 @@ export const POST: RequestHandler = async ({ request }) => {
 
 		// Fetch related data (Step 1: fetch everything except repairer)
 		const [
-			{ data: vehicleIdentification },
-			{ data: estimate },
-			{ data: companySettings },
-			{ data: requestData },
-			{ data: client }
+			{ data: vehicleIdentification, error: vehicleError },
+			{ data: estimate, error: estimateError },
+			{ data: companySettings, error: settingsError },
+			{ data: requestData, error: requestError },
+			{ data: client, error: clientError }
 		] = await Promise.all([
 			supabase
 				.from('assessment_vehicle_identification')
@@ -55,6 +55,11 @@ export const POST: RequestHandler = async ({ request }) => {
 				: Promise.resolve({ data: null })
 		]);
 
+		// Check for errors
+		if (estimateError) {
+			console.error('Estimate fetch error:', estimateError);
+		}
+
 		// Step 2: Fetch repairer using estimate data (now that estimate is available)
 		const { data: repairer } = estimate?.repairer_id
 			? await supabase.from('repairers').select('*').eq('id', estimate.repairer_id).single()
@@ -62,6 +67,21 @@ export const POST: RequestHandler = async ({ request }) => {
 
 		// Line items are stored in the estimate JSONB column
 		const lineItems = estimate?.line_items || [];
+
+		// Debug logging
+		console.log('=== Estimate Data Debug ===');
+		console.log('Assessment ID:', assessmentId);
+		console.log('Estimate exists:', !!estimate);
+		console.log('Estimate object keys:', estimate ? Object.keys(estimate) : 'null');
+		console.log('Estimate subtotal:', estimate?.subtotal, 'Type:', typeof estimate?.subtotal);
+		console.log('Estimate vat_amount:', estimate?.vat_amount, 'Type:', typeof estimate?.vat_amount);
+		console.log('Estimate total:', estimate?.total, 'Type:', typeof estimate?.total);
+		console.log('Line items count:', lineItems.length);
+		if (lineItems.length > 0) {
+			console.log('First line item:', JSON.stringify(lineItems[0], null, 2));
+		}
+		console.log('Full estimate object:', JSON.stringify(estimate, null, 2));
+		console.log('===========================');
 
 		// Generate HTML
 		const html = generateEstimateHTML({
@@ -74,6 +94,25 @@ export const POST: RequestHandler = async ({ request }) => {
 			client,
 			repairer
 		});
+
+		// Debug: Check if HTML contains the values
+		console.log('=== HTML Debug ===');
+		console.log('HTML contains "R 34 448":', html.includes('R 34 448'));
+		console.log('HTML contains "R 39 615":', html.includes('R 39 615'));
+		console.log('HTML contains "No line items":', html.includes('No line items'));
+		// Extract the totals section
+		const totalsMatch = html.match(/<!-- Totals Section -->([\s\S]*?)<\/div>/);
+		if (totalsMatch) {
+			console.log('Totals section HTML:', totalsMatch[0].substring(0, 500));
+		}
+		console.log('==================');
+
+		// Save HTML to file for debugging
+		const fs = await import('fs');
+		const path = await import('path');
+		const debugPath = path.join(process.cwd(), 'debug-estimate.html');
+		fs.writeFileSync(debugPath, html, 'utf-8');
+		console.log('HTML saved to:', debugPath);
 
 		// Generate PDF
 		const pdfBuffer = await generatePDF(html, {
