@@ -41,6 +41,20 @@
 		all: false
 	});
 
+	let progress = $state({
+		report: 0,
+		estimate: 0,
+		photos_pdf: 0,
+		photos_zip: 0
+	});
+
+	let progressMessage = $state({
+		report: '',
+		estimate: '',
+		photos_pdf: '',
+		photos_zip: ''
+	});
+
 	let error = $state<string | null>(null);
 
 	// Calculate completion status
@@ -55,45 +69,83 @@
 
 	async function handleGenerateReport() {
 		generating.report = true;
+		progress.report = 0;
+		progressMessage.report = 'Starting...';
 		error = null;
 		try {
-			await onGenerateDocument('report');
+			// Call service directly with progress callback
+			await documentGenerationService.generateDocument(
+				assessment.id,
+				'report',
+				(prog, msg) => {
+					progress.report = prog;
+					progressMessage.report = msg;
+				}
+			);
 			await loadGenerationStatus();
 		} catch (err) {
 			error = err instanceof Error ? err.message : 'Failed to generate report';
 		} finally {
 			generating.report = false;
+			progress.report = 0;
+			progressMessage.report = '';
 		}
 	}
 
 	async function handleGenerateEstimate() {
 		generating.estimate = true;
+		progress.estimate = 0;
+		progressMessage.estimate = 'Starting...';
 		error = null;
 		try {
-			await onGenerateDocument('estimate');
+			// Call service directly with progress callback
+			await documentGenerationService.generateDocument(
+				assessment.id,
+				'estimate',
+				(prog, msg) => {
+					progress.estimate = prog;
+					progressMessage.estimate = msg;
+				}
+			);
 			await loadGenerationStatus();
 		} catch (err) {
 			error = err instanceof Error ? err.message : 'Failed to generate estimate';
 		} finally {
 			generating.estimate = false;
+			progress.estimate = 0;
+			progressMessage.estimate = '';
 		}
 	}
 
 	async function handleGeneratePhotosPDF() {
 		generating.photos_pdf = true;
+		progress.photos_pdf = 0;
+		progressMessage.photos_pdf = 'Starting...';
 		error = null;
 		try {
-			await onGenerateDocument('photos_pdf');
+			// Call service directly with progress callback
+			await documentGenerationService.generateDocument(
+				assessment.id,
+				'photos_pdf',
+				(prog, msg) => {
+					progress.photos_pdf = prog;
+					progressMessage.photos_pdf = msg;
+				}
+			);
 			await loadGenerationStatus();
 		} catch (err) {
 			error = err instanceof Error ? err.message : 'Failed to generate photos PDF';
 		} finally {
 			generating.photos_pdf = false;
+			progress.photos_pdf = 0;
+			progressMessage.photos_pdf = '';
 		}
 	}
 
 	async function handleGeneratePhotosZIP() {
 		generating.photos_zip = true;
+		progress.photos_zip = 0;
+		progressMessage.photos_zip = 'Starting...';
 		error = null;
 		try {
 			await onGenerateDocument('photos_zip');
@@ -102,6 +154,8 @@
 			error = err instanceof Error ? err.message : 'Failed to generate photos ZIP';
 		} finally {
 			generating.photos_zip = false;
+			progress.photos_zip = 0;
+			progressMessage.photos_zip = '';
 		}
 	}
 
@@ -188,6 +242,8 @@
 				generated={generationStatus.report_generated}
 				generatedAt={assessment.documents_generated_at}
 				generating={generating.report}
+				progress={progress.report}
+				progressMessage={progressMessage.report}
 				onGenerate={handleGenerateReport}
 				onDownload={() => onDownloadDocument('report')}
 			/>
@@ -199,6 +255,8 @@
 				generated={generationStatus.estimate_generated}
 				generatedAt={assessment.documents_generated_at}
 				generating={generating.estimate}
+				progress={progress.estimate}
+				progressMessage={progressMessage.estimate}
 				onGenerate={handleGenerateEstimate}
 				onDownload={() => onDownloadDocument('estimate')}
 			/>
@@ -210,6 +268,8 @@
 				generated={generationStatus.photos_pdf_generated}
 				generatedAt={assessment.documents_generated_at}
 				generating={generating.photos_pdf}
+				progress={progress.photos_pdf}
+				progressMessage={progressMessage.photos_pdf}
 				onGenerate={handleGeneratePhotosPDF}
 				onDownload={() => onDownloadDocument('photos_pdf')}
 			/>
@@ -221,6 +281,8 @@
 				generated={generationStatus.photos_zip_generated}
 				generatedAt={assessment.documents_generated_at}
 				generating={generating.photos_zip}
+				progress={progress.photos_zip}
+				progressMessage={progressMessage.photos_zip}
 				onGenerate={handleGeneratePhotosZIP}
 				onDownload={() => onDownloadDocument('photos_zip')}
 			/>

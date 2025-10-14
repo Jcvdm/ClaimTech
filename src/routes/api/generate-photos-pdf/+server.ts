@@ -1,37 +1,49 @@
-import { json, error } from '@sveltejs/kit';
+import { error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { supabase } from '$lib/supabase';
 import { generatePDF } from '$lib/utils/pdf-generator';
 import { generatePhotosHTML } from '$lib/templates/photos-template';
+import { createStreamingResponse } from '$lib/utils/streaming-response';
 
 export const POST: RequestHandler = async ({ request }) => {
-	let assessmentId: string | undefined;
-	try {
-		const body = await request.json();
-		assessmentId = body.assessmentId;
+	const body = await request.json();
+	const assessmentId = body.assessmentId;
 
-		if (!assessmentId) {
-			throw error(400, 'Assessment ID is required');
-		}
+	if (!assessmentId) {
+		throw error(400, 'Assessment ID is required');
+	}
 
-		// Fetch assessment data
-		const { data: assessment, error: assessmentError } = await supabase
-			.from('assessments')
-			.select('*')
-			.eq('id', assessmentId)
-			.single();
+	return createStreamingResponse(async function* () {
+		try {
+			yield { status: 'processing', progress: 5, message: 'Fetching assessment data...' };
 
-		if (assessmentError || !assessment) {
-			throw error(404, 'Assessment not found');
-		}
+			// Fetch assessment data
+			const { data: assessment, error: assessmentError } = await supabase
+				.from('assessments')
+				.select('*')
+				.eq('id', assessmentId)
+				.single();
 
-		// First get the estimates to get their IDs
-		const [{ data: estimate }, { data: preIncidentEstimate }] = await Promise.all([
-			supabase.from('assessment_estimates').select('id').eq('assessment_id', assessmentId).single(),
-			supabase.from('pre_incident_estimates').select('id').eq('assessment_id', assessmentId).single()
-		]);
+			if (assessmentError || !assessment) {
+				yield {
+					status: 'error',
+					progress: 0,
+					error: 'Assessment not found'
+				};
+				return;
+			}
 
-		// Fetch related data with photos
+			yield { status: 'processing', progress: 15, message: 'Loading photo data...' };
+
+			// First get the estimates to get their IDs
+			const [{ data: estimate }, { data: preIncidentEstimate }] = await Promise.all([
+				supabase.from('assessment_estimates').select('id').eq('assessment_id', assessmentId).single(),
+				supabase.from('pre_incident_estimates').select('id').eq('assessment_id', assessmentId).single()
+			]);
+
+			yield { status: 'processing', progress: 25, message: 'Collecting all photos...' };
+
+			// Fetch related data with photos
 		const [
 			{ data: vehicleIdentification },
 			{ data: exterior360 },
@@ -186,10 +198,6 @@ export const POST: RequestHandler = async ({ request }) => {
 		}
 
 		// Tire & Rim Photos
-		console.log('=== Tire Photos Debug ===');
-		console.log('Tyres data:', tyres);
-		console.log('Tyres count:', tyres?.length || 0);
-
 		if (tyres && tyres.length > 0) {
 			const tyrePhotos = [];
 			tyres.forEach((tyre: any) => {
@@ -268,87 +276,117 @@ export const POST: RequestHandler = async ({ request }) => {
 
 		// Generate HTML
 		const html = generatePhotosHTML({
-			assessment,
-			companySettings,
-			sections
-		});
-
-		// Generate PDF
-		const pdfBuffer = await generatePDF(html, {
-			format: 'A4',
-			margin: {
-				top: '15mm',
-				right: '15mm',
-				bottom: '15mm',
-				left: '15mm'
-			}
-		});
-
-		// Upload to Supabase Storage with timestamp to avoid caching
-		const timestamp = new Date().getTime();
-		const fileName = `${assessment.assessment_number}_Photos_${timestamp}.pdf`;
-		const filePath = `assessments/${assessmentId}/photos/${fileName}`;
-
-		const { error: uploadError } = await supabase.storage
-			.from('documents')
-			.upload(filePath, pdfBuffer, {
-				contentType: 'application/pdf',
-				upsert: true
+				assessment,
+				companySettings,
+				sections
 			});
 
-		if (uploadError) {
-			console.error('Upload error:', uploadError);
-			throw error(500, 'Failed to upload PDF to storage');
+			yield { status: 'processing', progress: 60, message: 'Rendering PDF with photos (this may take 1-2 minutes)...' };
+
+			// Generate PDF - wrap in try-catch to handle Puppeteer errors
+			let pdfBuffer: Buffer;
+			try {
+				pdfBuffer = await generatePDF(html, {
+					format: 'A4',
+					margin: {
+						top: '15mm',
+						right: '15mm',
+						bottom: '15mm',
+						left: '15mm'
+					}
+				});
+			} catch (pdfError) {
+				console.error('PDF generation error:', pdfError);
+				yield {
+					status: 'error',
+					progress: 0,
+					error: `Failed to generate PDF: ${pdfError instanceof Error ? pdfError.message : 'Unknown error'}`
+				};
+				return;
+			}
+
+			yield { status: 'processing', progress: 85, message: 'Uploading PDF to storage...' };
+
+			// Upload to Supabase Storage with timestamp to avoid caching
+			const timestamp = new Date().getTime();
+			const fileName = `${assessment.assessment_number}_Photos_${timestamp}.pdf`;
+			const filePath = `assessments/${assessmentId}/photos/${fileName}`;
+
+			const { error: uploadError } = await supabase.storage
+				.from('documents')
+				.upload(filePath, pdfBuffer, {
+					contentType: 'application/pdf',
+					upsert: true
+				});
+
+			if (uploadError) {
+				console.error('Upload error:', uploadError);
+				yield {
+					status: 'error',
+					progress: 0,
+					error: 'Failed to upload PDF to storage'
+				};
+				return;
+			}
+
+			yield { status: 'processing', progress: 95, message: 'Finalizing...' };
+
+			// Get public URL
+			const {
+				data: { publicUrl }
+			} = supabase.storage.from('documents').getPublicUrl(filePath);
+
+			// Update assessment with PDF URL
+			const { error: updateError } = await supabase
+				.from('assessments')
+				.update({
+					photos_pdf_url: publicUrl,
+					photos_pdf_path: filePath,
+					documents_generated_at: new Date().toISOString()
+				})
+				.eq('id', assessmentId);
+
+			if (updateError) {
+				console.error('Update error:', updateError);
+				yield {
+					status: 'error',
+					progress: 0,
+					error: 'Failed to update assessment record'
+				};
+				return;
+			}
+
+			yield {
+				status: 'complete',
+				progress: 100,
+				message: 'Photos PDF generated successfully!',
+				url: publicUrl
+			};
+
+		} catch (err) {
+
+			// Detailed error logging
+			console.error('=== Error generating photos PDF ===');
+			console.error('Error:', err);
+			if (err instanceof Error) {
+				console.error('Error message:', err.message);
+				console.error('Error stack:', err.stack);
+			}
+			console.error('Assessment ID:', assessmentId);
+			console.error('===================================');
+
+			// Provide more specific error message
+			const errorMessage =
+				err instanceof Error
+					? err.message
+					: 'An unknown error occurred while generating the photos PDF';
+
+			yield {
+				status: 'error',
+				progress: 0,
+				error: errorMessage
+			};
 		}
-
-		// Get public URL
-		const {
-			data: { publicUrl }
-		} = supabase.storage.from('documents').getPublicUrl(filePath);
-
-		// Update assessment with PDF URL
-		const { error: updateError } = await supabase
-			.from('assessments')
-			.update({
-				photos_pdf_url: publicUrl,
-				photos_pdf_path: filePath,
-				documents_generated_at: new Date().toISOString()
-			})
-			.eq('id', assessmentId);
-
-		if (updateError) {
-			console.error('Update error:', updateError);
-			throw error(500, 'Failed to update assessment record');
-		}
-
-		return json({
-			success: true,
-			url: publicUrl,
-			fileName
-		});
-	} catch (err) {
-		// Detailed error logging
-		console.error('=== Error generating photos PDF ===');
-		console.error('Error:', err);
-		if (err instanceof Error) {
-			console.error('Error message:', err.message);
-			console.error('Error stack:', err.stack);
-		}
-		console.error('Assessment ID:', assessmentId);
-		console.error('===================================');
-
-		// Return appropriate error
-		if (err && typeof err === 'object' && 'status' in err) {
-			throw err;
-		}
-
-		// Provide more specific error message
-		const errorMessage =
-			err instanceof Error
-				? err.message
-				: 'An unknown error occurred while generating the photos PDF';
-
-		throw error(500, errorMessage);
-	}
+	});
 };
 

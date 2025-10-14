@@ -1,31 +1,57 @@
-import { json, error } from '@sveltejs/kit';
+import { error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { supabase } from '$lib/supabase';
 import { generatePDF } from '$lib/utils/pdf-generator';
 import { generateEstimateHTML } from '$lib/templates/estimate-template';
+import { createStreamingResponse } from '$lib/utils/streaming-response';
 
 export const POST: RequestHandler = async ({ request }) => {
-	let assessmentId: string | undefined;
-	try {
-		const body = await request.json();
-		assessmentId = body.assessmentId;
+	const body = await request.json();
+	const assessmentId = body.assessmentId;
+	const requestId = Math.random().toString(36).substring(7);
 
-		if (!assessmentId) {
-			throw error(400, 'Assessment ID is required');
-		}
+	console.log(`\n${'='.repeat(80)}`);
+	console.log(`[${new Date().toISOString()}] [Request ${requestId}] NEW ESTIMATE GENERATION REQUEST`);
+	console.log(`[${new Date().toISOString()}] [Request ${requestId}] Assessment ID: ${assessmentId}`);
+	console.log(`${'='.repeat(80)}\n`);
 
-		// Fetch assessment data
-		const { data: assessment, error: assessmentError } = await supabase
-			.from('assessments')
-			.select('*')
-			.eq('id', assessmentId)
-			.single();
+	if (!assessmentId) {
+		throw error(400, 'Assessment ID is required');
+	}
 
-		if (assessmentError || !assessment) {
-			throw error(404, 'Assessment not found');
-		}
+	return createStreamingResponse(async function* () {
+		try {
+			console.log(`[${new Date().toISOString()}] [Request ${requestId}] Generator started`);
 
-		// Fetch related data (Step 1: fetch everything except repairer)
+			console.log(`[${new Date().toISOString()}] [Request ${requestId}] Yielding progress: 5%`);
+			yield { status: 'processing', progress: 5, message: 'Fetching assessment data...' };
+			console.log(`[${new Date().toISOString()}] [Request ${requestId}] Progress 5% yielded successfully`);
+
+			// Fetch assessment data
+			console.log(`[${new Date().toISOString()}] [Request ${requestId}] Fetching assessment from database...`);
+			const { data: assessment, error: assessmentError } = await supabase
+				.from('assessments')
+				.select('*')
+				.eq('id', assessmentId)
+				.single();
+
+			if (assessmentError || !assessment) {
+				console.error(`[${new Date().toISOString()}] [Request ${requestId}] Assessment not found:`, assessmentError);
+				yield {
+					status: 'error',
+					progress: 0,
+					error: 'Assessment not found'
+				};
+				console.log(`[${new Date().toISOString()}] [Request ${requestId}] Error yielded, returning from generator`);
+				return;
+			}
+
+			console.log(`[${new Date().toISOString()}] [Request ${requestId}] Assessment found: ${assessment.assessment_number}`);
+			console.log(`[${new Date().toISOString()}] [Request ${requestId}] Yielding progress: 15%`);
+			yield { status: 'processing', progress: 15, message: 'Loading estimate data...' };
+			console.log(`[${new Date().toISOString()}] [Request ${requestId}] Progress 15% yielded successfully`);
+
+			// Fetch related data (Step 1: fetch everything except repairer)
 		const [
 			{ data: vehicleIdentification, error: vehicleError },
 			{ data: estimate, error: estimateError },
@@ -53,143 +79,199 @@ export const POST: RequestHandler = async ({ request }) => {
 								: { data: null }
 						)
 				: Promise.resolve({ data: null })
-		]);
+			]);
 
-		// Check for errors
-		if (estimateError) {
-			console.error('Estimate fetch error:', estimateError);
-		}
-
-		// Step 2: Fetch repairer using estimate data (now that estimate is available)
-		const { data: repairer } = estimate?.repairer_id
-			? await supabase.from('repairers').select('*').eq('id', estimate.repairer_id).single()
-			: { data: null };
-
-		// Line items are stored in the estimate JSONB column
-		const lineItems = estimate?.line_items || [];
-
-		// Debug logging
-		console.log('=== Estimate Data Debug ===');
-		console.log('Assessment ID:', assessmentId);
-		console.log('Estimate exists:', !!estimate);
-		console.log('Estimate object keys:', estimate ? Object.keys(estimate) : 'null');
-		console.log('Estimate subtotal:', estimate?.subtotal, 'Type:', typeof estimate?.subtotal);
-		console.log('Estimate vat_amount:', estimate?.vat_amount, 'Type:', typeof estimate?.vat_amount);
-		console.log('Estimate total:', estimate?.total, 'Type:', typeof estimate?.total);
-		console.log('Line items count:', lineItems.length);
-		if (lineItems.length > 0) {
-			console.log('First line item:', JSON.stringify(lineItems[0], null, 2));
-		}
-		console.log('Full estimate object:', JSON.stringify(estimate, null, 2));
-		console.log('===========================');
-
-		// Generate HTML
-		const html = generateEstimateHTML({
-			assessment,
-			vehicleIdentification,
-			estimate,
-			lineItems,
-			companySettings,
-			request: requestData,
-			client,
-			repairer
-		});
-
-		// Debug: Check if HTML contains the values
-		console.log('=== HTML Debug ===');
-		console.log('HTML contains "R 34 448":', html.includes('R 34 448'));
-		console.log('HTML contains "R 39 615":', html.includes('R 39 615'));
-		console.log('HTML contains "No line items":', html.includes('No line items'));
-		// Extract the totals section
-		const totalsMatch = html.match(/<!-- Totals Section -->([\s\S]*?)<\/div>/);
-		if (totalsMatch) {
-			console.log('Totals section HTML:', totalsMatch[0].substring(0, 500));
-		}
-		console.log('==================');
-
-		// Save HTML to file for debugging
-		const fs = await import('fs');
-		const path = await import('path');
-		const debugPath = path.join(process.cwd(), 'debug-estimate.html');
-		fs.writeFileSync(debugPath, html, 'utf-8');
-		console.log('HTML saved to:', debugPath);
-
-		// Generate PDF
-		const pdfBuffer = await generatePDF(html, {
-			format: 'A4',
-			margin: {
-				top: '15mm',
-				right: '15mm',
-				bottom: '15mm',
-				left: '15mm'
+			// Check for errors
+			if (estimateError) {
+				console.error('Estimate fetch error:', estimateError);
 			}
-		});
 
-		// Upload to Supabase Storage with timestamp to avoid caching
-		const timestamp = new Date().getTime();
-		const fileName = `${assessment.assessment_number}_Estimate_${timestamp}.pdf`;
-		const filePath = `assessments/${assessmentId}/estimates/${fileName}`;
+			console.log(`[${new Date().toISOString()}] [Request ${requestId}] Yielding progress: 35%`);
+			yield { status: 'processing', progress: 35, message: 'Loading repairer and line items...' };
+			console.log(`[${new Date().toISOString()}] [Request ${requestId}] Progress 35% yielded successfully`);
 
-		const { error: uploadError } = await supabase.storage
-			.from('documents')
-			.upload(filePath, pdfBuffer, {
-				contentType: 'application/pdf',
-				upsert: true
+			// Step 2: Fetch repairer using estimate data (now that estimate is available)
+			const { data: repairer } = estimate?.repairer_id
+				? await supabase.from('repairers').select('*').eq('id', estimate.repairer_id).single()
+				: { data: null };
+
+			// Line items are stored in the estimate JSONB column
+			const lineItems = estimate?.line_items || [];
+
+			console.log(`[${new Date().toISOString()}] [Request ${requestId}] Yielding progress: 45%`);
+			yield { status: 'processing', progress: 45, message: 'Generating HTML template...' };
+			console.log(`[${new Date().toISOString()}] [Request ${requestId}] Progress 45% yielded successfully`);
+
+			// Generate HTML
+			console.log(`[${new Date().toISOString()}] [Request ${requestId}] Generating HTML template...`);
+			const html = generateEstimateHTML({
+				assessment,
+				vehicleIdentification,
+				estimate,
+				lineItems,
+				companySettings,
+				request: requestData,
+				client,
+				repairer
 			});
 
-		if (uploadError) {
-			console.error('Upload error:', uploadError);
-			throw error(500, 'Failed to upload PDF to storage');
+			console.log(`[${new Date().toISOString()}] [Request ${requestId}] Yielding progress: 60%`);
+			yield { status: 'processing', progress: 60, message: 'Rendering PDF (this may take 1-2 minutes)...' };
+			console.log(`[${new Date().toISOString()}] [Request ${requestId}] Progress 60% yielded successfully`);
+
+			// Generate PDF with keep-alive pings to prevent timeout
+			let pdfBuffer: Buffer;
+			try {
+				console.log(`[${new Date().toISOString()}] [Request ${requestId}] Starting PDF generation with Puppeteer...`);
+
+				// Start PDF generation
+				const pdfPromise = generatePDF(html, {
+					format: 'A4',
+					margin: {
+						top: '15mm',
+						right: '15mm',
+						bottom: '15mm',
+						left: '15mm'
+					}
+				});
+
+				// Send keep-alive pings every 2 seconds while PDF generates
+				let currentProgress = 62;
+				const startTime = Date.now();
+
+				// Poll until PDF is complete, sending keep-alive pings
+				while (true) {
+					const timeoutPromise = new Promise(resolve => setTimeout(resolve, 2000));
+					const result = await Promise.race([pdfPromise, timeoutPromise]);
+
+					// If result is a Buffer, PDF is complete
+					if (result instanceof Buffer) {
+						pdfBuffer = result;
+						break;
+					}
+
+					// Otherwise, it was a timeout - send keep-alive ping
+					currentProgress = Math.min(currentProgress + 2, 80);
+					const elapsed = Math.round((Date.now() - startTime) / 1000);
+					console.log(`[${new Date().toISOString()}] [Request ${requestId}] Keep-alive ping: ${currentProgress}% (${elapsed}s elapsed)`);
+					yield {
+						status: 'processing',
+						progress: currentProgress,
+						message: `Rendering PDF... (${elapsed}s)`
+					};
+				}
+
+				console.log(`[${new Date().toISOString()}] [Request ${requestId}] PDF generation completed successfully. Size: ${pdfBuffer.length} bytes`);
+			} catch (pdfError) {
+				console.error(`[${new Date().toISOString()}] [Request ${requestId}] PDF generation error:`, pdfError);
+				yield {
+					status: 'error',
+					progress: 0,
+					error: `Failed to generate PDF: ${pdfError instanceof Error ? pdfError.message : 'Unknown error'}`
+				};
+				console.log(`[${new Date().toISOString()}] [Request ${requestId}] Error yielded, returning from generator`);
+				return;
+			}
+
+			console.log(`[${new Date().toISOString()}] [Request ${requestId}] Yielding progress: 85%`);
+			yield { status: 'processing', progress: 85, message: 'Uploading PDF to storage...' };
+			console.log(`[${new Date().toISOString()}] [Request ${requestId}] Progress 85% yielded successfully`);
+
+			// Upload to Supabase Storage with timestamp to avoid caching
+			const timestamp = new Date().getTime();
+			const fileName = `${assessment.assessment_number}_Estimate_${timestamp}.pdf`;
+			const filePath = `assessments/${assessmentId}/estimates/${fileName}`;
+
+			console.log(`[${new Date().toISOString()}] [Request ${requestId}] Uploading PDF to Supabase storage: ${filePath}`);
+			const { error: uploadError } = await supabase.storage
+				.from('documents')
+				.upload(filePath, pdfBuffer, {
+					contentType: 'application/pdf',
+					upsert: true
+				});
+
+			if (uploadError) {
+				console.error(`[${new Date().toISOString()}] [Request ${requestId}] Upload error:`, uploadError);
+				yield {
+					status: 'error',
+					progress: 0,
+					error: 'Failed to upload PDF to storage'
+				};
+				console.log(`[${new Date().toISOString()}] [Request ${requestId}] Error yielded, returning from generator`);
+				return;
+			}
+
+			console.log(`[${new Date().toISOString()}] [Request ${requestId}] PDF uploaded successfully`);
+			console.log(`[${new Date().toISOString()}] [Request ${requestId}] Yielding progress: 95%`);
+			yield { status: 'processing', progress: 95, message: 'Finalizing...' };
+			console.log(`[${new Date().toISOString()}] [Request ${requestId}] Progress 95% yielded successfully`);
+
+			// Get public URL
+			console.log(`[${new Date().toISOString()}] [Request ${requestId}] Getting public URL for PDF...`);
+			const {
+				data: { publicUrl }
+			} = supabase.storage.from('documents').getPublicUrl(filePath);
+			console.log(`[${new Date().toISOString()}] [Request ${requestId}] Public URL: ${publicUrl}`);
+
+			// Update assessment with PDF URL
+			console.log(`[${new Date().toISOString()}] [Request ${requestId}] Updating assessment record with PDF URL...`);
+			const { error: updateError } = await supabase
+				.from('assessments')
+				.update({
+					estimate_pdf_url: publicUrl,
+					estimate_pdf_path: filePath,
+					documents_generated_at: new Date().toISOString()
+				})
+				.eq('id', assessmentId);
+
+			if (updateError) {
+				console.error(`[${new Date().toISOString()}] [Request ${requestId}] Update error:`, updateError);
+				yield {
+					status: 'error',
+					progress: 0,
+					error: 'Failed to update assessment record'
+				};
+				console.log(`[${new Date().toISOString()}] [Request ${requestId}] Error yielded, returning from generator`);
+				return;
+			}
+
+			console.log(`[${new Date().toISOString()}] [Request ${requestId}] Assessment record updated successfully`);
+			console.log(`[${new Date().toISOString()}] [Request ${requestId}] Yielding FINAL complete status with URL`);
+			yield {
+				status: 'complete',
+				progress: 100,
+				message: 'Estimate generated successfully!',
+				url: publicUrl
+			};
+			console.log(`[${new Date().toISOString()}] [Request ${requestId}] ✅ COMPLETE status yielded successfully - generator will now exit`);
+
+		} catch (err) {
+			console.error(`\n${'='.repeat(80)}`);
+			console.error(`[${new Date().toISOString()}] [Request ${requestId}] ❌ CAUGHT ERROR IN GENERATOR`);
+			console.error(`[${new Date().toISOString()}] [Request ${requestId}] Error:`, err);
+			if (err instanceof Error) {
+				console.error(`[${new Date().toISOString()}] [Request ${requestId}] Error message:`, err.message);
+				console.error(`[${new Date().toISOString()}] [Request ${requestId}] Error stack:`, err.stack);
+			}
+			console.error(`[${new Date().toISOString()}] [Request ${requestId}] Assessment ID: ${assessmentId}`);
+			console.error(`${'='.repeat(80)}\n`);
+
+			// Provide more specific error message
+			const errorMessage =
+				err instanceof Error
+					? err.message
+					: 'An unknown error occurred while generating the estimate';
+
+			console.log(`[${new Date().toISOString()}] [Request ${requestId}] Yielding error status to client`);
+			yield {
+				status: 'error',
+				progress: 0,
+				error: errorMessage
+			};
+			console.log(`[${new Date().toISOString()}] [Request ${requestId}] Error status yielded, generator will now exit`);
 		}
 
-		// Get public URL
-		const {
-			data: { publicUrl }
-		} = supabase.storage.from('documents').getPublicUrl(filePath);
-
-		// Update assessment with PDF URL
-		const { error: updateError } = await supabase
-			.from('assessments')
-			.update({
-				estimate_pdf_url: publicUrl,
-				estimate_pdf_path: filePath,
-				documents_generated_at: new Date().toISOString()
-			})
-			.eq('id', assessmentId);
-
-		if (updateError) {
-			console.error('Update error:', updateError);
-			throw error(500, 'Failed to update assessment record');
-		}
-
-		return json({
-			success: true,
-			url: publicUrl,
-			fileName
-		});
-	} catch (err) {
-		// Detailed error logging
-		console.error('=== Error generating estimate ===');
-		console.error('Error:', err);
-		if (err instanceof Error) {
-			console.error('Error message:', err.message);
-			console.error('Error stack:', err.stack);
-		}
-		console.error('Assessment ID:', assessmentId);
-		console.error('=================================');
-
-		// Return appropriate error
-		if (err && typeof err === 'object' && 'status' in err) {
-			throw err;
-		}
-
-		// Provide more specific error message
-		const errorMessage =
-			err instanceof Error
-				? err.message
-				: 'An unknown error occurred while generating the estimate';
-
-		throw error(500, errorMessage);
-	}
+		console.log(`[${new Date().toISOString()}] [Request ${requestId}] Generator function exiting (end of try-catch)`);
+	});
 };
 

@@ -1,32 +1,48 @@
-import { json, error } from '@sveltejs/kit';
+import { error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { supabase } from '$lib/supabase';
 import { generatePDF } from '$lib/utils/pdf-generator';
 import { generateReportHTML } from '$lib/templates/report-template';
+import { createStreamingResponse } from '$lib/utils/streaming-response';
 
 export const POST: RequestHandler = async ({ request }) => {
-	let assessmentId: string | undefined;
-	try {
-		const body = await request.json();
-		assessmentId = body.assessmentId;
+	const body = await request.json();
+	const assessmentId = body.assessmentId;
 
-		if (!assessmentId) {
-			throw error(400, 'Assessment ID is required');
-		}
+	if (!assessmentId) {
+		throw error(400, 'Assessment ID is required');
+	}
 
-		// Fetch assessment data
-		const { data: assessment, error: assessmentError } = await supabase
-			.from('assessments')
-			.select('*')
-			.eq('id', assessmentId)
-			.single();
+	// Return streaming response
+	return createStreamingResponse(async function* () {
+		// Create keep-alive mechanism - removed because we're yielding progress frequently enough
+		// const keepAlive = createKeepAlive((progress) => {}, 3000);
 
-		if (assessmentError || !assessment) {
-			throw error(404, 'Assessment not found');
-		}
+		try {
+			// keepAlive.start();
 
-		// Fetch related data
-		const [
+			yield { status: 'processing', progress: 5, message: 'Fetching assessment data...' };
+
+			// Fetch assessment data
+			const { data: assessment, error: assessmentError } = await supabase
+				.from('assessments')
+				.select('*')
+				.eq('id', assessmentId)
+				.single();
+
+			if (assessmentError || !assessment) {
+				yield {
+					status: 'error',
+					progress: 0,
+					error: 'Assessment not found'
+				};
+				return;
+			}
+
+			yield { status: 'processing', progress: 15, message: 'Loading vehicle and damage data...' };
+
+			// Fetch related data
+			const [
 			{ data: vehicleIdentification },
 			{ data: exterior360 },
 			{ data: interiorMechanical },
@@ -80,130 +96,165 @@ export const POST: RequestHandler = async ({ request }) => {
 				.select('*')
 				.eq('assessment_id', assessmentId)
 				.order('position', { ascending: true })
-		]);
+			]);
 
-		// Generate report number if not exists
-		let reportNumber = assessment.report_number;
-		if (!reportNumber) {
-			const year = new Date().getFullYear();
-			const { count } = await supabase
-				.from('assessments')
-				.select('*', { count: 'exact', head: true })
-				.like('report_number', `REP-${year}-%`);
+			yield { status: 'processing', progress: 35, message: 'Preparing report data...' };
 
-			const nextNumber = (count || 0) + 1;
-			reportNumber = `REP-${year}-${nextNumber.toString().padStart(5, '0')}`;
+			// Generate report number if not exists
+			let reportNumber = assessment.report_number;
+			if (!reportNumber) {
+				const year = new Date().getFullYear();
+				const { count } = await supabase
+					.from('assessments')
+					.select('*', { count: 'exact', head: true })
+					.like('report_number', `REP-${year}-%`);
 
-			// Update assessment with report number
-			await supabase
-				.from('assessments')
-				.update({ report_number: reportNumber })
-				.eq('id', assessmentId);
-		}
+				const nextNumber = (count || 0) + 1;
+				reportNumber = `REP-${year}-${nextNumber.toString().padStart(5, '0')}`;
 
-		// Generate HTML
-		const html = generateReportHTML({
-			assessment: { ...assessment, report_number: reportNumber },
-			vehicleIdentification,
-			exterior360,
-			interiorMechanical,
-			damageRecord,
-			companySettings,
-			request: requestData,
-			inspection,
-			client,
-			estimate,
-			repairer,
-			tyres
-		});
-
-		// Generate PDF
-		const pdfBuffer = await generatePDF(html, {
-			format: 'A4',
-			margin: {
-				top: '15mm',
-				right: '15mm',
-				bottom: '15mm',
-				left: '15mm'
+				// Update assessment with report number
+				await supabase
+					.from('assessments')
+					.update({ report_number: reportNumber })
+					.eq('id', assessmentId);
 			}
-		});
 
-		// Upload to Supabase Storage with timestamp to avoid caching
-		const timestamp = new Date().getTime();
-		const fileName = `${assessment.assessment_number}_Report_${timestamp}.pdf`;
-		const filePath = `assessments/${assessmentId}/reports/${fileName}`;
+			yield { status: 'processing', progress: 45, message: 'Generating HTML template...' };
 
-		console.log('Uploading PDF to storage...');
-		console.log('File path:', filePath);
-		console.log('PDF size:', pdfBuffer.length, 'bytes');
-
-		const { data: uploadData, error: uploadError } = await supabase.storage
-			.from('documents')
-			.upload(filePath, pdfBuffer, {
-				contentType: 'application/pdf',
-				upsert: true
+			// Generate HTML
+			const html = generateReportHTML({
+				assessment: { ...assessment, report_number: reportNumber },
+				vehicleIdentification,
+				exterior360,
+				interiorMechanical,
+				damageRecord,
+				companySettings,
+				request: requestData,
+				inspection,
+				client,
+				estimate,
+				repairer,
+				tyres
 			});
 
-		if (uploadError) {
-			console.error('=== Storage Upload Error ===');
-			console.error('Error:', uploadError);
-			console.error('Error message:', uploadError.message);
-			console.error('Error details:', JSON.stringify(uploadError, null, 2));
-			console.error('File path:', filePath);
-			console.error('PDF size:', pdfBuffer.length);
-			console.error('===========================');
-			throw error(500, `Failed to upload PDF to storage: ${uploadError.message}`);
+			yield { status: 'processing', progress: 60, message: 'Rendering PDF (this may take 1-2 minutes)...' };
+
+			// Generate PDF - wrap in try-catch to handle Puppeteer errors
+			let pdfBuffer: Buffer;
+			try {
+				pdfBuffer = await generatePDF(html, {
+					format: 'A4',
+					margin: {
+						top: '15mm',
+						right: '15mm',
+						bottom: '15mm',
+						left: '15mm'
+					}
+				});
+			} catch (pdfError) {
+				console.error('PDF generation error:', pdfError);
+				yield {
+					status: 'error',
+					progress: 0,
+					error: `Failed to generate PDF: ${pdfError instanceof Error ? pdfError.message : 'Unknown error'}`
+				};
+				return;
+			}
+
+			yield { status: 'processing', progress: 85, message: 'Uploading PDF to storage...' };
+
+			// Upload to Supabase Storage with timestamp to avoid caching
+			const timestamp = new Date().getTime();
+			const fileName = `${assessment.assessment_number}_Report_${timestamp}.pdf`;
+			const filePath = `assessments/${assessmentId}/reports/${fileName}`;
+
+			console.log('Uploading PDF to storage...');
+			console.log('File path:', filePath);
+			console.log('PDF size:', pdfBuffer.length, 'bytes');
+
+			const { data: uploadData, error: uploadError } = await supabase.storage
+				.from('documents')
+				.upload(filePath, pdfBuffer, {
+					contentType: 'application/pdf',
+					upsert: true
+				});
+
+			if (uploadError) {
+				console.error('=== Storage Upload Error ===');
+				console.error('Error:', uploadError);
+				console.error('Error message:', uploadError.message);
+				console.error('Error details:', JSON.stringify(uploadError, null, 2));
+				console.error('File path:', filePath);
+				console.error('PDF size:', pdfBuffer.length);
+				console.error('===========================');
+				yield {
+					status: 'error',
+					progress: 0,
+					error: `Failed to upload PDF to storage: ${uploadError.message}`
+				};
+				return;
+			}
+
+			console.log('PDF uploaded successfully:', uploadData);
+
+			yield { status: 'processing', progress: 95, message: 'Finalizing...' };
+
+			// Get public URL
+			const {
+				data: { publicUrl }
+			} = supabase.storage.from('documents').getPublicUrl(filePath);
+
+			// Update assessment with PDF URL
+			const { error: updateError } = await supabase
+				.from('assessments')
+				.update({
+					report_pdf_url: publicUrl,
+					report_pdf_path: filePath,
+					documents_generated_at: new Date().toISOString()
+				})
+				.eq('id', assessmentId);
+
+			if (updateError) {
+				console.error('Update error:', updateError);
+				yield {
+					status: 'error',
+					progress: 0,
+					error: 'Failed to update assessment record'
+				};
+				return;
+			}
+
+			// Send completion
+			yield {
+				status: 'complete',
+				progress: 100,
+				message: 'Report generated successfully!',
+				url: publicUrl
+			};
+
+		} catch (err) {
+
+			// Detailed error logging
+			console.error('=== Error generating report ===');
+			console.error('Error:', err);
+			if (err instanceof Error) {
+				console.error('Error message:', err.message);
+				console.error('Error stack:', err.stack);
+			}
+			console.error('Assessment ID:', assessmentId);
+			console.error('================================');
+
+			// Provide more specific error message
+			const errorMessage =
+				err instanceof Error ? err.message : 'An unknown error occurred while generating the report';
+
+			// Yield error status
+			yield {
+				status: 'error',
+				progress: 0,
+				error: errorMessage
+			};
 		}
-
-		console.log('PDF uploaded successfully:', uploadData);
-
-		// Get public URL
-		const {
-			data: { publicUrl }
-		} = supabase.storage.from('documents').getPublicUrl(filePath);
-
-		// Update assessment with PDF URL
-		const { error: updateError } = await supabase
-			.from('assessments')
-			.update({
-				report_pdf_url: publicUrl,
-				report_pdf_path: filePath,
-				documents_generated_at: new Date().toISOString()
-			})
-			.eq('id', assessmentId);
-
-		if (updateError) {
-			console.error('Update error:', updateError);
-			throw error(500, 'Failed to update assessment record');
-		}
-
-		return json({
-			success: true,
-			url: publicUrl,
-			fileName,
-			reportNumber
-		});
-	} catch (err) {
-		// Detailed error logging
-		console.error('=== Error generating report ===');
-		console.error('Error:', err);
-		if (err instanceof Error) {
-			console.error('Error message:', err.message);
-			console.error('Error stack:', err.stack);
-		}
-		console.error('Assessment ID:', assessmentId);
-		console.error('================================');
-
-		// Return appropriate error
-		if (err && typeof err === 'object' && 'status' in err) {
-			throw err;
-		}
-
-		// Provide more specific error message
-		const errorMessage =
-			err instanceof Error ? err.message : 'An unknown error occurred while generating the report';
-
-		throw error(500, errorMessage);
-	}
+	});
 };
 

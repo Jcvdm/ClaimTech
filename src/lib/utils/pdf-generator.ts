@@ -151,15 +151,6 @@ async function generatePDFInternal(
 
 		console.log('HTML content loaded successfully');
 
-		// Debug: Take a screenshot to see what Puppeteer is rendering
-		try {
-			const screenshotPath = path.join(process.cwd(), 'debug-puppeteer-screenshot.png');
-			await page.screenshot({ path: screenshotPath, fullPage: true });
-			console.log('Screenshot saved to:', screenshotPath);
-		} catch (screenshotError) {
-			console.error('Failed to save screenshot:', screenshotError);
-		}
-
 		// Force browser to compute all styles before PDF generation
 		await page.evaluate(() => {
 			// Force reflow by accessing offsetHeight
@@ -167,54 +158,6 @@ async function generatePDFInternal(
 			// Force style recalculation
 			window.getComputedStyle(document.body).getPropertyValue('color');
 		});
-
-		// Debug: Extract the actual HTML content that Puppeteer is rendering
-		try {
-			const renderedHTML = await page.content();
-			const htmlPath = path.join(process.cwd(), 'debug-puppeteer-rendered.html');
-			fs.writeFileSync(htmlPath, renderedHTML, 'utf-8');
-			console.log('Rendered HTML saved to:', htmlPath);
-
-			// Check if the rendered HTML contains the expected values
-			console.log('=== Puppeteer Rendered Content Check ===');
-			console.log('Contains "R 34 448":', renderedHTML.includes('R 34 448'));
-			console.log('Contains "R 39 615":', renderedHTML.includes('R 39 615'));
-			console.log('Contains "R 5 167":', renderedHTML.includes('R 5 167'));
-
-			// Check for group headers
-			console.log('Contains "NEW PARTS":', renderedHTML.includes('NEW PARTS'));
-			console.log('Contains "REPAIRS":', renderedHTML.includes('REPAIRS'));
-			console.log('Contains "PAINT & BLEND":', renderedHTML.includes('PAINT & BLEND'));
-			console.log('Contains "OTHER SERVICES":', renderedHTML.includes('OTHER SERVICES'));
-			console.log('Contains "N - New Part":', renderedHTML.includes('N - New Part'));
-			console.log('Contains "R - Repair":', renderedHTML.includes('R - Repair'));
-			console.log('Contains "group-header":', renderedHTML.includes('group-header'));
-
-			// Check computed styles on group headers
-			const groupHeaderStyles = await page.evaluate(() => {
-				const header = document.querySelector('.group-header td');
-				if (header) {
-					const styles = window.getComputedStyle(header);
-					return {
-						backgroundColor: styles.backgroundColor,
-						fontWeight: styles.fontWeight,
-						borderTop: styles.borderTop,
-						display: styles.display
-					};
-				}
-				return null;
-			});
-			console.log('Group header computed styles:', groupHeaderStyles);
-
-			// Extract totals section from rendered HTML
-			const totalsMatch = renderedHTML.match(/<!-- Totals Section -->([\s\S]*?)<\/div>/);
-			if (totalsMatch) {
-				console.log('Rendered totals section:', totalsMatch[0].substring(0, 500));
-			}
-			console.log('========================================');
-		} catch (htmlError) {
-			console.error('Failed to extract rendered HTML:', htmlError);
-		}
 
 		// Generate PDF with timeout
 		const pdfBuffer = await Promise.race([

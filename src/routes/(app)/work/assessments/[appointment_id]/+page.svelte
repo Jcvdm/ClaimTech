@@ -43,6 +43,7 @@
 
 	let currentTab = $state(data.assessment.current_tab || 'identification');
 	let saving = $state(false);
+	let generatingDocument = $state(false); // Flag to pause auto-save during document generation
 	let lastSaved = $state<string | null>(null);
 	let autoSaveInterval: ReturnType<typeof setInterval> | null = null;
 
@@ -85,7 +86,7 @@
 	}
 
 	async function handleSave() {
-		if (saving) return; // Prevent concurrent saves
+		if (saving || generatingDocument) return; // Prevent concurrent saves and pause during document generation
 
 		saving = true;
 		try {
@@ -504,6 +505,7 @@
 
 	// Document generation handlers
 	async function handleGenerateDocument(type: string) {
+		generatingDocument = true; // Pause auto-save during generation
 		try {
 			const url = await documentGenerationService.generateDocument(data.assessment.id, type as any);
 
@@ -520,6 +522,8 @@
 		} catch (error) {
 			console.error('Error generating document:', error);
 			throw error;
+		} finally {
+			generatingDocument = false; // Resume auto-save
 		}
 	}
 
@@ -556,12 +560,15 @@
 	}
 
 	async function handleGenerateAll() {
+		generatingDocument = true; // Pause auto-save during generation
 		try {
 			await documentGenerationService.generateAllDocuments(data.assessment.id);
 			await invalidateAll();
 		} catch (error) {
 			console.error('Error generating all documents:', error);
 			throw error;
+		} finally {
+			generatingDocument = false; // Resume auto-save
 		}
 	}
 </script>
