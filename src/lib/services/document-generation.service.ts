@@ -52,11 +52,18 @@ class DocumentGenerationService {
 
 			console.log(`Generating ${documentType} for assessment ${assessmentId}...`);
 
+			// Create abort controller with 2 minute timeout for PDF generation
+			const controller = new AbortController();
+			const timeoutId = setTimeout(() => controller.abort(), 120000); // 2 minutes
+
 			const response = await fetch(`/api/generate-${apiPath}`, {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ assessmentId })
+				body: JSON.stringify({ assessmentId }),
+				signal: controller.signal
 			});
+
+			clearTimeout(timeoutId);
 
 			if (!response.ok) {
 				// Try to parse JSON error response
@@ -77,6 +84,12 @@ class DocumentGenerationService {
 			console.log(`${documentType} generated successfully:`, url);
 			return url;
 		} catch (error) {
+			// Handle abort/timeout errors
+			if (error instanceof DOMException && error.name === 'AbortError') {
+				console.error(`Timeout generating ${documentType}:`, error);
+				throw new Error(`Generation timeout: PDF generation is taking longer than expected. Please try again or contact support if the issue persists.`);
+			}
+
 			// Handle network errors specifically
 			if (error instanceof TypeError && error.message.includes('fetch')) {
 				console.error(`Network error generating ${documentType}:`, error);
