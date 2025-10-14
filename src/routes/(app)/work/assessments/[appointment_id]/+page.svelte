@@ -505,8 +505,17 @@
 	// Document generation handlers
 	async function handleGenerateDocument(type: string) {
 		try {
-			await documentGenerationService.generateDocument(data.assessment.id, type as any);
-			await invalidateAll();
+			const url = await documentGenerationService.generateDocument(data.assessment.id, type as any);
+
+			// Automatically open the generated PDF in a new tab
+			if (url) {
+				window.open(url, '_blank');
+			}
+
+			// Refresh data after a short delay to allow download to start
+			setTimeout(async () => {
+				await invalidateAll();
+			}, 500);
 		} catch (error) {
 			console.error('Error generating document:', error);
 			throw error;

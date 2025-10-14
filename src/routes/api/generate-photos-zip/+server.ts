@@ -274,8 +274,9 @@ export const POST: RequestHandler = async ({ request }) => {
 		// Generate ZIP buffer
 		const zipBuffer = await zip.generateAsync({ type: 'nodebuffer' });
 
-		// Upload to Supabase Storage
-		const fileName = `${assessment.assessment_number}_Photos.zip`;
+		// Upload to Supabase Storage with timestamp to avoid caching
+		const timestamp = new Date().getTime();
+		const fileName = `${assessment.assessment_number}_Photos_${timestamp}.zip`;
 		const filePath = `assessments/${assessmentId}/photos/${fileName}`;
 
 		const { error: uploadError } = await supabase.storage

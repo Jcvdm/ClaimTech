@@ -37,7 +37,8 @@ export const POST: RequestHandler = async ({ request }) => {
 			{ data: inspection },
 			{ data: client },
 			{ data: estimate },
-			{ data: repairer }
+			{ data: repairer },
+			{ data: tyres }
 		] = await Promise.all([
 			supabase
 				.from('assessment_vehicle_identification')
@@ -73,7 +74,12 @@ export const POST: RequestHandler = async ({ request }) => {
 					data?.repairer_id
 						? supabase.from('repairers').select('*').eq('id', data.repairer_id).single()
 						: { data: null }
-				)
+				),
+			supabase
+				.from('assessment_tyres')
+				.select('*')
+				.eq('assessment_id', assessmentId)
+				.order('position', { ascending: true })
 		]);
 
 		// Generate report number if not exists
@@ -107,7 +113,8 @@ export const POST: RequestHandler = async ({ request }) => {
 			inspection,
 			client,
 			estimate,
-			repairer
+			repairer,
+			tyres
 		});
 
 		// Generate PDF
@@ -121,8 +128,9 @@ export const POST: RequestHandler = async ({ request }) => {
 			}
 		});
 
-		// Upload to Supabase Storage
-		const fileName = `${assessment.assessment_number}_Report.pdf`;
+		// Upload to Supabase Storage with timestamp to avoid caching
+		const timestamp = new Date().getTime();
+		const fileName = `${assessment.assessment_number}_Report_${timestamp}.pdf`;
 		const filePath = `assessments/${assessmentId}/reports/${fileName}`;
 
 		console.log('Uploading PDF to storage...');

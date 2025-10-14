@@ -19,6 +19,7 @@ interface ReportData {
 	client: any;
 	estimate: any;
 	repairer: any;
+	tyres: any[] | null;
 }
 
 export function generateReportHTML(data: ReportData): string {
@@ -33,7 +34,8 @@ export function generateReportHTML(data: ReportData): string {
 		inspection,
 		client,
 		estimate,
-		repairer
+		repairer,
+		tyres
 	} = data;
 
 	const formatDate = (date: string | null | undefined) => {
@@ -328,6 +330,47 @@ export function generateReportHTML(data: ReportData): string {
 			</div>
 		</div>
 	</div>
+
+	<!-- Tires & Rims -->
+	${tyres && tyres.length > 0 ? `
+	<div class="section">
+		<div class="section-title">TIRES & RIMS</div>
+		<table style="width: 100%; border-collapse: collapse; margin-top: 10px;">
+			<thead>
+				<tr style="background-color: #f3f4f6; border-bottom: 2px solid #1e40af;">
+					<th style="padding: 8px; text-align: left; font-size: 9pt; font-weight: bold;">Position</th>
+					<th style="padding: 8px; text-align: left; font-size: 9pt; font-weight: bold;">Make</th>
+					<th style="padding: 8px; text-align: left; font-size: 9pt; font-weight: bold;">Size</th>
+					<th style="padding: 8px; text-align: left; font-size: 9pt; font-weight: bold;">Condition</th>
+					<th style="padding: 8px; text-align: right; font-size: 9pt; font-weight: bold;">Tread Depth</th>
+					<th style="padding: 8px; text-align: left; font-size: 9pt; font-weight: bold;">Rim Condition</th>
+				</tr>
+			</thead>
+			<tbody>
+				${tyres.map((tyre: any) => `
+				<tr style="border-bottom: 1px solid #e5e7eb;">
+					<td style="padding: 6px; font-size: 9pt;">${tyre.position_label || tyre.position || 'N/A'}</td>
+					<td style="padding: 6px; font-size: 9pt;">${tyre.tyre_make || 'N/A'}</td>
+					<td style="padding: 6px; font-size: 9pt;">${tyre.tyre_size || 'N/A'}</td>
+					<td style="padding: 6px; font-size: 9pt;">${tyre.condition ? tyre.condition.charAt(0).toUpperCase() + tyre.condition.slice(1) : 'N/A'}</td>
+					<td style="padding: 6px; font-size: 9pt; text-align: right;">${tyre.tread_depth_mm ? `${tyre.tread_depth_mm}mm` : 'N/A'}</td>
+					<td style="padding: 6px; font-size: 9pt;">${tyre.rim_condition ? tyre.rim_condition.charAt(0).toUpperCase() + tyre.rim_condition.slice(1) : 'N/A'}</td>
+				</tr>
+				`).join('')}
+			</tbody>
+		</table>
+		${tyres.some((t: any) => t.notes) ? `
+		<div style="margin-top: 10px;">
+			<div style="font-weight: bold; font-size: 9pt; margin-bottom: 5px;">Notes:</div>
+			${tyres.filter((t: any) => t.notes).map((tyre: any) => `
+			<div style="font-size: 9pt; margin-bottom: 5px;">
+				<strong>${tyre.position_label || tyre.position}:</strong> ${tyre.notes}
+			</div>
+			`).join('')}
+		</div>
+		` : ''}
+	</div>
+	` : ''}
 
 	<!-- Damage Assessment -->
 	<div class="section">

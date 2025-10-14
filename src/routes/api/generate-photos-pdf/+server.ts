@@ -186,21 +186,27 @@ export const POST: RequestHandler = async ({ request }) => {
 		}
 
 		// Tire & Rim Photos
+		console.log('=== Tire Photos Debug ===');
+		console.log('Tyres data:', tyres);
+		console.log('Tyres count:', tyres?.length || 0);
+
 		if (tyres && tyres.length > 0) {
 			const tyrePhotos = [];
 			tyres.forEach((tyre: any) => {
+				console.log('Processing tyre:', {
+					position: tyre.position,
+					position_label: tyre.position_label,
+					face_photo_url: tyre.face_photo_url,
+					tread_photo_url: tyre.tread_photo_url,
+					measurement_photo_url: tyre.measurement_photo_url
+				});
+
 				const positionLabel = tyre.position_label || tyre.position;
 				const tyreInfo = `${tyre.tyre_make || ''} ${tyre.tyre_size || ''}`.trim();
 				const condition = tyre.condition
 					? tyre.condition.charAt(0).toUpperCase() + tyre.condition.slice(1)
 					: 'N/A';
 				const treadDepth = tyre.tread_depth_mm ? `${tyre.tread_depth_mm}mm` : '';
-
-				// Build caption parts
-				const captionParts = [positionLabel];
-				if (tyreInfo) captionParts.push(tyreInfo);
-				if (condition !== 'N/A') captionParts.push(condition);
-				if (treadDepth) captionParts.push(`(${treadDepth})`);
 
 				if (tyre.face_photo_url) {
 					tyrePhotos.push({
@@ -222,13 +228,21 @@ export const POST: RequestHandler = async ({ request }) => {
 				}
 			});
 
+			console.log('Total tyre photos collected:', tyrePhotos.length);
+
 			if (tyrePhotos.length > 0) {
 				sections.push({
 					title: 'Tires & Rims',
 					photos: tyrePhotos
 				});
+				console.log('Tires & Rims section added to PDF');
+			} else {
+				console.log('No tyre photos found (all photo URLs are null)');
 			}
+		} else {
+			console.log('No tyre data found in database');
 		}
+		console.log('========================');
 
 		// Damage Photos (from estimate)
 		if (estimatePhotos && estimatePhotos.length > 0) {
@@ -270,8 +284,9 @@ export const POST: RequestHandler = async ({ request }) => {
 			}
 		});
 
-		// Upload to Supabase Storage
-		const fileName = `${assessment.assessment_number}_Photos.pdf`;
+		// Upload to Supabase Storage with timestamp to avoid caching
+		const timestamp = new Date().getTime();
+		const fileName = `${assessment.assessment_number}_Photos_${timestamp}.pdf`;
 		const filePath = `assessments/${assessmentId}/photos/${fileName}`;
 
 		const { error: uploadError } = await supabase.storage

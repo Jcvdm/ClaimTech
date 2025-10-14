@@ -49,6 +49,9 @@ class DocumentGenerationService {
 		try {
 			// Convert underscores to hyphens for API route (e.g., photos_pdf -> photos-pdf)
 			const apiPath = documentType.replace(/_/g, '-');
+
+			console.log(`Generating ${documentType} for assessment ${assessmentId}...`);
+
 			const response = await fetch(`/api/generate-${apiPath}`, {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
@@ -71,8 +74,15 @@ class DocumentGenerationService {
 			}
 
 			const { url } = await response.json();
+			console.log(`${documentType} generated successfully:`, url);
 			return url;
 		} catch (error) {
+			// Handle network errors specifically
+			if (error instanceof TypeError && error.message.includes('fetch')) {
+				console.error(`Network error generating ${documentType}:`, error);
+				throw new Error(`Network error: Unable to connect to server. Please check your connection and try again.`);
+			}
+
 			console.error(`Error generating ${documentType}:`, error);
 			throw error;
 		}
