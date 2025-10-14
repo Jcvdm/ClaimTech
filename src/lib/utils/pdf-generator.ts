@@ -122,7 +122,7 @@ async function generatePDFInternal(
 		]);
 
 		// Wait a bit for any dynamic content to render
-		await page.waitForTimeout(1000);
+		await new Promise((resolve) => setTimeout(resolve, 1000));
 
 		console.log('HTML content loaded successfully');
 
