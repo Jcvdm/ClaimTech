@@ -121,8 +121,17 @@ async function generatePDFInternal(
 			timeoutPromise
 		]);
 
-		// Wait a bit for any dynamic content to render
-		await new Promise((resolve) => setTimeout(resolve, 1000));
+		// Wait longer for any dynamic content to render and CSS to apply
+		console.log('Waiting for content to fully render...');
+		await new Promise((resolve) => setTimeout(resolve, 2500));
+
+		// Wait for specific elements to ensure they're rendered
+		try {
+			await page.waitForSelector('table', { timeout: 5000 });
+			console.log('Table elements found');
+		} catch (e) {
+			console.warn('Table elements not found, continuing anyway');
+		}
 
 		console.log('HTML content loaded successfully');
 
@@ -147,6 +156,15 @@ async function generatePDFInternal(
 			console.log('Contains "R 34 448":', renderedHTML.includes('R 34 448'));
 			console.log('Contains "R 39 615":', renderedHTML.includes('R 39 615'));
 			console.log('Contains "R 5 167":', renderedHTML.includes('R 5 167'));
+
+			// Check for group headers
+			console.log('Contains "NEW PARTS":', renderedHTML.includes('NEW PARTS'));
+			console.log('Contains "REPAIRS":', renderedHTML.includes('REPAIRS'));
+			console.log('Contains "PAINT & BLEND":', renderedHTML.includes('PAINT & BLEND'));
+			console.log('Contains "OTHER SERVICES":', renderedHTML.includes('OTHER SERVICES'));
+			console.log('Contains "N - New Part":', renderedHTML.includes('N - New Part'));
+			console.log('Contains "R - Repair":', renderedHTML.includes('R - Repair'));
+			console.log('Contains "group-header":', renderedHTML.includes('group-header'));
 
 			// Extract totals section from rendered HTML
 			const totalsMatch = renderedHTML.match(/<!-- Totals Section -->([\s\S]*?)<\/div>/);

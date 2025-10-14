@@ -122,6 +122,18 @@
 			font-size: 9pt;
 		}
 
+		.group-header td {
+			font-weight: bold;
+			font-size: 10pt;
+			padding: 12px 8px;
+			border-top: 2px solid #1e40af;
+			border-bottom: 1px solid #d1d5db;
+			background-color: #f3f4f6;
+			color: #1f2937;
+			page-break-inside: avoid;
+			page-break-after: avoid;
+		}
+
 		.subtotal-row {
 			background-color: #f3f4f6;
 			font-weight: bold;
@@ -247,8 +259,16 @@
 			.breakdown-section,
 			.totals-section,
 			.breakdown-table,
-			.totals-table {
+			.totals-table,
+			.group-header {
 				page-break-inside: avoid !important;
+			}
+
+			.group-header td {
+				background-color: #f3f4f6 !important;
+				color: #1f2937 !important;
+				border-top: 2px solid #1e40af !important;
+				border-bottom: 1px solid #d1d5db !important;
 			}
 
 			.grand-total {
@@ -383,8 +403,14 @@
 		</thead>
 		<tbody>
 			
+			<tr class="group-header">
+				<td colspan="8" style="font-weight: bold; font-size: 10pt; padding: 12px 8px; border-top: 2px solid #1e40af; border-bottom: 1px solid #d1d5db; background-color: #f3f4f6; color: #1f2937;">
+					NEW PARTS
+				</td>
+			</tr>
+			
 			<tr>
-				<td>N001</td>
+				<td>N - New Part</td>
 				<td>Front bumper cover </td>
 				<td style="text-align: right;">R 3&nbsp;125,00</td>
 				<td style="text-align: right;">R 500,00</td>
@@ -395,18 +421,7 @@
 			</tr>
 		
 			<tr>
-				<td>R002</td>
-				<td>Front bumper stiffener </td>
-				<td style="text-align: right;">-</td>
-				<td style="text-align: right;">R 250,00</td>
-				<td style="text-align: right;">R 580,00</td>
-				<td style="text-align: right;">R 575,00</td>
-				<td style="text-align: right;">-</td>
-				<td style="text-align: right;">R 1&nbsp;405,00</td>
-			</tr>
-		
-			<tr>
-				<td>N003</td>
+				<td>N - New Part</td>
 				<td>Left front Headlamp </td>
 				<td style="text-align: right;">R 3&nbsp;750,00</td>
 				<td style="text-align: right;">R 125,00</td>
@@ -417,7 +432,7 @@
 			</tr>
 		
 			<tr>
-				<td>N004</td>
+				<td>N - New Part</td>
 				<td>Right front headlamp</td>
 				<td style="text-align: right;">R 3&nbsp;750,00</td>
 				<td style="text-align: right;">R 125,00</td>
@@ -428,51 +443,7 @@
 			</tr>
 		
 			<tr>
-				<td>R005</td>
-				<td>Bonnet</td>
-				<td style="text-align: right;">-</td>
-				<td style="text-align: right;">R 250,00</td>
-				<td style="text-align: right;">R 2&nbsp;320,00</td>
-				<td style="text-align: right;">R 4&nbsp;600,00</td>
-				<td style="text-align: right;">-</td>
-				<td style="text-align: right;">R 7&nbsp;170,00</td>
-			</tr>
-		
-			<tr>
-				<td>B006</td>
-				<td>Left front fender</td>
-				<td style="text-align: right;">-</td>
-				<td style="text-align: right;">R 250,00</td>
-				<td style="text-align: right;">-</td>
-				<td style="text-align: right;">R 1&nbsp;150,00</td>
-				<td style="text-align: right;">-</td>
-				<td style="text-align: right;">R 1&nbsp;400,00</td>
-			</tr>
-		
-			<tr>
-				<td>B007</td>
-				<td>Right front fender</td>
-				<td style="text-align: right;">-</td>
-				<td style="text-align: right;">R 250,00</td>
-				<td style="text-align: right;">-</td>
-				<td style="text-align: right;">R 1&nbsp;150,00</td>
-				<td style="text-align: right;">-</td>
-				<td style="text-align: right;">R 1&nbsp;400,00</td>
-			</tr>
-		
-			<tr>
-				<td>O008</td>
-				<td>Re-gas aircon inhouse</td>
-				<td style="text-align: right;">-</td>
-				<td style="text-align: right;">-</td>
-				<td style="text-align: right;">-</td>
-				<td style="text-align: right;">-</td>
-				<td style="text-align: right;">R 562,50</td>
-				<td style="text-align: right;">R 562,50</td>
-			</tr>
-		
-			<tr>
-				<td>N009</td>
+				<td>N - New Part</td>
 				<td>Front bumper emblem </td>
 				<td style="text-align: right;">R 183,00</td>
 				<td style="text-align: right;">R 75,00</td>
@@ -483,7 +454,7 @@
 			</tr>
 		
 			<tr>
-				<td>N010</td>
+				<td>N - New Part</td>
 				<td>Radiator</td>
 				<td style="text-align: right;">R 5&nbsp;490,00</td>
 				<td style="text-align: right;">R 150,00</td>
@@ -492,6 +463,83 @@
 				<td style="text-align: right;">-</td>
 				<td style="text-align: right;">R 5&nbsp;640,00</td>
 			</tr>
+		
+		
+			<tr class="group-header">
+				<td colspan="8" style="font-weight: bold; font-size: 10pt; padding: 12px 8px; border-top: 2px solid #1e40af; border-bottom: 1px solid #d1d5db; background-color: #f3f4f6; color: #1f2937;">
+					REPAIRS
+				</td>
+			</tr>
+			
+			<tr>
+				<td>R - Repair</td>
+				<td>Front bumper stiffener </td>
+				<td style="text-align: right;">-</td>
+				<td style="text-align: right;">R 250,00</td>
+				<td style="text-align: right;">R 580,00</td>
+				<td style="text-align: right;">R 575,00</td>
+				<td style="text-align: right;">-</td>
+				<td style="text-align: right;">R 1&nbsp;405,00</td>
+			</tr>
+		
+			<tr>
+				<td>R - Repair</td>
+				<td>Bonnet</td>
+				<td style="text-align: right;">-</td>
+				<td style="text-align: right;">R 250,00</td>
+				<td style="text-align: right;">R 2&nbsp;320,00</td>
+				<td style="text-align: right;">R 4&nbsp;600,00</td>
+				<td style="text-align: right;">-</td>
+				<td style="text-align: right;">R 7&nbsp;170,00</td>
+			</tr>
+		
+		
+			<tr class="group-header">
+				<td colspan="8" style="font-weight: bold; font-size: 10pt; padding: 12px 8px; border-top: 2px solid #1e40af; border-bottom: 1px solid #d1d5db; background-color: #f3f4f6; color: #1f2937;">
+					PAINT &amp; BLEND
+				</td>
+			</tr>
+			
+			<tr>
+				<td>B - Blend</td>
+				<td>Left front fender</td>
+				<td style="text-align: right;">-</td>
+				<td style="text-align: right;">R 250,00</td>
+				<td style="text-align: right;">-</td>
+				<td style="text-align: right;">R 1&nbsp;150,00</td>
+				<td style="text-align: right;">-</td>
+				<td style="text-align: right;">R 1&nbsp;400,00</td>
+			</tr>
+		
+			<tr>
+				<td>B - Blend</td>
+				<td>Right front fender</td>
+				<td style="text-align: right;">-</td>
+				<td style="text-align: right;">R 250,00</td>
+				<td style="text-align: right;">-</td>
+				<td style="text-align: right;">R 1&nbsp;150,00</td>
+				<td style="text-align: right;">-</td>
+				<td style="text-align: right;">R 1&nbsp;400,00</td>
+			</tr>
+		
+		
+			<tr class="group-header">
+				<td colspan="8" style="font-weight: bold; font-size: 10pt; padding: 12px 8px; border-top: 2px solid #1e40af; border-bottom: 1px solid #d1d5db; background-color: #f3f4f6; color: #1f2937;">
+					OTHER SERVICES
+				</td>
+			</tr>
+			
+			<tr>
+				<td>O - Outwork</td>
+				<td>Re-gas aircon inhouse</td>
+				<td style="text-align: right;">-</td>
+				<td style="text-align: right;">-</td>
+				<td style="text-align: right;">-</td>
+				<td style="text-align: right;">-</td>
+				<td style="text-align: right;">R 562,50</td>
+				<td style="text-align: right;">R 562,50</td>
+			</tr>
+		
 		
 		</tbody>
 	</table>

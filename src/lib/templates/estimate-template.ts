@@ -131,7 +131,7 @@ export function generateEstimateHTML(data: EstimateData): string {
 		if (groups.newParts.length > 0) {
 			html += `
 			<tr class="group-header">
-				<td colspan="8" style="font-weight: bold; font-size: 10pt; padding: 12px 8px; border-top: 2px solid #1e40af; border-bottom: 1px solid #d1d5db; background-color: #f3f4f6; color: #1f2937;">
+				<td colspan="8" style="font-weight: bold !important; font-size: 10pt !important; padding: 12px 8px !important; border-top: 2px solid #1e40af !important; border-bottom: 1px solid #d1d5db !important; background-color: #f3f4f6 !important; color: #1f2937 !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important;">
 					NEW PARTS
 				</td>
 			</tr>
@@ -143,7 +143,7 @@ export function generateEstimateHTML(data: EstimateData): string {
 		if (groups.repairs.length > 0) {
 			html += `
 			<tr class="group-header">
-				<td colspan="8" style="font-weight: bold; font-size: 10pt; padding: 12px 8px; border-top: 2px solid #1e40af; border-bottom: 1px solid #d1d5db; background-color: #f3f4f6; color: #1f2937;">
+				<td colspan="8" style="font-weight: bold !important; font-size: 10pt !important; padding: 12px 8px !important; border-top: 2px solid #1e40af !important; border-bottom: 1px solid #d1d5db !important; background-color: #f3f4f6 !important; color: #1f2937 !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important;">
 					REPAIRS
 				</td>
 			</tr>
@@ -155,7 +155,7 @@ export function generateEstimateHTML(data: EstimateData): string {
 		if (groups.paintBlend.length > 0) {
 			html += `
 			<tr class="group-header">
-				<td colspan="8" style="font-weight: bold; font-size: 10pt; padding: 12px 8px; border-top: 2px solid #1e40af; border-bottom: 1px solid #d1d5db; background-color: #f3f4f6; color: #1f2937;">
+				<td colspan="8" style="font-weight: bold !important; font-size: 10pt !important; padding: 12px 8px !important; border-top: 2px solid #1e40af !important; border-bottom: 1px solid #d1d5db !important; background-color: #f3f4f6 !important; color: #1f2937 !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important;">
 					PAINT & BLEND
 				</td>
 			</tr>
@@ -167,7 +167,7 @@ export function generateEstimateHTML(data: EstimateData): string {
 		if (groups.other.length > 0) {
 			html += `
 			<tr class="group-header">
-				<td colspan="8" style="font-weight: bold; font-size: 10pt; padding: 12px 8px; border-top: 2px solid #1e40af; border-bottom: 1px solid #d1d5db; background-color: #f3f4f6; color: #1f2937;">
+				<td colspan="8" style="font-weight: bold !important; font-size: 10pt !important; padding: 12px 8px !important; border-top: 2px solid #1e40af !important; border-bottom: 1px solid #d1d5db !important; background-color: #f3f4f6 !important; color: #1f2937 !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important;">
 					OTHER SERVICES
 				</td>
 			</tr>
