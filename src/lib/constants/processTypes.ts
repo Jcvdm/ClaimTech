@@ -107,3 +107,34 @@ export function isFieldRequired(
 	return PROCESS_TYPE_CONFIGS[processType].requiredFields[field];
 }
 
+/**
+ * Get process type symbol for compact display
+ * Returns just the code letter for badge display
+ */
+export function getProcessTypeSymbol(processType: ProcessType): string {
+	return processType;
+}
+
+/**
+ * Get process type label with code (e.g., "N - New Part")
+ */
+export function getProcessTypeLabel(processType: ProcessType): string {
+	const config = PROCESS_TYPE_CONFIGS[processType];
+	return config ? `${config.code} - ${config.label}` : processType;
+}
+
+/**
+ * Get badge color class for process type
+ */
+export function getProcessTypeBadgeColor(processType: ProcessType): string {
+	const colors: Record<ProcessType, string> = {
+		N: 'bg-blue-100 text-blue-800',
+		R: 'bg-green-100 text-green-800',
+		P: 'bg-purple-100 text-purple-800',
+		B: 'bg-pink-100 text-pink-800',
+		A: 'bg-yellow-100 text-yellow-800',
+		O: 'bg-orange-100 text-orange-800'
+	};
+	return colors[processType] || 'bg-gray-100 text-gray-800';
+}
+

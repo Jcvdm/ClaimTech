@@ -16,7 +16,7 @@
 		AssessmentResultType
 	} from '$lib/types/assessment';
 	import type { Repairer } from '$lib/types/repairer';
-	import { getProcessTypeOptions } from '$lib/constants/processTypes';
+	import { getProcessTypeOptions, getProcessTypeConfig, getProcessTypeBadgeColor } from '$lib/constants/processTypes';
 	import { createEmptyLineItem, calculateLineItemTotal } from '$lib/utils/estimateCalculations';
 	import {
 		calculateEstimateThreshold,
@@ -405,8 +405,8 @@
 									aria-label="Select all items"
 								/>
 							</Table.Head>
-							<Table.Head class="w-[120px] px-3">Process Type</Table.Head>
-							<Table.Head class="w-[100px] px-3">Part Type</Table.Head>
+							<Table.Head class="w-[60px] px-3">Type</Table.Head>
+							<Table.Head class="w-[80px] px-3">Part</Table.Head>
 							<Table.Head class="min-w-[200px] px-3">Description</Table.Head>
 							<Table.Head class="w-[140px] text-right px-3">Part Price</Table.Head>
 							<Table.Head class="w-[140px] text-right px-3">S&A</Table.Head>
@@ -438,18 +438,32 @@
 										/>
 									</Table.Cell>
 
-									<!-- Process Type -->
+									<!-- Process Type - Compact Badge Display -->
 									<Table.Cell class="px-3 py-2">
-										<select
-											value={item.process_type}
-											onchange={(e) =>
-												handleUpdateLineItem(item.id!, 'process_type', e.currentTarget.value)}
-											class="w-full rounded-md border-0 bg-transparent px-2 py-1 text-sm focus:outline-none focus:ring-0"
-										>
-											{#each processTypeOptions as option}
-												<option value={option.value}>{option.value}-{option.label}</option>
-											{/each}
-										</select>
+										<div class="relative group">
+											<select
+												value={item.process_type}
+												onchange={(e) =>
+													handleUpdateLineItem(item.id!, 'process_type', e.currentTarget.value)}
+												class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+											>
+												{#each processTypeOptions as option}
+													<option value={option.value}>{option.value} - {option.label}</option>
+												{/each}
+											</select>
+
+											<!-- Visual Badge -->
+											<div class="flex items-center justify-center pointer-events-none">
+												<span class="px-2 py-1 text-xs font-semibold rounded {getProcessTypeBadgeColor(item.process_type)}">
+													{item.process_type}
+												</span>
+											</div>
+
+											<!-- Tooltip -->
+											<div class="absolute hidden group-hover:block bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 text-xs bg-gray-900 text-white rounded whitespace-nowrap z-20 pointer-events-none">
+												{getProcessTypeConfig(item.process_type).label}
+											</div>
+										</div>
 									</Table.Cell>
 
 									<!-- Part Type (N only) -->

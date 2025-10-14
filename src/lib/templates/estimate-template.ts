@@ -3,8 +3,10 @@ import type {
 	VehicleIdentification,
 	Estimate,
 	EstimateLineItem,
-	CompanySettings
+	CompanySettings,
+	ProcessType
 } from '$lib/types/assessment';
+import { PROCESS_TYPE_CONFIGS } from '$lib/constants/processTypes';
 
 interface EstimateData {
 	assessment: Assessment;
@@ -79,17 +81,33 @@ export function generateEstimateHTML(data: EstimateData): string {
 		return sum;
 	}, 0);
 
+	// Helper to get process type label
+	const getProcessTypeLabel = (processType: ProcessType) => {
+		const config = PROCESS_TYPE_CONFIGS[processType];
+		return config ? `${config.code} - ${config.label}` : processType;
+	};
+
+	// Group line items by category
+	const groupLineItemsByCategory = (items: EstimateLineItem[]) => {
+		return {
+			newParts: items.filter(item => item.process_type === 'N'),
+			repairs: items.filter(item => item.process_type === 'R'),
+			paintBlend: items.filter(item => item.process_type === 'P' || item.process_type === 'B'),
+			other: items.filter(item => item.process_type === 'A' || item.process_type === 'O')
+		};
+	};
+
 	const renderLineItems = (items: EstimateLineItem[]) => {
 		return items
 			.map(
-				(item, index) => {
+				(item) => {
 					// Helper to show value or dash
 					const showValue = (value: number | null | undefined) =>
 						value && value > 0 ? formatCurrency(value) : '-';
 
 					return `
 			<tr>
-				<td>${item.process_type}${(index + 1).toString().padStart(3, '0')}</td>
+				<td>${getProcessTypeLabel(item.process_type)}</td>
 				<td>${item.description || ''}</td>
 				<td style="text-align: right;">${showValue(item.part_price)}</td>
 				<td style="text-align: right;">${showValue(item.strip_assemble)}</td>
@@ -102,6 +120,62 @@ export function generateEstimateHTML(data: EstimateData): string {
 				}
 			)
 			.join('');
+	};
+
+	// Render grouped line items with category headers
+	const renderGroupedLineItems = (items: EstimateLineItem[]) => {
+		const groups = groupLineItemsByCategory(items);
+		let html = '';
+
+		// NEW PARTS
+		if (groups.newParts.length > 0) {
+			html += `
+			<tr class="group-header">
+				<td colspan="8" style="font-weight: bold; font-size: 10pt; padding: 12px 8px; border-top: 2px solid #1e40af; border-bottom: 1px solid #d1d5db; background-color: #f3f4f6; color: #1f2937;">
+					NEW PARTS
+				</td>
+			</tr>
+			${renderLineItems(groups.newParts)}
+		`;
+		}
+
+		// REPAIRS
+		if (groups.repairs.length > 0) {
+			html += `
+			<tr class="group-header">
+				<td colspan="8" style="font-weight: bold; font-size: 10pt; padding: 12px 8px; border-top: 2px solid #1e40af; border-bottom: 1px solid #d1d5db; background-color: #f3f4f6; color: #1f2937;">
+					REPAIRS
+				</td>
+			</tr>
+			${renderLineItems(groups.repairs)}
+		`;
+		}
+
+		// PAINT & BLEND
+		if (groups.paintBlend.length > 0) {
+			html += `
+			<tr class="group-header">
+				<td colspan="8" style="font-weight: bold; font-size: 10pt; padding: 12px 8px; border-top: 2px solid #1e40af; border-bottom: 1px solid #d1d5db; background-color: #f3f4f6; color: #1f2937;">
+					PAINT & BLEND
+				</td>
+			</tr>
+			${renderLineItems(groups.paintBlend)}
+		`;
+		}
+
+		// OTHER SERVICES
+		if (groups.other.length > 0) {
+			html += `
+			<tr class="group-header">
+				<td colspan="8" style="font-weight: bold; font-size: 10pt; padding: 12px 8px; border-top: 2px solid #1e40af; border-bottom: 1px solid #d1d5db; background-color: #f3f4f6; color: #1f2937;">
+					OTHER SERVICES
+				</td>
+			</tr>
+			${renderLineItems(groups.other)}
+		`;
+		}
+
+		return html;
 	};
 
 	return `
@@ -231,6 +305,18 @@ export function generateEstimateHTML(data: EstimateData): string {
 			font-size: 9pt;
 		}
 
+		.group-header td {
+			font-weight: bold;
+			font-size: 10pt;
+			padding: 12px 8px;
+			border-top: 2px solid #1e40af;
+			border-bottom: 1px solid #d1d5db;
+			background-color: #f3f4f6;
+			color: #1f2937;
+			page-break-inside: avoid;
+			page-break-after: avoid;
+		}
+
 		.subtotal-row {
 			background-color: #f3f4f6;
 			font-weight: bold;
@@ -356,8 +442,16 @@ export function generateEstimateHTML(data: EstimateData): string {
 			.breakdown-section,
 			.totals-section,
 			.breakdown-table,
-			.totals-table {
+			.totals-table,
+			.group-header {
 				page-break-inside: avoid !important;
+			}
+
+			.group-header td {
+				background-color: #f3f4f6 !important;
+				color: #1f2937 !important;
+				border-top: 2px solid #1e40af !important;
+				border-bottom: 1px solid #d1d5db !important;
 			}
 
 			.grand-total {
@@ -491,7 +585,7 @@ export function generateEstimateHTML(data: EstimateData): string {
 			</tr>
 		</thead>
 		<tbody>
-			${lineItems.length > 0 ? renderLineItems(lineItems) : `
+			${lineItems.length > 0 ? renderGroupedLineItems(lineItems) : `
 			<tr>
 				<td colspan="8" style="text-align: center; padding: 20px;">No line items</td>
 			</tr>

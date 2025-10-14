@@ -129,10 +129,24 @@
 			font-weight: bold;
 		}
 
-		.totals-section {
+		/* Container for totals sections - uses flexbox for PDF compatibility */
+		.totals-container {
+			display: flex;
+			justify-content: flex-end;
+			gap: 20px;
 			margin-top: 20px;
-			float: right;
+			margin-bottom: 20px;
+			page-break-inside: avoid;
+		}
+
+		.breakdown-section {
 			width: 300px;
+			page-break-inside: avoid;
+		}
+
+		.totals-section {
+			width: 300px;
+			page-break-inside: avoid;
 		}
 
 		.totals-table {
@@ -160,14 +174,6 @@
 			background-color: #1e40af;
 			color: white;
 			font-size: 11pt;
-		}
-
-		.breakdown-section {
-			margin-top: 20px;
-			margin-bottom: 10px;
-			float: right;
-			width: 300px;
-			clear: right;
 		}
 
 		.breakdown-table {
@@ -229,6 +235,39 @@
 
 		.page-break {
 			page-break-after: always;
+		}
+
+		/* Print-specific CSS for PDF rendering */
+		@media print {
+			* {
+				-webkit-print-color-adjust: exact !important;
+				print-color-adjust: exact !important;
+				color-adjust: exact !important;
+			}
+
+			.totals-container,
+			.breakdown-section,
+			.totals-section,
+			.breakdown-table,
+			.totals-table {
+				page-break-inside: avoid !important;
+			}
+
+			.grand-total {
+				background-color: #1e40af !important;
+				color: white !important;
+			}
+
+			.breakdown-markup {
+				color: #059669 !important;
+			}
+		}
+
+		/* Force color rendering in all contexts */
+		* {
+			-webkit-print-color-adjust: exact;
+			print-color-adjust: exact;
+			color-adjust: exact;
 		}
 	</style>
 </head>
@@ -459,56 +498,62 @@
 		</tbody>
 	</table>
 
-	<!-- Totals Breakdown Section -->
-	<div class="breakdown-section">
-		<table class="breakdown-table">
-			<tr class="breakdown-header">
-				<td colspan="2">TOTALS BREAKDOWN</td>
-			</tr>
-			<tr>
-				<td class="breakdown-label">Parts Total</td>
-				<td class="breakdown-value">R 16 298,00</td>
-			</tr>
-			<tr>
-				<td class="breakdown-label">Markup Total</td>
-				<td class="breakdown-value breakdown-markup">R 3 148,00</td>
-			</tr>
-			<tr>
-				<td class="breakdown-label">S&A Total</td>
-				<td class="breakdown-value">R 1 975,00</td>
-			</tr>
-			<tr>
-				<td class="breakdown-label">Labour Total</td>
-				<td class="breakdown-value">R 3 480,00</td>
-			</tr>
-			<tr>
-				<td class="breakdown-label">Paint Total</td>
-				<td class="breakdown-value">R 9 775,00</td>
-			</tr>
-			<tr>
-				<td class="breakdown-label">Outwork Total</td>
-				<td class="breakdown-value">R 562,50</td>
-			</tr>
-		</table>
+	<!-- Totals Container (Flexbox for PDF compatibility) -->
+	<div class="totals-container">
+		<!-- Totals Breakdown Section -->
+		<div class="breakdown-section">
+			<table class="breakdown-table">
+				<tr class="breakdown-header">
+					<td colspan="2">TOTALS BREAKDOWN</td>
+				</tr>
+				<tr>
+					<td class="breakdown-label">Parts Total</td>
+					<td class="breakdown-value">R 16 298,00</td>
+				</tr>
+				<tr>
+					<td class="breakdown-label">Markup Total</td>
+					<td class="breakdown-value breakdown-markup">R 3 148,00</td>
+				</tr>
+				<tr>
+					<td class="breakdown-label">S&A Total</td>
+					<td class="breakdown-value">R 1 975,00</td>
+				</tr>
+				<tr>
+					<td class="breakdown-label">Labour Total</td>
+					<td class="breakdown-value">R 3 480,00</td>
+				</tr>
+				<tr>
+					<td class="breakdown-label">Paint Total</td>
+					<td class="breakdown-value">R 9 775,00</td>
+				</tr>
+				<tr>
+					<td class="breakdown-label">Outwork Total</td>
+					<td class="breakdown-value">R 562,50</td>
+				</tr>
+			</table>
+		</div>
+
+		<!-- Totals Section -->
+		<div class="totals-section">
+			<table class="totals-table">
+				<tr>
+					<td class="totals-label">Subtotal:</td>
+					<td class="totals-value">R 32 090,50</td>
+				</tr>
+				<tr>
+					<td class="totals-label">VAT (15%):</td>
+					<td class="totals-value">R 4 813,58</td>
+				</tr>
+				<tr class="grand-total">
+					<td class="totals-label">GRAND TOTAL:</td>
+					<td class="totals-value">R 36 904,08</td>
+				</tr>
+			</table>
+		</div>
 	</div>
 
-	<!-- Totals Section -->
-	<div class="totals-section">
-		<table class="totals-table">
-			<tr>
-				<td class="totals-label">Subtotal:</td>
-				<td class="totals-value">R 32 090,50</td>
-			</tr>
-			<tr>
-				<td class="totals-label">VAT (15%):</td>
-				<td class="totals-value">R 4 813,58</td>
-			</tr>
-			<tr class="grand-total">
-				<td class="totals-label">GRAND TOTAL:</td>
-				<td class="totals-value">R 36 904,08</td>
-			</tr>
-		</table>
-	</div>
+	<!-- Clearfix to ensure proper layout -->
+	<div style="clear: both; height: 0; overflow: hidden;"></div>
 
 	<!-- Notes Section -->
 	
