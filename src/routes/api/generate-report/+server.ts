@@ -35,7 +35,9 @@ export const POST: RequestHandler = async ({ request }) => {
 			{ data: appointment },
 			{ data: requestData },
 			{ data: inspection },
-			{ data: client }
+			{ data: client },
+			{ data: estimate },
+			{ data: repairer }
 		] = await Promise.all([
 			supabase
 				.from('assessment_vehicle_identification')
@@ -64,7 +66,14 @@ export const POST: RequestHandler = async ({ request }) => {
 								? supabase.from('clients').select('*').eq('id', data.client_id).single()
 								: { data: null }
 						)
-				: Promise.resolve({ data: null })
+				: Promise.resolve({ data: null }),
+			supabase.from('assessment_estimates').select('*').eq('assessment_id', assessmentId).single(),
+			supabase.from('assessment_estimates').select('repairer_id').eq('assessment_id', assessmentId).single()
+				.then(({ data }) =>
+					data?.repairer_id
+						? supabase.from('repairers').select('*').eq('id', data.repairer_id).single()
+						: { data: null }
+				)
 		]);
 
 		// Generate report number if not exists
@@ -96,7 +105,9 @@ export const POST: RequestHandler = async ({ request }) => {
 			companySettings,
 			request: requestData,
 			inspection,
-			client
+			client,
+			estimate,
+			repairer
 		});
 
 		// Generate PDF

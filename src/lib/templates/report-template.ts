@@ -17,6 +17,8 @@ interface ReportData {
 	request: any;
 	inspection: any;
 	client: any;
+	estimate: any;
+	repairer: any;
 }
 
 export function generateReportHTML(data: ReportData): string {
@@ -29,7 +31,9 @@ export function generateReportHTML(data: ReportData): string {
 		companySettings,
 		request,
 		inspection,
-		client
+		client,
+		estimate,
+		repairer
 	} = data;
 
 	const formatDate = (date: string | null | undefined) => {
@@ -39,6 +43,11 @@ export function generateReportHTML(data: ReportData): string {
 			month: '2-digit',
 			year: 'numeric'
 		});
+	};
+
+	const formatCurrency = (value: number | null | undefined) => {
+		if (!value) return 'R 0,00';
+		return `R ${value.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ' ').replace('.', ',')}`;
 	};
 
 	return `
@@ -340,6 +349,52 @@ export function generateReportHTML(data: ReportData): string {
 		<div class="notes-box">${damageRecord.damage_description}</div>
 		` : ''}
 	</div>
+
+	<!-- Repair Estimate Summary -->
+	${estimate ? `
+	<div class="section">
+		<div class="section-title">REPAIR ESTIMATE SUMMARY</div>
+		<div class="info-grid">
+			<div class="info-row">
+				<span class="info-label">Number of Line Items:</span>
+				<span class="info-value">${estimate.line_items?.length || 0}</span>
+			</div>
+			${repairer ? `
+			<div class="info-row">
+				<span class="info-label">Repairer:</span>
+				<span class="info-value">${repairer.name || 'N/A'}</span>
+			</div>
+			` : ''}
+			<div class="info-row">
+				<span class="info-label">Subtotal (excl VAT):</span>
+				<span class="info-value" style="font-weight: bold;">${formatCurrency(estimate.subtotal)}</span>
+			</div>
+			<div class="info-row">
+				<span class="info-label">VAT (${estimate.vat_percentage || 15}%):</span>
+				<span class="info-value">${formatCurrency(estimate.vat_amount)}</span>
+			</div>
+			<div class="info-row">
+				<span class="info-label">Grand Total (incl VAT):</span>
+				<span class="info-value" style="font-weight: bold; font-size: 12pt; color: #1e40af;">${formatCurrency(estimate.total)}</span>
+			</div>
+			${estimate.assessment_result ? `
+			<div class="info-row">
+				<span class="info-label">Assessment Result:</span>
+				<span class="info-value" style="font-weight: bold; color: ${
+					estimate.assessment_result === 'repairable' ? '#059669' :
+					estimate.assessment_result === 'borderline_writeoff' ? '#d97706' :
+					'#dc2626'
+				};">${
+					estimate.assessment_result === 'repairable' ? 'Repairable' :
+					estimate.assessment_result === 'borderline_writeoff' ? 'Borderline Write-off' :
+					estimate.assessment_result === 'total_writeoff' ? 'Total Write-off' :
+					estimate.assessment_result
+				}</span>
+			</div>
+			` : ''}
+		</div>
+	</div>
+	` : ''}
 
 	<!-- Assessment Notes -->
 	${assessment.notes ? `
