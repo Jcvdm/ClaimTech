@@ -307,6 +307,21 @@ export const POST: RequestHandler = async ({ request }) => {
 
 			yield { status: 'processing', progress: 85, message: 'Uploading PDF to storage...' };
 
+			// Delete previous file if it exists to avoid orphaned files
+			if (assessment.photos_pdf_path) {
+				console.log('Deleting previous photos PDF:', assessment.photos_pdf_path);
+				const { error: removeError } = await supabase.storage
+					.from('documents')
+					.remove([assessment.photos_pdf_path]);
+
+				if (removeError) {
+					console.warn('Could not remove previous photos PDF:', removeError);
+					// Non-fatal: continue to upload the new file
+				} else {
+					console.log('Previous photos PDF deleted successfully');
+				}
+			}
+
 			// Upload to Supabase Storage with timestamp to avoid caching
 			const timestamp = new Date().getTime();
 			const fileName = `${assessment.assessment_number}_Photos_${timestamp}.pdf`;

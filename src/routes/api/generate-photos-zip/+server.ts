@@ -426,6 +426,21 @@ export const POST: RequestHandler = async ({ request }) => {
 
 			yield { status: 'processing', progress: 90, message: 'Uploading to storage...' };
 
+			// Delete previous file if it exists to avoid orphaned files
+			if (assessment.photos_zip_path) {
+				console.log(`[${new Date().toISOString()}] [Request ${requestId}] Deleting previous photos ZIP: ${assessment.photos_zip_path}`);
+				const { error: removeError } = await supabase.storage
+					.from('documents')
+					.remove([assessment.photos_zip_path]);
+
+				if (removeError) {
+					console.warn(`[${new Date().toISOString()}] [Request ${requestId}] Could not remove previous photos ZIP:`, removeError);
+					// Non-fatal: continue to upload the new file
+				} else {
+					console.log(`[${new Date().toISOString()}] [Request ${requestId}] Previous photos ZIP deleted successfully`);
+				}
+			}
+
 			// Upload to Supabase Storage with timestamp to avoid caching
 			const timestamp = new Date().getTime();
 			const fileName = `${assessment.assessment_number}_Photos_${timestamp}.zip`;

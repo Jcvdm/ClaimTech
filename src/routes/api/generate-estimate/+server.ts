@@ -177,6 +177,21 @@ export const POST: RequestHandler = async ({ request }) => {
 			yield { status: 'processing', progress: 85, message: 'Uploading PDF to storage...' };
 			console.log(`[${new Date().toISOString()}] [Request ${requestId}] Progress 85% yielded successfully`);
 
+			// Delete previous file if it exists to avoid orphaned files
+			if (assessment.estimate_pdf_path) {
+				console.log(`[${new Date().toISOString()}] [Request ${requestId}] Deleting previous estimate PDF: ${assessment.estimate_pdf_path}`);
+				const { error: removeError } = await supabase.storage
+					.from('documents')
+					.remove([assessment.estimate_pdf_path]);
+
+				if (removeError) {
+					console.warn(`[${new Date().toISOString()}] [Request ${requestId}] Could not remove previous estimate PDF:`, removeError);
+					// Non-fatal: continue to upload the new file
+				} else {
+					console.log(`[${new Date().toISOString()}] [Request ${requestId}] Previous estimate PDF deleted successfully`);
+				}
+			}
+
 			// Upload to Supabase Storage with timestamp to avoid caching
 			const timestamp = new Date().getTime();
 			const fileName = `${assessment.assessment_number}_Estimate_${timestamp}.pdf`;
