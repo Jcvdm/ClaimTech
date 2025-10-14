@@ -106,15 +106,15 @@ export function generateEstimateHTML(data: EstimateData): string {
 						value && value > 0 ? formatCurrency(value) : '-';
 
 					return `
-			<tr>
-				<td>${getProcessTypeLabel(item.process_type)}</td>
-				<td>${item.description || ''}</td>
-				<td style="text-align: right;">${showValue(item.part_price)}</td>
-				<td style="text-align: right;">${showValue(item.strip_assemble)}</td>
-				<td style="text-align: right;">${showValue(item.labour_cost)}</td>
-				<td style="text-align: right;">${showValue(item.paint_cost)}</td>
-				<td style="text-align: right;">${showValue(item.outwork_charge)}</td>
-				<td style="text-align: right;">${formatCurrency(item.total)}</td>
+			<tr style="border-bottom: 1px solid #e5e7eb;">
+				<td style="padding: 6px; font-size: 9pt;">${getProcessTypeLabel(item.process_type)}</td>
+				<td style="padding: 6px; font-size: 9pt;">${item.description || ''}</td>
+				<td style="padding: 6px; font-size: 9pt; text-align: right;">${showValue(item.part_price)}</td>
+				<td style="padding: 6px; font-size: 9pt; text-align: right;">${showValue(item.strip_assemble)}</td>
+				<td style="padding: 6px; font-size: 9pt; text-align: right;">${showValue(item.labour_cost)}</td>
+				<td style="padding: 6px; font-size: 9pt; text-align: right;">${showValue(item.paint_cost)}</td>
+				<td style="padding: 6px; font-size: 9pt; text-align: right;">${showValue(item.outwork_charge)}</td>
+				<td style="padding: 6px; font-size: 9pt; text-align: right;">${formatCurrency(item.total)}</td>
 			</tr>
 		`;
 				}

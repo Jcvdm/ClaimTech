@@ -108,6 +108,9 @@ async function generatePDFInternal(
 		// Set viewport for consistent rendering
 		await page.setViewport({ width: 1200, height: 800 });
 
+		// Emulate print media type to ensure print styles are applied
+		await page.emulateMediaType('print');
+
 		// Enable console logging from the page
 		page.on('console', (msg) => console.log('PAGE LOG:', msg.text()));
 		page.on('pageerror', (error) => console.error('PAGE ERROR:', error));
@@ -224,10 +227,15 @@ async function generatePDFInternal(
 					left: '15mm'
 				},
 				printBackground: options.printBackground !== false,
+				preferCSSPageSize: false,
 				displayHeaderFooter: options.displayHeaderFooter || false,
 				headerTemplate: options.headerTemplate || '',
 				footerTemplate: options.footerTemplate || '',
-				timeout: timeout / 2
+				timeout: timeout / 2,
+				// Force tagged PDF for better rendering
+				tagged: false,
+				// Ensure outline is included
+				outline: false
 			}),
 			timeoutPromise
 		]);
