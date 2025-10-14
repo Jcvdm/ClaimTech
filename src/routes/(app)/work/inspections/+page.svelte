@@ -2,13 +2,12 @@
 	import { goto } from '$app/navigation';
 	import PageHeader from '$lib/components/layout/PageHeader.svelte';
 	import DataTable from '$lib/components/data/DataTable.svelte';
-	import StatusBadge from '$lib/components/data/StatusBadge.svelte';
 	import EmptyState from '$lib/components/data/EmptyState.svelte';
-	import { Card } from '$lib/components/ui/card';
+	import SummaryComponent from '$lib/components/shared/SummaryComponent.svelte';
 	import { Button } from '$lib/components/ui/button';
 	import { Badge } from '$lib/components/ui/badge';
 	import * as Dialog from '$lib/components/ui/dialog';
-	import { ClipboardCheck, FileText, ExternalLink } from 'lucide-svelte';
+	import { ClipboardCheck, ExternalLink } from 'lucide-svelte';
 	import type { Inspection, InspectionStatus } from '$lib/types/inspection';
 	import type { PageData } from './$types';
 
@@ -222,123 +221,21 @@
 		</Dialog.Header>
 
 		{#if selectedInspection}
-			<div class="space-y-4">
-				<!-- Claim Information -->
-				<Card class="p-4">
-					<h3 class="mb-3 text-sm font-semibold text-gray-900">Claim Information</h3>
-					<dl class="grid gap-3 text-sm">
-						<div class="grid grid-cols-3 gap-2">
-							<dt class="font-medium text-gray-500">Inspection #:</dt>
-							<dd class="col-span-2 text-gray-900">{selectedInspection.inspection_number}</dd>
-						</div>
-						<div class="grid grid-cols-3 gap-2">
-							<dt class="font-medium text-gray-500">Request #:</dt>
-							<dd class="col-span-2 text-gray-900">{selectedInspection.request_number}</dd>
-						</div>
-						{#if selectedInspection.claim_number}
-							<div class="grid grid-cols-3 gap-2">
-								<dt class="font-medium text-gray-500">Claim #:</dt>
-								<dd class="col-span-2 text-gray-900">{selectedInspection.claim_number}</dd>
-							</div>
-						{/if}
-						<div class="grid grid-cols-3 gap-2">
-							<dt class="font-medium text-gray-500">Type:</dt>
-							<dd class="col-span-2">
-								<Badge variant={selectedInspection.type === 'insurance' ? 'default' : 'secondary'}>
-									{selectedInspection.type === 'insurance' ? 'Insurance' : 'Private'}
-								</Badge>
-							</dd>
-						</div>
-						<div class="grid grid-cols-3 gap-2">
-							<dt class="font-medium text-gray-500">Status:</dt>
-							<dd class="col-span-2">
-								<StatusBadge status={selectedInspection.status} />
-							</dd>
-						</div>
-					</dl>
-				</Card>
+			<SummaryComponent
+				inspection={selectedInspection}
+				request={data.requests.find((r) => r.id === selectedInspection.request_id) || null}
+				client={selectedClient}
+				showAssessmentData={false}
+			/>
 
-				<!-- Client Contact Details -->
-				<Card class="p-4">
-					<h3 class="mb-3 text-sm font-semibold text-gray-900">Client Contact Details</h3>
-					{#if selectedClient}
-						<dl class="grid gap-3 text-sm">
-							<div class="grid grid-cols-3 gap-2">
-								<dt class="font-medium text-gray-500">Name:</dt>
-								<dd class="col-span-2 text-gray-900">{selectedClient.name}</dd>
-							</div>
-							{#if selectedClient.contact_name}
-								<div class="grid grid-cols-3 gap-2">
-									<dt class="font-medium text-gray-500">Contact:</dt>
-									<dd class="col-span-2 text-gray-900">{selectedClient.contact_name}</dd>
-								</div>
-							{/if}
-							{#if selectedClient.email}
-								<div class="grid grid-cols-3 gap-2">
-									<dt class="font-medium text-gray-500">Email:</dt>
-									<dd class="col-span-2">
-										<a href="mailto:{selectedClient.email}" class="text-blue-600 hover:underline">
-											{selectedClient.email}
-										</a>
-									</dd>
-								</div>
-							{/if}
-							{#if selectedClient.phone}
-								<div class="grid grid-cols-3 gap-2">
-									<dt class="font-medium text-gray-500">Phone:</dt>
-									<dd class="col-span-2">
-										<a href="tel:{selectedClient.phone}" class="text-blue-600 hover:underline">
-											{selectedClient.phone}
-										</a>
-									</dd>
-								</div>
-							{/if}
-						</dl>
-					{:else}
-						<p class="text-sm text-gray-500">Client information not available</p>
-					{/if}
-				</Card>
-
-				<!-- Vehicle Information -->
-				<Card class="p-4">
-					<h3 class="mb-3 text-sm font-semibold text-gray-900">Vehicle Information</h3>
-					<dl class="grid gap-3 text-sm">
-						<div class="grid grid-cols-3 gap-2">
-							<dt class="font-medium text-gray-500">Vehicle:</dt>
-							<dd class="col-span-2 text-gray-900">
-								{selectedInspection.vehicle_make || '-'}
-								{selectedInspection.vehicle_model || ''}
-								{#if selectedInspection.vehicle_year}
-									({selectedInspection.vehicle_year})
-								{/if}
-							</dd>
-						</div>
-						{#if selectedInspection.vehicle_registration}
-							<div class="grid grid-cols-3 gap-2">
-								<dt class="font-medium text-gray-500">Registration:</dt>
-								<dd class="col-span-2 text-gray-900">{selectedInspection.vehicle_registration}</dd>
-							</div>
-						{/if}
-						{#if selectedInspection.vehicle_vin}
-							<div class="grid grid-cols-3 gap-2">
-								<dt class="font-medium text-gray-500">VIN:</dt>
-								<dd class="col-span-2 font-mono text-xs text-gray-900">
-									{selectedInspection.vehicle_vin}
-								</dd>
-							</div>
-						{/if}
-					</dl>
-				</Card>
-
-				<!-- Action Buttons -->
-				<Dialog.Footer>
-					<Button variant="outline" onclick={closeSummary}>Close</Button>
-					<Button onclick={handleOpenReport}>
-						<ExternalLink class="mr-2 h-4 w-4" />
-						Open Report
-					</Button>
-				</Dialog.Footer>
-			</div>
+			<!-- Action Buttons -->
+			<Dialog.Footer>
+				<Button variant="outline" onclick={closeSummary}>Close</Button>
+				<Button onclick={handleOpenReport}>
+					<ExternalLink class="mr-2 h-4 w-4" />
+					Open Report
+				</Button>
+			</Dialog.Footer>
 		{/if}
 	</Dialog.Content>
 </Dialog.Root>

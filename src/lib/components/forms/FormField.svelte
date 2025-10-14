@@ -16,6 +16,9 @@
 		class?: string;
 		inputClass?: string;
 		rows?: number;
+		step?: string;
+		min?: string;
+		max?: string;
 		onchange?: (value: string) => void;
 	};
 
@@ -32,12 +35,23 @@
 		class: className = '',
 		inputClass = '',
 		rows = 3,
+		step,
+		min,
+		max,
 		onchange
 	}: Props = $props();
 
 	function handleChange(e: Event) {
 		const target = e.target as HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement;
-		value = target.value;
+
+		// For number inputs, parse the value as a number to prevent string concatenation issues
+		if (target instanceof HTMLInputElement && target.type === 'number') {
+			const numValue = target.value === '' ? 0 : parseFloat(target.value);
+			value = isNaN(numValue) ? 0 : numValue;
+		} else {
+			value = target.value;
+		}
+
 		onchange?.(target.value);
 	}
 </script>
@@ -93,6 +107,9 @@
 			{placeholder}
 			{required}
 			{disabled}
+			{step}
+			{min}
+			{max}
 			bind:value
 			onchange={handleChange}
 			class={cn(error && 'border-red-500 focus-visible:ring-red-500', inputClass)}

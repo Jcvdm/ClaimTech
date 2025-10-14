@@ -6,6 +6,15 @@ import type {
 	UpdateEstimateInput
 } from '$lib/types/assessment';
 import { auditService } from './audit.service';
+import {
+	calculateLineItemTotal,
+	calculateSubtotal,
+	calculateVAT,
+	calculateTotal,
+	recalculateAllLineItems,
+	calculateLabourCost,
+	calculatePaintCost
+} from '$lib/utils/estimateCalculations';
 
 export class EstimateService {
 	/**
@@ -32,6 +41,8 @@ export class EstimateService {
 	async createDefault(assessmentId: string): Promise<Estimate> {
 		return this.create({
 			assessment_id: assessmentId,
+			labour_rate: 500.0,
+			paint_rate: 2000.0,
 			line_items: [],
 			notes: '',
 			vat_percentage: 15.0,
@@ -45,20 +56,26 @@ export class EstimateService {
 	async create(input: CreateEstimateInput): Promise<Estimate> {
 		// Calculate totals
 		const lineItems = input.line_items || [];
-		const subtotal = this.calculateSubtotal(lineItems);
+		const labourRate = input.labour_rate || 500.0;
+		const paintRate = input.paint_rate || 2000.0;
+		const subtotal = calculateSubtotal(lineItems);
 		const vatPercentage = input.vat_percentage || 15.0;
-		const vatAmount = this.calculateVAT(subtotal, vatPercentage);
-		const total = subtotal + vatAmount;
+		const vatAmount = calculateVAT(subtotal, vatPercentage);
+		const total = calculateTotal(subtotal, vatAmount);
 
 		const { data, error } = await supabase
 			.from('assessment_estimates')
 			.insert({
 				assessment_id: input.assessment_id,
+				repairer_id: input.repairer_id || null,
+				labour_rate: labourRate,
+				paint_rate: paintRate,
 				line_items: lineItems,
 				subtotal,
 				vat_percentage: vatPercentage,
 				vat_amount: vatAmount,
 				total,
+				assessment_result: input.assessment_result || null,
 				notes: input.notes || null,
 				currency: input.currency || 'ZAR'
 			})
@@ -92,17 +109,34 @@ export class EstimateService {
 	 * Update estimate
 	 */
 	async update(id: string, input: UpdateEstimateInput): Promise<Estimate> {
-		// If line_items are being updated, recalculate totals
+		// Get current estimate to access rates
+		const currentEstimate = await this.getById(id);
+		if (!currentEstimate) {
+			throw new Error('Estimate not found');
+		}
+
+		// If line_items or rates are being updated, recalculate totals
 		let updateData: any = { ...input };
 
-		if (input.line_items) {
-			const subtotal = this.calculateSubtotal(input.line_items);
-			const vatPercentage = input.vat_percentage || 15.0;
-			const vatAmount = this.calculateVAT(subtotal, vatPercentage);
-			const total = subtotal + vatAmount;
+		if (input.line_items || input.labour_rate || input.paint_rate) {
+			const labourRate = input.labour_rate || currentEstimate.labour_rate;
+			const paintRate = input.paint_rate || currentEstimate.paint_rate;
+			const lineItems = input.line_items || currentEstimate.line_items;
+
+			// Recalculate all line items if rates changed
+			const recalculatedItems =
+				input.labour_rate || input.paint_rate
+					? recalculateAllLineItems(lineItems, labourRate, paintRate)
+					: lineItems;
+
+			const subtotal = calculateSubtotal(recalculatedItems);
+			const vatPercentage = input.vat_percentage || currentEstimate.vat_percentage;
+			const vatAmount = calculateVAT(subtotal, vatPercentage);
+			const total = calculateTotal(subtotal, vatAmount);
 
 			updateData = {
 				...updateData,
+				line_items: recalculatedItems,
 				subtotal,
 				vat_amount: vatAmount,
 				total
@@ -144,10 +178,18 @@ export class EstimateService {
 			throw new Error('Estimate not found');
 		}
 
-		// Add unique ID to line item
-		const newItem = {
+		// Calculate costs for the new item
+		const labourCost = calculateLabourCost(item.labour_hours, estimate.labour_rate);
+		const paintCost = calculatePaintCost(item.paint_panels, estimate.paint_rate);
+		const total = calculateLineItemTotal(item, estimate.labour_rate, estimate.paint_rate);
+
+		// Add unique ID and calculated costs to line item
+		const newItem: EstimateLineItem = {
 			...item,
-			id: crypto.randomUUID()
+			id: item.id || crypto.randomUUID(),
+			labour_cost: labourCost,
+			paint_cost: paintCost,
+			total
 		};
 
 		const updatedLineItems = [...estimate.line_items, newItem];
@@ -158,7 +200,11 @@ export class EstimateService {
 	/**
 	 * Update line item in estimate
 	 */
-	async updateLineItem(id: string, itemId: string, item: Partial<EstimateLineItem>): Promise<Estimate> {
+	async updateLineItem(
+		id: string,
+		itemId: string,
+		item: Partial<EstimateLineItem>
+	): Promise<Estimate> {
 		const estimate = await this.getById(id);
 		if (!estimate) {
 			throw new Error('Estimate not found');
@@ -167,8 +213,10 @@ export class EstimateService {
 		const updatedLineItems = estimate.line_items.map((lineItem) => {
 			if (lineItem.id === itemId) {
 				const updated = { ...lineItem, ...item };
-				// Recalculate line item total
-				updated.total = updated.quantity * updated.unit_price;
+				// Recalculate costs
+				updated.labour_cost = calculateLabourCost(updated.labour_hours, estimate.labour_rate);
+				updated.paint_cost = calculatePaintCost(updated.paint_panels, estimate.paint_rate);
+				updated.total = calculateLineItemTotal(updated, estimate.labour_rate, estimate.paint_rate);
 				return updated;
 			}
 			return lineItem;
@@ -192,6 +240,22 @@ export class EstimateService {
 	}
 
 	/**
+	 * Delete multiple line items from estimate in a single operation
+	 * This prevents race conditions when deleting multiple items
+	 */
+	async bulkDeleteLineItems(id: string, itemIds: string[]): Promise<Estimate> {
+		const estimate = await this.getById(id);
+		if (!estimate) {
+			throw new Error('Estimate not found');
+		}
+
+		// Filter out all items with IDs in the itemIds array
+		const updatedLineItems = estimate.line_items.filter((item) => !itemIds.includes(item.id!));
+
+		return this.update(id, { line_items: updatedLineItems });
+	}
+
+	/**
 	 * Get estimate by ID
 	 */
 	async getById(id: string): Promise<Estimate | null> {
@@ -210,21 +274,7 @@ export class EstimateService {
 	}
 
 	/**
-	 * Calculate subtotal from line items
-	 */
-	private calculateSubtotal(lineItems: EstimateLineItem[]): number {
-		return lineItems.reduce((sum, item) => sum + item.total, 0);
-	}
-
-	/**
-	 * Calculate VAT amount
-	 */
-	private calculateVAT(subtotal: number, vatPercentage: number): number {
-		return (subtotal * vatPercentage) / 100;
-	}
-
-	/**
-	 * Recalculate all totals for an estimate
+	 * Recalculate all totals for an estimate (useful when rates change)
 	 */
 	async recalculateTotals(id: string): Promise<Estimate> {
 		const estimate = await this.getById(id);
@@ -232,16 +282,17 @@ export class EstimateService {
 			throw new Error('Estimate not found');
 		}
 
-		// Recalculate line item totals
-		const updatedLineItems = estimate.line_items.map((item) => ({
-			...item,
-			total: item.quantity * item.unit_price
-		}));
+		// Recalculate all line items with current rates
+		const updatedLineItems = recalculateAllLineItems(
+			estimate.line_items,
+			estimate.labour_rate,
+			estimate.paint_rate
+		);
 
 		// Recalculate estimate totals
-		const subtotal = this.calculateSubtotal(updatedLineItems);
-		const vatAmount = this.calculateVAT(subtotal, estimate.vat_percentage);
-		const total = subtotal + vatAmount;
+		const subtotal = calculateSubtotal(updatedLineItems);
+		const vatAmount = calculateVAT(subtotal, estimate.vat_percentage);
+		const total = calculateTotal(subtotal, vatAmount);
 
 		const { data, error } = await supabase
 			.from('assessment_estimates')

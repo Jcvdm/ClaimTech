@@ -12,7 +12,9 @@
 		Car,
 		Gauge,
 		AlertTriangle,
-		DollarSign
+		DollarSign,
+		ClipboardList,
+		FileCheck
 	} from 'lucide-svelte';
 	import type { Assessment } from '$lib/types/assessment';
 
@@ -43,12 +45,16 @@
 	}: Props = $props();
 
 	const tabs: Tab[] = [
+		{ id: 'summary', label: 'Summary', icon: ClipboardList },
 		{ id: 'identification', label: 'Vehicle ID', icon: FileText },
 		{ id: '360', label: '360° Exterior', icon: Camera },
 		{ id: 'interior', label: 'Interior & Mechanical', icon: Car },
 		{ id: 'tyres', label: 'Tyres', icon: Gauge },
 		{ id: 'damage', label: 'Damage ID', icon: AlertTriangle },
-		{ id: 'estimate', label: 'Estimate', icon: DollarSign }
+		{ id: 'values', label: 'Values', icon: DollarSign },
+		{ id: 'pre-incident', label: 'Pre-Incident', icon: DollarSign },
+		{ id: 'estimate', label: 'Estimate', icon: DollarSign },
+		{ id: 'finalize', label: 'Finalize', icon: FileCheck }
 	];
 
 	const totalTabs = tabs.length;
@@ -64,34 +70,52 @@
 			onTabChange(tabId);
 		}
 	}
+
+	function getShortLabel(label: string): string {
+		const shortLabels: Record<string, string> = {
+			'Summary': 'Sum',
+			'Vehicle ID': 'ID',
+			'360° Exterior': '360°',
+			'Interior & Mechanical': 'Int',
+			'Tyres': 'Tyre',
+			'Damage ID': 'Dmg',
+			'Values': 'Val',
+			'Pre-Incident': 'Pre',
+			'Estimate': 'Est',
+			'Finalize': 'Fin'
+		};
+		return shortLabels[label] || label;
+	}
 </script>
 
 <div class="flex h-full flex-col bg-gray-50">
 	<!-- Header -->
-	<div class="border-b bg-white px-8 py-4">
-		<div class="flex items-center justify-between">
-			<div>
-				<h1 class="text-2xl font-bold text-gray-900">
+	<div class="border-b bg-white px-4 sm:px-6 lg:px-8 py-3 sm:py-4">
+		<div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+			<div class="flex-1 min-w-0">
+				<h1 class="text-xl sm:text-2xl font-bold text-gray-900 truncate">
 					Assessment {assessment.assessment_number}
 				</h1>
-				<p class="mt-1 text-sm text-gray-500">
+				<p class="mt-1 text-xs sm:text-sm text-gray-500">
 					Complete the vehicle assessment by filling in all required sections
 				</p>
 			</div>
-			<div class="flex items-center gap-3">
+			<div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3 w-full sm:w-auto">
 				{#if lastSaved}
-					<span class="text-sm text-gray-500">
+					<span class="text-xs sm:text-sm text-gray-500 text-center sm:text-left">
 						Last saved: {new Date(lastSaved).toLocaleTimeString()}
 					</span>
 				{/if}
-				<Button variant="outline" onclick={onSave} disabled={saving}>
-					<Save class="mr-2 h-4 w-4" />
-					{saving ? 'Saving...' : 'Save'}
-				</Button>
-				<Button variant="outline" onclick={onExit}>
-					<X class="mr-2 h-4 w-4" />
-					Exit
-				</Button>
+				<div class="flex gap-2">
+					<Button variant="outline" onclick={onSave} disabled={saving} class="flex-1 sm:flex-none">
+						<Save class="mr-2 h-4 w-4" />
+						{saving ? 'Saving...' : 'Save'}
+					</Button>
+					<Button variant="outline" onclick={onExit} class="flex-1 sm:flex-none">
+						<X class="mr-2 h-4 w-4" />
+						Exit
+					</Button>
+				</div>
 			</div>
 		</div>
 
@@ -113,23 +137,24 @@
 	</div>
 
 	<!-- Tabs -->
-	<div class="border-b bg-white px-8">
-		<div class="flex gap-1">
+	<div class="border-b bg-white px-4 sm:px-6 lg:px-8">
+		<div class="flex flex-wrap gap-1">
 			{#each tabs as tab}
 				{@const isActive = currentTab === tab.id}
 				{@const isCompleted = isTabCompleted(tab.id)}
 				<button
 					onclick={() => handleTabClick(tab.id)}
-					class="relative flex items-center gap-2 border-b-2 px-4 py-3 text-sm font-medium transition-colors {isActive
+					class="relative flex items-center gap-1 sm:gap-2 border-b-2 px-2 sm:px-3 lg:px-4 py-2 sm:py-2.5 lg:py-3 text-xs sm:text-sm font-medium transition-colors whitespace-nowrap {isActive
 						? 'border-blue-600 text-blue-600'
 						: 'border-transparent text-gray-600 hover:border-gray-300 hover:text-gray-900'}"
 				>
-					<svelte:component this={tab.icon} class="h-4 w-4" />
-					<span>{tab.label}</span>
+					<svelte:component this={tab.icon} class="h-3 w-3 sm:h-4 sm:w-4" />
+					<span class="hidden sm:inline">{tab.label}</span>
+					<span class="sm:hidden">{getShortLabel(tab.label)}</span>
 					{#if isCompleted}
-						<CheckCircle class="h-4 w-4 text-green-600" />
+						<CheckCircle class="h-3 w-3 sm:h-4 sm:w-4 text-green-600" />
 					{:else}
-						<Circle class="h-4 w-4 text-gray-300" />
+						<Circle class="h-3 w-3 sm:h-4 sm:w-4 text-gray-300" />
 					{/if}
 				</button>
 			{/each}
@@ -137,7 +162,7 @@
 	</div>
 
 	<!-- Content Area -->
-	<div class="flex-1 overflow-y-auto p-8">
+	<div class="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
 		<div class="mx-auto max-w-5xl">
 			<slot />
 		</div>

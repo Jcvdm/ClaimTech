@@ -16,7 +16,8 @@
 		Settings,
 		UserPlus,
 		Calendar,
-		ClipboardList
+		ClipboardList,
+		Wrench
 	} from 'lucide-svelte';
 
 	type NavItem = {
@@ -68,8 +69,12 @@
 			]
 		},
 		{
+			label: 'Repairers',
+			items: [{ label: 'All Repairers', href: '/repairers', icon: Wrench }]
+		},
+		{
 			label: 'Settings',
-			items: [{ label: 'Settings', href: '/settings', icon: Settings }]
+			items: [{ label: 'Company Settings', href: '/settings', icon: Settings }]
 		}
 	];
 

@@ -8,10 +8,17 @@ import { interiorMechanicalService } from '$lib/services/interior-mechanical.ser
 import { tyresService } from '$lib/services/tyres.service';
 import { damageService } from '$lib/services/damage.service';
 import { estimateService } from '$lib/services/estimate.service';
+import { estimatePhotosService } from '$lib/services/estimate-photos.service';
+import { preIncidentEstimateService } from '$lib/services/pre-incident-estimate.service';
+import { preIncidentEstimatePhotosService } from '$lib/services/pre-incident-estimate-photos.service';
 import { assessmentNotesService } from '$lib/services/assessment-notes.service';
 import { appointmentService } from '$lib/services/appointment.service';
 import { inspectionService } from '$lib/services/inspection.service';
 import { requestService } from '$lib/services/request.service';
+import { vehicleValuesService } from '$lib/services/vehicle-values.service';
+import { clientService } from '$lib/services/client.service';
+import { repairerService } from '$lib/services/repairer.service';
+import { companySettingsService } from '$lib/services/company-settings.service';
 
 export const load: PageServerLoad = async ({ params }) => {
 	try {
@@ -40,6 +47,12 @@ export const load: PageServerLoad = async ({ params }) => {
 			// Create default damage record (one per assessment)
 			await damageService.createDefault(assessment.id);
 
+			// Create default vehicle values (one per assessment)
+			await vehicleValuesService.createDefault(assessment.id);
+
+			// Create default pre-incident estimate (one per assessment)
+			await preIncidentEstimateService.createDefault(assessment.id);
+
 			// Create default estimate (one per assessment)
 			await estimateService.createDefault(assessment.id);
 		}
@@ -52,10 +65,14 @@ export const load: PageServerLoad = async ({ params }) => {
 			interiorMechanical,
 			tyres,
 			damageRecord,
+			vehicleValues,
+			preIncidentEstimate,
 			estimate,
 			notes,
 			inspection,
-			request
+			request,
+			repairers,
+			companySettings
 		] = await Promise.all([
 			vehicleIdentificationService.getByAssessment(assessment.id),
 			exterior360Service.getByAssessment(assessment.id),
@@ -63,11 +80,40 @@ export const load: PageServerLoad = async ({ params }) => {
 			interiorMechanicalService.getByAssessment(assessment.id),
 			tyresService.listByAssessment(assessment.id),
 			damageService.getByAssessment(assessment.id),
+			vehicleValuesService.getByAssessment(assessment.id),
+			preIncidentEstimateService.getByAssessment(assessment.id),
 			estimateService.getByAssessment(assessment.id),
 			assessmentNotesService.getNotesByAssessment(assessment.id),
 			inspectionService.getInspection(appointment.inspection_id),
-			requestService.getRequest(appointment.request_id)
+			requestService.getRequest(appointment.request_id),
+			repairerService.listRepairers(true),
+			companySettingsService.getSettings()
 		]);
+
+		// Auto-create vehicle values if it doesn't exist (for existing assessments)
+		let finalVehicleValues = vehicleValues;
+		if (!finalVehicleValues) {
+			finalVehicleValues = await vehicleValuesService.createDefault(assessment.id);
+		}
+
+		// Auto-create pre-incident estimate if it doesn't exist (for existing assessments)
+		let finalPreIncidentEstimate = preIncidentEstimate;
+		if (!finalPreIncidentEstimate) {
+			finalPreIncidentEstimate = await preIncidentEstimateService.createDefault(assessment.id);
+		}
+
+		// Load estimate photos if estimate exists
+		const estimatePhotos = estimate
+			? await estimatePhotosService.getPhotosByEstimate(estimate.id)
+			: [];
+
+		// Load pre-incident estimate photos if pre-incident estimate exists
+		const preIncidentEstimatePhotos = finalPreIncidentEstimate
+			? await preIncidentEstimatePhotosService.getPhotosByEstimate(finalPreIncidentEstimate.id)
+			: [];
+
+		// Load client for write-off percentages
+		const client = request ? await clientService.getClient(request.client_id) : null;
 
 		return {
 			appointment,
@@ -78,10 +124,17 @@ export const load: PageServerLoad = async ({ params }) => {
 			interiorMechanical,
 			tyres,
 			damageRecord,
+			vehicleValues: finalVehicleValues,
+			preIncidentEstimate: finalPreIncidentEstimate,
+			preIncidentEstimatePhotos,
 			estimate,
+			estimatePhotos,
 			notes,
 			inspection,
-			request
+			request,
+			client,
+			repairers,
+			companySettings
 		};
 	} catch (err) {
 		console.error('Error loading assessment:', err);

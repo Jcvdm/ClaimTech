@@ -175,20 +175,111 @@ export function validateEstimate(data: any): TabValidation {
 		};
 	}
 
+	// Must have rates configured
+	if (!data.labour_rate || data.labour_rate <= 0) {
+		missingFields.push('Labour rate must be set');
+	}
+	if (!data.paint_rate || data.paint_rate <= 0) {
+		missingFields.push('Paint rate must be set');
+	}
+
 	// Must have at least one line item
 	if (!data.line_items || data.line_items.length === 0) {
 		missingFields.push('At least one line item');
 	}
 
-	// Total must be greater than 0
-	if (!data.total || data.total <= 0) {
-		missingFields.push('Total amount must be greater than 0');
-	}
+	// NOTE: All line item fields are now optional to allow users to add empty lines
+	// and fill values later. No field-level validation is performed.
+
+	// Only validate that we have line items, not their content
+	// This gives users freedom to add placeholder lines and complete them incrementally
 
 	return {
 		tabId: 'estimate',
 		isComplete: missingFields.length === 0,
 		missingFields
+	};
+}
+
+/**
+ * Validate Pre-Incident Estimate tab
+ */
+export function validatePreIncidentEstimate(data: any): TabValidation {
+	const missingFields: string[] = [];
+
+	if (!data) {
+		missingFields.push('Pre-incident estimate data');
+		return {
+			tabId: 'pre-incident',
+			isComplete: false,
+			missingFields
+		};
+	}
+
+	// Must have rates configured
+	if (!data.labour_rate || data.labour_rate <= 0) {
+		missingFields.push('Labour rate must be set');
+	}
+
+	if (!data.paint_rate || data.paint_rate <= 0) {
+		missingFields.push('Paint rate must be set');
+	}
+
+	// Must have at least one line item
+	if (!data.line_items || data.line_items.length === 0) {
+		missingFields.push('At least one line item required');
+	}
+
+	// Total must be greater than 0
+	if (!data.total || data.total <= 0) {
+		missingFields.push('Total must be greater than 0');
+	}
+
+	return {
+		tabId: 'pre-incident',
+		isComplete: missingFields.length === 0,
+		missingFields
+	};
+}
+
+/**
+ * Validate vehicle values tab
+ */
+export function validateVehicleValues(vehicleValues: any): TabValidation {
+	if (!vehicleValues) {
+		return {
+			tabId: 'values',
+			isComplete: false,
+			errors: ['Vehicle values data not found']
+		};
+	}
+
+	const errors: string[] = [];
+
+	// Required: At least one value type must be entered
+	if (!vehicleValues.trade_value && !vehicleValues.market_value && !vehicleValues.retail_value) {
+		errors.push('At least one vehicle value (Trade, Market, or Retail) is required');
+	}
+
+	// Required: Valuation source
+	if (!vehicleValues.sourced_from) {
+		errors.push('Valuation source is required');
+	}
+
+	// Required: Sourced date
+	if (!vehicleValues.sourced_date) {
+		errors.push('Sourced date is required');
+	}
+
+	// Required: PDF proof
+	if (!vehicleValues.valuation_pdf_url) {
+		errors.push('Valuation report PDF is required');
+	}
+
+	return {
+		tabId: 'values',
+		isComplete: errors.length === 0,
+		errors
 	};
 }
 
@@ -201,6 +292,8 @@ export function getTabCompletionStatus(assessmentData: {
 	interiorMechanical: any;
 	tyres: any[];
 	damageRecord: any;
+	vehicleValues: any;
+	preIncidentEstimate: any;
 	estimate: any;
 }): TabValidation[] {
 	return [
@@ -209,6 +302,8 @@ export function getTabCompletionStatus(assessmentData: {
 		validateInteriorMechanical(assessmentData.interiorMechanical),
 		validateTyres(assessmentData.tyres),
 		validateDamage(assessmentData.damageRecord ? [assessmentData.damageRecord] : []),
+		validateVehicleValues(assessmentData.vehicleValues),
+		validatePreIncidentEstimate(assessmentData.preIncidentEstimate),
 		validateEstimate(assessmentData.estimate)
 	];
 }

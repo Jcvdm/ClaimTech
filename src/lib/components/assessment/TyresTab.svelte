@@ -54,55 +54,53 @@
 					<div class="space-y-4">
 						<FormField
 							label="Tyre Make"
+							name={`tyre_make_${tyre.id}`}
 							type="text"
 							value={tyre.tyre_make || ''}
-							onInput={(e) =>
-								onUpdateTyre(tyre.id, { tyre_make: (e.target as HTMLInputElement).value })}
+							onchange={(value) => onUpdateTyre(tyre.id, { tyre_make: value })}
 							placeholder="e.g., Michelin, Bridgestone"
 						/>
 						<FormField
 							label="Tyre Size"
+							name={`tyre_size_${tyre.id}`}
 							type="text"
 							value={tyre.tyre_size || ''}
-							onInput={(e) =>
-								onUpdateTyre(tyre.id, { tyre_size: (e.target as HTMLInputElement).value })}
+							onchange={(value) => onUpdateTyre(tyre.id, { tyre_size: value })}
 							placeholder="e.g., 205/55R16"
 						/>
 						<div class="grid grid-cols-2 gap-4">
 							<FormField
 								label="Load Index"
+								name={`load_index_${tyre.id}`}
 								type="text"
 								value={tyre.load_index || ''}
-								onInput={(e) =>
-									onUpdateTyre(tyre.id, { load_index: (e.target as HTMLInputElement).value })}
+								onchange={(value) => onUpdateTyre(tyre.id, { load_index: value })}
 								placeholder="e.g., 91"
 							/>
 							<FormField
 								label="Speed Rating"
+								name={`speed_rating_${tyre.id}`}
 								type="text"
 								value={tyre.speed_rating || ''}
-								onInput={(e) =>
-									onUpdateTyre(tyre.id, { speed_rating: (e.target as HTMLInputElement).value })}
+								onchange={(value) => onUpdateTyre(tyre.id, { speed_rating: value })}
 								placeholder="e.g., V"
 							/>
 						</div>
 						<FormField
 							label="Tread Depth (mm)"
+							name={`tread_depth_${tyre.id}`}
 							type="number"
 							value={tyre.tread_depth_mm?.toString() || ''}
-							onInput={(e) =>
-								onUpdateTyre(tyre.id, {
-									tread_depth_mm: parseFloat((e.target as HTMLInputElement).value)
-								})}
+							onchange={(value) => onUpdateTyre(tyre.id, { tread_depth_mm: parseFloat(value) || 0 })}
 							placeholder="e.g., 5.5"
 							step="0.1"
 						/>
 						<FormField
 							label="Condition"
+							name={`condition_${tyre.id}`}
 							type="select"
 							value={tyre.condition || ''}
-							onChange={(e) =>
-								onUpdateTyre(tyre.id, { condition: (e.target as HTMLSelectElement).value as any })}
+							onchange={(value) => onUpdateTyre(tyre.id, { condition: value as any })}
 							options={[
 								{ value: '', label: 'Select condition' },
 								{ value: 'excellent', label: 'Excellent' },
@@ -160,10 +158,10 @@
 
 						<FormField
 							label="Notes"
+							name={`notes_${tyre.id}`}
 							type="textarea"
 							value={tyre.notes || ''}
-							onInput={(e) =>
-								onUpdateTyre(tyre.id, { notes: (e.target as HTMLTextAreaElement).value })}
+							onchange={(value) => onUpdateTyre(tyre.id, { notes: value })}
 							placeholder="Any damage, wear patterns, or observations..."
 							rows={3}
 						/>

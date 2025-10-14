@@ -22,7 +22,12 @@
 				address: formData.get('address') as string,
 				city: formData.get('city') as string,
 				postal_code: formData.get('postal_code') as string,
-				notes: formData.get('notes') as string
+				notes: formData.get('notes') as string,
+				borderline_writeoff_percentage: parseFloat(
+					formData.get('borderline_writeoff_percentage') as string
+				),
+				total_writeoff_percentage: parseFloat(formData.get('total_writeoff_percentage') as string),
+				salvage_percentage: parseFloat(formData.get('salvage_percentage') as string)
 			};
 
 			const newClient = await clientService.createClient(clientData);

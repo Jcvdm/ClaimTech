@@ -3,12 +3,16 @@
 	import { goto, invalidateAll } from '$app/navigation';
 	import { onMount, onDestroy } from 'svelte';
 	import AssessmentLayout from '$lib/components/assessment/AssessmentLayout.svelte';
+	import SummaryTab from '$lib/components/assessment/SummaryTab.svelte';
 	import VehicleIdentificationTab from '$lib/components/assessment/VehicleIdentificationTab.svelte';
 	import Exterior360Tab from '$lib/components/assessment/Exterior360Tab.svelte';
 	import InteriorMechanicalTab from '$lib/components/assessment/InteriorMechanicalTab.svelte';
 	import TyresTab from '$lib/components/assessment/TyresTab.svelte';
 	import DamageTab from '$lib/components/assessment/DamageTab.svelte';
+	import VehicleValuesTab from '$lib/components/assessment/VehicleValuesTab.svelte';
+	import PreIncidentEstimateTab from '$lib/components/assessment/PreIncidentEstimateTab.svelte';
 	import EstimateTab from '$lib/components/assessment/EstimateTab.svelte';
+	import FinalizeTab from '$lib/components/assessment/FinalizeTab.svelte';
 	import AssessmentNotes from '$lib/components/assessment/AssessmentNotes.svelte';
 	import { assessmentService } from '$lib/services/assessment.service';
 	import { vehicleIdentificationService } from '$lib/services/vehicle-identification.service';
@@ -18,6 +22,9 @@
 	import { tyresService } from '$lib/services/tyres.service';
 	import { damageService } from '$lib/services/damage.service';
 	import { estimateService } from '$lib/services/estimate.service';
+	import { preIncidentEstimateService } from '$lib/services/pre-incident-estimate.service';
+	import { vehicleValuesService } from '$lib/services/vehicle-values.service';
+	import { documentGenerationService } from '$lib/services/document-generation.service';
 	import { getTabCompletionStatus } from '$lib/utils/validation';
 	import type {
 		VehicleIdentification,
@@ -25,15 +32,18 @@
 		InteriorMechanical,
 		Tyre,
 		DamageRecord,
+		VehicleValues,
 		Estimate,
 		EstimateLineItem,
-		AccessoryType
+		AccessoryType,
+		AssessmentResultType
 	} from '$lib/types/assessment';
 
 	let { data }: { data: PageData } = $props();
 
 	let currentTab = $state(data.assessment.current_tab || 'identification');
 	let saving = $state(false);
+	let generatingDocument = $state(false); // Flag to pause auto-save during document generation
 	let lastSaved = $state<string | null>(null);
 	let autoSaveInterval: ReturnType<typeof setInterval> | null = null;
 
@@ -45,6 +55,8 @@
 			interiorMechanical: data.interiorMechanical,
 			tyres: data.tyres,
 			damageRecord: data.damageRecord,
+			vehicleValues: data.vehicleValues,
+			preIncidentEstimate: data.preIncidentEstimate,
 			estimate: data.estimate
 		});
 
@@ -74,7 +86,7 @@
 	}
 
 	async function handleSave() {
-		if (saving) return; // Prevent concurrent saves
+		if (saving || generatingDocument) return; // Prevent concurrent saves and pause during document generation
 
 		saving = true;
 		try {
@@ -241,6 +253,132 @@
 	async function handleCompleteDamage() {
 		await assessmentService.markTabCompleted(data.assessment.id, 'damage');
 		await invalidateAll();
+		currentTab = 'values';
+	}
+
+	// Vehicle Values handlers
+	async function handleUpdateVehicleValues(updateData: Partial<VehicleValues>) {
+		try {
+			if (data.vehicleValues) {
+				// Get write-off percentages from client
+				const writeOffPercentages = data.client
+					? {
+							borderline: data.client.borderline_writeoff_percentage,
+							totalWriteoff: data.client.total_writeoff_percentage,
+							salvage: data.client.salvage_percentage
+						}
+					: undefined;
+
+				await vehicleValuesService.update(data.vehicleValues.id, updateData, writeOffPercentages);
+				await invalidateAll();
+			}
+		} catch (error) {
+			console.error('Error updating vehicle values:', error);
+		}
+	}
+
+	async function handleCompleteVehicleValues() {
+		await assessmentService.markTabCompleted(data.assessment.id, 'values');
+		await invalidateAll();
+		currentTab = 'pre-incident';
+	}
+
+	// Pre-Incident Estimate handlers
+	async function handleUpdatePreIncidentEstimate(updateData: Partial<Estimate>) {
+		try {
+			if (data.preIncidentEstimate) {
+				await preIncidentEstimateService.update(data.preIncidentEstimate.id, updateData);
+				await invalidateAll();
+			}
+		} catch (error) {
+			console.error('Error updating pre-incident estimate:', error);
+		}
+	}
+
+	async function handleAddPreIncidentLineItem(item: EstimateLineItem) {
+		try {
+			if (data.preIncidentEstimate) {
+				await preIncidentEstimateService.addLineItem(data.preIncidentEstimate.id, item);
+				await invalidateAll();
+			}
+		} catch (error) {
+			console.error('Error adding pre-incident line item:', error);
+		}
+	}
+
+	async function handleUpdatePreIncidentLineItem(
+		itemId: string,
+		updateData: Partial<EstimateLineItem>
+	) {
+		try {
+			if (data.preIncidentEstimate) {
+				await preIncidentEstimateService.updateLineItem(
+					data.preIncidentEstimate.id,
+					itemId,
+					updateData
+				);
+				await invalidateAll();
+			}
+		} catch (error) {
+			console.error('Error updating pre-incident line item:', error);
+		}
+	}
+
+	async function handleDeletePreIncidentLineItem(itemId: string) {
+		try {
+			if (data.preIncidentEstimate) {
+				await preIncidentEstimateService.deleteLineItem(data.preIncidentEstimate.id, itemId);
+				await invalidateAll();
+			}
+		} catch (error) {
+			console.error('Error deleting pre-incident line item:', error);
+		}
+	}
+
+	async function handleBulkDeletePreIncidentLineItems(itemIds: string[]) {
+		try {
+			if (data.preIncidentEstimate) {
+				await preIncidentEstimateService.bulkDeleteLineItems(
+					data.preIncidentEstimate.id,
+					itemIds
+				);
+				await invalidateAll();
+			}
+		} catch (error) {
+			console.error('Error bulk deleting pre-incident line items:', error);
+		}
+	}
+
+	async function handleUpdatePreIncidentRates(
+		labourRate: number,
+		paintRate: number,
+		vatPercentage: number,
+		oemMarkup: number,
+		altMarkup: number,
+		secondHandMarkup: number,
+		outworkMarkup: number
+	) {
+		try {
+			if (data.preIncidentEstimate) {
+				await preIncidentEstimateService.update(data.preIncidentEstimate.id, {
+					labour_rate: labourRate,
+					paint_rate: paintRate,
+					vat_percentage: vatPercentage,
+					oem_markup_percentage: oemMarkup,
+					alt_markup_percentage: altMarkup,
+					second_hand_markup_percentage: secondHandMarkup,
+					outwork_markup_percentage: outworkMarkup
+				});
+				await invalidateAll();
+			}
+		} catch (error) {
+			console.error('Error updating pre-incident rates:', error);
+		}
+	}
+
+	async function handleCompletePreIncidentEstimate() {
+		await assessmentService.markTabCompleted(data.assessment.id, 'pre-incident');
+		await invalidateAll();
 		currentTab = 'estimate';
 	}
 
@@ -289,12 +427,149 @@
 		}
 	}
 
+	async function handleBulkDeleteLineItems(itemIds: string[]) {
+		try {
+			if (data.estimate) {
+				await estimateService.bulkDeleteLineItems(data.estimate.id, itemIds);
+				await invalidateAll();
+			}
+		} catch (error) {
+			console.error('Error bulk deleting line items:', error);
+		}
+	}
+
+	async function handleUpdateRates(
+		labourRate: number,
+		paintRate: number,
+		vatPercentage: number,
+		oemMarkup: number,
+		altMarkup: number,
+		secondHandMarkup: number,
+		outworkMarkup: number
+	) {
+		try {
+			if (data.estimate) {
+				await estimateService.update(data.estimate.id, {
+					labour_rate: labourRate,
+					paint_rate: paintRate,
+					vat_percentage: vatPercentage,
+					oem_markup_percentage: oemMarkup,
+					alt_markup_percentage: altMarkup,
+					second_hand_markup_percentage: secondHandMarkup,
+					outwork_markup_percentage: outworkMarkup
+				});
+				await invalidateAll();
+			}
+		} catch (error) {
+			console.error('Error updating rates:', error);
+		}
+	}
+
+	async function handleUpdateRepairer(repairerId: string | null) {
+		try {
+			if (data.estimate) {
+				await estimateService.update(data.estimate.id, {
+					repairer_id: repairerId
+				});
+				await invalidateAll();
+			}
+		} catch (error) {
+			console.error('Error updating repairer:', error);
+		}
+	}
+
+	async function handleRepairersUpdate() {
+		await invalidateAll(); // Refresh repairers list
+	}
+
+	async function handleUpdateAssessmentResult(result: AssessmentResultType | null) {
+		try {
+			if (data.estimate) {
+				await estimateService.update(data.estimate.id, {
+					assessment_result: result
+				});
+				await invalidateAll();
+			}
+		} catch (error) {
+			console.error('Error updating assessment result:', error);
+		}
+	}
+
 	async function handleCompleteEstimate() {
 		await assessmentService.markTabCompleted(data.assessment.id, 'estimate');
 		await assessmentService.updateAssessmentStatus(data.assessment.id, 'completed');
 		await invalidateAll();
 		// Redirect to appointment or inspection
 		goto(`/work/appointments/${data.appointment.id}`);
+	}
+
+	// Document generation handlers
+	async function handleGenerateDocument(type: string) {
+		generatingDocument = true; // Pause auto-save during generation
+		try {
+			const url = await documentGenerationService.generateDocument(data.assessment.id, type as any);
+
+			// Automatically open the generated PDF in a new tab
+			if (url) {
+				window.open(url, '_blank');
+
+				// Refresh data after a short delay to allow download to start
+				// Only refresh if generation succeeded
+				setTimeout(async () => {
+					await invalidateAll();
+				}, 500);
+			}
+		} catch (error) {
+			console.error('Error generating document:', error);
+			throw error;
+		} finally {
+			generatingDocument = false; // Resume auto-save
+		}
+	}
+
+	function handleDownloadDocument(type: string) {
+		const assessment = data.assessment;
+		let url: string | null = null;
+		let filename = '';
+
+		switch (type) {
+			case 'report':
+				url = assessment.report_pdf_url || null;
+				filename = `${assessment.assessment_number}_Report.pdf`;
+				break;
+			case 'estimate':
+				url = assessment.estimate_pdf_url || null;
+				filename = `${assessment.assessment_number}_Estimate.pdf`;
+				break;
+			case 'photos_pdf':
+				url = assessment.photos_pdf_url || null;
+				filename = `${assessment.assessment_number}_Photos.pdf`;
+				break;
+			case 'photos_zip':
+				url = assessment.photos_zip_url || null;
+				filename = `${assessment.assessment_number}_Photos.zip`;
+				break;
+			case 'complete':
+				// TODO: Generate complete package ZIP
+				break;
+		}
+
+		if (url) {
+			documentGenerationService.downloadDocument(url, filename);
+		}
+	}
+
+	async function handleGenerateAll() {
+		generatingDocument = true; // Pause auto-save during generation
+		try {
+			await documentGenerationService.generateAllDocuments(data.assessment.id);
+			await invalidateAll();
+		} catch (error) {
+			console.error('Error generating all documents:', error);
+			throw error;
+		} finally {
+			generatingDocument = false; // Resume auto-save
+		}
 	}
 </script>
 
@@ -307,7 +582,17 @@
 	{saving}
 	{lastSaved}
 >
-	{#if currentTab === 'identification'}
+	{#if currentTab === 'summary'}
+		<SummaryTab
+			assessment={data.assessment}
+			vehicleValues={data.vehicleValues}
+			estimate={data.estimate}
+			preIncidentEstimate={data.preIncidentEstimate}
+			inspection={data.inspection}
+			request={data.request}
+			client={data.client}
+		/>
+	{:else if currentTab === 'identification'}
 		<VehicleIdentificationTab
 			data={data.vehicleIdentification}
 			assessmentId={data.assessment.id}
@@ -354,26 +639,76 @@
 			onUpdateDamage={handleUpdateDamage}
 			onComplete={handleCompleteDamage}
 		/>
+	{:else if currentTab === 'values'}
+		<VehicleValuesTab
+			data={data.vehicleValues}
+			assessmentId={data.assessment.id}
+			client={data.client}
+			requestInfo={{
+				request_number: data.request?.request_number,
+				claim_number: data.request?.claim_number,
+				date_of_loss: data.request?.date_of_loss,
+				vehicle_make: data.request?.vehicle_make,
+				vehicle_model: data.request?.vehicle_model,
+				vehicle_year: data.request?.vehicle_year,
+				vehicle_vin: data.request?.vehicle_vin,
+				vehicle_mileage: data.request?.vehicle_mileage
+			}}
+			onUpdate={handleUpdateVehicleValues}
+			onComplete={handleCompleteVehicleValues}
+		/>
+	{:else if currentTab === 'pre-incident'}
+		<PreIncidentEstimateTab
+			estimate={data.preIncidentEstimate}
+			assessmentId={data.assessment.id}
+			estimatePhotos={data.preIncidentEstimatePhotos}
+			onUpdateEstimate={handleUpdatePreIncidentEstimate}
+			onAddLineItem={handleAddPreIncidentLineItem}
+			onUpdateLineItem={handleUpdatePreIncidentLineItem}
+			onDeleteLineItem={handleDeletePreIncidentLineItem}
+			onBulkDeleteLineItems={handleBulkDeletePreIncidentLineItems}
+			onPhotosUpdate={async () => await invalidateAll()}
+			onUpdateRates={handleUpdatePreIncidentRates}
+			onComplete={handleCompletePreIncidentEstimate}
+		/>
 	{:else if currentTab === 'estimate'}
 		<EstimateTab
 			estimate={data.estimate}
 			assessmentId={data.assessment.id}
+			estimatePhotos={data.estimatePhotos}
+			vehicleValues={data.vehicleValues}
+			repairers={data.repairers}
 			onUpdateEstimate={handleUpdateEstimate}
 			onAddLineItem={handleAddLineItem}
 			onUpdateLineItem={handleUpdateLineItem}
 			onDeleteLineItem={handleDeleteLineItem}
+			onBulkDeleteLineItems={handleBulkDeleteLineItems}
+			onPhotosUpdate={async () => await invalidateAll()}
+			onUpdateRates={handleUpdateRates}
+			onUpdateRepairer={handleUpdateRepairer}
+			onRepairersUpdate={handleRepairersUpdate}
+			onUpdateAssessmentResult={handleUpdateAssessmentResult}
 			onComplete={handleCompleteEstimate}
+		/>
+	{:else if currentTab === 'finalize'}
+		<FinalizeTab
+			assessment={data.assessment}
+			onGenerateDocument={handleGenerateDocument}
+			onDownloadDocument={handleDownloadDocument}
+			onGenerateAll={handleGenerateAll}
 		/>
 	{/if}
 
-	<!-- Global Assessment Notes (visible on all tabs) -->
-	<div class="mt-6">
-		<AssessmentNotes
-			assessmentId={data.assessment.id}
-			notes={data.notes}
-			lastSaved={lastSaved}
-			onUpdate={async () => await invalidateAll()}
-		/>
-	</div>
+	<!-- Global Assessment Notes (visible on all tabs except finalize) -->
+	{#if currentTab !== 'finalize'}
+		<div class="mt-6">
+			<AssessmentNotes
+				assessmentId={data.assessment.id}
+				notes={data.notes}
+				lastSaved={lastSaved}
+				onUpdate={async () => await invalidateAll()}
+			/>
+		</div>
+	{/if}
 </AssessmentLayout>
 
