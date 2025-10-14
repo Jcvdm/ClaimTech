@@ -148,7 +148,15 @@
 		progressMessage.photos_zip = 'Starting...';
 		error = null;
 		try {
-			await onGenerateDocument('photos_zip');
+			// Call service directly with progress callback
+			await documentGenerationService.generateDocument(
+				assessment.id,
+				'photos_zip',
+				(prog, msg) => {
+					progress.photos_zip = prog;
+					progressMessage.photos_zip = msg;
+				}
+			);
 			await loadGenerationStatus();
 		} catch (err) {
 			error = err instanceof Error ? err.message : 'Failed to generate photos ZIP';
