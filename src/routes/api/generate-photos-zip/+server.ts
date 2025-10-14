@@ -36,7 +36,8 @@ export const POST: RequestHandler = async ({ request }) => {
 			{ data: exterior360 },
 			{ data: interiorMechanical },
 			{ data: estimatePhotos },
-			{ data: preIncidentPhotos }
+			{ data: preIncidentPhotos },
+			{ data: tyres }
 		] = await Promise.all([
 			supabase
 				.from('assessment_vehicle_identification')
@@ -62,7 +63,12 @@ export const POST: RequestHandler = async ({ request }) => {
 						.select('*')
 						.eq('estimate_id', preIncidentEstimate.id)
 						.order('created_at', { ascending: true })
-				: Promise.resolve({ data: [] })
+				: Promise.resolve({ data: [] }),
+			supabase
+				.from('assessment_tyres')
+				.select('*')
+				.eq('assessment_id', assessmentId)
+				.order('position', { ascending: true })
 		]);
 
 		// Create ZIP file
@@ -205,6 +211,36 @@ export const POST: RequestHandler = async ({ request }) => {
 			);
 		}
 
+		// Add Tire & Rim Photos
+		if (tyres && tyres.length > 0) {
+			photoCounter = 1;
+			for (const tyre of tyres) {
+				const position = (tyre.position_label || tyre.position).replace(/\s+/g, '_');
+
+				if (tyre.face_photo_url) {
+					await addPhotoToZip(
+						tyre.face_photo_url,
+						'04_Tires_and_Rims',
+						`${photoCounter++}_${position}_Face.jpg`
+					);
+				}
+				if (tyre.tread_photo_url) {
+					await addPhotoToZip(
+						tyre.tread_photo_url,
+						'04_Tires_and_Rims',
+						`${photoCounter++}_${position}_Tread.jpg`
+					);
+				}
+				if (tyre.measurement_photo_url) {
+					await addPhotoToZip(
+						tyre.measurement_photo_url,
+						'04_Tires_and_Rims',
+						`${photoCounter++}_${position}_Measurement.jpg`
+					);
+				}
+			}
+		}
+
 		// Add Damage Photos
 		if (estimatePhotos && estimatePhotos.length > 0) {
 			photoCounter = 1;
@@ -214,7 +250,7 @@ export const POST: RequestHandler = async ({ request }) => {
 					: 'Damage';
 				await addPhotoToZip(
 					photo.photo_url,
-					'04_Damage_Documentation',
+					'05_Damage_Documentation',
 					`${photoCounter++}_${description}.jpg`
 				);
 			}
@@ -229,7 +265,7 @@ export const POST: RequestHandler = async ({ request }) => {
 					: 'PreIncident';
 				await addPhotoToZip(
 					photo.photo_url,
-					'05_Pre_Incident',
+					'06_Pre_Incident',
 					`${photoCounter++}_${description}.jpg`
 				);
 			}
