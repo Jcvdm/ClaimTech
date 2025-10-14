@@ -38,7 +38,8 @@ export const POST: RequestHandler = async ({ request }) => {
 			{ data: interiorMechanical },
 			{ data: estimatePhotos },
 			{ data: preIncidentPhotos },
-			{ data: companySettings }
+			{ data: companySettings },
+			{ data: tyres }
 		] = await Promise.all([
 			supabase
 				.from('assessment_vehicle_identification')
@@ -65,7 +66,12 @@ export const POST: RequestHandler = async ({ request }) => {
 						.eq('estimate_id', preIncidentEstimate.id)
 						.order('created_at', { ascending: true })
 				: Promise.resolve({ data: [] }),
-			supabase.from('company_settings').select('*').single()
+			supabase.from('company_settings').select('*').single(),
+			supabase
+				.from('assessment_tyres')
+				.select('*')
+				.eq('assessment_id', assessmentId)
+				.order('position', { ascending: true })
 		]);
 
 		// Organize photos into sections
@@ -177,6 +183,51 @@ export const POST: RequestHandler = async ({ request }) => {
 				title: 'Interior & Mechanical',
 				photos: interiorPhotos
 			});
+		}
+
+		// Tire & Rim Photos
+		if (tyres && tyres.length > 0) {
+			const tyrePhotos = [];
+			tyres.forEach((tyre: any) => {
+				const positionLabel = tyre.position_label || tyre.position;
+				const tyreInfo = `${tyre.tyre_make || ''} ${tyre.tyre_size || ''}`.trim();
+				const condition = tyre.condition
+					? tyre.condition.charAt(0).toUpperCase() + tyre.condition.slice(1)
+					: 'N/A';
+				const treadDepth = tyre.tread_depth_mm ? `${tyre.tread_depth_mm}mm` : '';
+
+				// Build caption parts
+				const captionParts = [positionLabel];
+				if (tyreInfo) captionParts.push(tyreInfo);
+				if (condition !== 'N/A') captionParts.push(condition);
+				if (treadDepth) captionParts.push(`(${treadDepth})`);
+
+				if (tyre.face_photo_url) {
+					tyrePhotos.push({
+						url: tyre.face_photo_url,
+						caption: `${positionLabel} - Face View - ${tyreInfo} - ${condition} ${treadDepth}`.trim()
+					});
+				}
+				if (tyre.tread_photo_url) {
+					tyrePhotos.push({
+						url: tyre.tread_photo_url,
+						caption: `${positionLabel} - Tread View - ${tyreInfo} - ${condition} ${treadDepth}`.trim()
+					});
+				}
+				if (tyre.measurement_photo_url) {
+					tyrePhotos.push({
+						url: tyre.measurement_photo_url,
+						caption: `${positionLabel} - Measurement - ${tyreInfo} - ${condition} ${treadDepth}`.trim()
+					});
+				}
+			});
+
+			if (tyrePhotos.length > 0) {
+				sections.push({
+					title: 'Tires & Rims',
+					photos: tyrePhotos
+				});
+			}
 		}
 
 		// Damage Photos (from estimate)
