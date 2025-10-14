@@ -64,18 +64,42 @@ export function generateEstimateHTML(data: EstimateData): string {
 		? (subtotal + vat)
 		: dbTotal;
 
+	// Calculate category totals breakdown (same logic as EstimateTab.svelte)
+	const partsTotal = lineItems.reduce((sum, item) => sum + (item.part_price || 0), 0);
+	const saTotal = lineItems.reduce((sum, item) => sum + (item.strip_assemble || 0), 0);
+	const labourTotal = lineItems.reduce((sum, item) => sum + (item.labour_cost || 0), 0);
+	const paintTotal = lineItems.reduce((sum, item) => sum + (item.paint_cost || 0), 0);
+	const outworkTotal = lineItems.reduce((sum, item) => sum + (item.outwork_charge || 0), 0);
+
+	// Calculate total markup (difference between selling price and nett price)
+	const markupTotal = lineItems.reduce((sum, item) => {
+		if (item.part_price && item.part_price_nett) {
+			return sum + (item.part_price - item.part_price_nett);
+		}
+		return sum;
+	}, 0);
+
 	const renderLineItems = (items: EstimateLineItem[]) => {
 		return items
 			.map(
-				(item, index) => `
+				(item, index) => {
+					// Helper to show value or dash
+					const showValue = (value: number | null | undefined) =>
+						value && value > 0 ? formatCurrency(value) : '-';
+
+					return `
 			<tr>
 				<td>${item.process_type}${(index + 1).toString().padStart(3, '0')}</td>
 				<td>${item.description || ''}</td>
-				<td style="text-align: right;">-</td>
-				<td style="text-align: right;">-</td>
+				<td style="text-align: right;">${showValue(item.part_price)}</td>
+				<td style="text-align: right;">${showValue(item.strip_assemble)}</td>
+				<td style="text-align: right;">${showValue(item.labour_cost)}</td>
+				<td style="text-align: right;">${showValue(item.paint_cost)}</td>
+				<td style="text-align: right;">${showValue(item.outwork_charge)}</td>
 				<td style="text-align: right;">${formatCurrency(item.total)}</td>
 			</tr>
-		`
+		`;
+				}
 			)
 			.join('');
 	};
@@ -245,6 +269,46 @@ export function generateEstimateHTML(data: EstimateData): string {
 			font-size: 11pt;
 		}
 
+		.breakdown-section {
+			margin-top: 20px;
+			margin-bottom: 10px;
+			float: right;
+			width: 300px;
+			clear: right;
+		}
+
+		.breakdown-table {
+			width: 100%;
+			border-collapse: collapse;
+			font-size: 9pt;
+		}
+
+		.breakdown-table td {
+			padding: 6px 8px;
+			border-bottom: 1px solid #e5e7eb;
+		}
+
+		.breakdown-label {
+			color: #6b7280;
+		}
+
+		.breakdown-value {
+			text-align: right;
+			font-weight: 500;
+		}
+
+		.breakdown-markup {
+			color: #059669;
+			font-weight: 600;
+		}
+
+		.breakdown-header {
+			font-weight: bold;
+			color: #1f2937;
+			border-bottom: 2px solid #d1d5db;
+			padding-bottom: 8px;
+		}
+
 		.notes-section {
 			clear: both;
 			margin-top: 20px;
@@ -378,20 +442,56 @@ export function generateEstimateHTML(data: EstimateData): string {
 		<thead>
 			<tr>
 				<th style="width: 8%;">CODE</th>
-				<th style="width: 52%;">DESCRIPTION</th>
-				<th style="width: 10%;">QTY</th>
-				<th style="width: 15%;">UNIT PRICE</th>
-				<th style="width: 15%;">TOTAL</th>
+				<th style="width: 30%;">DESCRIPTION</th>
+				<th style="width: 10%;">PARTS</th>
+				<th style="width: 10%;">S&A</th>
+				<th style="width: 10%;">LABOUR</th>
+				<th style="width: 10%;">PAINT</th>
+				<th style="width: 10%;">OUTWORK</th>
+				<th style="width: 12%;">TOTAL</th>
 			</tr>
 		</thead>
 		<tbody>
 			${lineItems.length > 0 ? renderLineItems(lineItems) : `
 			<tr>
-				<td colspan="5" style="text-align: center; padding: 20px;">No line items</td>
+				<td colspan="8" style="text-align: center; padding: 20px;">No line items</td>
 			</tr>
 			`}
 		</tbody>
 	</table>
+
+	<!-- Totals Breakdown Section -->
+	<div class="breakdown-section">
+		<table class="breakdown-table">
+			<tr class="breakdown-header">
+				<td colspan="2">TOTALS BREAKDOWN</td>
+			</tr>
+			<tr>
+				<td class="breakdown-label">Parts Total</td>
+				<td class="breakdown-value">${formatCurrency(partsTotal)}</td>
+			</tr>
+			<tr>
+				<td class="breakdown-label">Markup Total</td>
+				<td class="breakdown-value breakdown-markup">${formatCurrency(markupTotal)}</td>
+			</tr>
+			<tr>
+				<td class="breakdown-label">S&A Total</td>
+				<td class="breakdown-value">${formatCurrency(saTotal)}</td>
+			</tr>
+			<tr>
+				<td class="breakdown-label">Labour Total</td>
+				<td class="breakdown-value">${formatCurrency(labourTotal)}</td>
+			</tr>
+			<tr>
+				<td class="breakdown-label">Paint Total</td>
+				<td class="breakdown-value">${formatCurrency(paintTotal)}</td>
+			</tr>
+			<tr>
+				<td class="breakdown-label">Outwork Total</td>
+				<td class="breakdown-value">${formatCurrency(outworkTotal)}</td>
+			</tr>
+		</table>
+	</div>
 
 	<!-- Totals Section -->
 	<div class="totals-section">
