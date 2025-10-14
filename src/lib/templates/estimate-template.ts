@@ -236,10 +236,24 @@ export function generateEstimateHTML(data: EstimateData): string {
 			font-weight: bold;
 		}
 
-		.totals-section {
+		/* Container for totals sections - uses flexbox for PDF compatibility */
+		.totals-container {
+			display: flex;
+			justify-content: flex-end;
+			gap: 20px;
 			margin-top: 20px;
-			float: right;
+			margin-bottom: 20px;
+			page-break-inside: avoid;
+		}
+
+		.breakdown-section {
 			width: 300px;
+			page-break-inside: avoid;
+		}
+
+		.totals-section {
+			width: 300px;
+			page-break-inside: avoid;
 		}
 
 		.totals-table {
@@ -267,14 +281,6 @@ export function generateEstimateHTML(data: EstimateData): string {
 			background-color: #1e40af;
 			color: white;
 			font-size: 11pt;
-		}
-
-		.breakdown-section {
-			margin-top: 20px;
-			margin-bottom: 10px;
-			float: right;
-			width: 300px;
-			clear: right;
 		}
 
 		.breakdown-table {
@@ -336,6 +342,39 @@ export function generateEstimateHTML(data: EstimateData): string {
 
 		.page-break {
 			page-break-after: always;
+		}
+
+		/* Print-specific CSS for PDF rendering */
+		@media print {
+			* {
+				-webkit-print-color-adjust: exact !important;
+				print-color-adjust: exact !important;
+				color-adjust: exact !important;
+			}
+
+			.totals-container,
+			.breakdown-section,
+			.totals-section,
+			.breakdown-table,
+			.totals-table {
+				page-break-inside: avoid !important;
+			}
+
+			.grand-total {
+				background-color: #1e40af !important;
+				color: white !important;
+			}
+
+			.breakdown-markup {
+				color: #059669 !important;
+			}
+		}
+
+		/* Force color rendering in all contexts */
+		* {
+			-webkit-print-color-adjust: exact;
+			print-color-adjust: exact;
+			color-adjust: exact;
 		}
 	</style>
 </head>
@@ -460,56 +499,62 @@ export function generateEstimateHTML(data: EstimateData): string {
 		</tbody>
 	</table>
 
-	<!-- Totals Breakdown Section -->
-	<div class="breakdown-section">
-		<table class="breakdown-table">
-			<tr class="breakdown-header">
-				<td colspan="2">TOTALS BREAKDOWN</td>
-			</tr>
-			<tr>
-				<td class="breakdown-label">Parts Total</td>
-				<td class="breakdown-value">${formatCurrency(partsTotal)}</td>
-			</tr>
-			<tr>
-				<td class="breakdown-label">Markup Total</td>
-				<td class="breakdown-value breakdown-markup">${formatCurrency(markupTotal)}</td>
-			</tr>
-			<tr>
-				<td class="breakdown-label">S&A Total</td>
-				<td class="breakdown-value">${formatCurrency(saTotal)}</td>
-			</tr>
-			<tr>
-				<td class="breakdown-label">Labour Total</td>
-				<td class="breakdown-value">${formatCurrency(labourTotal)}</td>
-			</tr>
-			<tr>
-				<td class="breakdown-label">Paint Total</td>
-				<td class="breakdown-value">${formatCurrency(paintTotal)}</td>
-			</tr>
-			<tr>
-				<td class="breakdown-label">Outwork Total</td>
-				<td class="breakdown-value">${formatCurrency(outworkTotal)}</td>
-			</tr>
-		</table>
+	<!-- Totals Container (Flexbox for PDF compatibility) -->
+	<div class="totals-container">
+		<!-- Totals Breakdown Section -->
+		<div class="breakdown-section">
+			<table class="breakdown-table">
+				<tr class="breakdown-header">
+					<td colspan="2">TOTALS BREAKDOWN</td>
+				</tr>
+				<tr>
+					<td class="breakdown-label">Parts Total</td>
+					<td class="breakdown-value">${formatCurrency(partsTotal)}</td>
+				</tr>
+				<tr>
+					<td class="breakdown-label">Markup Total</td>
+					<td class="breakdown-value breakdown-markup">${formatCurrency(markupTotal)}</td>
+				</tr>
+				<tr>
+					<td class="breakdown-label">S&A Total</td>
+					<td class="breakdown-value">${formatCurrency(saTotal)}</td>
+				</tr>
+				<tr>
+					<td class="breakdown-label">Labour Total</td>
+					<td class="breakdown-value">${formatCurrency(labourTotal)}</td>
+				</tr>
+				<tr>
+					<td class="breakdown-label">Paint Total</td>
+					<td class="breakdown-value">${formatCurrency(paintTotal)}</td>
+				</tr>
+				<tr>
+					<td class="breakdown-label">Outwork Total</td>
+					<td class="breakdown-value">${formatCurrency(outworkTotal)}</td>
+				</tr>
+			</table>
+		</div>
+
+		<!-- Totals Section -->
+		<div class="totals-section">
+			<table class="totals-table">
+				<tr>
+					<td class="totals-label">Subtotal:</td>
+					<td class="totals-value">${formatCurrency(subtotal)}</td>
+				</tr>
+				<tr>
+					<td class="totals-label">VAT (15%):</td>
+					<td class="totals-value">${formatCurrency(vat)}</td>
+				</tr>
+				<tr class="grand-total">
+					<td class="totals-label">GRAND TOTAL:</td>
+					<td class="totals-value">${formatCurrency(grandTotal)}</td>
+				</tr>
+			</table>
+		</div>
 	</div>
 
-	<!-- Totals Section -->
-	<div class="totals-section">
-		<table class="totals-table">
-			<tr>
-				<td class="totals-label">Subtotal:</td>
-				<td class="totals-value">${formatCurrency(subtotal)}</td>
-			</tr>
-			<tr>
-				<td class="totals-label">VAT (15%):</td>
-				<td class="totals-value">${formatCurrency(vat)}</td>
-			</tr>
-			<tr class="grand-total">
-				<td class="totals-label">GRAND TOTAL:</td>
-				<td class="totals-value">${formatCurrency(grandTotal)}</td>
-			</tr>
-		</table>
-	</div>
+	<!-- Clearfix to ensure proper layout -->
+	<div style="clear: both; height: 0; overflow: hidden;"></div>
 
 	<!-- Notes Section -->
 	${estimate?.notes ? `

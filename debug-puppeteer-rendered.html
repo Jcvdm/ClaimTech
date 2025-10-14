@@ -160,6 +160,46 @@
 			font-size: 11pt;
 		}
 
+		.breakdown-section {
+			margin-top: 20px;
+			margin-bottom: 10px;
+			float: right;
+			width: 300px;
+			clear: right;
+		}
+
+		.breakdown-table {
+			width: 100%;
+			border-collapse: collapse;
+			font-size: 9pt;
+		}
+
+		.breakdown-table td {
+			padding: 6px 8px;
+			border-bottom: 1px solid #e5e7eb;
+		}
+
+		.breakdown-label {
+			color: #6b7280;
+		}
+
+		.breakdown-value {
+			text-align: right;
+			font-weight: 500;
+		}
+
+		.breakdown-markup {
+			color: #059669;
+			font-weight: 600;
+		}
+
+		.breakdown-header {
+			font-weight: bold;
+			color: #1f2937;
+			border-bottom: 2px solid #d1d5db;
+			padding-bottom: 8px;
+		}
+
 		.notes-section {
 			clear: both;
 			margin-top: 20px;
@@ -262,15 +302,15 @@
 		<h3>REPAIRER INFORMATION</h3>
 		<div class="info-row">
 			<span class="info-label">Name:</span>
-			<span class="info-value">Cape Panel Beaters</span>
+			<span class="info-value">Pretoria Collision Centre</span>
 		</div>
 		<div class="info-row">
 			<span class="info-label">Address:</span>
-			<span class="info-value">45 Beach Road</span>
+			<span class="info-value">56 Industrial Avenue</span>
 		</div>
 		<div class="info-row">
 			<span class="info-label">Contact:</span>
-			<span class="info-value">+27 21 456 7890</span>
+			<span class="info-value">+27 12 345 6789</span>
 		</div>
 	</div>
 	
@@ -280,11 +320,11 @@
 		<h3>LABOUR RATES</h3>
 		<div class="info-row">
 			<span class="info-label">Labour Rate:</span>
-			<span class="info-value">R 300,00 per hour</span>
+			<span class="info-value">R 580,00 per hour</span>
 		</div>
 		<div class="info-row">
 			<span class="info-label">Paint Rate:</span>
-			<span class="info-value">R 3&nbsp;250,00 per hour</span>
+			<span class="info-value">R 2&nbsp;300,00 per hour</span>
 		</div>
 	</div>
 
@@ -293,10 +333,13 @@
 		<thead>
 			<tr>
 				<th style="width: 8%;">CODE</th>
-				<th style="width: 52%;">DESCRIPTION</th>
-				<th style="width: 10%;">QTY</th>
-				<th style="width: 15%;">UNIT PRICE</th>
-				<th style="width: 15%;">TOTAL</th>
+				<th style="width: 30%;">DESCRIPTION</th>
+				<th style="width: 10%;">PARTS</th>
+				<th style="width: 10%;">S&amp;A</th>
+				<th style="width: 10%;">LABOUR</th>
+				<th style="width: 10%;">PAINT</th>
+				<th style="width: 10%;">OUTWORK</th>
+				<th style="width: 12%;">TOTAL</th>
 			</tr>
 		</thead>
 		<tbody>
@@ -304,22 +347,31 @@
 			<tr>
 				<td>N001</td>
 				<td>Front bumper cover </td>
+				<td style="text-align: right;">R 3&nbsp;125,00</td>
+				<td style="text-align: right;">R 500,00</td>
+				<td style="text-align: right;">R 580,00</td>
+				<td style="text-align: right;">R 2&nbsp;300,00</td>
 				<td style="text-align: right;">-</td>
-				<td style="text-align: right;">-</td>
-				<td style="text-align: right;">R 7&nbsp;175,00</td>
+				<td style="text-align: right;">R 6&nbsp;505,00</td>
 			</tr>
 		
 			<tr>
 				<td>R002</td>
 				<td>Front bumper stiffener </td>
 				<td style="text-align: right;">-</td>
+				<td style="text-align: right;">R 250,00</td>
+				<td style="text-align: right;">R 580,00</td>
+				<td style="text-align: right;">R 575,00</td>
 				<td style="text-align: right;">-</td>
-				<td style="text-align: right;">R 1&nbsp;362,50</td>
+				<td style="text-align: right;">R 1&nbsp;405,00</td>
 			</tr>
 		
 			<tr>
 				<td>N003</td>
 				<td>Left front Headlamp </td>
+				<td style="text-align: right;">R 3&nbsp;750,00</td>
+				<td style="text-align: right;">R 125,00</td>
+				<td style="text-align: right;">-</td>
 				<td style="text-align: right;">-</td>
 				<td style="text-align: right;">-</td>
 				<td style="text-align: right;">R 3&nbsp;875,00</td>
@@ -328,6 +380,9 @@
 			<tr>
 				<td>N004</td>
 				<td>Right front headlamp</td>
+				<td style="text-align: right;">R 3&nbsp;750,00</td>
+				<td style="text-align: right;">R 125,00</td>
+				<td style="text-align: right;">-</td>
 				<td style="text-align: right;">-</td>
 				<td style="text-align: right;">-</td>
 				<td style="text-align: right;">R 3&nbsp;875,00</td>
@@ -337,24 +392,33 @@
 				<td>R005</td>
 				<td>Bonnet</td>
 				<td style="text-align: right;">-</td>
+				<td style="text-align: right;">R 250,00</td>
+				<td style="text-align: right;">R 2&nbsp;320,00</td>
+				<td style="text-align: right;">R 4&nbsp;600,00</td>
 				<td style="text-align: right;">-</td>
-				<td style="text-align: right;">R 7&nbsp;950,00</td>
+				<td style="text-align: right;">R 7&nbsp;170,00</td>
 			</tr>
 		
 			<tr>
 				<td>B006</td>
 				<td>Left front fender</td>
 				<td style="text-align: right;">-</td>
+				<td style="text-align: right;">R 250,00</td>
 				<td style="text-align: right;">-</td>
-				<td style="text-align: right;">R 1&nbsp;875,00</td>
+				<td style="text-align: right;">R 1&nbsp;150,00</td>
+				<td style="text-align: right;">-</td>
+				<td style="text-align: right;">R 1&nbsp;400,00</td>
 			</tr>
 		
 			<tr>
 				<td>B007</td>
 				<td>Right front fender</td>
 				<td style="text-align: right;">-</td>
+				<td style="text-align: right;">R 250,00</td>
 				<td style="text-align: right;">-</td>
-				<td style="text-align: right;">R 1&nbsp;875,00</td>
+				<td style="text-align: right;">R 1&nbsp;150,00</td>
+				<td style="text-align: right;">-</td>
+				<td style="text-align: right;">R 1&nbsp;400,00</td>
 			</tr>
 		
 			<tr>
@@ -362,12 +426,18 @@
 				<td>Re-gas aircon inhouse</td>
 				<td style="text-align: right;">-</td>
 				<td style="text-align: right;">-</td>
+				<td style="text-align: right;">-</td>
+				<td style="text-align: right;">-</td>
+				<td style="text-align: right;">R 562,50</td>
 				<td style="text-align: right;">R 562,50</td>
 			</tr>
 		
 			<tr>
 				<td>N009</td>
 				<td>Front bumper emblem </td>
+				<td style="text-align: right;">R 183,00</td>
+				<td style="text-align: right;">R 75,00</td>
+				<td style="text-align: right;">-</td>
 				<td style="text-align: right;">-</td>
 				<td style="text-align: right;">-</td>
 				<td style="text-align: right;">R 258,00</td>
@@ -376,6 +446,9 @@
 			<tr>
 				<td>N010</td>
 				<td>Radiator</td>
+				<td style="text-align: right;">R 5&nbsp;490,00</td>
+				<td style="text-align: right;">R 150,00</td>
+				<td style="text-align: right;">-</td>
 				<td style="text-align: right;">-</td>
 				<td style="text-align: right;">-</td>
 				<td style="text-align: right;">R 5&nbsp;640,00</td>
@@ -384,20 +457,53 @@
 		</tbody>
 	</table>
 
+	<!-- Totals Breakdown Section -->
+	<div class="breakdown-section">
+		<table class="breakdown-table">
+			<tbody><tr class="breakdown-header">
+				<td colspan="2">TOTALS BREAKDOWN</td>
+			</tr>
+			<tr>
+				<td class="breakdown-label">Parts Total</td>
+				<td class="breakdown-value">R 16&nbsp;298,00</td>
+			</tr>
+			<tr>
+				<td class="breakdown-label">Markup Total</td>
+				<td class="breakdown-value breakdown-markup">R 3&nbsp;148,00</td>
+			</tr>
+			<tr>
+				<td class="breakdown-label">S&amp;A Total</td>
+				<td class="breakdown-value">R 1&nbsp;975,00</td>
+			</tr>
+			<tr>
+				<td class="breakdown-label">Labour Total</td>
+				<td class="breakdown-value">R 3&nbsp;480,00</td>
+			</tr>
+			<tr>
+				<td class="breakdown-label">Paint Total</td>
+				<td class="breakdown-value">R 9&nbsp;775,00</td>
+			</tr>
+			<tr>
+				<td class="breakdown-label">Outwork Total</td>
+				<td class="breakdown-value">R 562,50</td>
+			</tr>
+		</tbody></table>
+	</div>
+
 	<!-- Totals Section -->
 	<div class="totals-section">
 		<table class="totals-table">
 			<tbody><tr>
 				<td class="totals-label">Subtotal:</td>
-				<td class="totals-value">R 34&nbsp;448,00</td>
+				<td class="totals-value">R 32&nbsp;090,50</td>
 			</tr>
 			<tr>
 				<td class="totals-label">VAT (15%):</td>
-				<td class="totals-value">R 5&nbsp;167,20</td>
+				<td class="totals-value">R 4&nbsp;813,58</td>
 			</tr>
 			<tr class="grand-total">
 				<td class="totals-label">GRAND TOTAL:</td>
-				<td class="totals-value">R 39&nbsp;615,20</td>
+				<td class="totals-value">R 36&nbsp;904,08</td>
 			</tr>
 		</tbody></table>
 	</div>
