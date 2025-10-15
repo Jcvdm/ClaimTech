@@ -24,6 +24,7 @@
 		formatWarrantyStatus,
 		getWarrantyStatusClasses
 	} from '$lib/utils/estimateThresholds';
+	import { formatCurrency } from '$lib/utils/formatters';
 
 	interface Props {
 		estimate: Estimate | null;
@@ -239,14 +240,6 @@
 	function handleOutworkCancel() {
 		editingOutwork = null;
 		tempOutworkNett = null;
-	}
-
-	function formatCurrency(amount: number): string {
-		return new Intl.NumberFormat('en-ZA', {
-			style: 'currency',
-			currency: estimate?.currency || 'ZAR',
-			minimumFractionDigits: 2
-		}).format(amount);
 	}
 
 	function handleUpdateAssessmentResult(result: AssessmentResultType | null) {

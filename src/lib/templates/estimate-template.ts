@@ -7,6 +7,7 @@ import type {
 	ProcessType
 } from '$lib/types/assessment';
 import { PROCESS_TYPE_CONFIGS } from '$lib/constants/processTypes';
+import { formatCurrency, formatDateNumeric } from '$lib/utils/formatters';
 
 interface EstimateData {
 	assessment: Assessment;
@@ -30,22 +31,6 @@ export function generateEstimateHTML(data: EstimateData): string {
 		client,
 		repairer
 	} = data;
-
-	const formatDate = (date: string | null | undefined) => {
-		if (!date) return 'N/A';
-		return new Date(date).toLocaleDateString('en-ZA', {
-			day: '2-digit',
-			month: '2-digit',
-			year: 'numeric'
-		});
-	};
-
-	const formatCurrency = (amount: number | null | undefined) => {
-		if (amount === null || amount === undefined) {
-			return 'R 0.00';
-		}
-		return `R ${amount.toLocaleString('en-ZA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-	};
 
 	// Calculate totals from all line items (don't filter by category - use process_type instead)
 	const calculatedSubtotal = lineItems.reduce((sum, item) => sum + (item.total || 0), 0);
@@ -504,7 +489,7 @@ export function generateEstimateHTML(data: EstimateData): string {
 			</div>
 			<div class="info-row">
 				<span class="info-label">Date:</span>
-				<span class="info-value">${formatDate(assessment.created_at)}</span>
+				<span class="info-value">${formatDateNumeric(assessment.created_at)}</span>
 			</div>
 			<div class="info-row">
 				<span class="info-label">Instructed By:</span>
@@ -662,7 +647,7 @@ export function generateEstimateHTML(data: EstimateData): string {
 	<div class="footer">
 		<p><strong>Terms & Conditions:</strong> This estimate is valid for 30 days from the date of issue. All work is subject to inspection and approval.</p>
 		<p style="margin-top: 10px;">${companySettings?.company_name || 'Claimtech'} | ${companySettings?.email || 'info@claimtech.co.za'} | ${companySettings?.website || 'www.claimtech.co.za'}</p>
-		<p>Estimate generated on ${formatDate(new Date().toISOString())}</p>
+		<p>Estimate generated on ${formatDateNumeric(new Date().toISOString())}</p>
 	</div>
 </body>
 </html>

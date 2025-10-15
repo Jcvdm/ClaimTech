@@ -8,6 +8,7 @@
 	import { ArrowLeft, Edit, Trash2, User, MapPin, Briefcase } from 'lucide-svelte';
 	import { engineerService } from '$lib/services/engineer.service';
 	import type { PageData } from './$types';
+	import { formatDateLong as formatDate } from '$lib/utils/formatters';
 
 	let { data }: { data: PageData } = $props();
 
@@ -46,15 +47,6 @@
 		} finally {
 			loading = false;
 		}
-	}
-
-	function formatDate(dateString: string | null | undefined) {
-		if (!dateString) return '-';
-		return new Date(dateString).toLocaleDateString('en-ZA', {
-			year: 'numeric',
-			month: 'long',
-			day: 'numeric'
-		});
 	}
 </script>
 

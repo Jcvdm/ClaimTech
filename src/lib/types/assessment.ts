@@ -90,6 +90,9 @@ export interface Assessment {
 	assessor_name?: string | null;
 	assessor_contact?: string | null;
 	assessor_email?: string | null;
+
+	// Estimate finalization
+	estimate_finalized_at?: string | null;
 }
 
 // Vehicle identification interface
@@ -666,4 +669,77 @@ export interface UpdateCompanySettingsInput {
 	email?: string;
 	website?: string;
 	logo_url?: string;
+}
+
+// Additional line item status
+export type AdditionalLineItemStatus = 'pending' | 'approved' | 'declined';
+
+// Additional line item (extends EstimateLineItem with approval workflow)
+export interface AdditionalLineItem extends EstimateLineItem {
+	status: AdditionalLineItemStatus;
+	action?: 'added' | 'removed'; // 'added' for new items, 'removed' for original estimate lines removed
+	original_line_id?: string | null; // ID of the original estimate line if this is a removal
+	decline_reason?: string | null;
+	approved_at?: string | null;
+	declined_at?: string | null;
+	approved_by?: string | null; // For future auth integration
+}
+
+// Assessment additionals interface
+export interface AssessmentAdditionals {
+	id: string;
+	assessment_id: string;
+	repairer_id?: string | null;
+	labour_rate: number;
+	paint_rate: number;
+	vat_percentage: number;
+	oem_markup_percentage: number;
+	alt_markup_percentage: number;
+	second_hand_markup_percentage: number;
+	outwork_markup_percentage: number;
+	line_items: AdditionalLineItem[];
+	excluded_line_item_ids?: string[]; // DEPRECATED: Use action='removed' line items instead. Kept for backward compatibility.
+	subtotal_approved: number;
+	vat_amount_approved: number;
+	total_approved: number;
+	created_at: string;
+	updated_at: string;
+}
+
+// Input types for additionals
+export interface CreateAssessmentAdditionalsInput {
+	assessment_id: string;
+	repairer_id?: string | null;
+	labour_rate: number;
+	paint_rate: number;
+	vat_percentage: number;
+	oem_markup_percentage: number;
+	alt_markup_percentage: number;
+	second_hand_markup_percentage: number;
+	outwork_markup_percentage: number;
+}
+
+// Additionals Photo interfaces
+export interface AdditionalsPhoto {
+	id: string;
+	additionals_id: string;
+	photo_url: string;
+	photo_path: string;
+	label?: string | null;
+	display_order: number;
+	created_at: string;
+	updated_at: string;
+}
+
+export interface CreateAdditionalsPhotoInput {
+	additionals_id: string;
+	photo_url: string;
+	photo_path: string;
+	label?: string | null;
+	display_order?: number;
+}
+
+export interface UpdateAdditionalsPhotoInput {
+	label?: string | null;
+	display_order?: number;
 }

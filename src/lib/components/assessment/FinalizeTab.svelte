@@ -1,4 +1,6 @@
 <script lang="ts">
+	// TODO: BEFORE PRODUCTION - Set ENABLE_FORCE_FINALIZE to false (line 70)
+	// This allows testing the Additionals feature without completing all 9 sections
 	import { Card } from '$lib/components/ui/card';
 	import { Button } from '$lib/components/ui/button';
 	import { Badge } from '$lib/components/ui/badge';
@@ -13,7 +15,10 @@
 	} from 'lucide-svelte';
 	import type { Assessment, DocumentGenerationStatus } from '$lib/types/assessment';
 	import { documentGenerationService } from '$lib/services/document-generation.service';
+	import { assessmentService } from '$lib/services/assessment.service';
+	import { invalidateAll } from '$app/navigation';
 	import { onMount } from 'svelte';
+	import { formatDateTime } from '$lib/utils/formatters';
 
 	interface Props {
 		assessment: Assessment;
@@ -56,6 +61,7 @@
 	});
 
 	let error = $state<string | null>(null);
+	let finalizing = $state(false);
 
 	// Calculate completion status
 	const completedTabs = $derived(assessment.tabs_completed?.length || 0);
@@ -63,8 +69,24 @@
 	const progressPercentage = $derived(Math.round((completedTabs / totalTabs) * 100));
 	const isComplete = $derived(completedTabs === totalTabs);
 
+	// TODO: REMOVE THIS BEFORE PRODUCTION - Testing override
+	const ENABLE_FORCE_FINALIZE = true; // Set to false to enforce completion check
+
 	async function loadGenerationStatus() {
 		generationStatus = await documentGenerationService.getGenerationStatus(assessment.id);
+	}
+
+	async function handleFinalizeEstimate() {
+		finalizing = true;
+		error = null;
+		try {
+			await assessmentService.finalizeEstimate(assessment.id);
+			await invalidateAll(); // Refresh data to show finalized state
+		} catch (err) {
+			error = err instanceof Error ? err.message : 'Failed to finalize estimate';
+		} finally {
+			finalizing = false;
+		}
 	}
 
 	async function handleGenerateReport() {
@@ -231,6 +253,66 @@
 			</div>
 		{/if}
 	</Card>
+
+	<!-- Finalize Estimate Section -->
+	{#if !assessment.estimate_finalized_at}
+		<Card class="p-6 border-2 border-blue-200 bg-blue-50">
+			<div class="space-y-4">
+				<div>
+					<h3 class="text-lg font-semibold text-gray-900">Finalize Estimate</h3>
+					<p class="mt-1 text-sm text-gray-600">
+						Mark this estimate as finalized and sent to the client. This will enable the Additionals
+						tab and move the assessment to the Finalized Assessments list.
+					</p>
+				</div>
+
+				{#if !isComplete && ENABLE_FORCE_FINALIZE}
+					<div class="rounded-md bg-yellow-50 border border-yellow-200 p-3">
+						<p class="text-xs text-yellow-800 font-medium">
+							⚠️ TESTING MODE: Force finalize is enabled. Complete all sections before using in
+							production.
+						</p>
+					</div>
+				{/if}
+
+				<div class="flex gap-3">
+					<Button
+						onclick={handleFinalizeEstimate}
+						disabled={!isComplete || finalizing}
+						class="bg-blue-600 hover:bg-blue-700"
+					>
+						{finalizing ? 'Finalizing...' : 'Mark Estimate Finalized & Sent'}
+					</Button>
+
+					{#if !isComplete && ENABLE_FORCE_FINALIZE}
+						<Button
+							onclick={handleFinalizeEstimate}
+							disabled={finalizing}
+							variant="outline"
+							class="border-orange-500 text-orange-700 hover:bg-orange-50"
+						>
+							{finalizing ? 'Finalizing...' : '🚧 Force Finalize (Testing)'}
+						</Button>
+					{/if}
+				</div>
+			</div>
+		</Card>
+	{:else}
+		<Card class="p-6 border-2 border-green-200 bg-green-50">
+			<div class="flex items-start gap-3">
+				<CheckCircle class="h-6 w-6 text-green-600 mt-0.5" />
+				<div>
+					<h3 class="text-lg font-semibold text-gray-900">Estimate Finalized</h3>
+					<p class="mt-1 text-sm text-gray-600">
+						Estimate was finalized and sent on {formatDateTime(assessment.estimate_finalized_at)}
+					</p>
+					<p class="mt-2 text-sm text-blue-600 font-medium">
+						You can now add additionals in the Additionals tab.
+					</p>
+				</div>
+			</div>
+		</Card>
+	{/if}
 
 	<!-- Error Message -->
 	{#if error}

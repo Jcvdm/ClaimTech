@@ -2,6 +2,7 @@
 	import { page } from '$app/stores';
 	import { cn } from '$lib/utils';
 	import { onMount } from 'svelte';
+	import { browser } from '$app/environment';
 	import { inspectionService } from '$lib/services/inspection.service';
 	import { assessmentService } from '$lib/services/assessment.service';
 	import type { ComponentType } from 'svelte';
@@ -34,6 +35,7 @@
 
 	let inspectionCount = $state(0);
 	let assessmentCount = $state(0);
+	let finalizedAssessmentCount = $state(0);
 
 	const navigation: NavGroup[] = [
 		{
@@ -57,6 +59,7 @@
 				{ label: 'Inspections', href: '/work/inspections', icon: ClipboardCheck },
 				{ label: 'Appointments', href: '/work/appointments', icon: Calendar },
 				{ label: 'Open Assessments', href: '/work/assessments', icon: ClipboardList },
+				{ label: 'Finalized Assessments', href: '/work/finalized-assessments', icon: FileCheck },
 				{ label: 'FRC', href: '/work/frc', icon: FileCheck },
 				{ label: 'Additionals', href: '/work/additionals', icon: Plus }
 			]
@@ -98,9 +101,40 @@
 		}
 	}
 
+	async function loadFinalizedAssessmentCount() {
+		try {
+			finalizedAssessmentCount = await assessmentService.getFinalizedCount();
+		} catch (error) {
+			console.error('Error loading finalized assessment count:', error);
+		}
+	}
+
+	async function loadAllCounts() {
+		await Promise.all([
+			loadInspectionCount(),
+			loadAssessmentCount(),
+			loadFinalizedAssessmentCount()
+		]);
+	}
+
 	onMount(() => {
-		loadInspectionCount();
-		loadAssessmentCount();
+		loadAllCounts();
+
+		// Refresh counts every 30 seconds
+		const interval = setInterval(loadAllCounts, 30000);
+
+		return () => clearInterval(interval);
+	});
+
+	// Watch for page navigation and refresh counts when returning to assessment-related pages
+	$effect(() => {
+		if (browser) {
+			const url = $page.url.pathname;
+			// Refresh counts when navigating to work-related pages
+			if (url.includes('/work/')) {
+				loadAllCounts();
+			}
+		}
 	});
 </script>
 
@@ -144,6 +178,15 @@
 									class="inline-flex items-center justify-center rounded-full bg-blue-600 px-2 py-0.5 text-xs font-medium text-white"
 								>
 									{assessmentCount}
+								</span>
+							{/if}
+
+							<!-- Show badge for Finalized Assessments with submitted count -->
+							{#if item.href === '/work/finalized-assessments' && finalizedAssessmentCount > 0}
+								<span
+									class="inline-flex items-center justify-center rounded-full bg-green-600 px-2 py-0.5 text-xs font-medium text-white"
+								>
+									{finalizedAssessmentCount}
 								</span>
 							{/if}
 						</a>

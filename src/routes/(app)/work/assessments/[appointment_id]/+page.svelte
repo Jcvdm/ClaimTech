@@ -13,6 +13,7 @@
 	import PreIncidentEstimateTab from '$lib/components/assessment/PreIncidentEstimateTab.svelte';
 	import EstimateTab from '$lib/components/assessment/EstimateTab.svelte';
 	import FinalizeTab from '$lib/components/assessment/FinalizeTab.svelte';
+	import AdditionalsTab from '$lib/components/assessment/AdditionalsTab.svelte';
 	import AssessmentNotes from '$lib/components/assessment/AssessmentNotes.svelte';
 	import { assessmentService } from '$lib/services/assessment.service';
 	import { vehicleIdentificationService } from '$lib/services/vehicle-identification.service';
@@ -696,6 +697,14 @@
 			onGenerateDocument={handleGenerateDocument}
 			onDownloadDocument={handleDownloadDocument}
 			onGenerateAll={handleGenerateAll}
+		/>
+	{:else if currentTab === 'additionals' && data.estimate}
+		<AdditionalsTab
+			assessmentId={data.assessment.id}
+			estimate={data.estimate}
+			vehicleValues={data.vehicleValues}
+			repairers={data.repairers}
+			onUpdate={async () => await invalidateAll()}
 		/>
 	{/if}
 

@@ -4,6 +4,7 @@
 	import { Badge } from '$lib/components/ui/badge';
 	import { CheckCircle, Circle, Loader2, Download, FileText } from 'lucide-svelte';
 	import type { ComponentType } from 'svelte';
+	import { formatDateTime as formatDate } from '$lib/utils/formatters';
 
 	interface Props {
 		title: string;
@@ -30,16 +31,6 @@
 		onGenerate,
 		onDownload
 	}: Props = $props();
-
-	function formatDate(dateString: string): string {
-		return new Date(dateString).toLocaleString('en-ZA', {
-			year: 'numeric',
-			month: '2-digit',
-			day: '2-digit',
-			hour: '2-digit',
-			minute: '2-digit'
-		});
-	}
 </script>
 
 <Card class="p-6">

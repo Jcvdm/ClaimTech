@@ -35,6 +35,7 @@
 	import { requestService } from '$lib/services/request.service';
 	import { appointmentService } from '$lib/services/appointment.service';
 	import type { PageData } from './$types';
+	import { formatDateLong as formatDate } from '$lib/utils/formatters';
 	import type { AppointmentType } from '$lib/types/appointment';
 
 	let { data }: { data: PageData } = $props();
@@ -119,15 +120,6 @@
 		} finally {
 			loading = false;
 		}
-	}
-
-	function formatDate(dateString: string | null | undefined) {
-		if (!dateString) return '-';
-		return new Date(dateString).toLocaleDateString('en-ZA', {
-			year: 'numeric',
-			month: 'long',
-			day: 'numeric'
-		});
 	}
 
 	function handleOpenAppointmentModal() {

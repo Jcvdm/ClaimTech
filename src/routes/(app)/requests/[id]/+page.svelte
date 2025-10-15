@@ -28,6 +28,7 @@
 	import { inspectionService } from '$lib/services/inspection.service';
 	import type { PageData } from './$types';
 	import type { RequestStep } from '$lib/types/request';
+	import { formatCurrency, formatDateLong as formatDate } from '$lib/utils/formatters';
 
 	let { data }: { data: PageData } = $props();
 
@@ -41,23 +42,6 @@
 		quote: 'Quote',
 		approval: 'Approval'
 	};
-
-	function formatDate(dateString: string | null | undefined) {
-		if (!dateString) return '-';
-		return new Date(dateString).toLocaleDateString('en-ZA', {
-			year: 'numeric',
-			month: 'long',
-			day: 'numeric'
-		});
-	}
-
-	function formatCurrency(value: number | null | undefined) {
-		if (!value) return '-';
-		return new Intl.NumberFormat('en-ZA', {
-			style: 'currency',
-			currency: 'ZAR'
-		}).format(value);
-	}
 
 	async function handleDelete() {
 		if (!confirm('Are you sure you want to cancel this request?')) {

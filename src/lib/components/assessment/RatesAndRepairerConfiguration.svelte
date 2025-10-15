@@ -7,6 +7,7 @@
 	import { Settings, RefreshCw, ChevronDown, ChevronUp, Plus, Building2, Check } from 'lucide-svelte';
 	import { repairerService } from '$lib/services/repairer.service';
 	import type { Repairer } from '$lib/types/repairer';
+	import { formatCurrency } from '$lib/utils/formatters';
 
 	interface Props {
 		repairerId?: string | null;
@@ -215,14 +216,6 @@
 		localSecondHandMarkup = secondHandMarkup;
 		localOutworkMarkup = outworkMarkup;
 	});
-
-	function formatCurrency(amount: number): string {
-		return new Intl.NumberFormat('en-ZA', {
-			style: 'currency',
-			currency: 'ZAR',
-			minimumFractionDigits: 2
-		}).format(amount);
-	}
 
 	// Repairer options for dropdown
 	let repairerOptions = $derived([

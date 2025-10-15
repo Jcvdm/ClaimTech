@@ -8,6 +8,7 @@
 	import type { UpdateRepairerInput } from '$lib/types/repairer';
 	import type { PageData } from './$types';
 	import { Pencil, Trash2 } from 'lucide-svelte';
+	import { formatCurrency } from '$lib/utils/formatters';
 
 	let { data }: { data: PageData } = $props();
 
@@ -81,14 +82,6 @@
 	function handleCancel() {
 		editing = false;
 		error = null;
-	}
-
-	function formatCurrency(amount: number): string {
-		return new Intl.NumberFormat('en-ZA', {
-			style: 'currency',
-			currency: 'ZAR',
-			minimumFractionDigits: 2
-		}).format(amount);
 	}
 </script>
 

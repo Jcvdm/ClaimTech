@@ -17,6 +17,7 @@
 		getAssessmentResultInfo,
 		getAssessmentResultColorClasses
 	} from '$lib/utils/assessmentResults';
+	import { formatCurrency } from '$lib/utils/formatters';
 
 	interface Props {
 		// Core data (always shown when available)
@@ -44,16 +45,6 @@
 		preIncidentEstimate = null,
 		showAssessmentData = false
 	}: Props = $props();
-
-	// Format currency
-	function formatCurrency(amount: number | null | undefined): string {
-		if (amount === null || amount === undefined) return 'R 0.00';
-		return new Intl.NumberFormat('en-ZA', {
-			style: 'currency',
-			currency: 'ZAR',
-			minimumFractionDigits: 2
-		}).format(amount);
-	}
 
 	// Calculate threshold for estimate
 	const estimateThreshold = $derived(() => {
