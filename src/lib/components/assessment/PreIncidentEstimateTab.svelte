@@ -14,6 +14,7 @@
 	} from '$lib/types/assessment';
 	import { getProcessTypeOptions } from '$lib/constants/processTypes';
 	import { createEmptyLineItem, calculateLineItemTotal } from '$lib/utils/estimateCalculations';
+	import { formatCurrency } from '$lib/utils/formatters';
 
 	interface Props {
 		estimate: PreIncidentEstimate | null;
@@ -219,14 +220,6 @@
 	function handleOutworkCancel() {
 		editingOutwork = null;
 		tempOutworkNett = null;
-	}
-
-	function formatCurrency(amount: number): string {
-		return new Intl.NumberFormat('en-ZA', {
-			style: 'currency',
-			currency: estimate?.currency || 'ZAR',
-			minimumFractionDigits: 2
-		}).format(amount);
 	}
 
 	// Calculate category totals

@@ -176,6 +176,23 @@ export class AssessmentService {
 	}
 
 	/**
+	 * Get count of finalized assessments (submitted status)
+	 */
+	async getFinalizedCount(): Promise<number> {
+		const { count, error } = await supabase
+			.from('assessments')
+			.select('*', { count: 'exact', head: true })
+			.eq('status', 'submitted');
+
+		if (error) {
+			console.error('Error counting finalized assessments:', error);
+			return 0;
+		}
+
+		return count || 0;
+	}
+
+	/**
 	 * Update assessment
 	 */
 	async updateAssessment(id: string, input: UpdateAssessmentInput): Promise<Assessment> {
@@ -229,6 +246,45 @@ export class AssessmentService {
 		}
 
 		return this.updateAssessment(id, updateData);
+	}
+
+	/**
+	 * Mark estimate as finalized and sent
+	 * Sets status to 'submitted' and records timestamp
+	 */
+	async finalizeEstimate(id: string): Promise<Assessment> {
+		const timestamp = new Date().toISOString();
+
+		const { data, error } = await supabase
+			.from('assessments')
+			.update({
+				estimate_finalized_at: timestamp,
+				status: 'submitted',
+				submitted_at: timestamp
+			})
+			.eq('id', id)
+			.select()
+			.single();
+
+		if (error) {
+			console.error('Error finalizing estimate:', error);
+			throw error;
+		}
+
+		// Log audit trail
+		await auditService.logChange({
+			entity_type: 'assessment',
+			entity_id: id,
+			action: 'updated',
+			field_name: 'estimate',
+			new_value: 'finalized_and_sent',
+			metadata: {
+				finalized_at: timestamp,
+				event: 'estimate_finalized_sent'
+			}
+		});
+
+		return data;
 	}
 
 	/**

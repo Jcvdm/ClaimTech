@@ -14,7 +14,8 @@
 		AlertTriangle,
 		DollarSign,
 		ClipboardList,
-		FileCheck
+		FileCheck,
+		Plus
 	} from 'lucide-svelte';
 	import type { Assessment } from '$lib/types/assessment';
 
@@ -44,20 +45,30 @@
 		lastSaved = null
 	}: Props = $props();
 
-	const tabs: Tab[] = [
-		{ id: 'summary', label: 'Summary', icon: ClipboardList },
-		{ id: 'identification', label: 'Vehicle ID', icon: FileText },
-		{ id: '360', label: '360° Exterior', icon: Camera },
-		{ id: 'interior', label: 'Interior & Mechanical', icon: Car },
-		{ id: 'tyres', label: 'Tyres', icon: Gauge },
-		{ id: 'damage', label: 'Damage ID', icon: AlertTriangle },
-		{ id: 'values', label: 'Values', icon: DollarSign },
-		{ id: 'pre-incident', label: 'Pre-Incident', icon: DollarSign },
-		{ id: 'estimate', label: 'Estimate', icon: DollarSign },
-		{ id: 'finalize', label: 'Finalize', icon: FileCheck }
-	];
+	// Build tabs array dynamically based on finalization status
+	const tabs = $derived(() => {
+		const baseTabs: Tab[] = [
+			{ id: 'summary', label: 'Summary', icon: ClipboardList },
+			{ id: 'identification', label: 'Vehicle ID', icon: FileText },
+			{ id: '360', label: '360° Exterior', icon: Camera },
+			{ id: 'interior', label: 'Interior & Mechanical', icon: Car },
+			{ id: 'tyres', label: 'Tyres', icon: Gauge },
+			{ id: 'damage', label: 'Damage ID', icon: AlertTriangle },
+			{ id: 'values', label: 'Values', icon: DollarSign },
+			{ id: 'pre-incident', label: 'Pre-Incident', icon: DollarSign },
+			{ id: 'estimate', label: 'Estimate', icon: DollarSign },
+			{ id: 'finalize', label: 'Finalize', icon: FileCheck }
+		];
 
-	const totalTabs = tabs.length;
+		// Add Additionals tab if estimate is finalized
+		if (assessment.estimate_finalized_at) {
+			baseTabs.push({ id: 'additionals', label: 'Additionals', icon: Plus });
+		}
+
+		return baseTabs;
+	});
+
+	const totalTabs = $derived(tabs().length);
 	const completedCount = $derived(assessment.tabs_completed?.length || 0);
 	const progressPercentage = $derived(Math.round((completedCount / totalTabs) * 100));
 
@@ -82,7 +93,8 @@
 			'Values': 'Val',
 			'Pre-Incident': 'Pre',
 			'Estimate': 'Est',
-			'Finalize': 'Fin'
+			'Finalize': 'Fin',
+			'Additionals': 'Add'
 		};
 		return shortLabels[label] || label;
 	}
@@ -139,7 +151,7 @@
 	<!-- Tabs -->
 	<div class="border-b bg-white px-4 sm:px-6 lg:px-8">
 		<div class="flex flex-wrap gap-1">
-			{#each tabs as tab}
+			{#each tabs() as tab}
 				{@const isActive = currentTab === tab.id}
 				{@const isCompleted = isTabCompleted(tab.id)}
 				<button

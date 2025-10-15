@@ -7,6 +7,7 @@
 	import { Building2, Plus } from 'lucide-svelte';
 	import type { PageData } from './$types';
 	import type { Repairer } from '$lib/types/repairer';
+	import { formatCurrency } from '$lib/utils/formatters';
 
 	let { data }: { data: PageData } = $props();
 
@@ -25,11 +26,7 @@
 			key: 'default_labour_rate',
 			label: 'Labour Rate',
 			sortable: true,
-			format: (value: number) =>
-				new Intl.NumberFormat('en-ZA', {
-					style: 'currency',
-					currency: 'ZAR'
-				}).format(value || 0)
+			format: (value: number) => formatCurrency(value || 0)
 		}
 	];
 

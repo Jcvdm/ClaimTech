@@ -7,6 +7,7 @@
 	import { Badge } from '$lib/components/ui/badge';
 	import { Calendar, ClipboardCheck } from 'lucide-svelte';
 	import type { Appointment, AppointmentStatus, AppointmentType } from '$lib/types/appointment';
+	import { formatDate } from '$lib/utils/formatters';
 
 	let { data }: { data: PageData } = $props();
 
@@ -21,11 +22,7 @@
 		engineer_name: data.engineerMap[appointment.engineer_id]?.name || 'Unknown Engineer',
 		vehicle_display:
 			`${appointment.vehicle_make || ''} ${appointment.vehicle_model || ''}`.trim() || '-',
-		formatted_date: new Date(appointment.appointment_date).toLocaleDateString('en-ZA', {
-			year: 'numeric',
-			month: 'short',
-			day: 'numeric'
-		}),
+		formatted_date: formatDate(appointment.appointment_date),
 		formatted_time: appointment.appointment_time || '-',
 		type_display: appointment.appointment_type === 'in_person' ? 'In-Person' : 'Digital',
 		location_display:

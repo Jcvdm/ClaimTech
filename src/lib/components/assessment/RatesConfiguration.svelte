@@ -3,6 +3,7 @@
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
 	import { Settings, RefreshCw, ChevronDown, ChevronUp } from 'lucide-svelte';
+	import { formatCurrency } from '$lib/utils/formatters';
 
 	interface Props {
 		labourRate: number;
@@ -86,14 +87,6 @@
 		localSecondHandMarkup = secondHandMarkup;
 		localOutworkMarkup = outworkMarkup;
 	});
-
-	function formatCurrency(amount: number): string {
-		return new Intl.NumberFormat('en-ZA', {
-			style: 'currency',
-			currency: 'ZAR',
-			minimumFractionDigits: 2
-		}).format(amount);
-	}
 </script>
 
 <Card class="border-blue-200 bg-blue-50">

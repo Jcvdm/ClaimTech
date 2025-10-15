@@ -1,12 +1,45 @@
 <script lang="ts">
 	import type { PageData } from './$types';
-	import { goto } from '$app/navigation';
+	import { goto, invalidateAll } from '$app/navigation';
+	import { onMount } from 'svelte';
+	import { browser } from '$app/environment';
 	import PageHeader from '$lib/components/layout/PageHeader.svelte';
 	import DataTable from '$lib/components/data/DataTable.svelte';
 	import EmptyState from '$lib/components/data/EmptyState.svelte';
-	import { ClipboardList } from 'lucide-svelte';
+	import { Button } from '$lib/components/ui/button';
+	import { ClipboardList, RefreshCw } from 'lucide-svelte';
 
 	let { data }: { data: PageData } = $props();
+	let refreshing = $state(false);
+
+	// Manual refresh function
+	async function handleRefresh() {
+		refreshing = true;
+		try {
+			await invalidateAll();
+		} finally {
+			setTimeout(() => {
+				refreshing = false;
+			}, 500);
+		}
+	}
+
+	// Refresh when page becomes visible
+	onMount(() => {
+		if (!browser) return;
+
+		const handleVisibilityChange = () => {
+			if (document.visibilityState === 'visible') {
+				invalidateAll();
+			}
+		};
+
+		document.addEventListener('visibilitychange', handleVisibilityChange);
+
+		return () => {
+			document.removeEventListener('visibilitychange', handleVisibilityChange);
+		};
+	});
 
 	// Prepare data for table
 	const assessmentsWithDetails = data.assessments.map((assessment: any) => {
@@ -100,7 +133,14 @@
 	<PageHeader
 		title="Open Assessments"
 		description="Active vehicle assessments currently in progress"
-	/>
+	>
+		{#snippet actions()}
+			<Button onclick={handleRefresh} disabled={refreshing} variant="outline" size="sm">
+				<RefreshCw class="h-4 w-4 {refreshing ? 'animate-spin' : ''}" />
+				{refreshing ? 'Refreshing...' : 'Refresh'}
+			</Button>
+		{/snippet}
+	</PageHeader>
 
 	{#if assessmentsWithDetails.length === 0}
 		<EmptyState

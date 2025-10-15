@@ -1,0 +1,414 @@
+import { supabase } from '$lib/supabase';
+import type {
+	AssessmentAdditionals,
+	AdditionalLineItem,
+	Estimate,
+	EstimateLineItem
+} from '$lib/types/assessment';
+import { auditService } from './audit.service';
+
+class AdditionalsService {
+	/**
+	 * Get additionals for an assessment
+	 */
+	async getByAssessment(assessmentId: string): Promise<AssessmentAdditionals | null> {
+		const { data, error } = await supabase
+			.from('assessment_additionals')
+			.select('*')
+			.eq('assessment_id', assessmentId)
+			.single();
+
+		if (error) {
+			if (error.code === 'PGRST116') return null; // Not found
+			console.error('Error fetching additionals:', error);
+			throw error;
+		}
+
+		return data;
+	}
+
+	/**
+	 * Create default additionals record (snapshot rates from estimate)
+	 */
+	async createDefault(assessmentId: string, estimate: Estimate): Promise<AssessmentAdditionals> {
+		const { data, error } = await supabase
+			.from('assessment_additionals')
+			.insert({
+				assessment_id: assessmentId,
+				repairer_id: estimate.repairer_id,
+				labour_rate: estimate.labour_rate,
+				paint_rate: estimate.paint_rate,
+				vat_percentage: estimate.vat_percentage,
+				oem_markup_percentage: estimate.oem_markup_percentage,
+				alt_markup_percentage: estimate.alt_markup_percentage,
+				second_hand_markup_percentage: estimate.second_hand_markup_percentage,
+				outwork_markup_percentage: estimate.outwork_markup_percentage,
+				line_items: []
+			})
+			.select()
+			.single();
+
+		if (error) {
+			console.error('Error creating additionals:', error);
+			throw error;
+		}
+
+		// Log creation
+		await auditService.logChange({
+			entity_type: 'estimate',
+			entity_id: assessmentId,
+			action: 'created',
+			field_name: 'additionals',
+			new_value: 'additionals_record_created'
+		});
+
+		return data;
+	}
+
+	/**
+	 * Add a removed line item (negative values from original estimate line)
+	 * This creates a negative line item that is auto-approved to immediately affect totals
+	 */
+	async addRemovedLineItem(
+		assessmentId: string,
+		originalLineItem: EstimateLineItem
+	): Promise<AssessmentAdditionals> {
+		const additionals = await this.getByAssessment(assessmentId);
+		if (!additionals) throw new Error('Additionals record not found');
+
+		// Check if this original line has already been removed
+		const alreadyRemoved = additionals.line_items.some(
+			(item) => item.action === 'removed' && item.original_line_id === originalLineItem.id
+		);
+
+		if (alreadyRemoved) {
+			// Already removed, return current state
+			return additionals;
+		}
+
+		// Helper to negate values
+		const negate = (value: number | null | undefined): number => {
+			if (value === null || value === undefined) return 0;
+			return -Math.abs(value);
+		};
+
+		// Create negative line item
+		const removedItem: AdditionalLineItem = {
+			...originalLineItem,
+			id: crypto.randomUUID(),
+			status: 'approved', // Auto-approve removals
+			action: 'removed',
+			original_line_id: originalLineItem.id,
+			approved_at: new Date().toISOString(),
+			// Negate all monetary values
+			part_price: originalLineItem.part_price ? negate(originalLineItem.part_price) : null,
+			strip_assemble: originalLineItem.strip_assemble
+				? negate(originalLineItem.strip_assemble)
+				: null,
+			labour_cost: negate(originalLineItem.labour_cost || 0),
+			paint_cost: negate(originalLineItem.paint_cost || 0),
+			outwork_charge: originalLineItem.outwork_charge
+				? negate(originalLineItem.outwork_charge)
+				: null,
+			total: negate(originalLineItem.total || 0)
+		};
+
+		const updatedLineItems = [...additionals.line_items, removedItem];
+
+		// Recalculate totals
+		const totals = this.calculateApprovedTotals(
+			updatedLineItems,
+			additionals.labour_rate,
+			additionals.paint_rate,
+			additionals.vat_percentage,
+			additionals.oem_markup_percentage,
+			additionals.alt_markup_percentage,
+			additionals.second_hand_markup_percentage,
+			additionals.outwork_markup_percentage
+		);
+
+		const { data, error } = await supabase
+			.from('assessment_additionals')
+			.update({
+				line_items: updatedLineItems,
+				...totals,
+				updated_at: new Date().toISOString()
+			})
+			.eq('assessment_id', assessmentId)
+			.select()
+			.single();
+
+		if (error) {
+			console.error('Error adding removed line item:', error);
+			throw error;
+		}
+
+		// Log removal
+		await auditService.logChange({
+			entity_type: 'estimate',
+			entity_id: assessmentId,
+			action: 'updated',
+			field_name: 'original_line_removed',
+			new_value: 'original_estimate_line_removed',
+			metadata: {
+				original_line_id: originalLineItem.id,
+				description: originalLineItem.description,
+				removed_total: originalLineItem.total
+			}
+		});
+
+		return data;
+	}
+
+	/**
+	 * Add a new line item (default status: pending)
+	 */
+	async addLineItem(
+		assessmentId: string,
+		lineItem: EstimateLineItem
+	): Promise<AssessmentAdditionals> {
+		const additionals = await this.getByAssessment(assessmentId);
+		if (!additionals) throw new Error('Additionals record not found');
+
+		const newItem: AdditionalLineItem = {
+			...lineItem,
+			id: crypto.randomUUID(),
+			status: 'pending',
+			action: 'added' // Mark as added (not a removal)
+		};
+
+		const updatedLineItems = [...additionals.line_items, newItem];
+
+		const { data, error } = await supabase
+			.from('assessment_additionals')
+			.update({
+				line_items: updatedLineItems,
+				updated_at: new Date().toISOString()
+			})
+			.eq('assessment_id', assessmentId)
+			.select()
+			.single();
+
+		if (error) {
+			console.error('Error adding line item:', error);
+			throw error;
+		}
+
+		// Log addition
+		await auditService.logChange({
+			entity_type: 'estimate',
+			entity_id: assessmentId,
+			action: 'updated',
+			field_name: 'additionals',
+			new_value: 'line_item_added',
+			metadata: { description: lineItem.description }
+		});
+
+		return data;
+	}
+
+	/**
+	 * Approve a line item
+	 */
+	async approveLineItem(assessmentId: string, lineItemId: string): Promise<AssessmentAdditionals> {
+		const additionals = await this.getByAssessment(assessmentId);
+		if (!additionals) throw new Error('Additionals record not found');
+
+		const updatedLineItems = additionals.line_items.map((item) =>
+			item.id === lineItemId
+				? {
+						...item,
+						status: 'approved' as const,
+						approved_at: new Date().toISOString(),
+						decline_reason: null
+					}
+				: item
+		);
+
+		// Recalculate totals
+		const totals = this.calculateApprovedTotals(
+			updatedLineItems,
+			additionals.labour_rate,
+			additionals.paint_rate,
+			additionals.vat_percentage,
+			additionals.oem_markup_percentage,
+			additionals.alt_markup_percentage,
+			additionals.second_hand_markup_percentage,
+			additionals.outwork_markup_percentage
+		);
+
+		const { data, error } = await supabase
+			.from('assessment_additionals')
+			.update({
+				line_items: updatedLineItems,
+				...totals,
+				updated_at: new Date().toISOString()
+			})
+			.eq('assessment_id', assessmentId)
+			.select()
+			.single();
+
+		if (error) {
+			console.error('Error approving line item:', error);
+			throw error;
+		}
+
+		// Log approval
+		const item = updatedLineItems.find((i) => i.id === lineItemId);
+		await auditService.logChange({
+			entity_type: 'estimate',
+			entity_id: assessmentId,
+			action: 'updated',
+			field_name: 'additionals_line_status',
+			old_value: 'pending',
+			new_value: 'approved',
+			metadata: { line_item_id: lineItemId, description: item?.description }
+		});
+
+		return data;
+	}
+
+	/**
+	 * Decline a line item with reason
+	 */
+	async declineLineItem(
+		assessmentId: string,
+		lineItemId: string,
+		reason: string
+	): Promise<AssessmentAdditionals> {
+		const additionals = await this.getByAssessment(assessmentId);
+		if (!additionals) throw new Error('Additionals record not found');
+
+		const updatedLineItems = additionals.line_items.map((item) =>
+			item.id === lineItemId
+				? {
+						...item,
+						status: 'declined' as const,
+						decline_reason: reason,
+						declined_at: new Date().toISOString()
+					}
+				: item
+		);
+
+		// Recalculate totals (declined items excluded)
+		const totals = this.calculateApprovedTotals(
+			updatedLineItems,
+			additionals.labour_rate,
+			additionals.paint_rate,
+			additionals.vat_percentage,
+			additionals.oem_markup_percentage,
+			additionals.alt_markup_percentage,
+			additionals.second_hand_markup_percentage,
+			additionals.outwork_markup_percentage
+		);
+
+		const { data, error } = await supabase
+			.from('assessment_additionals')
+			.update({
+				line_items: updatedLineItems,
+				...totals,
+				updated_at: new Date().toISOString()
+			})
+			.eq('assessment_id', assessmentId)
+			.select()
+			.single();
+
+		if (error) {
+			console.error('Error declining line item:', error);
+			throw error;
+		}
+
+		// Log decline
+		const item = updatedLineItems.find((i) => i.id === lineItemId);
+		await auditService.logChange({
+			entity_type: 'estimate',
+			entity_id: assessmentId,
+			action: 'updated',
+			field_name: 'additionals_line_status',
+			old_value: 'pending',
+			new_value: 'declined',
+			metadata: {
+				line_item_id: lineItemId,
+				description: item?.description,
+				reason
+			}
+		});
+
+		return data;
+	}
+
+	/**
+	 * Delete a line item (only if pending)
+	 */
+	async deleteLineItem(assessmentId: string, lineItemId: string): Promise<AssessmentAdditionals> {
+		const additionals = await this.getByAssessment(assessmentId);
+		if (!additionals) throw new Error('Additionals record not found');
+
+		const item = additionals.line_items.find((i) => i.id === lineItemId);
+		if (item && item.status !== 'pending') {
+			throw new Error('Can only delete pending items');
+		}
+
+		const updatedLineItems = additionals.line_items.filter((i) => i.id !== lineItemId);
+
+		const { data, error } = await supabase
+			.from('assessment_additionals')
+			.update({
+				line_items: updatedLineItems,
+				updated_at: new Date().toISOString()
+			})
+			.eq('assessment_id', assessmentId)
+			.select()
+			.single();
+
+		if (error) {
+			console.error('Error deleting line item:', error);
+			throw error;
+		}
+
+		// Log deletion
+		await auditService.logChange({
+			entity_type: 'estimate',
+			entity_id: assessmentId,
+			action: 'updated',
+			field_name: 'additionals',
+			new_value: 'line_item_deleted',
+			metadata: { line_item_id: lineItemId, description: item?.description }
+		});
+
+		return data;
+	}
+
+	/**
+	 * Calculate totals for approved items only
+	 */
+	private calculateApprovedTotals(
+		lineItems: AdditionalLineItem[],
+		labourRate: number,
+		paintRate: number,
+		vatPercentage: number,
+		oemMarkup: number,
+		altMarkup: number,
+		secondHandMarkup: number,
+		outworkMarkup: number
+	): {
+		subtotal_approved: number;
+		vat_amount_approved: number;
+		total_approved: number;
+	} {
+		const approvedItems = lineItems.filter((item) => item.status === 'approved');
+
+		const subtotal = approvedItems.reduce((sum, item) => sum + (item.total || 0), 0);
+		const vatAmount = subtotal * (vatPercentage / 100);
+		const total = subtotal + vatAmount;
+
+		return {
+			subtotal_approved: Math.round(subtotal * 100) / 100,
+			vat_amount_approved: Math.round(vatAmount * 100) / 100,
+			total_approved: Math.round(total * 100) / 100
+		};
+	}
+}
+
+export const additionalsService = new AdditionalsService();
+
