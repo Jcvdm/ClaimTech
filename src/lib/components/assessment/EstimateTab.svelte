@@ -80,10 +80,12 @@
 
 	// State for click-to-edit functionality
 	let editingSA = $state<string | null>(null);
+	let editingLabour = $state<string | null>(null);
 	let editingPaint = $state<string | null>(null);
 	let editingPartPrice = $state<string | null>(null);
 	let editingOutwork = $state<string | null>(null);
 	let tempSAHours = $state<number | null>(null);
+	let tempLabourHours = $state<number | null>(null);
 	let tempPaintPanels = $state<number | null>(null);
 	let tempPartPriceNett = $state<number | null>(null);
 	let tempOutworkNett = $state<number | null>(null);
@@ -135,14 +137,10 @@
 
 	// Click-to-edit S&A (hours input)
 	// S&A cost = hours × labour_rate
-	function handleSAClick(itemId: string, currentCost: number | null) {
+	function handleSAClick(itemId: string, currentHours: number | null) {
 		editingSA = itemId;
-		// Calculate hours from current cost
-		if (currentCost && estimate) {
-			tempSAHours = currentCost / estimate.labour_rate;
-		} else {
-			tempSAHours = null;
-		}
+		// Use stored hours directly instead of recalculating from cost
+		tempSAHours = currentHours;
 	}
 
 	function handleSASave(itemId: string) {
@@ -160,6 +158,31 @@
 	function handleSACancel() {
 		editingSA = null;
 		tempSAHours = null;
+	}
+
+	// Click-to-edit Labour (hours input)
+	// Labour cost = hours × labour_rate
+	function handleLabourClick(itemId: string, currentHours: number | null) {
+		editingLabour = itemId;
+		// Use stored hours directly instead of recalculating from cost
+		tempLabourHours = currentHours;
+	}
+
+	function handleLabourSave(itemId: string) {
+		if (tempLabourHours !== null && estimate) {
+			const labourCost = tempLabourHours * estimate.labour_rate;
+			onUpdateLineItem(itemId, {
+				labour_hours: tempLabourHours,
+				labour_cost: labourCost
+			});
+		}
+		editingLabour = null;
+		tempLabourHours = null;
+	}
+
+	function handleLabourCancel() {
+		editingLabour = null;
+		tempLabourHours = null;
 	}
 
 	// Click-to-edit Paint (panels input)
@@ -557,7 +580,7 @@
 												/>
 											{:else}
 												<button
-													onclick={() => handleSAClick(item.id!, item.strip_assemble || null)}
+													onclick={() => handleSAClick(item.id!, item.strip_assemble_hours || null)}
 													class="text-sm font-medium text-blue-600 hover:text-blue-800 cursor-pointer w-full text-right"
 													title="Click to edit hours (S&A = hours × labour rate)"
 												>
@@ -569,12 +592,32 @@
 										{/if}
 									</Table.Cell>
 
-									<!-- Labour Cost (calculated from hours × labour_rate) -->
+									<!-- Labour Cost (N,R,A) - Click to edit hours -->
 									<Table.Cell class="text-right px-3 py-2">
 										{#if ['N', 'R', 'A'].includes(item.process_type)}
-											<span class="text-sm font-medium text-gray-700">
-												{formatCurrency(item.labour_cost || 0)}
-											</span>
+											{#if editingLabour === item.id}
+												<Input
+													type="number"
+													min="0"
+													step="0.5"
+													bind:value={tempLabourHours}
+													onkeydown={(e) => {
+														if (e.key === 'Enter') handleLabourSave(item.id!);
+														if (e.key === 'Escape') handleLabourCancel();
+													}}
+													onblur={() => handleLabourSave(item.id!)}
+													class="border-0 text-right text-sm focus-visible:ring-0 focus-visible:ring-offset-0"
+													autofocus
+												/>
+											{:else}
+												<button
+													onclick={() => handleLabourClick(item.id!, item.labour_hours || null)}
+													class="text-sm font-medium text-blue-600 hover:text-blue-800 cursor-pointer w-full text-right"
+													title="Click to edit hours (Labour = hours × labour rate)"
+												>
+													{formatCurrency(item.labour_cost || 0)}
+												</button>
+											{/if}
 										{:else}
 											<span class="text-gray-400 text-xs">-</span>
 										{/if}
