@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { goto, invalidateAll } from '$app/navigation';
+	import { goto } from '$app/navigation';
 	import PageHeader from '$lib/components/layout/PageHeader.svelte';
 	import StatusBadge from '$lib/components/data/StatusBadge.svelte';
 	import ActivityTimeline from '$lib/components/data/ActivityTimeline.svelte';
@@ -86,7 +86,8 @@
 				assigned_engineer_id: null
 			});
 
-			await invalidateAll();
+			// Navigate back to inspections list (data will be fresh on next page)
+			goto('/work/inspections');
 		} catch (err) {
 			console.error('Error cancelling inspection:', err);
 			error = err instanceof Error ? err.message : 'Failed to cancel inspection';
@@ -113,7 +114,8 @@
 				current_step: 'assessment'
 			});
 
-			await invalidateAll();
+			// Navigate back to inspections list (data will be fresh on next page)
+			goto('/work/inspections');
 		} catch (err) {
 			console.error('Error reactivating inspection:', err);
 			error = err instanceof Error ? err.message : 'Failed to reactivate inspection';
@@ -153,7 +155,8 @@
 			});
 
 			showAppointmentModal = false;
-			await invalidateAll();
+			// Refresh page to show updated engineer assignment
+			goto(`/work/inspections/${data.inspection.id}`);
 		} catch (err) {
 			console.error('Error appointing engineer:', err);
 			error = err instanceof Error ? err.message : 'Failed to appoint engineer';
@@ -213,8 +216,8 @@
 			});
 
 			showCreateAppointmentModal = false;
-			await invalidateAll();
-			// Optionally redirect to appointments list or show success message
+			// Navigate to appointments list (data will be fresh on next page)
+			goto('/work/appointments');
 		} catch (err) {
 			console.error('Error creating appointment:', err);
 			error = err instanceof Error ? err.message : 'Failed to create appointment';

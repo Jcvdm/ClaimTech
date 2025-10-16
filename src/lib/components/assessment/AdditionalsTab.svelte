@@ -5,10 +5,11 @@
 	import RatesAndRepairerConfiguration from './RatesAndRepairerConfiguration.svelte';
 	import QuickAddLineItem from './QuickAddLineItem.svelte';
 	import DeclineReasonModal from './DeclineReasonModal.svelte';
+	import ReversalReasonModal from './ReversalReasonModal.svelte';
 	import CombinedTotalsSummary from './CombinedTotalsSummary.svelte';
 	import OriginalEstimateLinesPanel from './OriginalEstimateLinesPanel.svelte';
 	import AdditionalsPhotosPanel from './AdditionalsPhotosPanel.svelte';
-	import { Check, X, Clock, Trash2 } from 'lucide-svelte';
+	import { Check, X, Clock, Trash2, RotateCcw, Undo2 } from 'lucide-svelte';
 	import type {
 		AssessmentAdditionals,
 		AdditionalLineItem,
@@ -37,6 +38,9 @@
 	let error = $state<string | null>(null);
 	let showDeclineModal = $state(false);
 	let selectedLineItemId = $state<string | null>(null);
+	let showReversalModal = $state(false);
+	let reversalAction = $state<'reverse' | 'reinstate' | 'reinstate-original' | null>(null);
+	let reversalTargetId = $state<string | null>(null);
 
 	// Removed original line IDs (from additionals line_items with action='removed')
 	let removedOriginalLineIds = $derived(() =>
@@ -44,6 +48,26 @@
 			.filter((item) => item.action === 'removed' && item.original_line_id)
 			.map((item) => item.original_line_id!)
 	);
+
+	// Reversed line item IDs (items that have been reversed by a reversal entry)
+	let reversedTargets = $derived(() =>
+		new Set(
+			(additionals?.line_items || [])
+				.filter((item) => item.action === 'reversal' && item.reverses_line_id)
+				.map((item) => item.reverses_line_id!)
+		)
+	);
+
+	// Map of reversed line IDs to their reversal entries (for showing reversal reasons)
+	let reversedBy = $derived(() => {
+		const map = new Map<string, AdditionalLineItem>();
+		(additionals?.line_items || []).forEach((item) => {
+			if (item.action === 'reversal' && item.reverses_line_id) {
+				map.set(item.reverses_line_id, item);
+			}
+		});
+		return map;
+	});
 
 	// Load or create additionals
 	async function loadAdditionals() {
@@ -132,6 +156,59 @@
 		}
 	}
 
+	// Open reversal modal for approved items
+	function handleReverseClick(lineItemId: string) {
+		reversalAction = 'reverse';
+		reversalTargetId = lineItemId;
+		showReversalModal = true;
+	}
+
+	// Open reversal modal for declined items
+	function handleReinstateClick(lineItemId: string) {
+		reversalAction = 'reinstate';
+		reversalTargetId = lineItemId;
+		showReversalModal = true;
+	}
+
+	// Open reversal modal for removed original lines
+	function handleReinstateOriginalClick(originalLineId: string) {
+		reversalAction = 'reinstate-original';
+		reversalTargetId = originalLineId;
+		showReversalModal = true;
+	}
+
+	// Handle reversal confirmation
+	async function handleReversalConfirm(reason: string) {
+		if (!reversalTargetId || !reversalAction) return;
+
+		try {
+			error = null;
+
+			if (reversalAction === 'reverse') {
+				await additionalsService.reverseApprovedLineItem(assessmentId, reversalTargetId, reason);
+			} else if (reversalAction === 'reinstate') {
+				await additionalsService.reinstateDeclinedLineItem(assessmentId, reversalTargetId, reason);
+			} else if (reversalAction === 'reinstate-original') {
+				await additionalsService.reinstateRemovedOriginal(assessmentId, reversalTargetId, reason);
+			}
+
+			await loadAdditionals();
+			await onUpdate();
+			showReversalModal = false;
+			reversalAction = null;
+			reversalTargetId = null;
+		} catch (err) {
+			error = err instanceof Error ? err.message : 'Failed to process reversal';
+		}
+	}
+
+	// Cancel reversal modal
+	function handleReversalCancel() {
+		showReversalModal = false;
+		reversalAction = null;
+		reversalTargetId = null;
+	}
+
 	// Remove original estimate line (creates negative line item in additionals)
 	async function handleRemoveOriginal(originalItem: EstimateLineItem) {
 		if (!additionals) return;
@@ -154,27 +231,53 @@
 		await onUpdate();
 	}
 
-	// Get status badge
-	function getStatusBadge(status: string) {
+	// Get status badge class
+	function getStatusBadgeClass(status: string) {
 		switch (status) {
 			case 'approved':
-				return { variant: 'default', class: 'bg-green-100 text-green-800', icon: Check };
+				return 'bg-green-100 text-green-800';
 			case 'declined':
-				return { variant: 'secondary', class: 'bg-red-100 text-red-800', icon: X };
+				return 'bg-red-100 text-red-800';
 			default:
-				return { variant: 'secondary', class: 'bg-yellow-100 text-yellow-800', icon: Clock };
+				return 'bg-yellow-100 text-yellow-800';
 		}
 	}
 
-	// Count by status
+	// Get status icon component
+	function getStatusIcon(status: string) {
+		switch (status) {
+			case 'approved':
+				return Check;
+			case 'declined':
+				return X;
+			default:
+				return Clock;
+		}
+	}
+
+	// Count by status (excluding reversed items from their original status)
 	const statusCounts = $derived(() => {
-		if (!additionals) return { pending: 0, approved: 0, declined: 0 };
+		if (!additionals) return { pending: 0, approved: 0, declined: 0, reversed: 0 };
+
+		// Build set of reversed line IDs
+		const rset = new Set(
+			(additionals.line_items || [])
+				.filter((item) => item.action === 'reversal' && item.reverses_line_id)
+				.map((item) => item.reverses_line_id!)
+		);
+
 		return additionals.line_items.reduce(
 			(acc, item) => {
+				// If this is a reversal entry OR this item has been reversed, count as "reversed"
+				if (item.action === 'reversal' || (item.id && rset.has(item.id))) {
+					acc.reversed++;
+					return acc;
+				}
+				// Otherwise count by status
 				acc[item.status]++;
 				return acc;
 			},
-			{ pending: 0, approved: 0, declined: 0 }
+			{ pending: 0, approved: 0, declined: 0, reversed: 0 }
 		);
 	});
 
@@ -249,6 +352,9 @@
 					<Badge class="bg-red-100 text-red-800">
 						{statusCounts().declined} Declined
 					</Badge>
+					<Badge class="bg-blue-100 text-blue-800">
+						{statusCounts().reversed} Reversed
+					</Badge>
 				</div>
 			</div>
 
@@ -273,40 +379,83 @@
 						</thead>
 						<tbody>
 							{#each additionals.line_items as item (item.id)}
-								{@const statusBadge = getStatusBadge(item.status)}
 								{@const isRemoved = item.action === 'removed'}
-								<tr class="border-b hover:bg-gray-50 {isRemoved ? 'bg-red-50' : ''}">
+								{@const isReversal = item.action === 'reversal'}
+								{@const isReversed = item.id && reversedTargets().has(item.id)}
+								{@const rowClass = isRemoved ? 'bg-red-50' : isReversal ? 'bg-blue-50' : isReversed ? 'bg-blue-50' : ''}
+								{@const StatusIcon = getStatusIcon(item.status)}
+								<tr class="border-b hover:bg-gray-50 {rowClass}">
 									<td class="py-2">{item.process_type}</td>
 									<td class="py-2">
-										<span class={isRemoved ? 'line-through text-red-600' : ''}>
-											{item.description}
-										</span>
-										{#if item.decline_reason}
-											<p class="text-xs text-red-600 mt-1">Reason: {item.decline_reason}</p>
-										{/if}
+										<div>
+											<span class={isRemoved ? 'line-through text-red-600' : isReversal || isReversed ? 'text-blue-600' : ''}>
+												{item.description}
+											</span>
+											{#if isReversal && item.reversal_reason}
+												<p class="text-xs text-blue-600 mt-1 flex items-center gap-1">
+													<RotateCcw class="h-3 w-3" />
+													Reversal: {item.reversal_reason}
+												</p>
+											{/if}
+											{#if isReversed && item.id}
+												{@const reversalEntry = reversedBy().get(item.id)}
+												{#if reversalEntry?.reversal_reason}
+													<p class="text-xs text-blue-600 mt-1 flex items-center gap-1">
+														<RotateCcw class="h-3 w-3" />
+														Reversed: {reversalEntry.reversal_reason}
+													</p>
+												{/if}
+											{/if}
+											{#if item.decline_reason}
+												<p class="text-xs text-red-600 mt-1">Declined: {item.decline_reason}</p>
+											{/if}
+										</div>
 									</td>
-									<td class="py-2 text-right {isRemoved ? 'text-red-600' : ''}">R {(item.part_price || 0).toFixed(2)}</td>
-									<td class="py-2 text-right {isRemoved ? 'text-red-600' : ''}">R {(item.strip_assemble || 0).toFixed(2)}</td>
-									<td class="py-2 text-right {isRemoved ? 'text-red-600' : ''}">R {(item.labour_cost || 0).toFixed(2)}</td>
-									<td class="py-2 text-right {isRemoved ? 'text-red-600' : ''}">R {(item.paint_cost || 0).toFixed(2)}</td>
-									<td class="py-2 text-right {isRemoved ? 'text-red-600' : ''}">R {(item.outwork_charge || 0).toFixed(2)}</td>
-									<td class="py-2 text-right font-medium {isRemoved ? 'text-red-600' : ''}">R {item.total.toFixed(2)}</td>
+									<td class="py-2 text-right {isRemoved || isReversal ? 'text-blue-600' : ''}">R {(item.part_price || 0).toFixed(2)}</td>
+									<td class="py-2 text-right {isRemoved || isReversal ? 'text-blue-600' : ''}">R {(item.strip_assemble || 0).toFixed(2)}</td>
+									<td class="py-2 text-right {isRemoved || isReversal ? 'text-blue-600' : ''}">R {(item.labour_cost || 0).toFixed(2)}</td>
+									<td class="py-2 text-right {isRemoved || isReversal ? 'text-blue-600' : ''}">R {(item.paint_cost || 0).toFixed(2)}</td>
+									<td class="py-2 text-right {isRemoved || isReversal ? 'text-blue-600' : ''}">R {(item.outwork_charge || 0).toFixed(2)}</td>
+									<td class="py-2 text-right font-medium {isRemoved || isReversal ? 'text-blue-600' : ''}">R {item.total.toFixed(2)}</td>
 									<td class="py-2">
-										{#if isRemoved}
+										{#if isReversal}
+											<Badge class="bg-blue-100 text-blue-800">
+												<RotateCcw class="h-3 w-3 mr-1" />
+												Reversal
+											</Badge>
+										{:else if isRemoved}
 											<Badge class="bg-red-100 text-red-800">
 												<Trash2 class="h-3 w-3 mr-1" />
 												Removed
 											</Badge>
+										{:else if isReversed}
+											<Badge class="bg-blue-100 text-blue-800">
+												<RotateCcw class="h-3 w-3 mr-1" />
+												Reversed
+											</Badge>
 										{:else}
-											<Badge class={statusBadge.class}>
-												<svelte:component this={statusBadge.icon} class="h-3 w-3 mr-1" />
+											<Badge class={getStatusBadgeClass(item.status)}>
+												<StatusIcon class="h-3 w-3 mr-1" />
 												{item.status}
 											</Badge>
 										{/if}
 									</td>
 									<td class="py-2">
 										<div class="flex gap-1">
-											{#if !isRemoved && item.status === 'pending' && item.id}
+											{#if item.action === 'reversal'}
+												<!-- Reversal entries are immutable and auto-approved -->
+												<span class="text-xs text-blue-600 italic flex items-center gap-1">
+													<RotateCcw class="h-3 w-3" />
+													Reversal
+												</span>
+											{:else if isReversed}
+												<!-- Reversed items: no actions available (already reversed) -->
+												<span class="text-xs text-blue-600 italic flex items-center gap-1">
+													<RotateCcw class="h-3 w-3" />
+													Reversed
+												</span>
+											{:else if !isRemoved && item.status === 'pending' && item.id}
+												<!-- Pending items: can approve, decline, or delete -->
 												<Button
 													size="sm"
 													onclick={() => handleApprove(item.id!)}
@@ -333,8 +482,39 @@
 												>
 													<Trash2 class="h-3 w-3" />
 												</Button>
-											{:else if isRemoved}
-												<span class="text-xs text-gray-500 italic">Auto-approved</span>
+											{:else if !isRemoved && item.status === 'approved' && item.id}
+												<!-- Approved items: can reverse -->
+												<Button
+													size="sm"
+													variant="outline"
+													onclick={() => handleReverseClick(item.id!)}
+													class="h-7 px-2 text-orange-600"
+													title="Reverse this approval"
+												>
+													<Undo2 class="h-3 w-3" />
+												</Button>
+											{:else if !isRemoved && item.status === 'declined' && item.id}
+												<!-- Declined items: can reinstate -->
+												<Button
+													size="sm"
+													variant="outline"
+													onclick={() => handleReinstateClick(item.id!)}
+													class="h-7 px-2 text-green-600"
+													title="Reinstate this declined item"
+												>
+													<RotateCcw class="h-3 w-3" />
+												</Button>
+											{:else if isRemoved && item.original_line_id}
+												<!-- Removed original lines: can reinstate -->
+												<Button
+													size="sm"
+													variant="outline"
+													onclick={() => handleReinstateOriginalClick(item.original_line_id!)}
+													class="h-7 px-2 text-green-600"
+													title="Reinstate original line"
+												>
+													<RotateCcw class="h-3 w-3" />
+												</Button>
 											{/if}
 										</div>
 									</td>
@@ -383,6 +563,24 @@
 			showDeclineModal = false;
 			selectedLineItemId = null;
 		}}
+	/>
+{/if}
+
+<!-- Reversal Reason Modal -->
+{#if showReversalModal}
+	<ReversalReasonModal
+		title={reversalAction === 'reverse'
+			? 'Reverse Approved Item'
+			: reversalAction === 'reinstate'
+				? 'Reinstate Declined Item'
+				: 'Reinstate Removed Original'}
+		description={reversalAction === 'reverse'
+			? 'This will create a reversal entry to exclude this approved item from the estimate.'
+			: reversalAction === 'reinstate'
+				? 'This will create a reversal entry to include this declined item in the estimate.'
+				: 'This will create a reversal entry to restore the removed original line to the estimate.'}
+		onConfirm={handleReversalConfirm}
+		onCancel={handleReversalCancel}
 	/>
 {/if}
 

@@ -1,6 +1,6 @@
 <script lang="ts">
 	import type { PageData } from './$types';
-	import { goto, invalidateAll } from '$app/navigation';
+	import { goto } from '$app/navigation';
 	import { onMount, onDestroy } from 'svelte';
 	import AssessmentLayout from '$lib/components/assessment/AssessmentLayout.svelte';
 	import SummaryTab from '$lib/components/assessment/SummaryTab.svelte';
@@ -14,6 +14,7 @@
 	import EstimateTab from '$lib/components/assessment/EstimateTab.svelte';
 	import FinalizeTab from '$lib/components/assessment/FinalizeTab.svelte';
 	import AdditionalsTab from '$lib/components/assessment/AdditionalsTab.svelte';
+	import FRCTab from '$lib/components/assessment/FRCTab.svelte';
 	import AssessmentNotes from '$lib/components/assessment/AssessmentNotes.svelte';
 	import { assessmentService } from '$lib/services/assessment.service';
 	import { vehicleIdentificationService } from '$lib/services/vehicle-identification.service';
@@ -91,7 +92,7 @@
 
 		saving = true;
 		try {
-			await invalidateAll();
+			// Update tab completion status without full page reload
 			await updateTabCompletion();
 			const now = new Date();
 			lastSaved = now.toLocaleTimeString('en-US', {
@@ -132,7 +133,7 @@
 	async function handleUpdateVehicleIdentification(updateData: Partial<VehicleIdentification>) {
 		try {
 			await vehicleIdentificationService.upsert(data.assessment.id, updateData);
-			await invalidateAll();
+			// Data is already updated in the service, no need to reload
 		} catch (error) {
 			console.error('Error updating vehicle identification:', error);
 		}
@@ -140,7 +141,7 @@
 
 	async function handleCompleteVehicleIdentification() {
 		await assessmentService.markTabCompleted(data.assessment.id, 'identification');
-		await invalidateAll();
+		// Tab completion updated, move to next tab
 		currentTab = '360';
 	}
 
@@ -148,7 +149,7 @@
 	async function handleUpdateExterior360(updateData: Partial<Exterior360>) {
 		try {
 			await exterior360Service.upsert(data.assessment.id, updateData);
-			await invalidateAll();
+			// Data is already updated in the service
 		} catch (error) {
 			console.error('Error updating 360 exterior:', error);
 		}
@@ -159,11 +160,12 @@
 		custom_name?: string;
 	}) {
 		try {
-			await accessoriesService.create({
+			const newAccessory = await accessoriesService.create({
 				assessment_id: data.assessment.id,
 				...accessory
 			});
-			await invalidateAll();
+			// Update local state with new accessory
+			data.accessories = [...data.accessories, newAccessory];
 		} catch (error) {
 			console.error('Error adding accessory:', error);
 		}
@@ -172,7 +174,8 @@
 	async function handleDeleteAccessory(id: string) {
 		try {
 			await accessoriesService.delete(id);
-			await invalidateAll();
+			// Update local state by removing deleted accessory
+			data.accessories = data.accessories.filter((a) => a.id !== id);
 		} catch (error) {
 			console.error('Error deleting accessory:', error);
 		}
@@ -180,7 +183,7 @@
 
 	async function handleCompleteExterior360() {
 		await assessmentService.markTabCompleted(data.assessment.id, '360');
-		await invalidateAll();
+		// Tab completion updated, move to next tab
 		currentTab = 'interior';
 	}
 
@@ -188,7 +191,7 @@
 	async function handleUpdateInteriorMechanical(updateData: Partial<InteriorMechanical>) {
 		try {
 			await interiorMechanicalService.upsert(data.assessment.id, updateData);
-			await invalidateAll();
+			// Data is already updated in the service
 		} catch (error) {
 			console.error('Error updating interior/mechanical:', error);
 		}
@@ -196,15 +199,19 @@
 
 	async function handleCompleteInteriorMechanical() {
 		await assessmentService.markTabCompleted(data.assessment.id, 'interior');
-		await invalidateAll();
+		// Tab completion updated, move to next tab
 		currentTab = 'tyres';
 	}
 
 	// Tyres handlers
 	async function handleUpdateTyre(id: string, updateData: Partial<Tyre>) {
 		try {
-			await tyresService.update(id, updateData);
-			await invalidateAll();
+			const updatedTyre = await tyresService.update(id, updateData);
+			// Update local state with updated tyre
+			const index = data.tyres.findIndex((t) => t.id === id);
+			if (index !== -1) {
+				data.tyres[index] = updatedTyre;
+			}
 		} catch (error) {
 			console.error('Error updating tyre:', error);
 		}
@@ -213,12 +220,13 @@
 	async function handleAddTyre() {
 		try {
 			const tyreCount = data.tyres.length;
-			await tyresService.create({
+			const newTyre = await tyresService.create({
 				assessment_id: data.assessment.id,
 				position: `additional_${tyreCount + 1}`,
 				position_label: `Additional Tyre ${tyreCount - 4}`
 			});
-			await invalidateAll();
+			// Update local state with new tyre
+			data.tyres = [...data.tyres, newTyre];
 		} catch (error) {
 			console.error('Error adding tyre:', error);
 		}
@@ -227,7 +235,8 @@
 	async function handleDeleteTyre(id: string) {
 		try {
 			await tyresService.delete(id);
-			await invalidateAll();
+			// Update local state by removing deleted tyre
+			data.tyres = data.tyres.filter((t) => t.id !== id);
 		} catch (error) {
 			console.error('Error deleting tyre:', error);
 		}
@@ -235,7 +244,7 @@
 
 	async function handleCompleteTyres() {
 		await assessmentService.markTabCompleted(data.assessment.id, 'tyres');
-		await invalidateAll();
+		// Tab completion updated, move to next tab
 		currentTab = 'damage';
 	}
 
@@ -244,7 +253,7 @@
 		try {
 			if (data.damageRecord) {
 				await damageService.update(data.damageRecord.id, updateData);
-				await invalidateAll();
+				// Data is already updated in the service
 			}
 		} catch (error) {
 			console.error('Error updating damage record:', error);
@@ -253,7 +262,7 @@
 
 	async function handleCompleteDamage() {
 		await assessmentService.markTabCompleted(data.assessment.id, 'damage');
-		await invalidateAll();
+		// Tab completion updated, move to next tab
 		currentTab = 'values';
 	}
 
@@ -271,7 +280,7 @@
 					: undefined;
 
 				await vehicleValuesService.update(data.vehicleValues.id, updateData, writeOffPercentages);
-				await invalidateAll();
+				// Data is already updated in the service
 			}
 		} catch (error) {
 			console.error('Error updating vehicle values:', error);
@@ -280,7 +289,7 @@
 
 	async function handleCompleteVehicleValues() {
 		await assessmentService.markTabCompleted(data.assessment.id, 'values');
-		await invalidateAll();
+		// Tab completion updated, move to next tab
 		currentTab = 'pre-incident';
 	}
 
@@ -289,7 +298,7 @@
 		try {
 			if (data.preIncidentEstimate) {
 				await preIncidentEstimateService.update(data.preIncidentEstimate.id, updateData);
-				await invalidateAll();
+				// Data is already updated in the service
 			}
 		} catch (error) {
 			console.error('Error updating pre-incident estimate:', error);
@@ -300,7 +309,7 @@
 		try {
 			if (data.preIncidentEstimate) {
 				await preIncidentEstimateService.addLineItem(data.preIncidentEstimate.id, item);
-				await invalidateAll();
+				// Line item added, service handles state update
 			}
 		} catch (error) {
 			console.error('Error adding pre-incident line item:', error);
@@ -318,7 +327,7 @@
 					itemId,
 					updateData
 				);
-				await invalidateAll();
+				// Line item updated, service handles state update
 			}
 		} catch (error) {
 			console.error('Error updating pre-incident line item:', error);
@@ -329,7 +338,7 @@
 		try {
 			if (data.preIncidentEstimate) {
 				await preIncidentEstimateService.deleteLineItem(data.preIncidentEstimate.id, itemId);
-				await invalidateAll();
+				// Line item deleted, service handles state update
 			}
 		} catch (error) {
 			console.error('Error deleting pre-incident line item:', error);
@@ -343,7 +352,7 @@
 					data.preIncidentEstimate.id,
 					itemIds
 				);
-				await invalidateAll();
+				// Line items deleted, service handles state update
 			}
 		} catch (error) {
 			console.error('Error bulk deleting pre-incident line items:', error);
@@ -370,7 +379,7 @@
 					second_hand_markup_percentage: secondHandMarkup,
 					outwork_markup_percentage: outworkMarkup
 				});
-				await invalidateAll();
+				// Rates updated, service handles state update
 			}
 		} catch (error) {
 			console.error('Error updating pre-incident rates:', error);
@@ -379,7 +388,7 @@
 
 	async function handleCompletePreIncidentEstimate() {
 		await assessmentService.markTabCompleted(data.assessment.id, 'pre-incident');
-		await invalidateAll();
+		// Tab completion updated, move to next tab
 		currentTab = 'estimate';
 	}
 
@@ -388,7 +397,7 @@
 		try {
 			if (data.estimate) {
 				await estimateService.update(data.estimate.id, updateData);
-				await invalidateAll();
+				// Data is already updated in the service
 			}
 		} catch (error) {
 			console.error('Error updating estimate:', error);
@@ -399,7 +408,7 @@
 		try {
 			if (data.estimate) {
 				await estimateService.addLineItem(data.estimate.id, item);
-				await invalidateAll();
+				// Line item added, service handles state update
 			}
 		} catch (error) {
 			console.error('Error adding line item:', error);
@@ -410,7 +419,7 @@
 		try {
 			if (data.estimate) {
 				await estimateService.updateLineItem(data.estimate.id, itemId, updateData);
-				await invalidateAll();
+				// Line item updated, service handles state update
 			}
 		} catch (error) {
 			console.error('Error updating line item:', error);
@@ -421,7 +430,7 @@
 		try {
 			if (data.estimate) {
 				await estimateService.deleteLineItem(data.estimate.id, itemId);
-				await invalidateAll();
+				// Line item deleted, service handles state update
 			}
 		} catch (error) {
 			console.error('Error deleting line item:', error);
@@ -432,7 +441,7 @@
 		try {
 			if (data.estimate) {
 				await estimateService.bulkDeleteLineItems(data.estimate.id, itemIds);
-				await invalidateAll();
+				// Line items deleted, service handles state update
 			}
 		} catch (error) {
 			console.error('Error bulk deleting line items:', error);
@@ -459,7 +468,7 @@
 					second_hand_markup_percentage: secondHandMarkup,
 					outwork_markup_percentage: outworkMarkup
 				});
-				await invalidateAll();
+				// Rates updated, service handles state update
 			}
 		} catch (error) {
 			console.error('Error updating rates:', error);
@@ -472,7 +481,7 @@
 				await estimateService.update(data.estimate.id, {
 					repairer_id: repairerId
 				});
-				await invalidateAll();
+				// Repairer updated, service handles state update
 			}
 		} catch (error) {
 			console.error('Error updating repairer:', error);
@@ -480,7 +489,8 @@
 	}
 
 	async function handleRepairersUpdate() {
-		await invalidateAll(); // Refresh repairers list
+		// Repairers list will be refreshed on next navigation or manual refresh
+		// No need to invalidate during editing
 	}
 
 	async function handleUpdateAssessmentResult(result: AssessmentResultType | null) {
@@ -489,7 +499,7 @@
 				await estimateService.update(data.estimate.id, {
 					assessment_result: result
 				});
-				await invalidateAll();
+				// Assessment result updated, service handles state update
 			}
 		} catch (error) {
 			console.error('Error updating assessment result:', error);
@@ -499,8 +509,7 @@
 	async function handleCompleteEstimate() {
 		await assessmentService.markTabCompleted(data.assessment.id, 'estimate');
 		await assessmentService.updateAssessmentStatus(data.assessment.id, 'completed');
-		await invalidateAll();
-		// Redirect to appointment or inspection
+		// Redirect to appointment (data will be fresh on next page)
 		goto(`/work/appointments/${data.appointment.id}`);
 	}
 
@@ -513,12 +522,8 @@
 			// Automatically open the generated PDF in a new tab
 			if (url) {
 				window.open(url, '_blank');
-
-				// Refresh data after a short delay to allow download to start
-				// Only refresh if generation succeeded
-				setTimeout(async () => {
-					await invalidateAll();
-				}, 500);
+				// Document URL is stored in database, will be available on next load
+				// No need to invalidate during editing
 			}
 		} catch (error) {
 			console.error('Error generating document:', error);
@@ -564,7 +569,8 @@
 		generatingDocument = true; // Pause auto-save during generation
 		try {
 			await documentGenerationService.generateAllDocuments(data.assessment.id);
-			await invalidateAll();
+			// Document URLs are stored in database, will be available on next load
+			// No need to invalidate during editing
 		} catch (error) {
 			console.error('Error generating all documents:', error);
 			throw error;
@@ -668,7 +674,9 @@
 			onUpdateLineItem={handleUpdatePreIncidentLineItem}
 			onDeleteLineItem={handleDeletePreIncidentLineItem}
 			onBulkDeleteLineItems={handleBulkDeletePreIncidentLineItems}
-			onPhotosUpdate={async () => await invalidateAll()}
+			onPhotosUpdate={async () => {
+				// Photos updated, no need to reload entire page
+			}}
 			onUpdateRates={handleUpdatePreIncidentRates}
 			onComplete={handleCompletePreIncidentEstimate}
 		/>
@@ -684,7 +692,9 @@
 			onUpdateLineItem={handleUpdateLineItem}
 			onDeleteLineItem={handleDeleteLineItem}
 			onBulkDeleteLineItems={handleBulkDeleteLineItems}
-			onPhotosUpdate={async () => await invalidateAll()}
+			onPhotosUpdate={async () => {
+				// Photos updated, no need to reload entire page
+			}}
 			onUpdateRates={handleUpdateRates}
 			onUpdateRepairer={handleUpdateRepairer}
 			onRepairersUpdate={handleRepairersUpdate}
@@ -704,7 +714,18 @@
 			estimate={data.estimate}
 			vehicleValues={data.vehicleValues}
 			repairers={data.repairers}
-			onUpdate={async () => await invalidateAll()}
+			onUpdate={async () => {
+				// Additionals updated, no need to reload entire page
+			}}
+		/>
+	{:else if currentTab === 'frc' && data.estimate}
+		<FRCTab
+			assessmentId={data.assessment.id}
+			estimate={data.estimate}
+			vehicleValues={data.vehicleValues}
+			onUpdate={async () => {
+				// FRC updated, no need to reload entire page
+			}}
 		/>
 	{/if}
 
@@ -715,7 +736,9 @@
 				assessmentId={data.assessment.id}
 				notes={data.notes}
 				lastSaved={lastSaved}
-				onUpdate={async () => await invalidateAll()}
+				onUpdate={async () => {
+					// Notes updated, no need to reload entire page
+				}}
 			/>
 		</div>
 	{/if}

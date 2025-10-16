@@ -65,6 +65,11 @@
 			baseTabs.push({ id: 'additionals', label: 'Additionals', icon: Plus });
 		}
 
+		// Add FRC tab if assessment is closed (submitted)
+		if (assessment.status === 'submitted') {
+			baseTabs.push({ id: 'frc', label: 'FRC', icon: FileCheck });
+		}
+
 		return baseTabs;
 	});
 

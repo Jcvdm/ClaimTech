@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { goto, invalidateAll } from '$app/navigation';
+	import { goto } from '$app/navigation';
 	import PageHeader from '$lib/components/layout/PageHeader.svelte';
 	import StatusBadge from '$lib/components/data/StatusBadge.svelte';
 	import ActivityTimeline from '$lib/components/data/ActivityTimeline.svelte';
@@ -53,7 +53,8 @@
 
 		try {
 			await requestService.updateRequest(data.request.id, { status: 'cancelled' });
-			await invalidateAll();
+			// Navigate back to requests list (data will be fresh on next page)
+			goto('/requests');
 		} catch (err) {
 			console.error('Error cancelling request:', err);
 			error = err instanceof Error ? err.message : 'Failed to cancel request';
@@ -76,7 +77,8 @@
 				status: 'submitted',
 				current_step: 'request'
 			});
-			await invalidateAll();
+			// Refresh page to show updated status
+			goto(`/requests/${data.request.id}`);
 		} catch (err) {
 			console.error('Error reactivating request:', err);
 			error = err instanceof Error ? err.message : 'Failed to reactivate request';
@@ -111,15 +113,12 @@
 				current_step: 'assessment'
 			});
 
-			// Refresh page data to show updated status
-			await invalidateAll();
-
 			// Show success message
 			alert(
 				`Request accepted! Inspection ${inspection.inspection_number} has been created. You can now appoint an engineer.`
 			);
 
-			// Navigate to inspection detail page
+			// Navigate to inspection detail page (data will be fresh on next page)
 			goto(`/work/inspections/${inspection.id}`);
 		} catch (err) {
 			console.error('Error accepting request:', err);

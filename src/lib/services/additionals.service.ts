@@ -338,7 +338,8 @@ class AdditionalsService {
 	}
 
 	/**
-	 * Delete a line item (only if pending)
+	 * Delete a line item (only if pending - for items created in error)
+	 * Note: For approved/declined items, use reversal methods instead
 	 */
 	async deleteLineItem(assessmentId: string, lineItemId: string): Promise<AssessmentAdditionals> {
 		const additionals = await this.getByAssessment(assessmentId);
@@ -346,7 +347,7 @@ class AdditionalsService {
 
 		const item = additionals.line_items.find((i) => i.id === lineItemId);
 		if (item && item.status !== 'pending') {
-			throw new Error('Can only delete pending items');
+			throw new Error('Can only delete pending items. Use reversal methods for approved/declined items.');
 		}
 
 		const updatedLineItems = additionals.line_items.filter((i) => i.id !== lineItemId);
@@ -374,6 +375,289 @@ class AdditionalsService {
 			field_name: 'additionals',
 			new_value: 'line_item_deleted',
 			metadata: { line_item_id: lineItemId, description: item?.description }
+		});
+
+		return data;
+	}
+
+	/**
+	 * Reverse an approved line item (creates a reversal entry with negative values)
+	 * This is used when an approved additional needs to be excluded from the estimate
+	 */
+	async reverseApprovedLineItem(
+		assessmentId: string,
+		lineItemId: string,
+		reason: string
+	): Promise<AssessmentAdditionals> {
+		const additionals = await this.getByAssessment(assessmentId);
+		if (!additionals) throw new Error('Additionals record not found');
+
+		const originalItem = additionals.line_items.find((i) => i.id === lineItemId);
+		if (!originalItem) throw new Error('Line item not found');
+		if (originalItem.status !== 'approved') {
+			throw new Error('Can only reverse approved items');
+		}
+
+		// Check if already reversed
+		const alreadyReversed = additionals.line_items.some(
+			(item) => item.action === 'reversal' && item.reverses_line_id === lineItemId
+		);
+		if (alreadyReversed) {
+			throw new Error('This item has already been reversed');
+		}
+
+		// Helper to negate values
+		const negate = (value: number | null | undefined): number => {
+			if (value === null || value === undefined) return 0;
+			return -Math.abs(value);
+		};
+
+		// Create reversal entry with negative values
+		const reversalItem: AdditionalLineItem = {
+			...originalItem,
+			id: crypto.randomUUID(),
+			status: 'approved', // Auto-approve reversals
+			action: 'reversal',
+			reverses_line_id: lineItemId,
+			reversal_reason: reason,
+			approved_at: new Date().toISOString(),
+			// Negate all monetary values
+			part_price: originalItem.part_price ? negate(originalItem.part_price) : null,
+			strip_assemble: originalItem.strip_assemble ? negate(originalItem.strip_assemble) : null,
+			labour_cost: negate(originalItem.labour_cost || 0),
+			paint_cost: negate(originalItem.paint_cost || 0),
+			outwork_charge: originalItem.outwork_charge ? negate(originalItem.outwork_charge) : null,
+			total: negate(originalItem.total || 0)
+		};
+
+		const updatedLineItems = [...additionals.line_items, reversalItem];
+
+		// Recalculate totals
+		const totals = this.calculateApprovedTotals(
+			updatedLineItems,
+			additionals.labour_rate,
+			additionals.paint_rate,
+			additionals.vat_percentage,
+			additionals.oem_markup_percentage,
+			additionals.alt_markup_percentage,
+			additionals.second_hand_markup_percentage,
+			additionals.outwork_markup_percentage
+		);
+
+		const { data, error } = await supabase
+			.from('assessment_additionals')
+			.update({
+				line_items: updatedLineItems,
+				...totals,
+				updated_at: new Date().toISOString()
+			})
+			.eq('assessment_id', assessmentId)
+			.select()
+			.single();
+
+		if (error) {
+			console.error('Error reversing approved line item:', error);
+			throw error;
+		}
+
+		// Log reversal
+		await auditService.logChange({
+			entity_type: 'estimate',
+			entity_id: assessmentId,
+			action: 'updated',
+			field_name: 'additionals_line_reversed',
+			new_value: 'approved_line_reversed',
+			metadata: {
+				original_line_id: lineItemId,
+				description: originalItem.description,
+				reason,
+				reversed_total: originalItem.total
+			}
+		});
+
+		return data;
+	}
+
+	/**
+	 * Reinstate a declined line item (creates a reversal entry with positive values)
+	 * This is used when a declined additional is later approved (e.g., insurer changes decision)
+	 */
+	async reinstateDeclinedLineItem(
+		assessmentId: string,
+		lineItemId: string,
+		reason: string
+	): Promise<AssessmentAdditionals> {
+		const additionals = await this.getByAssessment(assessmentId);
+		if (!additionals) throw new Error('Additionals record not found');
+
+		const originalItem = additionals.line_items.find((i) => i.id === lineItemId);
+		if (!originalItem) throw new Error('Line item not found');
+		if (originalItem.status !== 'declined') {
+			throw new Error('Can only reinstate declined items');
+		}
+
+		// Check if already reinstated
+		const alreadyReinstated = additionals.line_items.some(
+			(item) => item.action === 'reversal' && item.reverses_line_id === lineItemId
+		);
+		if (alreadyReinstated) {
+			throw new Error('This item has already been reinstated');
+		}
+
+		// Create reversal entry with same positive values (to add back to total)
+		const reversalItem: AdditionalLineItem = {
+			...originalItem,
+			id: crypto.randomUUID(),
+			status: 'approved', // Approve the reinstatement
+			action: 'reversal',
+			reverses_line_id: lineItemId,
+			reversal_reason: reason,
+			approved_at: new Date().toISOString(),
+			decline_reason: null // Clear decline reason on reversal
+		};
+
+		const updatedLineItems = [...additionals.line_items, reversalItem];
+
+		// Recalculate totals
+		const totals = this.calculateApprovedTotals(
+			updatedLineItems,
+			additionals.labour_rate,
+			additionals.paint_rate,
+			additionals.vat_percentage,
+			additionals.oem_markup_percentage,
+			additionals.alt_markup_percentage,
+			additionals.second_hand_markup_percentage,
+			additionals.outwork_markup_percentage
+		);
+
+		const { data, error } = await supabase
+			.from('assessment_additionals')
+			.update({
+				line_items: updatedLineItems,
+				...totals,
+				updated_at: new Date().toISOString()
+			})
+			.eq('assessment_id', assessmentId)
+			.select()
+			.single();
+
+		if (error) {
+			console.error('Error reinstating declined line item:', error);
+			throw error;
+		}
+
+		// Log reinstatement
+		await auditService.logChange({
+			entity_type: 'estimate',
+			entity_id: assessmentId,
+			action: 'updated',
+			field_name: 'additionals_line_reinstated',
+			new_value: 'declined_line_reinstated',
+			metadata: {
+				original_line_id: lineItemId,
+				description: originalItem.description,
+				reason,
+				reinstated_total: originalItem.total
+			}
+		});
+
+		return data;
+	}
+
+	/**
+	 * Reinstate a removed original estimate line (creates a reversal entry to cancel the removal)
+	 * This is used when an original line was removed but needs to be added back
+	 */
+	async reinstateRemovedOriginal(
+		assessmentId: string,
+		originalLineId: string,
+		reason: string
+	): Promise<AssessmentAdditionals> {
+		const additionals = await this.getByAssessment(assessmentId);
+		if (!additionals) throw new Error('Additionals record not found');
+
+		// Find the removal entry
+		const removalItem = additionals.line_items.find(
+			(i) => i.action === 'removed' && i.original_line_id === originalLineId
+		);
+		if (!removalItem) throw new Error('Removal entry not found for this original line');
+
+		// Check if already reinstated
+		const alreadyReinstated = additionals.line_items.some(
+			(item) => item.action === 'reversal' && item.reverses_line_id === removalItem.id
+		);
+		if (alreadyReinstated) {
+			throw new Error('This removal has already been reversed');
+		}
+
+		// Helper to negate values (to cancel out the negative removal)
+		const negate = (value: number | null | undefined): number => {
+			if (value === null || value === undefined) return 0;
+			return -Math.abs(value);
+		};
+
+		// Create reversal entry with positive values (to cancel the negative removal)
+		const reversalItem: AdditionalLineItem = {
+			...removalItem,
+			id: crypto.randomUUID(),
+			status: 'approved', // Auto-approve reversals
+			action: 'reversal',
+			reverses_line_id: removalItem.id,
+			reversal_reason: reason,
+			approved_at: new Date().toISOString(),
+			// Negate the negative values to get positive (canceling the removal)
+			part_price: removalItem.part_price ? negate(removalItem.part_price) : null,
+			strip_assemble: removalItem.strip_assemble ? negate(removalItem.strip_assemble) : null,
+			labour_cost: negate(removalItem.labour_cost || 0),
+			paint_cost: negate(removalItem.paint_cost || 0),
+			outwork_charge: removalItem.outwork_charge ? negate(removalItem.outwork_charge) : null,
+			total: negate(removalItem.total || 0)
+		};
+
+		const updatedLineItems = [...additionals.line_items, reversalItem];
+
+		// Recalculate totals
+		const totals = this.calculateApprovedTotals(
+			updatedLineItems,
+			additionals.labour_rate,
+			additionals.paint_rate,
+			additionals.vat_percentage,
+			additionals.oem_markup_percentage,
+			additionals.alt_markup_percentage,
+			additionals.second_hand_markup_percentage,
+			additionals.outwork_markup_percentage
+		);
+
+		const { data, error } = await supabase
+			.from('assessment_additionals')
+			.update({
+				line_items: updatedLineItems,
+				...totals,
+				updated_at: new Date().toISOString()
+			})
+			.eq('assessment_id', assessmentId)
+			.select()
+			.single();
+
+		if (error) {
+			console.error('Error reinstating removed original:', error);
+			throw error;
+		}
+
+		// Log reinstatement
+		await auditService.logChange({
+			entity_type: 'estimate',
+			entity_id: assessmentId,
+			action: 'updated',
+			field_name: 'original_line_reinstated',
+			new_value: 'removed_original_reinstated',
+			metadata: {
+				removal_line_id: removalItem.id,
+				original_line_id: originalLineId,
+				description: removalItem.description,
+				reason,
+				reinstated_total: Math.abs(removalItem.total || 0)
+			}
 		});
 
 		return data;

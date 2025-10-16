@@ -36,6 +36,7 @@
 	let inspectionCount = $state(0);
 	let assessmentCount = $state(0);
 	let finalizedAssessmentCount = $state(0);
+	let pollingInterval: ReturnType<typeof setInterval> | null = null;
 
 	const navigation: NavGroup[] = [
 		{
@@ -117,22 +118,47 @@
 		]);
 	}
 
+	// Helper to check if current route is an edit/heavy-input page
+	function isEditRoute(pathname: string): boolean {
+		return (
+			pathname.includes('/edit') ||
+			pathname.includes('/new') ||
+			pathname.includes('/assessments/') // Assessment detail page with heavy editing
+		);
+	}
+
 	onMount(() => {
 		loadAllCounts();
 
-		// Refresh counts every 30 seconds
-		const interval = setInterval(loadAllCounts, 30000);
+		// Start polling interval
+		pollingInterval = setInterval(loadAllCounts, 30000);
 
-		return () => clearInterval(interval);
+		return () => {
+			if (pollingInterval) clearInterval(pollingInterval);
+		};
 	});
 
-	// Watch for page navigation and refresh counts when returning to assessment-related pages
+	// Watch for page navigation and manage polling based on route
 	$effect(() => {
 		if (browser) {
 			const url = $page.url.pathname;
-			// Refresh counts when navigating to work-related pages
-			if (url.includes('/work/')) {
-				loadAllCounts();
+
+			// Pause polling on edit routes to reduce network noise during editing
+			if (isEditRoute(url)) {
+				if (pollingInterval) {
+					clearInterval(pollingInterval);
+					pollingInterval = null;
+				}
+			} else {
+				// Resume polling if not already running
+				if (!pollingInterval) {
+					pollingInterval = setInterval(loadAllCounts, 30000);
+				}
+
+				// Refresh counts when navigating to work-related pages
+				if (url.includes('/work/')) {
+					loadAllCounts();
+				}
 			}
 		}
 	});

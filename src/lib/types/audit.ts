@@ -14,7 +14,9 @@ export type EntityType =
 	| 'damage_record'
 	| 'vehicle_values'
 	| 'estimate'
-	| 'pre_incident_estimate';
+	| 'pre_incident_estimate'
+	| 'frc'
+	| 'frc_document';
 
 export type AuditAction =
 	| 'created'

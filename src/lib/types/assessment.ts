@@ -674,11 +674,16 @@ export interface UpdateCompanySettingsInput {
 // Additional line item status
 export type AdditionalLineItemStatus = 'pending' | 'approved' | 'declined';
 
+// Additional line item action types
+export type AdditionalLineItemAction = 'added' | 'removed' | 'reversal';
+
 // Additional line item (extends EstimateLineItem with approval workflow)
 export interface AdditionalLineItem extends EstimateLineItem {
 	status: AdditionalLineItemStatus;
-	action?: 'added' | 'removed'; // 'added' for new items, 'removed' for original estimate lines removed
+	action?: AdditionalLineItemAction; // 'added' for new items, 'removed' for original estimate lines removed, 'reversal' for reversing previous actions
 	original_line_id?: string | null; // ID of the original estimate line if this is a removal
+	reverses_line_id?: string | null; // ID of the line item being reversed (for action='reversal')
+	reversal_reason?: string | null; // Reason for reversal (for action='reversal')
 	decline_reason?: string | null;
 	approved_at?: string | null;
 	declined_at?: string | null;
@@ -742,4 +747,97 @@ export interface CreateAdditionalsPhotoInput {
 export interface UpdateAdditionalsPhotoInput {
 	label?: string | null;
 	display_order?: number;
+}
+
+// Final Repair Costing (FRC) types
+export type FRCStatus = 'not_started' | 'in_progress' | 'completed';
+export type FRCDecision = 'pending' | 'agree' | 'adjust';
+export type FRCLineSource = 'estimate' | 'additional';
+
+export interface FRCLineItem {
+	id: string;
+	source: FRCLineSource;
+	source_line_id: string;
+	process_type: ProcessType;
+	description: string;
+	quoted_total: number;
+	actual_total: number | null;
+	decision: FRCDecision;
+	adjust_reason?: string | null; // Required when decision = 'adjust'
+
+	// Quoted component breakdown (snapshot from estimate/additional)
+	quoted_part_price_nett?: number | null; // Nett part price without markup
+	quoted_part_price?: number | null; // Selling price with markup
+	quoted_strip_assemble?: number | null; // S&A cost
+	quoted_labour_cost?: number | null; // Labour cost
+	quoted_paint_cost?: number | null; // Paint cost
+	quoted_outwork_charge?: number | null; // Outwork charge
+
+	// Quantities and rates snapshot (for traceability)
+	part_type?: PartType | null; // OEM/ALT/2ND
+	strip_assemble_hours?: number | null; // S&A hours
+	labour_hours?: number | null; // Labour hours
+	paint_panels?: number | null; // Paint panels
+	labour_rate_snapshot?: number; // Labour rate at time of FRC creation
+	paint_rate_snapshot?: number; // Paint rate at time of FRC creation
+
+	// Actual component breakdown (from invoice)
+	actual_part_price_nett?: number | null; // Actual nett part price from invoice
+	actual_strip_assemble?: number | null; // Actual S&A cost
+	actual_strip_assemble_hours?: number | null; // Actual S&A hours
+	actual_labour_cost?: number | null; // Actual labour cost
+	actual_labour_hours?: number | null; // Actual labour hours
+	actual_paint_cost?: number | null; // Actual paint cost
+	actual_paint_panels?: number | null; // Actual paint panels
+	actual_outwork_charge?: number | null; // Actual outwork charge
+}
+
+export interface FinalRepairCosting {
+	id: string;
+	assessment_id: string;
+	status: FRCStatus;
+	line_items: FRCLineItem[];
+	vat_percentage: number;
+	// Quoted breakdown
+	quoted_parts_total: number;
+	quoted_labour_total: number;
+	quoted_paint_total: number;
+	quoted_outwork_total: number;
+	quoted_subtotal: number;
+	quoted_vat_amount: number;
+	quoted_total: number;
+	// Actual breakdown
+	actual_parts_total: number;
+	actual_labour_total: number;
+	actual_paint_total: number;
+	actual_outwork_total: number;
+	actual_subtotal: number;
+	actual_vat_amount: number;
+	actual_total: number;
+	// Timestamps
+	started_at?: string | null;
+	completed_at?: string | null;
+	created_at: string;
+	updated_at: string;
+}
+
+export interface FRCDocument {
+	id: string;
+	frc_id: string;
+	document_url: string;
+	document_path: string;
+	label?: string | null;
+	document_type: 'invoice' | 'attachment';
+	file_size_bytes?: number | null;
+	created_at: string;
+	updated_at: string;
+}
+
+export interface CreateFRCDocumentInput {
+	frc_id: string;
+	document_url: string;
+	document_path: string;
+	label?: string | null;
+	document_type?: 'invoice' | 'attachment';
+	file_size_bytes?: number | null;
 }

@@ -1,7 +1,6 @@
 <script lang="ts">
 	import type { PageData } from './$types';
 	import { goto } from '$app/navigation';
-	import { invalidateAll } from '$app/navigation';
 	import PageHeader from '$lib/components/layout/PageHeader.svelte';
 	import StatusBadge from '$lib/components/data/StatusBadge.svelte';
 	import ActivityTimeline from '$lib/components/data/ActivityTimeline.svelte';
@@ -55,7 +54,8 @@
 
 		try {
 			await appointmentService.updateAppointmentStatus(data.appointment.id, 'completed');
-			await invalidateAll();
+			// Refresh page to show updated status
+			goto(`/work/appointments/${data.appointment.id}`);
 		} catch (err) {
 			console.error('Error completing appointment:', err);
 			error = err instanceof Error ? err.message : 'Failed to complete appointment';
@@ -73,7 +73,8 @@
 
 		try {
 			await appointmentService.cancelAppointment(data.appointment.id, reason || undefined);
-			await invalidateAll();
+			// Navigate back to appointments list (data will be fresh on next page)
+			goto('/work/appointments');
 		} catch (err) {
 			console.error('Error cancelling appointment:', err);
 			error = err instanceof Error ? err.message : 'Failed to cancel appointment';

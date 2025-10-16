@@ -11,11 +11,13 @@
 	import type { UpdateRequestInput, RequestType } from '$lib/types/request';
 	import type { Province } from '$lib/types/engineer';
 	import type { PageData } from './$types';
+	import { useUnsavedChanges } from '$lib/utils/useUnsavedChanges.svelte';
 
 	let { data }: { data: PageData } = $props();
 
 	let loading = $state(false);
 	let error = $state<string | null>(null);
+	let hasUnsavedChanges = $state(false);
 
 	// Pre-populate form with existing request data
 	let client_id = $state(data.request.client_id);
@@ -53,6 +55,44 @@
 	let third_party_phone = $state(data.request.third_party_phone || '');
 	let third_party_email = $state(data.request.third_party_email || '');
 	let third_party_insurance = $state(data.request.third_party_insurance || '');
+
+	// Set up unsaved changes guard
+	useUnsavedChanges(() => hasUnsavedChanges, {
+		message: 'You have unsaved changes to this request. Are you sure you want to leave?'
+	});
+
+	// Mark as having unsaved changes on any input
+	$effect(() => {
+		// Track all form fields - if any change from initial values, mark as unsaved
+		const hasChanges =
+			client_id !== data.request.client_id ||
+			type !== data.request.type ||
+			claim_number !== (data.request.claim_number || '') ||
+			description !== (data.request.description || '') ||
+			date_of_loss !== (data.request.date_of_loss || '') ||
+			insured_value !== (data.request.insured_value || undefined) ||
+			incident_type !== (data.request.incident_type || '') ||
+			incident_description !== (data.request.incident_description || '') ||
+			incident_location !== (data.request.incident_location || '') ||
+			vehicle_make !== (data.request.vehicle_make || '') ||
+			vehicle_model !== (data.request.vehicle_model || '') ||
+			vehicle_year !== (data.request.vehicle_year || undefined) ||
+			vehicle_vin !== (data.request.vehicle_vin || '') ||
+			vehicle_registration !== (data.request.vehicle_registration || '') ||
+			vehicle_color !== (data.request.vehicle_color || '') ||
+			vehicle_mileage !== (data.request.vehicle_mileage || undefined) ||
+			vehicle_province !== ((data.request.vehicle_province as Province) || '') ||
+			owner_name !== (data.request.owner_name || '') ||
+			owner_phone !== (data.request.owner_phone || '') ||
+			owner_email !== (data.request.owner_email || '') ||
+			owner_address !== (data.request.owner_address || '') ||
+			third_party_name !== (data.request.third_party_name || '') ||
+			third_party_phone !== (data.request.third_party_phone || '') ||
+			third_party_email !== (data.request.third_party_email || '') ||
+			third_party_insurance !== (data.request.third_party_insurance || '');
+
+		hasUnsavedChanges = hasChanges;
+	});
 
 	async function handleSubmit(e: Event) {
 		e.preventDefault();
@@ -95,6 +135,8 @@
 			};
 
 			await requestService.updateRequest(data.request.id, requestData);
+			// Clear unsaved changes flag before navigation
+			hasUnsavedChanges = false;
 			goto(`/requests/${data.request.id}`);
 		} catch (err) {
 			console.error('Error updating request:', err);
