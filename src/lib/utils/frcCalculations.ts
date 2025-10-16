@@ -13,12 +13,22 @@ import type {
  * - Removed lines (action='removed' from additionals)
  * - Reversed lines (lines that have been reversed by a reversal action)
  * - Declined additional lines (status='declined')
+ *
+ * @param frozenRates - Optional frozen rates from assessment finalization (for consistency)
  */
 export function composeFinalEstimateLines(
 	estimate: Estimate,
-	additionals: AssessmentAdditionals | null
+	additionals: AssessmentAdditionals | null,
+	frozenRates?: {
+		labour_rate?: number;
+		paint_rate?: number;
+	}
 ): FRCLineItem[] {
 	const finalLines: FRCLineItem[] = [];
+
+	// Use frozen rates if provided, otherwise fall back to estimate rates
+	const labourRate = frozenRates?.labour_rate ?? estimate.labour_rate;
+	const paintRate = frozenRates?.paint_rate ?? estimate.paint_rate;
 
 	// Get set of reversed line IDs from additionals
 	const reversedTargets = new Set<string>();
@@ -63,14 +73,15 @@ export function composeFinalEstimateLines(
 				quoted_strip_assemble: line.strip_assemble ?? null,
 				quoted_labour_cost: line.labour_cost ?? null,
 				quoted_paint_cost: line.paint_cost ?? null,
+				quoted_outwork_charge_nett: line.outwork_charge_nett ?? null,
 				quoted_outwork_charge: line.outwork_charge ?? null,
 				// Snapshot quantities and rates
 				part_type: line.part_type ?? null,
 				strip_assemble_hours: line.strip_assemble_hours ?? null,
 				labour_hours: line.labour_hours ?? null,
 				paint_panels: line.paint_panels ?? null,
-				labour_rate_snapshot: estimate.labour_rate,
-				paint_rate_snapshot: estimate.paint_rate,
+				labour_rate_snapshot: labourRate,
+				paint_rate_snapshot: paintRate,
 				// Actuals initially null
 				actual_part_price_nett: null,
 				actual_strip_assemble: null,
@@ -112,14 +123,15 @@ export function composeFinalEstimateLines(
 					quoted_strip_assemble: line.strip_assemble ?? null,
 					quoted_labour_cost: line.labour_cost ?? null,
 					quoted_paint_cost: line.paint_cost ?? null,
+					quoted_outwork_charge_nett: line.outwork_charge_nett ?? null,
 					quoted_outwork_charge: line.outwork_charge ?? null,
 					// Snapshot quantities and rates
 					part_type: line.part_type ?? null,
 					strip_assemble_hours: line.strip_assemble_hours ?? null,
 					labour_hours: line.labour_hours ?? null,
 					paint_panels: line.paint_panels ?? null,
-					labour_rate_snapshot: additionals.labour_rate,
-					paint_rate_snapshot: additionals.paint_rate,
+					labour_rate_snapshot: frozenRates?.labour_rate ?? additionals.labour_rate,
+					paint_rate_snapshot: frozenRates?.paint_rate ?? additionals.paint_rate,
 					// Actuals initially null
 					actual_part_price_nett: null,
 					actual_strip_assemble: null,
@@ -137,55 +149,118 @@ export function composeFinalEstimateLines(
 }
 
 /**
- * Calculate breakdown totals from line items
- * Groups by process type to determine parts/labour/paint/outwork totals
+ * Calculate breakdown totals from line items (NETT-BASED)
+ * Sums nett component values (parts nett, labour, paint, outwork nett)
+ * Markup should be applied at aggregate level, not here
  */
 export function calculateBreakdownTotals(
 	lineItems: FRCLineItem[],
 	useActual: boolean = false
 ): {
-	parts_total: number;
+	parts_nett_total: number;
 	labour_total: number;
 	paint_total: number;
-	outwork_total: number;
-	subtotal: number;
+	outwork_nett_total: number;
+	subtotal_nett: number;
 } {
-	let parts_total = 0;
+	let parts_nett_total = 0;
 	let labour_total = 0;
 	let paint_total = 0;
-	let outwork_total = 0;
+	let outwork_nett_total = 0;
 
 	lineItems.forEach((line) => {
-		const total = useActual ? line.actual_total || 0 : line.quoted_total;
-
-		switch (line.process_type) {
-			case 'N': // New part - contributes to parts
-				parts_total += total;
-				break;
-			case 'R': // Repair - contributes to labour
-				labour_total += total;
-				break;
-			case 'P': // Paint
-			case 'B': // Blend
-				paint_total += total;
-				break;
-			case 'A': // Align - contributes to labour
-				labour_total += total;
-				break;
-			case 'O': // Outwork
-				outwork_total += total;
-				break;
+		// Sum nett components (no markup)
+		if (useActual) {
+			// Actual values
+			parts_nett_total += line.actual_part_price_nett ?? 0;
+			labour_total += (line.actual_strip_assemble ?? 0) + (line.actual_labour_cost ?? 0);
+			paint_total += line.actual_paint_cost ?? 0;
+			outwork_nett_total += line.actual_outwork_charge ?? 0;
+		} else {
+			// Quoted values
+			parts_nett_total += line.quoted_part_price_nett ?? 0;
+			labour_total += (line.quoted_strip_assemble ?? 0) + (line.quoted_labour_cost ?? 0);
+			paint_total += line.quoted_paint_cost ?? 0;
+			outwork_nett_total += line.quoted_outwork_charge_nett ?? 0;
 		}
 	});
 
-	const subtotal = parts_total + labour_total + paint_total + outwork_total;
+	const subtotal_nett = parts_nett_total + labour_total + paint_total + outwork_nett_total;
 
 	return {
-		parts_total: Number(parts_total.toFixed(2)),
+		parts_nett_total: Number(parts_nett_total.toFixed(2)),
 		labour_total: Number(labour_total.toFixed(2)),
 		paint_total: Number(paint_total.toFixed(2)),
-		outwork_total: Number(outwork_total.toFixed(2)),
-		subtotal: Number(subtotal.toFixed(2))
+		outwork_nett_total: Number(outwork_nett_total.toFixed(2)),
+		subtotal_nett: Number(subtotal_nett.toFixed(2))
+	};
+}
+
+/**
+ * Apply markup to parts and outwork nett totals
+ * Returns selling totals with markup applied
+ */
+export function applyMarkupToTotals(
+	partsNettTotal: number,
+	outworkNettTotal: number,
+	markupPercentages: {
+		parts_markup: number; // Weighted average or specific markup
+		outwork_markup: number;
+	}
+): {
+	parts_selling_total: number;
+	outwork_selling_total: number;
+} {
+	const partsSellingTotal = partsNettTotal * (1 + markupPercentages.parts_markup / 100);
+	const outworkSellingTotal = outworkNettTotal * (1 + markupPercentages.outwork_markup / 100);
+
+	return {
+		parts_selling_total: Number(partsSellingTotal.toFixed(2)),
+		outwork_selling_total: Number(outworkSellingTotal.toFixed(2))
+	};
+}
+
+/**
+ * Calculate FRC aggregate totals with markup applied
+ * Takes nett breakdown and applies markup to parts and outwork
+ */
+export function calculateFRCAggregateTotals(
+	lineItems: FRCLineItem[],
+	useActual: boolean,
+	markupPercentages: {
+		parts_markup: number; // Average or weighted markup for parts
+		outwork_markup: number;
+	},
+	vatPercentage: number
+): {
+	parts_total: number; // Selling price with markup
+	labour_total: number;
+	paint_total: number;
+	outwork_total: number; // Selling price with markup
+	subtotal: number;
+	vat_amount: number;
+	total: number;
+} {
+	// Get nett breakdown
+	const nettBreakdown = calculateBreakdownTotals(lineItems, useActual);
+
+	// Apply markup to parts and outwork
+	const partsSellingTotal = nettBreakdown.parts_nett_total * (1 + markupPercentages.parts_markup / 100);
+	const outworkSellingTotal = nettBreakdown.outwork_nett_total * (1 + markupPercentages.outwork_markup / 100);
+
+	// Calculate subtotal (selling prices for parts/outwork, direct for labour/paint)
+	const subtotal = partsSellingTotal + nettBreakdown.labour_total + nettBreakdown.paint_total + outworkSellingTotal;
+	const vatAmount = (subtotal * vatPercentage) / 100;
+	const total = subtotal + vatAmount;
+
+	return {
+		parts_total: Number(partsSellingTotal.toFixed(2)),
+		labour_total: nettBreakdown.labour_total,
+		paint_total: nettBreakdown.paint_total,
+		outwork_total: Number(outworkSellingTotal.toFixed(2)),
+		subtotal: Number(subtotal.toFixed(2)),
+		vat_amount: Number(vatAmount.toFixed(2)),
+		total: Number(total.toFixed(2))
 	};
 }
 

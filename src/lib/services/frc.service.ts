@@ -9,6 +9,7 @@ import { auditService } from './audit.service';
 import {
 	composeFinalEstimateLines,
 	calculateBreakdownTotals,
+	calculateFRCAggregateTotals,
 	calculateVAT,
 	calculateTotal,
 	validateFRCLineItem
@@ -35,6 +36,7 @@ class FRCService {
 
 	/**
 	 * Start FRC - create snapshot from estimate + approved additionals
+	 * Uses frozen rates from assessment finalization for consistency
 	 */
 	async startFRC(
 		assessmentId: string,
@@ -47,13 +49,41 @@ class FRCService {
 			throw new Error('FRC already exists for this assessment');
 		}
 
-		// Compose final estimate lines
-		const lineItems = composeFinalEstimateLines(estimate, additionals);
+		// Fetch assessment to get frozen rates and markups from finalization
+		const { data: assessment, error: assessmentError } = await supabase
+			.from('assessments')
+			.select('finalized_labour_rate, finalized_paint_rate, finalized_oem_markup, finalized_alt_markup, finalized_second_hand_markup, finalized_outwork_markup')
+			.eq('id', assessmentId)
+			.maybeSingle();
 
-		// Calculate quoted breakdown
-		const quotedBreakdown = calculateBreakdownTotals(lineItems, false);
-		const quotedVatAmount = calculateVAT(quotedBreakdown.subtotal, estimate.vat_percentage);
-		const quotedTotal = calculateTotal(quotedBreakdown.subtotal, quotedVatAmount);
+		if (assessmentError) {
+			console.error('Error fetching assessment for FRC:', assessmentError);
+			throw new Error(`Failed to fetch assessment: ${assessmentError.message}`);
+		}
+
+		// Use frozen rates if available, otherwise fall back to estimate rates
+		const frozenRates = assessment?.finalized_labour_rate && assessment?.finalized_paint_rate
+			? {
+					labour_rate: assessment.finalized_labour_rate,
+					paint_rate: assessment.finalized_paint_rate
+			  }
+			: undefined;
+
+		// Use frozen markups if available, otherwise fall back to estimate markups
+		// For parts, use OEM markup as default (could be weighted average in future)
+		const partsMarkup = assessment?.finalized_oem_markup ?? estimate.oem_markup_percentage;
+		const outworkMarkup = assessment?.finalized_outwork_markup ?? estimate.outwork_markup_percentage;
+
+		// Compose final estimate lines with frozen rates
+		const lineItems = composeFinalEstimateLines(estimate, additionals, frozenRates);
+
+		// Calculate quoted breakdown with markup applied at aggregate level
+		const quotedTotals = calculateFRCAggregateTotals(
+			lineItems,
+			false,
+			{ parts_markup: partsMarkup, outwork_markup: outworkMarkup },
+			estimate.vat_percentage
+		);
 
 		// Create FRC record
 		const { data, error } = await supabase
@@ -63,13 +93,13 @@ class FRCService {
 				status: 'in_progress',
 				line_items: lineItems,
 				vat_percentage: estimate.vat_percentage,
-				quoted_parts_total: quotedBreakdown.parts_total,
-				quoted_labour_total: quotedBreakdown.labour_total,
-				quoted_paint_total: quotedBreakdown.paint_total,
-				quoted_outwork_total: quotedBreakdown.outwork_total,
-				quoted_subtotal: quotedBreakdown.subtotal,
-				quoted_vat_amount: quotedVatAmount,
-				quoted_total: quotedTotal,
+				quoted_parts_total: quotedTotals.parts_total,
+				quoted_labour_total: quotedTotals.labour_total,
+				quoted_paint_total: quotedTotals.paint_total,
+				quoted_outwork_total: quotedTotals.outwork_total,
+				quoted_subtotal: quotedTotals.subtotal,
+				quoted_vat_amount: quotedTotals.vat_amount,
+				quoted_total: quotedTotals.total,
 				actual_parts_total: 0,
 				actual_labour_total: 0,
 				actual_paint_total: 0,
@@ -96,7 +126,9 @@ class FRCService {
 			metadata: {
 				assessment_id: assessmentId,
 				line_count: lineItems.length,
-				quoted_total: quotedTotal
+				quoted_total: quotedTotals.total,
+				frozen_rates: frozenRates,
+				markups: { parts_markup: partsMarkup, outwork_markup: outworkMarkup }
 			}
 		});
 
@@ -141,7 +173,7 @@ class FRCService {
 			line.decision = 'agree';
 			line.actual_total = line.quoted_total;
 			line.adjust_reason = null;
-			// Copy quoted components to actuals for agree
+			// Copy quoted components to actuals for agree (nett values)
 			line.actual_part_price_nett = line.quoted_part_price_nett;
 			line.actual_strip_assemble_hours = line.strip_assemble_hours;
 			line.actual_strip_assemble = line.quoted_strip_assemble;
@@ -149,7 +181,7 @@ class FRCService {
 			line.actual_labour_cost = line.quoted_labour_cost;
 			line.actual_paint_panels = line.paint_panels;
 			line.actual_paint_cost = line.quoted_paint_cost;
-			line.actual_outwork_charge = line.quoted_outwork_charge;
+			line.actual_outwork_charge = line.quoted_outwork_charge_nett; // Use nett for consistency
 		} else if (decision === 'adjust') {
 			if (actualTotal === undefined || actualTotal === null) {
 				throw new Error('Actual total is required for adjust decision');
@@ -184,23 +216,54 @@ class FRCService {
 		const updatedLineItems = [...frc.line_items];
 		updatedLineItems[lineIndex] = line;
 
-		// Recalculate actual totals
-		const actualBreakdown = calculateBreakdownTotals(updatedLineItems, true);
-		const actualVatAmount = calculateVAT(actualBreakdown.subtotal, frc.vat_percentage);
-		const actualTotal_calc = calculateTotal(actualBreakdown.subtotal, actualVatAmount);
+		// Fetch assessment to get frozen markups
+		const { data: assessment, error: assessmentError } = await supabase
+			.from('assessments')
+			.select('finalized_oem_markup, finalized_outwork_markup')
+			.eq('id', frc.assessment_id)
+			.maybeSingle();
+
+		if (assessmentError) {
+			console.error('Error fetching assessment for FRC update:', assessmentError);
+			throw new Error(`Failed to fetch assessment: ${assessmentError.message}`);
+		}
+
+		// Get markups (use frozen if available, otherwise fetch from estimate)
+		let partsMarkup = assessment?.finalized_oem_markup;
+		let outworkMarkup = assessment?.finalized_outwork_markup;
+
+		if (!partsMarkup || !outworkMarkup) {
+			// Fallback: fetch from estimate
+			const { data: estimate } = await supabase
+				.from('assessment_estimates')
+				.select('oem_markup_percentage, outwork_markup_percentage')
+				.eq('assessment_id', frc.assessment_id)
+				.maybeSingle();
+
+			partsMarkup = partsMarkup ?? estimate?.oem_markup_percentage ?? 25;
+			outworkMarkup = outworkMarkup ?? estimate?.outwork_markup_percentage ?? 25;
+		}
+
+		// Recalculate actual totals with markup applied at aggregate level
+		const actualTotals = calculateFRCAggregateTotals(
+			updatedLineItems,
+			true,
+			{ parts_markup: partsMarkup, outwork_markup: outworkMarkup },
+			frc.vat_percentage
+		);
 
 		// Update FRC
 		const { data, error } = await supabase
 			.from('assessment_frc')
 			.update({
 				line_items: updatedLineItems,
-				actual_parts_total: actualBreakdown.parts_total,
-				actual_labour_total: actualBreakdown.labour_total,
-				actual_paint_total: actualBreakdown.paint_total,
-				actual_outwork_total: actualBreakdown.outwork_total,
-				actual_subtotal: actualBreakdown.subtotal,
-				actual_vat_amount: actualVatAmount,
-				actual_total: actualTotal_calc,
+				actual_parts_total: actualTotals.parts_total,
+				actual_labour_total: actualTotals.labour_total,
+				actual_paint_total: actualTotals.paint_total,
+				actual_outwork_total: actualTotals.outwork_total,
+				actual_subtotal: actualTotals.subtotal,
+				actual_vat_amount: actualTotals.vat_amount,
+				actual_total: actualTotals.total,
 				updated_at: new Date().toISOString()
 			})
 			.eq('id', frcId)

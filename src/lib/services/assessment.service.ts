@@ -251,16 +251,40 @@ export class AssessmentService {
 	/**
 	 * Mark estimate as finalized and sent
 	 * Sets status to 'submitted' and records timestamp
+	 * Snapshots rates and markups for FRC consistency
 	 */
 	async finalizeEstimate(id: string): Promise<Assessment> {
 		const timestamp = new Date().toISOString();
+
+		// Fetch the estimate to snapshot rates and markups
+		const { data: estimate, error: estimateError } = await supabase
+			.from('assessment_estimates')
+			.select('labour_rate, paint_rate, oem_markup_percentage, alt_markup_percentage, second_hand_markup_percentage, outwork_markup_percentage')
+			.eq('assessment_id', id)
+			.maybeSingle();
+
+		if (estimateError) {
+			console.error('Error fetching estimate for finalization:', estimateError);
+			throw estimateError;
+		}
+
+		if (!estimate) {
+			throw new Error('No estimate found for this assessment');
+		}
 
 		const { data, error } = await supabase
 			.from('assessments')
 			.update({
 				estimate_finalized_at: timestamp,
 				status: 'submitted',
-				submitted_at: timestamp
+				submitted_at: timestamp,
+				// Snapshot rates and markups at finalization
+				finalized_labour_rate: estimate.labour_rate,
+				finalized_paint_rate: estimate.paint_rate,
+				finalized_oem_markup: estimate.oem_markup_percentage,
+				finalized_alt_markup: estimate.alt_markup_percentage,
+				finalized_second_hand_markup: estimate.second_hand_markup_percentage,
+				finalized_outwork_markup: estimate.outwork_markup_percentage
 			})
 			.eq('id', id)
 			.select()
@@ -280,7 +304,15 @@ export class AssessmentService {
 			new_value: 'finalized_and_sent',
 			metadata: {
 				finalized_at: timestamp,
-				event: 'estimate_finalized_sent'
+				event: 'estimate_finalized_sent',
+				snapshotted_rates: {
+					labour_rate: estimate.labour_rate,
+					paint_rate: estimate.paint_rate,
+					oem_markup: estimate.oem_markup_percentage,
+					alt_markup: estimate.alt_markup_percentage,
+					second_hand_markup: estimate.second_hand_markup_percentage,
+					outwork_markup: estimate.outwork_markup_percentage
+				}
 			}
 		});
 

@@ -93,6 +93,14 @@ export interface Assessment {
 
 	// Estimate finalization
 	estimate_finalized_at?: string | null;
+
+	// Frozen rates and markups at finalization (for FRC consistency)
+	finalized_labour_rate?: number | null;
+	finalized_paint_rate?: number | null;
+	finalized_oem_markup?: number | null;
+	finalized_alt_markup?: number | null;
+	finalized_second_hand_markup?: number | null;
+	finalized_outwork_markup?: number | null;
 }
 
 // Vehicle identification interface
@@ -771,7 +779,8 @@ export interface FRCLineItem {
 	quoted_strip_assemble?: number | null; // S&A cost
 	quoted_labour_cost?: number | null; // Labour cost
 	quoted_paint_cost?: number | null; // Paint cost
-	quoted_outwork_charge?: number | null; // Outwork charge
+	quoted_outwork_charge_nett?: number | null; // Nett outwork cost without markup
+	quoted_outwork_charge?: number | null; // Outwork selling price with markup
 
 	// Quantities and rates snapshot (for traceability)
 	part_type?: PartType | null; // OEM/ALT/2ND

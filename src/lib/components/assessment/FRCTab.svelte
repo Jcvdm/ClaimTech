@@ -123,7 +123,19 @@
 		};
 	}
 
-	// Derived actual total from component inputs
+	// Derived quoted nett baseline (for apples-to-apples comparison)
+	const quotedNettBaseline = $derived(() => {
+		if (!adjustingLine) return 0;
+		return (
+			(adjustingLine.quoted_part_price_nett ?? 0) +
+			(adjustingLine.quoted_strip_assemble ?? 0) +
+			(adjustingLine.quoted_labour_cost ?? 0) +
+			(adjustingLine.quoted_paint_cost ?? 0) +
+			(adjustingLine.quoted_outwork_charge_nett ?? 0)
+		);
+	});
+
+	// Derived actual total from component inputs (nett-based)
 	const derivedActualTotal = $derived(() => {
 		if (!adjustingLine) return 0;
 		const rates = getRatesFor(adjustingLine);
@@ -565,7 +577,7 @@
 
 				<!-- Quoted Breakdown (Read-only) -->
 				<div class="rounded-lg bg-gray-50 p-3 border border-gray-200">
-					<p class="text-xs font-semibold text-gray-700 mb-2">Quoted Breakdown</p>
+					<p class="text-xs font-semibold text-gray-700 mb-2">Quoted Breakdown (Nett Values)</p>
 					<div class="grid grid-cols-2 gap-2 text-xs">
 						{#if adjustingLine.quoted_part_price_nett !== null && adjustingLine.quoted_part_price_nett !== undefined && adjustingLine.quoted_part_price_nett > 0}
 							<div class="text-gray-600">Parts (nett):</div>
@@ -592,13 +604,18 @@
 								{#if adjustingLine.paint_panels}({adjustingLine.paint_panels}p){/if}
 							</div>
 						{/if}
-						{#if adjustingLine.quoted_outwork_charge !== null && adjustingLine.quoted_outwork_charge !== undefined && adjustingLine.quoted_outwork_charge > 0}
-							<div class="text-gray-600">Outwork:</div>
-							<div class="text-right font-medium">{formatCurrency(adjustingLine.quoted_outwork_charge)}</div>
+						{#if adjustingLine.quoted_outwork_charge_nett !== null && adjustingLine.quoted_outwork_charge_nett !== undefined && adjustingLine.quoted_outwork_charge_nett > 0}
+							<div class="text-gray-600">Outwork (nett):</div>
+							<div class="text-right font-medium">{formatCurrency(adjustingLine.quoted_outwork_charge_nett)}</div>
 						{/if}
-						<div class="text-gray-700 font-semibold border-t pt-1">Total:</div>
-						<div class="text-right font-semibold border-t pt-1">{formatCurrency(adjustingLine.quoted_total)}</div>
+						<div class="text-gray-700 font-semibold border-t pt-1">Nett Total:</div>
+						<div class="text-right font-semibold border-t pt-1">{formatCurrency(quotedNettBaseline())}</div>
 					</div>
+					{#if adjustingLine.quoted_total > quotedNettBaseline()}
+						<p class="text-xs text-gray-500 mt-2">
+							Note: Quoted selling total (with markup) is {formatCurrency(adjustingLine.quoted_total)}
+						</p>
+					{/if}
 				</div>
 
 				<!-- Actual Component Inputs -->
@@ -679,16 +696,16 @@
 						</div>
 					{/if}
 
-					{#if adjustingLine.quoted_outwork_charge !== null && adjustingLine.quoted_outwork_charge !== undefined && adjustingLine.quoted_outwork_charge > 0}
+					{#if adjustingLine.quoted_outwork_charge_nett !== null && adjustingLine.quoted_outwork_charge_nett !== undefined && adjustingLine.quoted_outwork_charge_nett > 0}
 						<div class="space-y-1">
-							<Label for="actual-outwork">Outwork Amount</Label>
+							<Label for="actual-outwork">Outwork Amount (Nett)</Label>
 							<Input
 								id="actual-outwork"
 								type="number"
 								step="0.01"
 								min="0"
 								bind:value={actualOutwork}
-								placeholder="Enter actual outwork amount"
+								placeholder="Enter actual nett outwork amount"
 							/>
 						</div>
 					{/if}
@@ -696,13 +713,13 @@
 					<!-- Derived Actual Total -->
 					<div class="rounded-lg bg-blue-50 p-3 border border-blue-200">
 						<div class="flex justify-between items-center">
-							<span class="text-sm font-semibold text-blue-900">Actual Total (ex VAT):</span>
+							<span class="text-sm font-semibold text-blue-900">Actual Total (Nett, ex VAT):</span>
 							<span class="text-lg font-bold text-blue-900">{formatCurrency(derivedActualTotal())}</span>
 						</div>
-						{#if derivedActualTotal() - adjustingLine.quoted_total !== 0}
-							{@const delta = derivedActualTotal() - adjustingLine.quoted_total}
+						{#if derivedActualTotal() - quotedNettBaseline() !== 0}
+							{@const delta = derivedActualTotal() - quotedNettBaseline()}
 							<p class="text-xs mt-1 {delta > 0 ? 'text-red-600' : 'text-green-600'}">
-								{delta > 0 ? '+' : ''}{formatCurrency(delta)} vs quoted
+								{delta > 0 ? '+' : ''}{formatCurrency(delta)} vs quoted nett
 							</p>
 						{/if}
 					</div>
