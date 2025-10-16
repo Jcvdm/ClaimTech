@@ -57,13 +57,19 @@ export function composeFinalEstimateLines(
 	// Add original estimate lines (excluding removed ones)
 	estimate.line_items.forEach((line) => {
 		if (line.id && !removedOriginalIds.has(line.id)) {
+			const quoted_total_nett =
+				(line.part_price_nett ?? 0) +
+				(line.strip_assemble ?? 0) +
+				(line.labour_cost ?? 0) +
+				(line.paint_cost ?? 0) +
+				(line.outwork_charge_nett ?? 0);
 			finalLines.push({
 				id: crypto.randomUUID(),
 				source: 'estimate',
 				source_line_id: line.id,
 				process_type: line.process_type,
 				description: line.description,
-				quoted_total: line.total || 0,
+				quoted_total: Number(quoted_total_nett.toFixed(2)),
 				actual_total: null,
 				decision: 'pending',
 				adjust_reason: null,

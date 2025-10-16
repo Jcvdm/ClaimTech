@@ -171,7 +171,6 @@ class FRCService {
 		// Update line item
 		if (decision === 'agree') {
 			line.decision = 'agree';
-			line.actual_total = line.quoted_total;
 			line.adjust_reason = null;
 			// Copy quoted components to actuals for agree (nett values)
 			line.actual_part_price_nett = line.quoted_part_price_nett;
@@ -182,6 +181,14 @@ class FRCService {
 			line.actual_paint_panels = line.paint_panels;
 			line.actual_paint_cost = line.quoted_paint_cost;
 			line.actual_outwork_charge = line.quoted_outwork_charge_nett; // Use nett for consistency
+			// Calculate nett actual total (no markup)
+			const actual_total_nett =
+				(line.actual_part_price_nett ?? 0) +
+				(line.actual_strip_assemble ?? 0) +
+				(line.actual_labour_cost ?? 0) +
+				(line.actual_paint_cost ?? 0) +
+				(line.actual_outwork_charge ?? 0);
+			line.actual_total = Number(actual_total_nett.toFixed(2));
 		} else if (decision === 'adjust') {
 			if (actualTotal === undefined || actualTotal === null) {
 				throw new Error('Actual total is required for adjust decision');

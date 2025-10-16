@@ -149,6 +149,7 @@
 		if (tempSAHours !== null && estimate) {
 			const saCost = tempSAHours * estimate.labour_rate;
 			onUpdateLineItem(itemId, {
+				strip_assemble_hours: tempSAHours,
 				strip_assemble: saCost
 			});
 		}
@@ -246,30 +247,44 @@
 		onUpdateAssessmentResult(result);
 	}
 
-	// Calculate category totals
+	// Calculate category totals (nett for parts/outwork; show aggregate markup separately)
 	const categoryTotals = $derived(() => {
 		if (!estimate) return null;
 
-		const partsTotal = estimate.line_items.reduce((sum, item) => sum + (item.part_price || 0), 0);
-		const saTotal = estimate.line_items.reduce((sum, item) => sum + (item.strip_assemble || 0), 0);
-		const labourTotal = estimate.line_items.reduce((sum, item) => sum + (item.labour_cost || 0), 0);
-		const paintTotal = estimate.line_items.reduce((sum, item) => sum + (item.paint_cost || 0), 0);
-		const outworkTotal = estimate.line_items.reduce((sum, item) => sum + (item.outwork_charge || 0), 0);
+		const partsNett = estimate.line_items
+			.filter((i) => i.process_type === 'N')
+			.reduce((sum, i) => sum + (i.part_price_nett || 0), 0);
 
-		// Calculate total markup (difference between selling price and nett price)
-		const markupTotal = estimate.line_items.reduce((sum, item) => {
-			if (item.part_price && item.part_price_nett) {
-				return sum + (item.part_price - item.part_price_nett);
+		const saTotal = estimate.line_items.reduce((sum, i) => sum + (i.strip_assemble || 0), 0);
+		const labourTotal = estimate.line_items.reduce((sum, i) => sum + (i.labour_cost || 0), 0);
+		const paintTotal = estimate.line_items.reduce((sum, i) => sum + (i.paint_cost || 0), 0);
+
+		const outworkNett = estimate.line_items
+			.filter((i) => i.process_type === 'O')
+			.reduce((sum, i) => sum + (i.outwork_charge_nett || 0), 0);
+
+		// Aggregate markup (parts by type + outwork)
+		let partsMarkup = 0;
+		for (const i of estimate.line_items) {
+			if (i.process_type === 'N') {
+				const nett = i.part_price_nett || 0;
+				let m = 0;
+				if (i.part_type === 'OEM') m = estimate.oem_markup_percentage;
+				else if (i.part_type === 'ALT') m = estimate.alt_markup_percentage;
+				else if (i.part_type === '2ND') m = estimate.second_hand_markup_percentage;
+				partsMarkup += nett * (m / 100);
 			}
-			return sum;
-		}, 0);
+		}
+
+		const outworkMarkup = outworkNett * (estimate.outwork_markup_percentage / 100);
+		const markupTotal = partsMarkup + outworkMarkup;
 
 		return {
-			partsTotal,
+			partsTotal: partsNett,
 			saTotal,
 			labourTotal,
 			paintTotal,
-			outworkTotal,
+			outworkTotal: outworkNett,
 			markupTotal
 		};
 	});
@@ -515,7 +530,7 @@
 													class="text-sm font-medium text-blue-600 hover:text-blue-800 cursor-pointer w-full text-right"
 													title="Click to edit nett price (selling price includes markup)"
 												>
-													{formatCurrency(item.part_price || 0)}
+													{formatCurrency(item.part_price_nett || 0)}
 												</button>
 											{/if}
 										{:else}
@@ -622,7 +637,7 @@
 													class="text-sm font-medium text-blue-600 hover:text-blue-800 cursor-pointer w-full text-right"
 													title="Click to edit nett price (selling price includes markup)"
 												>
-													{formatCurrency(item.outwork_charge || 0)}
+													{formatCurrency(item.outwork_charge_nett || 0)}
 												</button>
 											{/if}
 										{:else}

@@ -16,6 +16,46 @@ import {
 	calculatePaintCost
 } from '$lib/utils/estimateCalculations';
 
+
+// Compute aggregate totals applying markup only at aggregate level (parts & outwork)
+function computeAggregateTotals(
+	lineItems: EstimateLineItem[],
+	vatPercentage: number,
+	oemMarkup: number,
+	altMarkup: number,
+	secondHandMarkup: number,
+	outworkMarkup: number
+): { subtotal: number; vatAmount: number; total: number } {
+	let partsSellingTotal = 0;
+	let labourTotal = 0;
+	let paintTotal = 0;
+	let outworkSellingTotal = 0;
+
+	for (const item of lineItems) {
+		if (item.process_type === 'N') {
+			const nett = item.part_price_nett || 0;
+			let markup = 0;
+			if (item.part_type === 'OEM') markup = oemMarkup;
+			else if (item.part_type === 'ALT') markup = altMarkup;
+			else if (item.part_type === '2ND') markup = secondHandMarkup;
+			partsSellingTotal += nett * (1 + markup / 100);
+		}
+
+		labourTotal += (item.strip_assemble || 0) + (item.labour_cost || 0);
+		paintTotal += item.paint_cost || 0;
+
+		if (item.process_type === 'O') {
+			const nett = item.outwork_charge_nett || 0;
+			outworkSellingTotal += nett * (1 + outworkMarkup / 100);
+		}
+	}
+
+	const subtotal = Number((partsSellingTotal + labourTotal + paintTotal + outworkSellingTotal).toFixed(2));
+	const vatAmount = Number(((subtotal * vatPercentage) / 100).toFixed(2));
+	const total = Number((subtotal + vatAmount).toFixed(2));
+	return { subtotal, vatAmount, total };
+}
+
 export class EstimateService {
 	/**
 	 * Get estimate by assessment ID (single estimate per assessment)
@@ -54,14 +94,23 @@ export class EstimateService {
 	 * Create estimate
 	 */
 	async create(input: CreateEstimateInput): Promise<Estimate> {
-		// Calculate totals
+		// Calculate totals (nett per-line; markup at aggregate)
 		const lineItems = input.line_items || [];
 		const labourRate = input.labour_rate || 500.0;
 		const paintRate = input.paint_rate || 2000.0;
-		const subtotal = calculateSubtotal(lineItems);
 		const vatPercentage = input.vat_percentage || 15.0;
-		const vatAmount = calculateVAT(subtotal, vatPercentage);
-		const total = calculateTotal(subtotal, vatAmount);
+		const oem = input.oem_markup_percentage ?? 0;
+		const alt = input.alt_markup_percentage ?? 0;
+		const sh = input.second_hand_markup_percentage ?? 0;
+		const outwork = input.outwork_markup_percentage ?? 0;
+		const { subtotal, vatAmount, total } = computeAggregateTotals(
+			lineItems,
+			vatPercentage,
+			oem,
+			alt,
+			sh,
+			outwork
+		);
 
 		const { data, error } = await supabase
 			.from('assessment_estimates')
@@ -129,10 +178,15 @@ export class EstimateService {
 					? recalculateAllLineItems(lineItems, labourRate, paintRate)
 					: lineItems;
 
-			const subtotal = calculateSubtotal(recalculatedItems);
 			const vatPercentage = input.vat_percentage || currentEstimate.vat_percentage;
-			const vatAmount = calculateVAT(subtotal, vatPercentage);
-			const total = calculateTotal(subtotal, vatAmount);
+			const { subtotal, vatAmount, total } = computeAggregateTotals(
+				recalculatedItems,
+				vatPercentage,
+				input.oem_markup_percentage ?? currentEstimate.oem_markup_percentage ?? 0,
+				input.alt_markup_percentage ?? currentEstimate.alt_markup_percentage ?? 0,
+				input.second_hand_markup_percentage ?? currentEstimate.second_hand_markup_percentage ?? 0,
+				input.outwork_markup_percentage ?? currentEstimate.outwork_markup_percentage ?? 0
+			);
 
 			updateData = {
 				...updateData,
@@ -289,10 +343,15 @@ export class EstimateService {
 			estimate.paint_rate
 		);
 
-		// Recalculate estimate totals
-		const subtotal = calculateSubtotal(updatedLineItems);
-		const vatAmount = calculateVAT(subtotal, estimate.vat_percentage);
-		const total = calculateTotal(subtotal, vatAmount);
+		// Recalculate estimate totals (aggregate markup)
+		const { subtotal, vatAmount, total } = computeAggregateTotals(
+			updatedLineItems,
+			estimate.vat_percentage,
+			estimate.oem_markup_percentage ?? 0,
+			estimate.alt_markup_percentage ?? 0,
+			estimate.second_hand_markup_percentage ?? 0,
+			estimate.outwork_markup_percentage ?? 0
+		);
 
 		const { data, error } = await supabase
 			.from('assessment_estimates')

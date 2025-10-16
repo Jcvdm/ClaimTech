@@ -92,11 +92,13 @@
 			total: calculateLineItemTotal(
 				{
 					process_type: processType,
-					part_price: partPrice,
+					part_price_nett: partPriceNett,
 					strip_assemble: stripAssembleCost,
+					labour_hours: labourHours,
 					labour_cost: labourCost,
+					paint_panels: paintPanels,
 					paint_cost: paintCost,
-					outwork_charge: outworkCharge
+					outwork_charge_nett: outworkChargeNett
 				} as EstimateLineItem,
 				labourRate,
 				paintRate

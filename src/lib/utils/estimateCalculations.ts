@@ -12,32 +12,34 @@ export function calculateLineItemTotal(
 	let total = 0;
 
 	switch (item.process_type) {
-		case 'N': // New: part + S&A + labour + paint
+		case 'N': // New: part (nett) + S&A + labour + paint
 			total =
-				(item.part_price || 0) +
-				(item.strip_assemble || 0) +
-				(item.labour_hours || 0) * labourRate +
-				(item.paint_panels || 0) * paintRate;
+				(item.part_price_nett || 0) +
+				(item.strip_assemble ?? (((item.strip_assemble_hours || 0) * labourRate) || 0)) +
+				(item.labour_cost ?? (((item.labour_hours || 0) * labourRate) || 0)) +
+				(item.paint_cost ?? (((item.paint_panels || 0) * paintRate) || 0));
 			break;
 
 		case 'R': // Repair: S&A + labour + paint (no part)
 			total =
-				(item.strip_assemble || 0) +
-				(item.labour_hours || 0) * labourRate +
-				(item.paint_panels || 0) * paintRate;
+				(item.strip_assemble ?? (((item.strip_assemble_hours || 0) * labourRate) || 0)) +
+				(item.labour_cost ?? (((item.labour_hours || 0) * labourRate) || 0)) +
+				(item.paint_cost ?? (((item.paint_panels || 0) * paintRate) || 0));
 			break;
 
 		case 'P': // Paint: S&A + paint
 		case 'B': // Blend: S&A + paint
-			total = (item.strip_assemble || 0) + (item.paint_panels || 0) * paintRate;
+			total =
+				(item.strip_assemble ?? (((item.strip_assemble_hours || 0) * labourRate) || 0)) +
+				(item.paint_cost ?? (((item.paint_panels || 0) * paintRate) || 0));
 			break;
 
 		case 'A': // Align: labour only
-			total = (item.labour_hours || 0) * labourRate;
+			total = item.labour_cost ?? (((item.labour_hours || 0) * labourRate) || 0);
 			break;
 
-		case 'O': // Outwork: outwork charge only
-			total = item.outwork_charge || 0;
+		case 'O': // Outwork: outwork charge (nett) only
+			total = item.outwork_charge_nett || 0;
 			break;
 
 		default:
@@ -241,11 +243,11 @@ export function getLineItemBreakdown(
 	total: number;
 } {
 	return {
-		partPrice: item.part_price || 0,
-		stripAssemble: item.strip_assemble || 0,
-		labourCost: calculateLabourCost(item.labour_hours, labourRate),
-		paintCost: calculatePaintCost(item.paint_panels, paintRate),
-		outworkCharge: item.outwork_charge || 0,
+		partPrice: item.part_price_nett || 0,
+		stripAssemble: item.strip_assemble ?? calculateSACost(item.strip_assemble_hours, labourRate),
+		labourCost: item.labour_cost ?? calculateLabourCost(item.labour_hours, labourRate),
+		paintCost: item.paint_cost ?? calculatePaintCost(item.paint_panels, paintRate),
+		outworkCharge: item.outwork_charge_nett || 0,
 		total: calculateLineItemTotal(item, labourRate, paintRate)
 	};
 }

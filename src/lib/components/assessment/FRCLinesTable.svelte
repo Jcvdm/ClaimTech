@@ -126,9 +126,9 @@
 										<Icon class="h-3 w-3 mr-1" />
 										{badge.label}
 									</Badge>
-									{#if ((line.quoted_outwork_charge || 0) > 0 || (line.actual_outwork_charge ?? 0) > 0)}
+									{#if ((line.quoted_outwork_charge_nett || 0) > 0 || (line.actual_outwork_charge ?? 0) > 0)}
 										<span>
-											Outwork: {formatCurrency(line.actual_outwork_charge ?? line.quoted_outwork_charge ?? 0)}
+											Outwork (nett): {formatCurrency(line.actual_outwork_charge ?? line.quoted_outwork_charge_nett ?? 0)}
 										</span>
 									{/if}
 								</p>

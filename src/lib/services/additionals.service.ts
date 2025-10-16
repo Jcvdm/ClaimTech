@@ -100,16 +100,14 @@ class AdditionalsService {
 			action: 'removed',
 			original_line_id: originalLineItem.id,
 			approved_at: new Date().toISOString(),
-			// Negate all monetary values
+			// Negate all monetary values (nett for parts/outwork)
+			part_price_nett: originalLineItem.part_price_nett ? negate(originalLineItem.part_price_nett) : null,
 			part_price: originalLineItem.part_price ? negate(originalLineItem.part_price) : null,
-			strip_assemble: originalLineItem.strip_assemble
-				? negate(originalLineItem.strip_assemble)
-				: null,
+			strip_assemble: originalLineItem.strip_assemble ? negate(originalLineItem.strip_assemble) : null,
 			labour_cost: negate(originalLineItem.labour_cost || 0),
 			paint_cost: negate(originalLineItem.paint_cost || 0),
-			outwork_charge: originalLineItem.outwork_charge
-				? negate(originalLineItem.outwork_charge)
-				: null,
+			outwork_charge_nett: originalLineItem.outwork_charge_nett ? negate(originalLineItem.outwork_charge_nett) : null,
+			outwork_charge: originalLineItem.outwork_charge ? negate(originalLineItem.outwork_charge) : null,
 			total: negate(originalLineItem.total || 0)
 		};
 
@@ -421,11 +419,13 @@ class AdditionalsService {
 			reverses_line_id: lineItemId,
 			reversal_reason: reason,
 			approved_at: new Date().toISOString(),
-			// Negate all monetary values
+			// Negate all monetary values (nett for parts/outwork)
+			part_price_nett: originalItem.part_price_nett ? negate(originalItem.part_price_nett) : null,
 			part_price: originalItem.part_price ? negate(originalItem.part_price) : null,
 			strip_assemble: originalItem.strip_assemble ? negate(originalItem.strip_assemble) : null,
 			labour_cost: negate(originalItem.labour_cost || 0),
 			paint_cost: negate(originalItem.paint_cost || 0),
+			outwork_charge_nett: originalItem.outwork_charge_nett ? negate(originalItem.outwork_charge_nett) : null,
 			outwork_charge: originalItem.outwork_charge ? negate(originalItem.outwork_charge) : null,
 			total: negate(originalItem.total || 0)
 		};
@@ -606,10 +606,12 @@ class AdditionalsService {
 			reversal_reason: reason,
 			approved_at: new Date().toISOString(),
 			// Negate the negative values to get positive (canceling the removal)
+			part_price_nett: removalItem.part_price_nett ? negate(removalItem.part_price_nett) : null,
 			part_price: removalItem.part_price ? negate(removalItem.part_price) : null,
 			strip_assemble: removalItem.strip_assemble ? negate(removalItem.strip_assemble) : null,
 			labour_cost: negate(removalItem.labour_cost || 0),
 			paint_cost: negate(removalItem.paint_cost || 0),
+			outwork_charge_nett: removalItem.outwork_charge_nett ? negate(removalItem.outwork_charge_nett) : null,
 			outwork_charge: removalItem.outwork_charge ? negate(removalItem.outwork_charge) : null,
 			total: negate(removalItem.total || 0)
 		};
@@ -682,7 +684,37 @@ class AdditionalsService {
 	} {
 		const approvedItems = lineItems.filter((item) => item.status === 'approved');
 
-		const subtotal = approvedItems.reduce((sum, item) => sum + (item.total || 0), 0);
+		// Sum components (nett where applicable)
+		let partsSellingTotal = 0;
+		let labourTotal = 0;
+		let paintTotal = 0;
+		let outworkSellingTotal = 0;
+
+		for (const item of approvedItems) {
+			// Parts
+			if (item.process_type === 'N') {
+				const nett = item.part_price_nett || 0;
+				let markup = 0;
+				if (item.part_type === 'OEM') markup = oemMarkup;
+				else if (item.part_type === 'ALT') markup = altMarkup;
+				else if (item.part_type === '2ND') markup = secondHandMarkup;
+				partsSellingTotal += nett * (1 + markup / 100);
+			}
+
+			// S&A and Labour
+			labourTotal += (item.strip_assemble || 0) + (item.labour_cost || 0);
+
+			// Paint
+			paintTotal += item.paint_cost || 0;
+
+			// Outwork
+			if (item.process_type === 'O') {
+				const oNett = item.outwork_charge_nett || 0;
+				outworkSellingTotal += oNett * (1 + outworkMarkup / 100);
+			}
+		}
+
+		const subtotal = partsSellingTotal + labourTotal + paintTotal + outworkSellingTotal;
 		const vatAmount = subtotal * (vatPercentage / 100);
 		const total = subtotal + vatAmount;
 

@@ -100,8 +100,13 @@
 
 		try {
 			error = null;
-			await additionalsService.addLineItem(assessmentId, item);
-			await loadAdditionals();
+			// Service updates DB and returns updated additionals
+			const updatedAdditionals = await additionalsService.addLineItem(assessmentId, item);
+
+			// Update local state directly (triggers Svelte reactivity)
+			additionals = updatedAdditionals;
+
+			// ✅ No loadAdditionals() call - preserves user input in other fields
 			await onUpdate();
 		} catch (err) {
 			error = err instanceof Error ? err.message : 'Failed to add line item';
@@ -112,8 +117,13 @@
 	async function handleApprove(lineItemId: string) {
 		try {
 			error = null;
-			await additionalsService.approveLineItem(assessmentId, lineItemId);
-			await loadAdditionals();
+			// Service updates DB and returns updated additionals
+			const updatedAdditionals = await additionalsService.approveLineItem(assessmentId, lineItemId);
+
+			// Update local state directly (triggers Svelte reactivity)
+			additionals = updatedAdditionals;
+
+			// ✅ No loadAdditionals() call - preserves user input in other fields
 			await onUpdate();
 		} catch (err) {
 			error = err instanceof Error ? err.message : 'Failed to approve item';
@@ -132,8 +142,13 @@
 
 		try {
 			error = null;
-			await additionalsService.declineLineItem(assessmentId, selectedLineItemId, reason);
-			await loadAdditionals();
+			// Service updates DB and returns updated additionals
+			const updatedAdditionals = await additionalsService.declineLineItem(assessmentId, selectedLineItemId, reason);
+
+			// Update local state directly (triggers Svelte reactivity)
+			additionals = updatedAdditionals;
+
+			// ✅ No loadAdditionals() call - preserves user input in other fields
 			await onUpdate();
 			showDeclineModal = false;
 			selectedLineItemId = null;
@@ -148,8 +163,13 @@
 
 		try {
 			error = null;
-			await additionalsService.deleteLineItem(assessmentId, lineItemId);
-			await loadAdditionals();
+			// Service updates DB and returns updated additionals
+			const updatedAdditionals = await additionalsService.deleteLineItem(assessmentId, lineItemId);
+
+			// Update local state directly (triggers Svelte reactivity)
+			additionals = updatedAdditionals;
+
+			// ✅ No loadAdditionals() call - preserves user input in other fields
 			await onUpdate();
 		} catch (err) {
 			error = err instanceof Error ? err.message : 'Failed to delete item';
@@ -183,16 +203,22 @@
 
 		try {
 			error = null;
+			let updatedAdditionals: AssessmentAdditionals;
 
 			if (reversalAction === 'reverse') {
-				await additionalsService.reverseApprovedLineItem(assessmentId, reversalTargetId, reason);
+				updatedAdditionals = await additionalsService.reverseApprovedLineItem(assessmentId, reversalTargetId, reason);
 			} else if (reversalAction === 'reinstate') {
-				await additionalsService.reinstateDeclinedLineItem(assessmentId, reversalTargetId, reason);
+				updatedAdditionals = await additionalsService.reinstateDeclinedLineItem(assessmentId, reversalTargetId, reason);
 			} else if (reversalAction === 'reinstate-original') {
-				await additionalsService.reinstateRemovedOriginal(assessmentId, reversalTargetId, reason);
+				updatedAdditionals = await additionalsService.reinstateRemovedOriginal(assessmentId, reversalTargetId, reason);
+			} else {
+				return; // Should never happen
 			}
 
-			await loadAdditionals();
+			// Update local state directly (triggers Svelte reactivity)
+			additionals = updatedAdditionals;
+
+			// ✅ No loadAdditionals() call - preserves user input in other fields
 			await onUpdate();
 			showReversalModal = false;
 			reversalAction = null;
@@ -215,8 +241,13 @@
 
 		try {
 			error = null;
-			await additionalsService.addRemovedLineItem(assessmentId, originalItem);
-			await loadAdditionals();
+			// Service updates DB and returns updated additionals
+			const updatedAdditionals = await additionalsService.addRemovedLineItem(assessmentId, originalItem);
+
+			// Update local state directly (triggers Svelte reactivity)
+			additionals = updatedAdditionals;
+
+			// ✅ No loadAdditionals() call - preserves user input in other fields
 			await onUpdate();
 		} catch (err) {
 			error = err instanceof Error ? err.message : 'Failed to remove original line';
@@ -411,11 +442,11 @@
 											{/if}
 										</div>
 									</td>
-									<td class="py-2 text-right {isRemoved || isReversal ? 'text-blue-600' : ''}">R {(item.part_price || 0).toFixed(2)}</td>
+									<td class="py-2 text-right {isRemoved || isReversal ? 'text-blue-600' : ''}">R {(item.part_price_nett || 0).toFixed(2)}</td>
 									<td class="py-2 text-right {isRemoved || isReversal ? 'text-blue-600' : ''}">R {(item.strip_assemble || 0).toFixed(2)}</td>
 									<td class="py-2 text-right {isRemoved || isReversal ? 'text-blue-600' : ''}">R {(item.labour_cost || 0).toFixed(2)}</td>
 									<td class="py-2 text-right {isRemoved || isReversal ? 'text-blue-600' : ''}">R {(item.paint_cost || 0).toFixed(2)}</td>
-									<td class="py-2 text-right {isRemoved || isReversal ? 'text-blue-600' : ''}">R {(item.outwork_charge || 0).toFixed(2)}</td>
+									<td class="py-2 text-right {isRemoved || isReversal ? 'text-blue-600' : ''}">R {(item.outwork_charge_nett || 0).toFixed(2)}</td>
 									<td class="py-2 text-right font-medium {isRemoved || isReversal ? 'text-blue-600' : ''}">R {item.total.toFixed(2)}</td>
 									<td class="py-2">
 										{#if isReversal}

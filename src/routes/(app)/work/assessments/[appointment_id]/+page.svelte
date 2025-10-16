@@ -43,6 +43,11 @@
 
 	let { data }: { data: PageData } = $props();
 
+	// Local reactive state for estimates (Svelte 5 runes pattern)
+	// Reassigning these triggers reactivity in child components
+	let estimate = $state(data.estimate);
+	let preIncidentEstimate = $state(data.preIncidentEstimate);
+
 	let currentTab = $state(data.assessment.current_tab || 'identification');
 	let saving = $state(false);
 	let generatingDocument = $state(false); // Flag to pause auto-save during document generation
@@ -58,8 +63,8 @@
 			tyres: data.tyres,
 			damageRecord: data.damageRecord,
 			vehicleValues: data.vehicleValues,
-			preIncidentEstimate: data.preIncidentEstimate,
-			estimate: data.estimate
+			preIncidentEstimate: preIncidentEstimate,
+			estimate: estimate
 		});
 
 		const completedTabs = completionStatus
@@ -296,9 +301,12 @@
 	// Pre-Incident Estimate handlers
 	async function handleUpdatePreIncidentEstimate(updateData: Partial<Estimate>) {
 		try {
-			if (data.preIncidentEstimate) {
-				await preIncidentEstimateService.update(data.preIncidentEstimate.id, updateData);
-				// Data is already updated in the service
+			if (preIncidentEstimate) {
+				// Service updates DB and returns updated estimate
+				const updatedEstimate = await preIncidentEstimateService.update(preIncidentEstimate.id, updateData);
+
+				// Update local $state variable (triggers Svelte reactivity in child components)
+				preIncidentEstimate = updatedEstimate;
 			}
 		} catch (error) {
 			console.error('Error updating pre-incident estimate:', error);
@@ -307,9 +315,14 @@
 
 	async function handleAddPreIncidentLineItem(item: EstimateLineItem) {
 		try {
-			if (data.preIncidentEstimate) {
-				await preIncidentEstimateService.addLineItem(data.preIncidentEstimate.id, item);
-				// Line item added, service handles state update
+			if (preIncidentEstimate) {
+				// Service updates DB and returns updated estimate
+				const updatedEstimate = await preIncidentEstimateService.addLineItem(preIncidentEstimate.id, item);
+
+				// Update local $state variable (triggers Svelte reactivity in child components)
+				preIncidentEstimate = updatedEstimate;
+
+				// ✅ No invalidation needed - preserves user input in other fields
 			}
 		} catch (error) {
 			console.error('Error adding pre-incident line item:', error);
@@ -321,13 +334,18 @@
 		updateData: Partial<EstimateLineItem>
 	) {
 		try {
-			if (data.preIncidentEstimate) {
-				await preIncidentEstimateService.updateLineItem(
-					data.preIncidentEstimate.id,
+			if (preIncidentEstimate) {
+				// Service updates DB and returns updated estimate
+				const updatedEstimate = await preIncidentEstimateService.updateLineItem(
+					preIncidentEstimate.id,
 					itemId,
 					updateData
 				);
-				// Line item updated, service handles state update
+
+				// Update local $state variable (triggers Svelte reactivity in child components)
+				preIncidentEstimate = updatedEstimate;
+
+				// ✅ No invalidation needed - preserves user input in other fields
 			}
 		} catch (error) {
 			console.error('Error updating pre-incident line item:', error);
@@ -336,9 +354,14 @@
 
 	async function handleDeletePreIncidentLineItem(itemId: string) {
 		try {
-			if (data.preIncidentEstimate) {
-				await preIncidentEstimateService.deleteLineItem(data.preIncidentEstimate.id, itemId);
-				// Line item deleted, service handles state update
+			if (preIncidentEstimate) {
+				// Service updates DB and returns updated estimate
+				const updatedEstimate = await preIncidentEstimateService.deleteLineItem(preIncidentEstimate.id, itemId);
+
+				// Update local $state variable (triggers Svelte reactivity in child components)
+				preIncidentEstimate = updatedEstimate;
+
+				// ✅ No invalidation needed - preserves user input in other fields
 			}
 		} catch (error) {
 			console.error('Error deleting pre-incident line item:', error);
@@ -347,12 +370,17 @@
 
 	async function handleBulkDeletePreIncidentLineItems(itemIds: string[]) {
 		try {
-			if (data.preIncidentEstimate) {
-				await preIncidentEstimateService.bulkDeleteLineItems(
-					data.preIncidentEstimate.id,
+			if (preIncidentEstimate) {
+				// Service updates DB and returns updated estimate
+				const updatedEstimate = await preIncidentEstimateService.bulkDeleteLineItems(
+					preIncidentEstimate.id,
 					itemIds
 				);
-				// Line items deleted, service handles state update
+
+				// Update local $state variable (triggers Svelte reactivity in child components)
+				preIncidentEstimate = updatedEstimate;
+
+				// ✅ No invalidation needed - preserves user input in other fields
 			}
 		} catch (error) {
 			console.error('Error bulk deleting pre-incident line items:', error);
@@ -369,8 +397,9 @@
 		outworkMarkup: number
 	) {
 		try {
-			if (data.preIncidentEstimate) {
-				await preIncidentEstimateService.update(data.preIncidentEstimate.id, {
+			if (preIncidentEstimate) {
+				// Service updates DB and returns updated estimate
+				const updatedEstimate = await preIncidentEstimateService.update(preIncidentEstimate.id, {
 					labour_rate: labourRate,
 					paint_rate: paintRate,
 					vat_percentage: vatPercentage,
@@ -379,7 +408,11 @@
 					second_hand_markup_percentage: secondHandMarkup,
 					outwork_markup_percentage: outworkMarkup
 				});
-				// Rates updated, service handles state update
+
+				// Update local $state variable (triggers Svelte reactivity in child components)
+				preIncidentEstimate = updatedEstimate;
+
+				// ✅ No invalidation needed - preserves user input in other fields
 			}
 		} catch (error) {
 			console.error('Error updating pre-incident rates:', error);
@@ -395,9 +428,12 @@
 	// Estimate handlers
 	async function handleUpdateEstimate(updateData: Partial<Estimate>) {
 		try {
-			if (data.estimate) {
-				await estimateService.update(data.estimate.id, updateData);
-				// Data is already updated in the service
+			if (estimate) {
+				// Service updates DB and returns updated estimate
+				const updatedEstimate = await estimateService.update(estimate.id, updateData);
+
+				// Update local $state variable (triggers Svelte reactivity in child components)
+				estimate = updatedEstimate;
 			}
 		} catch (error) {
 			console.error('Error updating estimate:', error);
@@ -406,9 +442,14 @@
 
 	async function handleAddLineItem(item: EstimateLineItem) {
 		try {
-			if (data.estimate) {
-				await estimateService.addLineItem(data.estimate.id, item);
-				// Line item added, service handles state update
+			if (estimate) {
+				// Service updates DB and returns updated estimate
+				const updatedEstimate = await estimateService.addLineItem(estimate.id, item);
+
+				// Update local $state variable (triggers Svelte reactivity in child components)
+				estimate = updatedEstimate;
+
+				// ✅ No invalidation needed - preserves user input in other fields
 			}
 		} catch (error) {
 			console.error('Error adding line item:', error);
@@ -417,9 +458,14 @@
 
 	async function handleUpdateLineItem(itemId: string, updateData: Partial<EstimateLineItem>) {
 		try {
-			if (data.estimate) {
-				await estimateService.updateLineItem(data.estimate.id, itemId, updateData);
-				// Line item updated, service handles state update
+			if (estimate) {
+				// Service updates DB and returns updated estimate
+				const updatedEstimate = await estimateService.updateLineItem(estimate.id, itemId, updateData);
+
+				// Update local $state variable (triggers Svelte reactivity in child components)
+				estimate = updatedEstimate;
+
+				// ✅ No invalidation needed - preserves user input in other fields
 			}
 		} catch (error) {
 			console.error('Error updating line item:', error);
@@ -428,9 +474,14 @@
 
 	async function handleDeleteLineItem(itemId: string) {
 		try {
-			if (data.estimate) {
-				await estimateService.deleteLineItem(data.estimate.id, itemId);
-				// Line item deleted, service handles state update
+			if (estimate) {
+				// Service updates DB and returns updated estimate
+				const updatedEstimate = await estimateService.deleteLineItem(estimate.id, itemId);
+
+				// Update local $state variable (triggers Svelte reactivity in child components)
+				estimate = updatedEstimate;
+
+				// ✅ No invalidation needed - preserves user input in other fields
 			}
 		} catch (error) {
 			console.error('Error deleting line item:', error);
@@ -439,9 +490,14 @@
 
 	async function handleBulkDeleteLineItems(itemIds: string[]) {
 		try {
-			if (data.estimate) {
-				await estimateService.bulkDeleteLineItems(data.estimate.id, itemIds);
-				// Line items deleted, service handles state update
+			if (estimate) {
+				// Service updates DB and returns updated estimate
+				const updatedEstimate = await estimateService.bulkDeleteLineItems(estimate.id, itemIds);
+
+				// Update local $state variable (triggers Svelte reactivity in child components)
+				estimate = updatedEstimate;
+
+				// ✅ No invalidation needed - preserves user input in other fields
 			}
 		} catch (error) {
 			console.error('Error bulk deleting line items:', error);
@@ -458,8 +514,9 @@
 		outworkMarkup: number
 	) {
 		try {
-			if (data.estimate) {
-				await estimateService.update(data.estimate.id, {
+			if (estimate) {
+				// Service updates DB and returns updated estimate
+				const updatedEstimate = await estimateService.update(estimate.id, {
 					labour_rate: labourRate,
 					paint_rate: paintRate,
 					vat_percentage: vatPercentage,
@@ -468,7 +525,11 @@
 					second_hand_markup_percentage: secondHandMarkup,
 					outwork_markup_percentage: outworkMarkup
 				});
-				// Rates updated, service handles state update
+
+				// Update local $state variable (triggers Svelte reactivity in child components)
+				estimate = updatedEstimate;
+
+				// ✅ No invalidation needed - preserves user input in other fields
 			}
 		} catch (error) {
 			console.error('Error updating rates:', error);
@@ -477,11 +538,16 @@
 
 	async function handleUpdateRepairer(repairerId: string | null) {
 		try {
-			if (data.estimate) {
-				await estimateService.update(data.estimate.id, {
+			if (estimate) {
+				// Service updates DB and returns updated estimate
+				const updatedEstimate = await estimateService.update(estimate.id, {
 					repairer_id: repairerId
 				});
-				// Repairer updated, service handles state update
+
+				// Update local $state variable (triggers Svelte reactivity in child components)
+				estimate = updatedEstimate;
+
+				// ✅ No invalidation needed - preserves user input in other fields
 			}
 		} catch (error) {
 			console.error('Error updating repairer:', error);
@@ -495,11 +561,14 @@
 
 	async function handleUpdateAssessmentResult(result: AssessmentResultType | null) {
 		try {
-			if (data.estimate) {
-				await estimateService.update(data.estimate.id, {
+			if (estimate) {
+				// Service updates DB and returns updated estimate
+				const updatedEstimate = await estimateService.update(estimate.id, {
 					assessment_result: result
 				});
-				// Assessment result updated, service handles state update
+
+				// Update local $state variable (triggers Svelte reactivity in child components)
+				estimate = updatedEstimate;
 			}
 		} catch (error) {
 			console.error('Error updating assessment result:', error);
@@ -593,8 +662,8 @@
 		<SummaryTab
 			assessment={data.assessment}
 			vehicleValues={data.vehicleValues}
-			estimate={data.estimate}
-			preIncidentEstimate={data.preIncidentEstimate}
+			estimate={estimate}
+			preIncidentEstimate={preIncidentEstimate}
 			inspection={data.inspection}
 			request={data.request}
 			client={data.client}
@@ -666,7 +735,7 @@
 		/>
 	{:else if currentTab === 'pre-incident'}
 		<PreIncidentEstimateTab
-			estimate={data.preIncidentEstimate}
+			estimate={preIncidentEstimate}
 			assessmentId={data.assessment.id}
 			estimatePhotos={data.preIncidentEstimatePhotos}
 			onUpdateEstimate={handleUpdatePreIncidentEstimate}
@@ -682,7 +751,7 @@
 		/>
 	{:else if currentTab === 'estimate'}
 		<EstimateTab
-			estimate={data.estimate}
+			estimate={estimate}
 			assessmentId={data.assessment.id}
 			estimatePhotos={data.estimatePhotos}
 			vehicleValues={data.vehicleValues}
@@ -708,20 +777,20 @@
 			onDownloadDocument={handleDownloadDocument}
 			onGenerateAll={handleGenerateAll}
 		/>
-	{:else if currentTab === 'additionals' && data.estimate}
+	{:else if currentTab === 'additionals' && estimate}
 		<AdditionalsTab
 			assessmentId={data.assessment.id}
-			estimate={data.estimate}
+			estimate={estimate}
 			vehicleValues={data.vehicleValues}
 			repairers={data.repairers}
 			onUpdate={async () => {
 				// Additionals updated, no need to reload entire page
 			}}
 		/>
-	{:else if currentTab === 'frc' && data.estimate}
+	{:else if currentTab === 'frc' && estimate}
 		<FRCTab
 			assessmentId={data.assessment.id}
-			estimate={data.estimate}
+			estimate={estimate}
 			vehicleValues={data.vehicleValues}
 			onUpdate={async () => {
 				// FRC updated, no need to reload entire page

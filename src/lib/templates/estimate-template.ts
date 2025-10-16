@@ -32,39 +32,37 @@ export function generateEstimateHTML(data: EstimateData): string {
 		repairer
 	} = data;
 
-	// Calculate totals from all line items (don't filter by category - use process_type instead)
-	const calculatedSubtotal = lineItems.reduce((sum, item) => sum + (item.total || 0), 0);
-
 	// Convert database values to numbers (they come as strings from PostgreSQL DECIMAL type)
 	const dbSubtotal = estimate?.subtotal ? Number(estimate.subtotal) : 0;
 	const dbVatAmount = estimate?.vat_amount ? Number(estimate.vat_amount) : 0;
 	const dbTotal = estimate?.total ? Number(estimate.total) : 0;
 
-	// Use calculated totals if line items exist, otherwise use database values
-	const subtotal = lineItems.length > 0 && calculatedSubtotal > 0
-		? calculatedSubtotal
-		: dbSubtotal;
-	const vat = lineItems.length > 0 && calculatedSubtotal > 0
-		? (subtotal * ((estimate?.vat_percentage || 15) / 100))
-		: dbVatAmount;
-	const grandTotal = lineItems.length > 0 && calculatedSubtotal > 0
-		? (subtotal + vat)
-		: dbTotal;
+	// Use database totals (which include markup at aggregate level)
+	const subtotal = dbSubtotal;
+	const vat = dbVatAmount;
+	const grandTotal = dbTotal;
 
-	// Calculate category totals breakdown (same logic as EstimateTab.svelte)
-	const partsTotal = lineItems.reduce((sum, item) => sum + (item.part_price || 0), 0);
+	// Calculate category totals breakdown (NETT values only - same logic as EstimateTab.svelte)
+	const partsNett = lineItems.reduce((sum, item) => sum + (item.part_price_nett || 0), 0);
 	const saTotal = lineItems.reduce((sum, item) => sum + (item.strip_assemble || 0), 0);
 	const labourTotal = lineItems.reduce((sum, item) => sum + (item.labour_cost || 0), 0);
 	const paintTotal = lineItems.reduce((sum, item) => sum + (item.paint_cost || 0), 0);
-	const outworkTotal = lineItems.reduce((sum, item) => sum + (item.outwork_charge || 0), 0);
+	const outworkNett = lineItems.reduce((sum, item) => sum + (item.outwork_charge_nett || 0), 0);
 
-	// Calculate total markup (difference between selling price and nett price)
-	const markupTotal = lineItems.reduce((sum, item) => {
-		if (item.part_price && item.part_price_nett) {
-			return sum + (item.part_price - item.part_price_nett);
+	// Calculate aggregate markup (parts by type + outwork)
+	let partsMarkup = 0;
+	for (const item of lineItems) {
+		if (item.process_type === 'N' && item.part_price_nett) {
+			const nett = item.part_price_nett;
+			let markupPct = 0;
+			if (item.part_type === 'OEM') markupPct = estimate?.oem_markup_percentage || 0;
+			else if (item.part_type === 'ALT') markupPct = estimate?.alt_markup_percentage || 0;
+			else if (item.part_type === '2ND') markupPct = estimate?.second_hand_markup_percentage || 0;
+			partsMarkup += nett * (markupPct / 100);
 		}
-		return sum;
-	}, 0);
+	}
+	const outworkMarkup = outworkNett * ((estimate?.outwork_markup_percentage || 0) / 100);
+	const markupTotal = partsMarkup + outworkMarkup;
 
 	// Helper to get process type label
 	const getProcessTypeLabel = (processType: ProcessType) => {
@@ -94,11 +92,11 @@ export function generateEstimateHTML(data: EstimateData): string {
 			<tr style="border-bottom: 1px solid #e5e7eb;">
 				<td style="padding: 6px; font-size: 9pt;">${getProcessTypeLabel(item.process_type)}</td>
 				<td style="padding: 6px; font-size: 9pt;">${item.description || ''}</td>
-				<td style="padding: 6px; font-size: 9pt; text-align: right;">${showValue(item.part_price)}</td>
+				<td style="padding: 6px; font-size: 9pt; text-align: right;">${showValue(item.part_price_nett)}</td>
 				<td style="padding: 6px; font-size: 9pt; text-align: right;">${showValue(item.strip_assemble)}</td>
 				<td style="padding: 6px; font-size: 9pt; text-align: right;">${showValue(item.labour_cost)}</td>
 				<td style="padding: 6px; font-size: 9pt; text-align: right;">${showValue(item.paint_cost)}</td>
-				<td style="padding: 6px; font-size: 9pt; text-align: right;">${showValue(item.outwork_charge)}</td>
+				<td style="padding: 6px; font-size: 9pt; text-align: right;">${showValue(item.outwork_charge_nett)}</td>
 				<td style="padding: 6px; font-size: 9pt; text-align: right;">${formatCurrency(item.total)}</td>
 			</tr>
 		`;
@@ -587,12 +585,8 @@ export function generateEstimateHTML(data: EstimateData): string {
 					<td colspan="2">TOTALS BREAKDOWN</td>
 				</tr>
 				<tr>
-					<td class="breakdown-label">Parts Total</td>
-					<td class="breakdown-value">${formatCurrency(partsTotal)}</td>
-				</tr>
-				<tr>
-					<td class="breakdown-label">Markup Total</td>
-					<td class="breakdown-value breakdown-markup">${formatCurrency(markupTotal)}</td>
+					<td class="breakdown-label">Parts Total (nett)</td>
+					<td class="breakdown-value">${formatCurrency(partsNett)}</td>
 				</tr>
 				<tr>
 					<td class="breakdown-label">S&A Total</td>
@@ -607,8 +601,12 @@ export function generateEstimateHTML(data: EstimateData): string {
 					<td class="breakdown-value">${formatCurrency(paintTotal)}</td>
 				</tr>
 				<tr>
-					<td class="breakdown-label">Outwork Total</td>
-					<td class="breakdown-value">${formatCurrency(outworkTotal)}</td>
+					<td class="breakdown-label">Outwork Total (nett)</td>
+					<td class="breakdown-value">${formatCurrency(outworkNett)}</td>
+				</tr>
+				<tr>
+					<td class="breakdown-label">Markup Total</td>
+					<td class="breakdown-value breakdown-markup">${formatCurrency(markupTotal)}</td>
 				</tr>
 			</table>
 		</div>
