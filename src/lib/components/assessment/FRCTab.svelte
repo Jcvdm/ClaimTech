@@ -369,113 +369,216 @@
 		<Card class="p-6">
 			<h3 class="text-lg font-semibold text-gray-900 mb-4">Quoted vs Actual Totals</h3>
 
-			<div class="space-y-3">
-				<!-- Parts -->
-				<div class="flex items-center justify-between py-2 border-b">
-					<span class="text-sm font-medium text-gray-700">Parts</span>
-					<div class="flex items-center gap-4">
-						<span class="text-sm text-gray-600">{formatCurrency(frc.quoted_parts_total)}</span>
-						<span class="text-sm font-medium text-gray-900">{formatCurrency(frc.actual_parts_total)}</span>
-						{#if partsDeltas()}
-							<span class="text-xs {partsDeltas()!.isOver ? 'text-red-600' : partsDeltas()!.isUnder ? 'text-green-600' : 'text-gray-600'}">
-								{partsDeltas()!.isOver ? '+' : ''}{formatCurrency(partsDeltas()!.delta)}
-							</span>
-						{/if}
+			<div class="space-y-6">
+				<!-- ORIGINAL ESTIMATE SECTION -->
+				<div>
+					<h4 class="text-sm font-bold text-blue-900 mb-3 uppercase tracking-wide">Original Estimate</h4>
+					<div class="space-y-2 pl-4 border-l-2 border-blue-200">
+						<!-- Parts (Nett) -->
+						<div class="flex items-center justify-between py-1">
+							<span class="text-sm text-gray-700">Parts (Nett)</span>
+							<div class="flex items-center gap-4">
+								<span class="text-sm text-gray-600 w-24 text-right">{formatCurrency(frc.quoted_estimate_parts_nett)}</span>
+								<span class="text-sm text-gray-900 w-24 text-right">{formatCurrency(frc.actual_estimate_parts_nett)}</span>
+								<span class="text-xs text-gray-500 w-20 text-right">
+									{formatCurrency(frc.actual_estimate_parts_nett - frc.quoted_estimate_parts_nett)}
+								</span>
+							</div>
+						</div>
+						<!-- Labour -->
+						<div class="flex items-center justify-between py-1">
+							<span class="text-sm text-gray-700">Labour</span>
+							<div class="flex items-center gap-4">
+								<span class="text-sm text-gray-600 w-24 text-right">{formatCurrency(frc.quoted_estimate_labour)}</span>
+								<span class="text-sm text-gray-900 w-24 text-right">{formatCurrency(frc.actual_estimate_labour)}</span>
+								<span class="text-xs text-gray-500 w-20 text-right">
+									{formatCurrency(frc.actual_estimate_labour - frc.quoted_estimate_labour)}
+								</span>
+							</div>
+						</div>
+						<!-- Paint -->
+						<div class="flex items-center justify-between py-1">
+							<span class="text-sm text-gray-700">Paint</span>
+							<div class="flex items-center gap-4">
+								<span class="text-sm text-gray-600 w-24 text-right">{formatCurrency(frc.quoted_estimate_paint)}</span>
+								<span class="text-sm text-gray-900 w-24 text-right">{formatCurrency(frc.actual_estimate_paint)}</span>
+								<span class="text-xs text-gray-500 w-20 text-right">
+									{formatCurrency(frc.actual_estimate_paint - frc.quoted_estimate_paint)}
+								</span>
+							</div>
+						</div>
+						<!-- Outwork (Nett) -->
+						<div class="flex items-center justify-between py-1">
+							<span class="text-sm text-gray-700">Outwork (Nett)</span>
+							<div class="flex items-center gap-4">
+								<span class="text-sm text-gray-600 w-24 text-right">{formatCurrency(frc.quoted_estimate_outwork_nett)}</span>
+								<span class="text-sm text-gray-900 w-24 text-right">{formatCurrency(frc.actual_estimate_outwork_nett)}</span>
+								<span class="text-xs text-gray-500 w-20 text-right">
+									{formatCurrency(frc.actual_estimate_outwork_nett - frc.quoted_estimate_outwork_nett)}
+								</span>
+							</div>
+						</div>
+						<!-- Markup -->
+						<div class="flex items-center justify-between py-1 border-t pt-2">
+							<span class="text-sm font-medium text-gray-700">Markup</span>
+							<div class="flex items-center gap-4">
+								<span class="text-sm text-gray-600 w-24 text-right">{formatCurrency(frc.quoted_estimate_markup)}</span>
+								<span class="text-sm text-gray-900 w-24 text-right">{formatCurrency(frc.actual_estimate_markup)}</span>
+								<span class="text-xs text-gray-500 w-20 text-right">
+									{formatCurrency(frc.actual_estimate_markup - frc.quoted_estimate_markup)}
+								</span>
+							</div>
+						</div>
+						<!-- Subtotal -->
+						<div class="flex items-center justify-between py-2 bg-blue-50 px-3 rounded">
+							<span class="text-sm font-semibold text-blue-900">Subtotal</span>
+							<div class="flex items-center gap-4">
+								<span class="text-sm font-medium text-gray-600 w-24 text-right">{formatCurrency(frc.quoted_estimate_subtotal)}</span>
+								<span class="text-sm font-semibold text-blue-900 w-24 text-right">{formatCurrency(frc.actual_estimate_subtotal)}</span>
+								<span class="text-xs font-medium text-gray-500 w-20 text-right">
+									{formatCurrency(frc.actual_estimate_subtotal - frc.quoted_estimate_subtotal)}
+								</span>
+							</div>
+						</div>
 					</div>
 				</div>
 
-				<!-- Labour -->
-				<div class="flex items-center justify-between py-2 border-b">
-					<span class="text-sm font-medium text-gray-700">Labour</span>
-					<div class="flex items-center gap-4">
-						<span class="text-sm text-gray-600">{formatCurrency(frc.quoted_labour_total)}</span>
-						<span class="text-sm font-medium text-gray-900">{formatCurrency(frc.actual_labour_total)}</span>
-						{#if labourDeltas()}
-							<span class="text-xs {labourDeltas()!.isOver ? 'text-red-600' : labourDeltas()!.isUnder ? 'text-green-600' : 'text-gray-600'}">
-								{labourDeltas()!.isOver ? '+' : ''}{formatCurrency(labourDeltas()!.delta)}
-							</span>
-						{/if}
+				<!-- ADDITIONALS SECTION -->
+				<div>
+					<h4 class="text-sm font-bold text-purple-900 mb-3 uppercase tracking-wide">Additionals</h4>
+					<div class="space-y-2 pl-4 border-l-2 border-purple-200">
+						<!-- Parts (Nett) -->
+						<div class="flex items-center justify-between py-1">
+							<span class="text-sm text-gray-700">Parts (Nett)</span>
+							<div class="flex items-center gap-4">
+								<span class="text-sm text-gray-600 w-24 text-right">{formatCurrency(frc.quoted_additionals_parts_nett)}</span>
+								<span class="text-sm text-gray-900 w-24 text-right">{formatCurrency(frc.actual_additionals_parts_nett)}</span>
+								<span class="text-xs text-gray-500 w-20 text-right">
+									{formatCurrency(frc.actual_additionals_parts_nett - frc.quoted_additionals_parts_nett)}
+								</span>
+							</div>
+						</div>
+						<!-- Labour -->
+						<div class="flex items-center justify-between py-1">
+							<span class="text-sm text-gray-700">Labour</span>
+							<div class="flex items-center gap-4">
+								<span class="text-sm text-gray-600 w-24 text-right">{formatCurrency(frc.quoted_additionals_labour)}</span>
+								<span class="text-sm text-gray-900 w-24 text-right">{formatCurrency(frc.actual_additionals_labour)}</span>
+								<span class="text-xs text-gray-500 w-20 text-right">
+									{formatCurrency(frc.actual_additionals_labour - frc.quoted_additionals_labour)}
+								</span>
+							</div>
+						</div>
+						<!-- Paint -->
+						<div class="flex items-center justify-between py-1">
+							<span class="text-sm text-gray-700">Paint</span>
+							<div class="flex items-center gap-4">
+								<span class="text-sm text-gray-600 w-24 text-right">{formatCurrency(frc.quoted_additionals_paint)}</span>
+								<span class="text-sm text-gray-900 w-24 text-right">{formatCurrency(frc.actual_additionals_paint)}</span>
+								<span class="text-xs text-gray-500 w-20 text-right">
+									{formatCurrency(frc.actual_additionals_paint - frc.quoted_additionals_paint)}
+								</span>
+							</div>
+						</div>
+						<!-- Outwork (Nett) -->
+						<div class="flex items-center justify-between py-1">
+							<span class="text-sm text-gray-700">Outwork (Nett)</span>
+							<div class="flex items-center gap-4">
+								<span class="text-sm text-gray-600 w-24 text-right">{formatCurrency(frc.quoted_additionals_outwork_nett)}</span>
+								<span class="text-sm text-gray-900 w-24 text-right">{formatCurrency(frc.actual_additionals_outwork_nett)}</span>
+								<span class="text-xs text-gray-500 w-20 text-right">
+									{formatCurrency(frc.actual_additionals_outwork_nett - frc.quoted_additionals_outwork_nett)}
+								</span>
+							</div>
+						</div>
+						<!-- Markup -->
+						<div class="flex items-center justify-between py-1 border-t pt-2">
+							<span class="text-sm font-medium text-gray-700">Markup</span>
+							<div class="flex items-center gap-4">
+								<span class="text-sm text-gray-600 w-24 text-right">{formatCurrency(frc.quoted_additionals_markup)}</span>
+								<span class="text-sm text-gray-900 w-24 text-right">{formatCurrency(frc.actual_additionals_markup)}</span>
+								<span class="text-xs text-gray-500 w-20 text-right">
+									{formatCurrency(frc.actual_additionals_markup - frc.quoted_additionals_markup)}
+								</span>
+							</div>
+						</div>
+						<!-- Subtotal -->
+						<div class="flex items-center justify-between py-2 bg-purple-50 px-3 rounded">
+							<span class="text-sm font-semibold text-purple-900">Subtotal</span>
+							<div class="flex items-center gap-4">
+								<span class="text-sm font-medium text-gray-600 w-24 text-right">{formatCurrency(frc.quoted_additionals_subtotal)}</span>
+								<span class="text-sm font-semibold text-purple-900 w-24 text-right">{formatCurrency(frc.actual_additionals_subtotal)}</span>
+								<span class="text-xs font-medium text-gray-500 w-20 text-right">
+									{formatCurrency(frc.actual_additionals_subtotal - frc.quoted_additionals_subtotal)}
+								</span>
+							</div>
+						</div>
 					</div>
 				</div>
 
-				<!-- Paint -->
-				<div class="flex items-center justify-between py-2 border-b">
-					<span class="text-sm font-medium text-gray-700">Paint</span>
-					<div class="flex items-center gap-4">
-						<span class="text-sm text-gray-600">{formatCurrency(frc.quoted_paint_total)}</span>
-						<span class="text-sm font-medium text-gray-900">{formatCurrency(frc.actual_paint_total)}</span>
-						{#if paintDeltas()}
-							<span class="text-xs {paintDeltas()!.isOver ? 'text-red-600' : paintDeltas()!.isUnder ? 'text-green-600' : 'text-gray-600'}">
-								{paintDeltas()!.isOver ? '+' : ''}{formatCurrency(paintDeltas()!.delta)}
-							</span>
-						{/if}
-					</div>
-				</div>
-
-				<!-- Outwork -->
-				<div class="flex items-center justify-between py-2 border-b">
-					<span class="text-sm font-medium text-gray-700">Outwork</span>
-					<div class="flex items-center gap-4">
-						<span class="text-sm text-gray-600">{formatCurrency(frc.quoted_outwork_total)}</span>
-						<span class="text-sm font-medium text-gray-900">{formatCurrency(frc.actual_outwork_total)}</span>
-						{#if outworkDeltas()}
-							<span class="text-xs {outworkDeltas()!.isOver ? 'text-red-600' : outworkDeltas()!.isUnder ? 'text-green-600' : 'text-gray-600'}">
-								{outworkDeltas()!.isOver ? '+' : ''}{formatCurrency(outworkDeltas()!.delta)}
-							</span>
-						{/if}
-					</div>
-				</div>
-
-				<!-- Subtotal -->
-				<div class="flex items-center justify-between py-2 border-b">
-					<span class="text-sm font-semibold text-gray-900">Subtotal</span>
-					<div class="flex items-center gap-4">
-						<span class="text-sm text-gray-600">{formatCurrency(frc.quoted_subtotal)}</span>
-						<span class="text-sm font-semibold text-gray-900">{formatCurrency(frc.actual_subtotal)}</span>
-					</div>
-				</div>
-
-				<!-- VAT -->
-				<div class="flex items-center justify-between py-2 border-b">
-					<span class="text-sm font-medium text-gray-700">VAT ({frc.vat_percentage}%)</span>
-					<div class="flex items-center gap-4">
-						<span class="text-sm text-gray-600">{formatCurrency(frc.quoted_vat_amount)}</span>
-						<span class="text-sm font-medium text-gray-900">{formatCurrency(frc.actual_vat_amount)}</span>
-					</div>
-				</div>
-
-				<!-- Total -->
-				<div class="flex items-center justify-between py-3 bg-gray-50 px-4 rounded-lg">
-					<span class="text-base font-bold text-gray-900">Total (Inc VAT)</span>
-					<div class="flex items-center gap-4">
-						<span class="text-base text-gray-600">{formatCurrency(frc.quoted_total)}</span>
-						<span class="text-xl font-bold text-blue-600">{formatCurrency(frc.actual_total)}</span>
-						{#if quotedVsActual()}
-							<div class="flex items-center gap-1">
-								{#if quotedVsActual()!.isOver}
-									<TrendingUp class="h-4 w-4 text-red-600" />
-									<span class="text-sm font-semibold text-red-600">
-										+{formatCurrency(quotedVsActual()!.delta)}
-									</span>
-								{:else if quotedVsActual()!.isUnder}
-									<TrendingDown class="h-4 w-4 text-green-600" />
-									<span class="text-sm font-semibold text-green-600">
-										{formatCurrency(quotedVsActual()!.delta)}
-									</span>
-								{:else}
-									<Minus class="h-4 w-4 text-gray-600" />
-									<span class="text-sm font-semibold text-gray-600">
-										{formatCurrency(0)}
-									</span>
+				<!-- COMBINED TOTAL SECTION -->
+				<div class="pt-4 border-t-2 border-gray-300">
+					<h4 class="text-sm font-bold text-gray-900 mb-3 uppercase tracking-wide">Combined Total</h4>
+					<div class="space-y-2">
+						<!-- Subtotal -->
+						<div class="flex items-center justify-between py-2">
+							<span class="text-sm font-semibold text-gray-900">Subtotal</span>
+							<div class="flex items-center gap-4">
+								<span class="text-sm text-gray-600 w-24 text-right">{formatCurrency(frc.quoted_subtotal)}</span>
+								<span class="text-sm font-semibold text-gray-900 w-24 text-right">{formatCurrency(frc.actual_subtotal)}</span>
+								<span class="text-xs text-gray-500 w-20 text-right">
+									{formatCurrency(frc.actual_subtotal - frc.quoted_subtotal)}
+								</span>
+							</div>
+						</div>
+						<!-- VAT -->
+						<div class="flex items-center justify-between py-2">
+							<span class="text-sm font-medium text-gray-700">VAT ({frc.vat_percentage}%)</span>
+							<div class="flex items-center gap-4">
+								<span class="text-sm text-gray-600 w-24 text-right">{formatCurrency(frc.quoted_vat_amount)}</span>
+								<span class="text-sm font-medium text-gray-900 w-24 text-right">{formatCurrency(frc.actual_vat_amount)}</span>
+								<span class="text-xs text-gray-500 w-20 text-right">
+									{formatCurrency(frc.actual_vat_amount - frc.quoted_vat_amount)}
+								</span>
+							</div>
+						</div>
+						<!-- Total -->
+						<div class="flex items-center justify-between py-3 bg-gray-900 text-white px-4 rounded-lg">
+							<span class="text-base font-bold">Total (Inc VAT)</span>
+							<div class="flex items-center gap-4">
+								<span class="text-base font-medium w-24 text-right">{formatCurrency(frc.quoted_total)}</span>
+								<span class="text-xl font-bold w-24 text-right">{formatCurrency(frc.actual_total)}</span>
+								{#if quotedVsActual()}
+									<div class="flex items-center gap-1 w-20 justify-end">
+										{#if quotedVsActual()!.isOver}
+											<TrendingUp class="h-4 w-4 text-red-400" />
+											<span class="text-xs font-semibold text-red-400">
+												+{formatCurrency(quotedVsActual()!.delta)}
+											</span>
+										{:else if quotedVsActual()!.isUnder}
+											<TrendingDown class="h-4 w-4 text-green-400" />
+											<span class="text-xs font-semibold text-green-400">
+												{formatCurrency(quotedVsActual()!.delta)}
+											</span>
+										{:else}
+											<Minus class="h-4 w-4 text-gray-400" />
+											<span class="text-xs font-semibold text-gray-400">
+												{formatCurrency(0)}
+											</span>
+										{/if}
+									</div>
 								{/if}
 							</div>
-						{/if}
+						</div>
 					</div>
 				</div>
-			</div>
 
-			<div class="mt-4 text-xs text-gray-500">
-				<p><strong>Legend:</strong> Quoted → Actual → Delta</p>
+				<!-- Legend -->
+				<div class="pt-4 border-t">
+					<p class="text-xs text-gray-500 text-center">
+						Legend: <span class="font-medium">Quoted</span> → <span class="font-medium">Actual</span> → <span class="font-medium">Delta</span>
+					</p>
+				</div>
 			</div>
 		</Card>
 

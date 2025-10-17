@@ -119,6 +119,21 @@ class FRCService {
 				status: 'in_progress',
 				line_items: lineItems,
 				vat_percentage: estimate.vat_percentage,
+				// Quoted estimate breakdown
+				quoted_estimate_parts_nett: quotedTotals.estimate.parts_nett,
+				quoted_estimate_labour: quotedTotals.estimate.labour,
+				quoted_estimate_paint: quotedTotals.estimate.paint,
+				quoted_estimate_outwork_nett: quotedTotals.estimate.outwork_nett,
+				quoted_estimate_markup: quotedTotals.estimate.markup,
+				quoted_estimate_subtotal: quotedTotals.estimate.subtotal,
+				// Quoted additionals breakdown
+				quoted_additionals_parts_nett: quotedTotals.additionals.parts_nett,
+				quoted_additionals_labour: quotedTotals.additionals.labour,
+				quoted_additionals_paint: quotedTotals.additionals.paint,
+				quoted_additionals_outwork_nett: quotedTotals.additionals.outwork_nett,
+				quoted_additionals_markup: quotedTotals.additionals.markup,
+				quoted_additionals_subtotal: quotedTotals.additionals.subtotal,
+				// Quoted combined totals (backward compatibility)
 				quoted_parts_total: quotedTotals.parts_total,
 				quoted_labour_total: quotedTotals.labour_total,
 				quoted_paint_total: quotedTotals.paint_total,
@@ -126,6 +141,21 @@ class FRCService {
 				quoted_subtotal: quotedTotals.subtotal,
 				quoted_vat_amount: quotedTotals.vat_amount,
 				quoted_total: quotedTotals.total,
+				// Actual estimate breakdown (initially 0)
+				actual_estimate_parts_nett: 0,
+				actual_estimate_labour: 0,
+				actual_estimate_paint: 0,
+				actual_estimate_outwork_nett: 0,
+				actual_estimate_markup: 0,
+				actual_estimate_subtotal: 0,
+				// Actual additionals breakdown (initially 0)
+				actual_additionals_parts_nett: 0,
+				actual_additionals_labour: 0,
+				actual_additionals_paint: 0,
+				actual_additionals_outwork_nett: 0,
+				actual_additionals_markup: 0,
+				actual_additionals_subtotal: 0,
+				// Actual combined totals (initially 0)
 				actual_parts_total: 0,
 				actual_labour_total: 0,
 				actual_paint_total: 0,
@@ -290,6 +320,21 @@ class FRCService {
 			.from('assessment_frc')
 			.update({
 				line_items: updatedLineItems,
+				// Actual estimate breakdown
+				actual_estimate_parts_nett: actualTotals.estimate.parts_nett,
+				actual_estimate_labour: actualTotals.estimate.labour,
+				actual_estimate_paint: actualTotals.estimate.paint,
+				actual_estimate_outwork_nett: actualTotals.estimate.outwork_nett,
+				actual_estimate_markup: actualTotals.estimate.markup,
+				actual_estimate_subtotal: actualTotals.estimate.subtotal,
+				// Actual additionals breakdown
+				actual_additionals_parts_nett: actualTotals.additionals.parts_nett,
+				actual_additionals_labour: actualTotals.additionals.labour,
+				actual_additionals_paint: actualTotals.additionals.paint,
+				actual_additionals_outwork_nett: actualTotals.additionals.outwork_nett,
+				actual_additionals_markup: actualTotals.additionals.markup,
+				actual_additionals_subtotal: actualTotals.additionals.subtotal,
+				// Actual combined totals (backward compatibility)
 				actual_parts_total: actualTotals.parts_total,
 				actual_labour_total: actualTotals.labour_total,
 				actual_paint_total: actualTotals.paint_total,

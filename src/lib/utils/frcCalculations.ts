@@ -227,8 +227,86 @@ export function applyMarkupToTotals(
 }
 
 /**
+ * Calculate breakdown for estimate lines only (source='estimate')
+ */
+export function calculateEstimateBreakdown(
+	lineItems: FRCLineItem[],
+	useActual: boolean,
+	markupPercentages: {
+		parts_markup: number;
+		outwork_markup: number;
+	}
+): {
+	parts_nett: number;
+	labour: number;
+	paint: number;
+	outwork_nett: number;
+	markup: number;
+	subtotal: number;
+} {
+	const estimateLines = lineItems.filter((line) => line.source === 'estimate');
+	const nettBreakdown = calculateBreakdownTotals(estimateLines, useActual);
+
+	// Calculate markup amounts
+	const partsMarkup = nettBreakdown.parts_nett_total * (markupPercentages.parts_markup / 100);
+	const outworkMarkup = nettBreakdown.outwork_nett_total * (markupPercentages.outwork_markup / 100);
+	const totalMarkup = partsMarkup + outworkMarkup;
+
+	// Calculate subtotal (nett + markup)
+	const subtotal = nettBreakdown.subtotal_nett + totalMarkup;
+
+	return {
+		parts_nett: Number(nettBreakdown.parts_nett_total.toFixed(2)),
+		labour: Number(nettBreakdown.labour_total.toFixed(2)),
+		paint: Number(nettBreakdown.paint_total.toFixed(2)),
+		outwork_nett: Number(nettBreakdown.outwork_nett_total.toFixed(2)),
+		markup: Number(totalMarkup.toFixed(2)),
+		subtotal: Number(subtotal.toFixed(2))
+	};
+}
+
+/**
+ * Calculate breakdown for additionals lines only (source='additional')
+ */
+export function calculateAdditionalsBreakdown(
+	lineItems: FRCLineItem[],
+	useActual: boolean,
+	markupPercentages: {
+		parts_markup: number;
+		outwork_markup: number;
+	}
+): {
+	parts_nett: number;
+	labour: number;
+	paint: number;
+	outwork_nett: number;
+	markup: number;
+	subtotal: number;
+} {
+	const additionalLines = lineItems.filter((line) => line.source === 'additional');
+	const nettBreakdown = calculateBreakdownTotals(additionalLines, useActual);
+
+	// Calculate markup amounts
+	const partsMarkup = nettBreakdown.parts_nett_total * (markupPercentages.parts_markup / 100);
+	const outworkMarkup = nettBreakdown.outwork_nett_total * (markupPercentages.outwork_markup / 100);
+	const totalMarkup = partsMarkup + outworkMarkup;
+
+	// Calculate subtotal (nett + markup)
+	const subtotal = nettBreakdown.subtotal_nett + totalMarkup;
+
+	return {
+		parts_nett: Number(nettBreakdown.parts_nett_total.toFixed(2)),
+		labour: Number(nettBreakdown.labour_total.toFixed(2)),
+		paint: Number(nettBreakdown.paint_total.toFixed(2)),
+		outwork_nett: Number(nettBreakdown.outwork_nett_total.toFixed(2)),
+		markup: Number(totalMarkup.toFixed(2)),
+		subtotal: Number(subtotal.toFixed(2))
+	};
+}
+
+/**
  * Calculate FRC aggregate totals with markup applied
- * Takes nett breakdown and applies markup to parts and outwork
+ * Returns separate breakdowns for estimate and additionals, plus combined totals
  */
 export function calculateFRCAggregateTotals(
 	lineItems: FRCLineItem[],
@@ -239,6 +317,25 @@ export function calculateFRCAggregateTotals(
 	},
 	vatPercentage: number
 ): {
+	// Estimate breakdown
+	estimate: {
+		parts_nett: number;
+		labour: number;
+		paint: number;
+		outwork_nett: number;
+		markup: number;
+		subtotal: number;
+	};
+	// Additionals breakdown
+	additionals: {
+		parts_nett: number;
+		labour: number;
+		paint: number;
+		outwork_nett: number;
+		markup: number;
+		subtotal: number;
+	};
+	// Combined totals (for backward compatibility)
 	parts_total: number; // Selling price with markup
 	labour_total: number;
 	paint_total: number;
@@ -247,24 +344,29 @@ export function calculateFRCAggregateTotals(
 	vat_amount: number;
 	total: number;
 } {
-	// Get nett breakdown
-	const nettBreakdown = calculateBreakdownTotals(lineItems, useActual);
+	// Calculate separate breakdowns
+	const estimateBreakdown = calculateEstimateBreakdown(lineItems, useActual, markupPercentages);
+	const additionalsBreakdown = calculateAdditionalsBreakdown(lineItems, useActual, markupPercentages);
 
-	// Apply markup to parts and outwork
-	const partsSellingTotal = nettBreakdown.parts_nett_total * (1 + markupPercentages.parts_markup / 100);
-	const outworkSellingTotal = nettBreakdown.outwork_nett_total * (1 + markupPercentages.outwork_markup / 100);
+	// Calculate combined totals
+	const combinedSubtotal = estimateBreakdown.subtotal + additionalsBreakdown.subtotal;
+	const vatAmount = (combinedSubtotal * vatPercentage) / 100;
+	const total = combinedSubtotal + vatAmount;
 
-	// Calculate subtotal (selling prices for parts/outwork, direct for labour/paint)
-	const subtotal = partsSellingTotal + nettBreakdown.labour_total + nettBreakdown.paint_total + outworkSellingTotal;
-	const vatAmount = (subtotal * vatPercentage) / 100;
-	const total = subtotal + vatAmount;
+	// Calculate combined parts/outwork selling totals (for backward compatibility)
+	const combinedPartsNett = estimateBreakdown.parts_nett + additionalsBreakdown.parts_nett;
+	const combinedOutworkNett = estimateBreakdown.outwork_nett + additionalsBreakdown.outwork_nett;
+	const partsSellingTotal = combinedPartsNett * (1 + markupPercentages.parts_markup / 100);
+	const outworkSellingTotal = combinedOutworkNett * (1 + markupPercentages.outwork_markup / 100);
 
 	return {
+		estimate: estimateBreakdown,
+		additionals: additionalsBreakdown,
 		parts_total: Number(partsSellingTotal.toFixed(2)),
-		labour_total: nettBreakdown.labour_total,
-		paint_total: nettBreakdown.paint_total,
+		labour_total: Number((estimateBreakdown.labour + additionalsBreakdown.labour).toFixed(2)),
+		paint_total: Number((estimateBreakdown.paint + additionalsBreakdown.paint).toFixed(2)),
 		outwork_total: Number(outworkSellingTotal.toFixed(2)),
-		subtotal: Number(subtotal.toFixed(2)),
+		subtotal: Number(combinedSubtotal.toFixed(2)),
 		vat_amount: Number(vatAmount.toFixed(2)),
 		total: Number(total.toFixed(2))
 	};

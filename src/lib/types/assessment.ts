@@ -807,7 +807,21 @@ export interface FinalRepairCosting {
 	status: FRCStatus;
 	line_items: FRCLineItem[];
 	vat_percentage: number;
-	// Quoted breakdown
+	// Quoted estimate breakdown (original estimate only)
+	quoted_estimate_parts_nett: number;
+	quoted_estimate_labour: number;
+	quoted_estimate_paint: number;
+	quoted_estimate_outwork_nett: number;
+	quoted_estimate_markup: number;
+	quoted_estimate_subtotal: number;
+	// Quoted additionals breakdown (approved additionals only)
+	quoted_additionals_parts_nett: number;
+	quoted_additionals_labour: number;
+	quoted_additionals_paint: number;
+	quoted_additionals_outwork_nett: number;
+	quoted_additionals_markup: number;
+	quoted_additionals_subtotal: number;
+	// Quoted combined breakdown (for backward compatibility)
 	quoted_parts_total: number;
 	quoted_labour_total: number;
 	quoted_paint_total: number;
@@ -815,7 +829,21 @@ export interface FinalRepairCosting {
 	quoted_subtotal: number;
 	quoted_vat_amount: number;
 	quoted_total: number;
-	// Actual breakdown
+	// Actual estimate breakdown (original estimate only)
+	actual_estimate_parts_nett: number;
+	actual_estimate_labour: number;
+	actual_estimate_paint: number;
+	actual_estimate_outwork_nett: number;
+	actual_estimate_markup: number;
+	actual_estimate_subtotal: number;
+	// Actual additionals breakdown (approved additionals only)
+	actual_additionals_parts_nett: number;
+	actual_additionals_labour: number;
+	actual_additionals_paint: number;
+	actual_additionals_outwork_nett: number;
+	actual_additionals_markup: number;
+	actual_additionals_subtotal: number;
+	// Actual combined breakdown (for backward compatibility)
 	actual_parts_total: number;
 	actual_labour_total: number;
 	actual_paint_total: number;
