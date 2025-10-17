@@ -3,8 +3,10 @@
 	import { Button } from '$lib/components/ui/button';
 	import FormField from '$lib/components/forms/FormField.svelte';
 	import PhotoUpload from '$lib/components/forms/PhotoUpload.svelte';
-	import { Plus, CheckCircle, Trash2 } from 'lucide-svelte';
+	import RequiredFieldsWarning from './RequiredFieldsWarning.svelte';
+	import { Plus, CircleCheck, Trash2 } from 'lucide-svelte';
 	import type { Tyre } from '$lib/types/assessment';
+	import { validateTyres } from '$lib/utils/validation';
 
 	interface Props {
 		tyres: Tyre[];
@@ -15,16 +17,68 @@
 		onComplete: () => void;
 	}
 
-	let { tyres, assessmentId, onUpdateTyre, onAddTyre, onDeleteTyre, onComplete }: Props = $props();
+	let { tyres: tyresProp, assessmentId, onUpdateTyre, onAddTyre, onDeleteTyre, onComplete }: Props = $props();
+
+	// Make tyres reactive to prop changes
+	const tyres = $derived(tyresProp);
+
+	// Local state for tyre photos (for immediate UI updates)
+	// Map of tyre ID to photo URLs
+	let tyrePhotos = $state<Map<string, { face?: string; tread?: string; measurement?: string }>>(new Map());
+
+	// Initialize photo state from tyres prop
+	$effect(() => {
+		const newPhotos = new Map<string, { face?: string; tread?: string; measurement?: string }>();
+		tyres.forEach(tyre => {
+			newPhotos.set(tyre.id, {
+				face: tyre.face_photo_url || undefined,
+				tread: tyre.tread_photo_url || undefined,
+				measurement: tyre.measurement_photo_url || undefined
+			});
+		});
+		tyrePhotos = newPhotos;
+	});
+
+	// Get photo URL for a tyre
+	function getPhotoUrl(tyreId: string, type: 'face' | 'tread' | 'measurement'): string {
+		return tyrePhotos.get(tyreId)?.[type] || '';
+	}
+
+	// Update photo URL locally and persist to database
+	function updatePhotoUrl(tyreId: string, type: 'face' | 'tread' | 'measurement', url: string | null) {
+		// Update local state immediately for instant UI feedback
+		const current = tyrePhotos.get(tyreId) || {};
+		tyrePhotos.set(tyreId, {
+			...current,
+			[type]: url || undefined
+		});
+		// Force reactivity
+		tyrePhotos = new Map(tyrePhotos);
+
+		// Persist to database
+		const updateData: Partial<Tyre> = {};
+		if (type === 'face') updateData.face_photo_url = url;
+		else if (type === 'tread') updateData.tread_photo_url = url;
+		else if (type === 'measurement') updateData.measurement_photo_url = url;
+
+		onUpdateTyre(tyreId, updateData);
+	}
 
 	function handleComplete() {
 		onComplete();
 	}
 
 	const isComplete = $derived(tyres.length >= 5); // At least 5 tyres (standard positions)
+
+	// Validation for warning banner
+	const validation = $derived.by(() => {
+		return validateTyres(tyres);
+	});
 </script>
 
 <div class="space-y-6">
+	<!-- Warning Banner -->
+	<RequiredFieldsWarning missingFields={validation.missingFields} />
 	<Card class="bg-blue-50 p-6">
 		<h3 class="mb-2 text-lg font-semibold text-gray-900">Tyre Inspection</h3>
 		<p class="text-sm text-gray-600">
@@ -35,7 +89,7 @@
 
 	<!-- Tyres List -->
 	<div class="space-y-4">
-		{#each tyres as tyre, index}
+		{#each tyres as tyre, index (tyre.id)}
 			<Card class="p-6">
 				<div class="mb-4 flex items-center justify-between">
 					<h3 class="text-lg font-semibold text-gray-900">
@@ -57,7 +111,7 @@
 							name={`tyre_make_${tyre.id}`}
 							type="text"
 							value={tyre.tyre_make || ''}
-							onchange={(value) => onUpdateTyre(tyre.id, { tyre_make: value })}
+							onchange={(value) => onUpdateTyre(tyre.id, { tyre_make: value || undefined })}
 							placeholder="e.g., Michelin, Bridgestone"
 						/>
 						<FormField
@@ -65,7 +119,7 @@
 							name={`tyre_size_${tyre.id}`}
 							type="text"
 							value={tyre.tyre_size || ''}
-							onchange={(value) => onUpdateTyre(tyre.id, { tyre_size: value })}
+							onchange={(value) => onUpdateTyre(tyre.id, { tyre_size: value || undefined })}
 							placeholder="e.g., 205/55R16"
 						/>
 						<div class="grid grid-cols-2 gap-4">
@@ -74,7 +128,7 @@
 								name={`load_index_${tyre.id}`}
 								type="text"
 								value={tyre.load_index || ''}
-								onchange={(value) => onUpdateTyre(tyre.id, { load_index: value })}
+								onchange={(value) => onUpdateTyre(tyre.id, { load_index: value || undefined })}
 								placeholder="e.g., 91"
 							/>
 							<FormField
@@ -82,7 +136,7 @@
 								name={`speed_rating_${tyre.id}`}
 								type="text"
 								value={tyre.speed_rating || ''}
-								onchange={(value) => onUpdateTyre(tyre.id, { speed_rating: value })}
+								onchange={(value) => onUpdateTyre(tyre.id, { speed_rating: value || undefined })}
 								placeholder="e.g., V"
 							/>
 						</div>
@@ -100,7 +154,7 @@
 							name={`condition_${tyre.id}`}
 							type="select"
 							value={tyre.condition || ''}
-							onchange={(value) => onUpdateTyre(tyre.id, { condition: value as any })}
+							onchange={(value) => onUpdateTyre(tyre.id, { condition: (value || undefined) as any })}
 							options={[
 								{ value: '', label: 'Select condition' },
 								{ value: 'excellent', label: 'Excellent' },
@@ -116,41 +170,41 @@
 					<div class="space-y-4">
 						<!-- Tyre Photos Grid -->
 						<div>
-							<label class="mb-2 block text-sm font-medium text-gray-700">Tyre Photos</label>
+							<p class="mb-2 block text-sm font-medium text-gray-700">Tyre Photos</p>
 							<div class="grid gap-3 md:grid-cols-3">
 								<!-- Face Photo -->
 								<PhotoUpload
-									value={tyre.face_photo_url || ''}
+									value={getPhotoUrl(tyre.id, 'face')}
 									label="Face/Sidewall"
 									{assessmentId}
 									category="tyres"
 									subcategory={`${tyre.position}_face`}
-									onUpload={(url) => onUpdateTyre(tyre.id, { face_photo_url: url })}
-									onRemove={() => onUpdateTyre(tyre.id, { face_photo_url: '' })}
+									onUpload={(url) => updatePhotoUrl(tyre.id, 'face', url)}
+									onRemove={() => updatePhotoUrl(tyre.id, 'face', null)}
 									height="h-32"
 								/>
 
 								<!-- Tread Photo -->
 								<PhotoUpload
-									value={tyre.tread_photo_url || ''}
+									value={getPhotoUrl(tyre.id, 'tread')}
 									label="Tread Pattern"
 									{assessmentId}
 									category="tyres"
 									subcategory={`${tyre.position}_tread`}
-									onUpload={(url) => onUpdateTyre(tyre.id, { tread_photo_url: url })}
-									onRemove={() => onUpdateTyre(tyre.id, { tread_photo_url: '' })}
+									onUpload={(url) => updatePhotoUrl(tyre.id, 'tread', url)}
+									onRemove={() => updatePhotoUrl(tyre.id, 'tread', null)}
 									height="h-32"
 								/>
 
 								<!-- Measurement Photo -->
 								<PhotoUpload
-									value={tyre.measurement_photo_url || ''}
+									value={getPhotoUrl(tyre.id, 'measurement')}
 									label="Measurement"
 									{assessmentId}
 									category="tyres"
 									subcategory={`${tyre.position}_measurement`}
-									onUpload={(url) => onUpdateTyre(tyre.id, { measurement_photo_url: url })}
-									onRemove={() => onUpdateTyre(tyre.id, { measurement_photo_url: '' })}
+									onUpload={(url) => updatePhotoUrl(tyre.id, 'measurement', url)}
+									onRemove={() => updatePhotoUrl(tyre.id, 'measurement', null)}
 									height="h-32"
 								/>
 							</div>
@@ -161,7 +215,7 @@
 							name={`notes_${tyre.id}`}
 							type="textarea"
 							value={tyre.notes || ''}
-							onchange={(value) => onUpdateTyre(tyre.id, { notes: value })}
+							onchange={(value) => onUpdateTyre(tyre.id, { notes: value || undefined })}
 							placeholder="Any damage, wear patterns, or observations..."
 							rows={3}
 						/>
@@ -183,7 +237,7 @@
 	<div class="flex justify-between">
 		<Button variant="outline" onclick={() => {}}>Save Progress</Button>
 		<Button onclick={handleComplete} disabled={!isComplete}>
-			<CheckCircle class="mr-2 h-4 w-4" />
+			<CircleCheck class="mr-2 h-4 w-4" />
 			Complete & Continue
 		</Button>
 	</div>

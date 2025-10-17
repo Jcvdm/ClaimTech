@@ -77,9 +77,14 @@ export class AccessoriesService {
 	 * Update accessory
 	 */
 	async update(id: string, input: UpdateAccessoryInput): Promise<VehicleAccessory> {
+		// Convert undefined to null for Supabase (defensive programming)
+		const cleanedInput = Object.fromEntries(
+			Object.entries(input).map(([key, value]) => [key, value === undefined ? null : value])
+		) as UpdateAccessoryInput;
+
 		const { data, error } = await supabase
 			.from('assessment_accessories')
-			.update(input)
+			.update(cleanedInput)
 			.eq('id', id)
 			.select()
 			.single();

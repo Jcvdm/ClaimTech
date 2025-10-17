@@ -73,9 +73,15 @@ export class TyresService {
 	 * Update tyre
 	 */
 	async update(id: string, input: UpdateTyreInput): Promise<Tyre> {
+		// Convert undefined to null for Supabase (defensive programming)
+		// Supabase strips undefined values, which can cause empty updates
+		const cleanedInput = Object.fromEntries(
+			Object.entries(input).map(([key, value]) => [key, value === undefined ? null : value])
+		) as UpdateTyreInput;
+
 		const { data, error } = await supabase
 			.from('assessment_tyres')
-			.update(input)
+			.update(cleanedInput)
 			.eq('id', id)
 			.select()
 			.single();

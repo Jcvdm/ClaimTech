@@ -19,7 +19,7 @@ export function validateVehicleIdentification(data: any): TabValidation {
 
 	if (!data?.registration_number) missingFields.push('Registration Number');
 	if (!data?.vin_number) missingFields.push('VIN Number');
-	if (!data?.engine_number) missingFields.push('Engine Number');
+	// Engine number is optional (may not be visible on some vehicles)
 	if (!data?.registration_photo_url) missingFields.push('Registration Photo');
 	if (!data?.vin_photo_url) missingFields.push('VIN Photo');
 

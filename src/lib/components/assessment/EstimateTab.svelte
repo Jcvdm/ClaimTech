@@ -7,6 +7,7 @@
 	import QuickAddLineItem from './QuickAddLineItem.svelte';
 	import EstimatePhotosPanel from './EstimatePhotosPanel.svelte';
 	import AssessmentResultSelector from './AssessmentResultSelector.svelte';
+	import RequiredFieldsWarning from './RequiredFieldsWarning.svelte';
 	import { Plus, Trash2, Check, CircleAlert, CircleCheck, CircleX, Info } from 'lucide-svelte';
 	import type {
 		Estimate,
@@ -25,6 +26,7 @@
 		getWarrantyStatusClasses
 	} from '$lib/utils/estimateThresholds';
 	import { formatCurrency } from '$lib/utils/formatters';
+	import { validateEstimate } from '$lib/utils/validation';
 
 	interface Props {
 		estimate: Estimate | null;
@@ -53,24 +55,26 @@
 		onComplete: () => void;
 	}
 
-	let {
-		estimate,
-		assessmentId,
-		estimatePhotos,
-		vehicleValues,
-		repairers,
-		onUpdateEstimate,
-		onAddLineItem,
-		onUpdateLineItem,
-		onDeleteLineItem,
-		onBulkDeleteLineItems,
-		onPhotosUpdate,
-		onUpdateRates,
-		onUpdateRepairer,
-		onRepairersUpdate,
-		onUpdateAssessmentResult,
-		onComplete
-	}: Props = $props();
+	// Make props reactive using $derived pattern
+	// This ensures component reacts to parent prop updates without re-mount
+	let props: Props = $props();
+
+	const estimate = $derived(props.estimate);
+	const assessmentId = $derived(props.assessmentId);
+	const estimatePhotos = $derived(props.estimatePhotos);
+	const vehicleValues = $derived(props.vehicleValues);
+	const repairers = $derived(props.repairers);
+	const onUpdateEstimate = $derived(props.onUpdateEstimate);
+	const onAddLineItem = $derived(props.onAddLineItem);
+	const onUpdateLineItem = $derived(props.onUpdateLineItem);
+	const onDeleteLineItem = $derived(props.onDeleteLineItem);
+	const onBulkDeleteLineItems = $derived(props.onBulkDeleteLineItems);
+	const onPhotosUpdate = $derived(props.onPhotosUpdate);
+	const onUpdateRates = $derived(props.onUpdateRates);
+	const onUpdateRepairer = $derived(props.onUpdateRepairer);
+	const onRepairersUpdate = $derived(props.onRepairersUpdate);
+	const onUpdateAssessmentResult = $derived(props.onUpdateAssessmentResult);
+	const onComplete = $derived(props.onComplete);
 
 	const processTypeOptions = getProcessTypeOptions();
 
@@ -330,9 +334,16 @@
 		if (!vehicleValues) return null;
 		return formatWarrantyStatus(vehicleValues.warranty_status);
 	});
+
+	// Validation for warning banner
+	const validation = $derived.by(() => {
+		return validateEstimate(estimate);
+	});
 </script>
 
 <div class="space-y-6">
+	<!-- Warning Banner -->
+	<RequiredFieldsWarning missingFields={validation.missingFields} />
 	{#if !estimate}
 		<Card class="p-6 border-2 border-dashed border-gray-300">
 			<p class="text-center text-gray-600">Loading estimate...</p>

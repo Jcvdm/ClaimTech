@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { Button } from '$lib/components/ui/button';
-	import { Camera, Upload, X, Loader2 } from 'lucide-svelte';
+	import * as Dialog from '$lib/components/ui/dialog';
+	import { Camera, Upload, X, Loader2, ZoomIn, ZoomOut, RotateCcw, Maximize2, Minimize2 } from 'lucide-svelte';
 	import { storageService } from '$lib/services/storage.service';
 
 	interface Props {
@@ -16,18 +17,21 @@
 		height?: string;
 	}
 
-	let {
-		value = null,
-		label,
-		required = false,
-		assessmentId,
-		category,
-		subcategory,
-		onUpload,
-		onRemove,
-		disabled = false,
-		height = 'h-32'
-	}: Props = $props();
+	// Make props reactive using $derived instead of destructuring
+	// This ensures component reacts to parent prop updates without re-mount
+	let props: Props = $props();
+
+	// Reactive derived props
+	const value = $derived(props.value ?? null);
+	const label = $derived(props.label);
+	const required = $derived(props.required ?? false);
+	const assessmentId = $derived(props.assessmentId);
+	const category = $derived(props.category);
+	const subcategory = $derived(props.subcategory);
+	const onUpload = $derived(props.onUpload);
+	const onRemove = $derived(props.onRemove);
+	const disabled = $derived(props.disabled ?? false);
+	const height = $derived(props.height ?? 'h-32');
 
 	let uploading = $state(false);
 	let uploadProgress = $state(0);
@@ -35,6 +39,35 @@
 	let isDragging = $state(false);
 	let fileInput: HTMLInputElement;
 	let cameraInput: HTMLInputElement;
+
+	// Optimistic UI: display uploaded photo immediately while waiting for parent to update props
+	let displayUrl = $state<string | null>(null);
+
+	// Clear optimistic display when parent prop matches
+	$effect(() => {
+		if (displayUrl && value && displayUrl === value) {
+			displayUrl = null;
+		}
+	});
+
+	// Use displayUrl if available (optimistic), otherwise use prop value
+	const currentPhotoUrl = $derived(displayUrl ?? value);
+
+	// Modal state
+	let showModal = $state(false);
+	let photoZoom = $state<number>(1);
+	let modalSize = $state<'small' | 'medium' | 'large' | 'fullscreen'>('medium');
+
+	// Derived modal size class for reactivity
+	let modalSizeClass = $derived(
+		modalSize === 'fullscreen'
+			? '!max-w-full !max-h-full !w-screen !h-screen !inset-0 !translate-x-0 !translate-y-0 !rounded-none'
+			: modalSize === 'large'
+				? 'sm:!max-w-5xl md:!max-w-5xl lg:!max-w-5xl !max-h-[90vh]'
+				: modalSize === 'medium'
+					? 'sm:!max-w-3xl md:!max-w-3xl lg:!max-w-3xl !max-h-[80vh]'
+					: 'sm:!max-w-2xl md:!max-w-2xl lg:!max-w-2xl !max-h-[70vh]'
+	);
 
 	async function handleFileSelect(event: Event) {
 		const target = event.target as HTMLInputElement;
@@ -116,6 +149,10 @@
 			// Small delay to show 100% before completing
 			await new Promise(resolve => setTimeout(resolve, 300));
 
+			// Set optimistic display URL immediately for instant UI feedback
+			displayUrl = result.url;
+
+			// Notify parent to persist and update props
 			onUpload(result.url);
 		} catch (err) {
 			console.error('Upload error:', err);
@@ -127,6 +164,9 @@
 	}
 
 	function handleRemove() {
+		// Clear optimistic display
+		displayUrl = null;
+
 		if (onRemove) {
 			onRemove();
 		}
@@ -140,6 +180,31 @@
 	function triggerCameraInput() {
 		cameraInput?.click();
 	}
+
+	// Modal functions
+	function openPhotoModal() {
+		showModal = true;
+		photoZoom = 1;
+		modalSize = 'medium';
+	}
+
+	function closePhotoModal() {
+		showModal = false;
+		photoZoom = 1;
+		modalSize = 'medium';
+	}
+
+	function zoomIn() {
+		photoZoom = Math.min(3, photoZoom + 0.25);
+	}
+
+	function zoomOut() {
+		photoZoom = Math.max(0.5, photoZoom - 0.25);
+	}
+
+	function resetZoom() {
+		photoZoom = 1;
+	}
 </script>
 
 <div class="space-y-2">
@@ -152,12 +217,22 @@
 		</label>
 	{/if}
 
-	{#if value}
-		<!-- Photo Preview -->
-		<div class="relative bg-gray-100 rounded-lg flex items-center justify-center">
-			<img src={value} alt={label || 'Photo'} class="{height} w-full rounded-lg object-contain" />
+	{#if currentPhotoUrl}
+		<!-- Photo Preview - Clickable -->
+		<div class="relative bg-gray-100 rounded-lg flex items-center justify-center group">
+			<button
+				type="button"
+				onclick={openPhotoModal}
+				class="w-full {height} rounded-lg overflow-hidden cursor-pointer"
+			>
+				<img
+					src={currentPhotoUrl}
+					alt={label || 'Photo'}
+					class="w-full h-full object-contain hover:opacity-90 transition-opacity"
+				/>
+			</button>
 			{#if !disabled}
-				<div class="absolute right-2 top-2 flex gap-2">
+				<div class="absolute right-2 top-2 flex gap-2 z-10">
 					<Button
 						size="sm"
 						variant="outline"
@@ -281,3 +356,104 @@
 	/>
 </div>
 
+<!-- Photo Preview Modal -->
+{#if showModal && currentPhotoUrl}
+	<Dialog.Root open={showModal} onOpenChange={closePhotoModal}>
+		<Dialog.Content class={modalSizeClass}>
+			<Dialog.Header>
+				<div class="flex items-center justify-between">
+					<Dialog.Title>{label || 'Photo Preview'}</Dialog.Title>
+
+					<div class="flex items-center gap-2">
+						<!-- Zoom Controls -->
+						<div class="flex gap-1">
+							<Button variant="ghost" size="sm" onclick={zoomOut} disabled={photoZoom <= 0.5}>
+								<ZoomOut class="h-4 w-4" />
+							</Button>
+							<Button variant="ghost" size="sm" onclick={resetZoom}>
+								<RotateCcw class="h-4 w-4" />
+							</Button>
+							<Button variant="ghost" size="sm" onclick={zoomIn} disabled={photoZoom >= 3}>
+								<ZoomIn class="h-4 w-4" />
+							</Button>
+						</div>
+
+						<!-- Size Controls -->
+						<div class="flex gap-1">
+							<Button
+								variant="ghost"
+								size="sm"
+								onclick={() => (modalSize = 'small')}
+								class={modalSize === 'small' ? 'bg-gray-100' : ''}
+							>
+								S
+							</Button>
+							<Button
+								variant="ghost"
+								size="sm"
+								onclick={() => (modalSize = 'medium')}
+								class={modalSize === 'medium' ? 'bg-gray-100' : ''}
+							>
+								M
+							</Button>
+							<Button
+								variant="ghost"
+								size="sm"
+								onclick={() => (modalSize = 'large')}
+								class={modalSize === 'large' ? 'bg-gray-100' : ''}
+							>
+								L
+							</Button>
+							<Button
+								variant="ghost"
+								size="sm"
+								onclick={() =>
+									(modalSize = modalSize === 'fullscreen' ? 'large' : 'fullscreen')}
+							>
+								{#if modalSize === 'fullscreen'}
+									<Minimize2 class="h-4 w-4" />
+								{:else}
+									<Maximize2 class="h-4 w-4" />
+								{/if}
+							</Button>
+						</div>
+					</div>
+				</div>
+			</Dialog.Header>
+
+			<!-- Large Photo with Zoom -->
+			<div class="bg-gray-100 rounded-lg flex items-center justify-center p-4 overflow-auto">
+				<img
+					src={currentPhotoUrl}
+					alt={label || 'Full size photo'}
+					class="w-full h-auto max-h-[60vh] object-contain transition-transform duration-200"
+					style="transform: scale({photoZoom})"
+				/>
+			</div>
+
+			<!-- Action Buttons -->
+			<div class="flex justify-between gap-2 pt-4">
+				<div class="flex gap-2">
+					{#if !disabled}
+						<Button variant="outline" onclick={triggerFileInput}>
+							Change Photo
+						</Button>
+						{#if onRemove}
+							<Button
+								variant="outline"
+								onclick={() => {
+									handleRemove();
+									closePhotoModal();
+								}}
+							>
+								<X class="mr-2 h-4 w-4" />
+								Remove Photo
+							</Button>
+						{/if}
+					{/if}
+				</div>
+				<Button onclick={closePhotoModal}>Close</Button>
+			</div>
+		</Dialog.Content>
+	</Dialog.Root>
+{/if}

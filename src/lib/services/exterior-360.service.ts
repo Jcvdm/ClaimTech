@@ -59,9 +59,14 @@ export class Exterior360Service {
 	 * Update 360 exterior
 	 */
 	async update(assessmentId: string, input: UpdateExterior360Input): Promise<Exterior360> {
+		// Convert undefined to null for Supabase (defensive programming)
+		const cleanedInput = Object.fromEntries(
+			Object.entries(input).map(([key, value]) => [key, value === undefined ? null : value])
+		) as UpdateExterior360Input;
+
 		const { data, error } = await supabase
 			.from('assessment_360_exterior')
-			.update(input)
+			.update(cleanedInput)
 			.eq('assessment_id', assessmentId)
 			.select()
 			.single();

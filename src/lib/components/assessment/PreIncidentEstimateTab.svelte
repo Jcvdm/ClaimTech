@@ -5,7 +5,8 @@
 	import * as Table from '$lib/components/ui/table';
 	import RatesConfiguration from './RatesConfiguration.svelte';
 	import QuickAddLineItem from './QuickAddLineItem.svelte';
-	import EstimatePhotosPanel from './EstimatePhotosPanel.svelte';
+	import PreIncidentPhotosPanel from './PreIncidentPhotosPanel.svelte';
+	import RequiredFieldsWarning from './RequiredFieldsWarning.svelte';
 	import { Plus, Trash2, Check } from 'lucide-svelte';
 	import type {
 		PreIncidentEstimate,
@@ -15,6 +16,7 @@
 	import { getProcessTypeOptions } from '$lib/constants/processTypes';
 	import { createEmptyLineItem, calculateLineItemTotal } from '$lib/utils/estimateCalculations';
 	import { formatCurrency } from '$lib/utils/formatters';
+	import { validatePreIncidentEstimate } from '$lib/utils/validation';
 
 	interface Props {
 		estimate: PreIncidentEstimate | null;
@@ -38,19 +40,21 @@
 		onComplete: () => void;
 	}
 
-	let {
-		estimate,
-		assessmentId,
-		estimatePhotos,
-		onUpdateEstimate,
-		onAddLineItem,
-		onUpdateLineItem,
-		onDeleteLineItem,
-		onBulkDeleteLineItems,
-		onPhotosUpdate,
-		onUpdateRates,
-		onComplete
-	}: Props = $props();
+	// Make props reactive using $derived pattern
+	// This ensures component reacts to parent prop updates without re-mount
+	let props: Props = $props();
+
+	const estimate = $derived(props.estimate);
+	const assessmentId = $derived(props.assessmentId);
+	const estimatePhotos = $derived(props.estimatePhotos);
+	const onUpdateEstimate = $derived(props.onUpdateEstimate);
+	const onAddLineItem = $derived(props.onAddLineItem);
+	const onUpdateLineItem = $derived(props.onUpdateLineItem);
+	const onDeleteLineItem = $derived(props.onDeleteLineItem);
+	const onBulkDeleteLineItems = $derived(props.onBulkDeleteLineItems);
+	const onPhotosUpdate = $derived(props.onPhotosUpdate);
+	const onUpdateRates = $derived(props.onUpdateRates);
+	const onComplete = $derived(props.onComplete);
 
 	const processTypeOptions = getProcessTypeOptions();
 
@@ -280,9 +284,16 @@
 		estimate.line_items.length > 0 &&
 		estimate.total > 0
 	);
+
+	// Validation for warning banner
+	const validation = $derived.by(() => {
+		return validatePreIncidentEstimate(estimate);
+	});
 </script>
 
 <div class="space-y-6">
+	<!-- Warning Banner -->
+	<RequiredFieldsWarning missingFields={validation.missingFields} />
 	{#if !estimate}
 		<Card class="p-6 border-2 border-dashed border-gray-300">
 			<p class="text-center text-gray-600">Loading pre-incident estimate...</p>
@@ -664,7 +675,7 @@
 		</Card>
 
 		<!-- Pre-Incident Damage Photos -->
-		<EstimatePhotosPanel
+		<PreIncidentPhotosPanel
 			estimateId={estimate.id}
 			{assessmentId}
 			photos={estimatePhotos}

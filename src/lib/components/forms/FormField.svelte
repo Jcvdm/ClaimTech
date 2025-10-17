@@ -20,6 +20,7 @@
 		min?: string;
 		max?: string;
 		onchange?: (value: string) => void;
+		oninput?: (e: Event) => void;
 	};
 
 	let {
@@ -38,7 +39,8 @@
 		step,
 		min,
 		max,
-		onchange
+		onchange,
+		oninput
 	}: Props = $props();
 
 	function handleChange(e: Event) {
@@ -53,6 +55,10 @@
 		}
 
 		onchange?.(target.value);
+	}
+
+	function handleInput(e: Event) {
+		oninput?.(e);
 	}
 </script>
 
@@ -72,6 +78,7 @@
 			{disabled}
 			bind:value
 			onchange={handleChange}
+			oninput={handleInput}
 			class={cn(
 				'flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50',
 				error && 'border-red-500 focus:ring-red-500',
@@ -93,6 +100,7 @@
 			{rows}
 			bind:value
 			onchange={handleChange}
+			oninput={handleInput}
 			class={cn(
 				'flex min-h-20 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50',
 				error && 'border-red-500 focus-visible:ring-red-500',
@@ -112,6 +120,7 @@
 			{max}
 			bind:value
 			onchange={handleChange}
+			oninput={handleInput}
 			class={cn(error && 'border-red-500 focus-visible:ring-red-500', inputClass)}
 		/>
 	{/if}

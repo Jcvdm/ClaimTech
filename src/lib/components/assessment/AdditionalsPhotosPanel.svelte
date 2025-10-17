@@ -7,6 +7,7 @@
 	import type { AdditionalsPhoto } from '$lib/types/assessment';
 	import { storageService } from '$lib/services/storage.service';
 	import { additionalsPhotosService } from '$lib/services/additionals-photos.service';
+	import { useOptimisticArray } from '$lib/utils/useOptimisticArray.svelte';
 
 	interface Props {
 		additionalsId: string;
@@ -15,7 +16,15 @@
 		onUpdate: () => void;
 	}
 
-	let { additionalsId, assessmentId, photos, onUpdate }: Props = $props();
+	// Make props reactive using $derived instead of destructuring
+	let props: Props = $props();
+
+	const additionalsId = $derived(props.additionalsId);
+	const assessmentId = $derived(props.assessmentId);
+	const onUpdate = $derived(props.onUpdate);
+
+	// Use optimistic array for immediate UI updates
+	const photos = useOptimisticArray(props.photos);
 
 	let uploading = $state(false);
 	let uploadProgress = $state(0);
@@ -106,18 +115,21 @@
 				const displayOrder = await additionalsPhotosService.getNextDisplayOrder(additionalsId);
 
 				// Create photo record
-				await additionalsPhotosService.createPhoto({
+				const newPhoto = await additionalsPhotosService.createPhoto({
 					additionals_id: additionalsId,
 					photo_url: result.url,
 					photo_path: result.path,
 					display_order: displayOrder
 				});
 
+				// Add to optimistic array immediately for instant UI feedback
+				photos.add(newPhoto);
+
 				// Update progress
 				uploadProgress = Math.round(((i + 1) / totalFiles) * 100);
 			}
 
-			// Refresh photos
+			// Refresh photos from parent (will sync via $effect)
 			await onUpdate();
 		} catch (error) {
 			console.error('Error uploading photos:', error);
@@ -134,24 +146,29 @@
 		if (!confirm('Are you sure you want to delete this photo?')) return;
 
 		try {
+			// Remove from optimistic array immediately for instant UI feedback
+			photos.remove(photoId);
+
 			// Delete from storage
 			await storageService.deletePhoto(photoPath);
-			
+
 			// Delete from database
 			await additionalsPhotosService.deletePhoto(photoId);
-			
-			// Refresh photos
+
+			// Refresh photos from parent (will sync via $effect)
 			await onUpdate();
 		} catch (error) {
 			console.error('Error deleting photo:', error);
 			alert('Failed to delete photo. Please try again.');
+			// Revert optimistic update on error
+			await onUpdate();
 		}
 	}
 
 	// Modal functions
 	function openPhotoModal(index: number) {
 		selectedPhotoIndex = index;
-		tempLabel = photos[index].label || '';
+		tempLabel = photos.value[index].label || '';
 		photoZoom = 1;
 		modalSize = 'medium';
 	}
@@ -178,14 +195,14 @@
 	function previousPhoto() {
 		if (selectedPhotoIndex !== null && selectedPhotoIndex > 0) {
 			selectedPhotoIndex--;
-			tempLabel = photos[selectedPhotoIndex].label || '';
+			tempLabel = photos.value[selectedPhotoIndex].label || '';
 		}
 	}
 
 	function nextPhoto() {
-		if (selectedPhotoIndex !== null && selectedPhotoIndex < photos.length - 1) {
+		if (selectedPhotoIndex !== null && selectedPhotoIndex < photos.value.length - 1) {
 			selectedPhotoIndex++;
-			tempLabel = photos[selectedPhotoIndex].label || '';
+			tempLabel = photos.value[selectedPhotoIndex].label || '';
 		}
 	}
 
@@ -193,7 +210,7 @@
 		if (selectedPhotoIndex === null) return;
 
 		try {
-			const photo = photos[selectedPhotoIndex];
+			const photo = photos.value[selectedPhotoIndex];
 			await additionalsPhotosService.updatePhotoLabel(photo.id, tempLabel);
 			await onUpdate();
 		} catch (error) {
@@ -204,7 +221,7 @@
 	async function handleDeleteInModal() {
 		if (selectedPhotoIndex === null) return;
 
-		const photo = photos[selectedPhotoIndex];
+		const photo = photos.value[selectedPhotoIndex];
 		if (!confirm('Are you sure you want to delete this photo?')) return;
 
 		try {
@@ -293,14 +310,14 @@
 	</Card>
 
 	<!-- Photos Grid -->
-	{#if photos.length > 0}
+	{#if photos.value.length > 0}
 		<Card class="p-6">
 			<h3 class="mb-4 text-lg font-semibold text-gray-900">
-				Additional Photos ({photos.length})
+				Additional Photos ({photos.value.length})
 			</h3>
-			
+
 			<div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-				{#each photos as photo, index (photo.id)}
+				{#each photos.value as photo, index (photo.id)}
 					<div class="group relative aspect-square rounded-lg overflow-hidden border border-gray-200 hover:border-blue-500 transition-colors">
 						<button
 							type="button"
@@ -343,12 +360,12 @@
 
 <!-- Photo Modal -->
 {#if selectedPhotoIndex !== null}
-	{@const photo = photos[selectedPhotoIndex]}
+	{@const photo = photos.value[selectedPhotoIndex]}
 	<Dialog.Root open={selectedPhotoIndex !== null} onOpenChange={closePhotoModal}>
 		<Dialog.Content class={modalSizeClass}>
 			<Dialog.Header>
 				<Dialog.Title>
-					Photo {selectedPhotoIndex + 1} of {photos.length}
+					Photo {selectedPhotoIndex + 1} of {photos.value.length}
 				</Dialog.Title>
 			</Dialog.Header>
 
@@ -381,7 +398,7 @@
 							size="sm"
 							variant="outline"
 							onclick={nextPhoto}
-							disabled={selectedPhotoIndex === photos.length - 1}
+							disabled={selectedPhotoIndex === photos.value.length - 1}
 						>
 							<ChevronRight class="h-4 w-4" />
 						</Button>

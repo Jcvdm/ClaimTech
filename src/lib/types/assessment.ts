@@ -109,10 +109,16 @@ export interface Assessment {
 export interface VehicleIdentification {
 	id: string;
 	assessment_id: string;
+	// Vehicle info (editable during assessment)
+	vehicle_make?: string | null;
+	vehicle_model?: string | null;
+	vehicle_year?: number | null;
+	// Identification details
 	registration_number?: string | null;
 	vin_number?: string | null;
 	engine_number?: string | null;
 	license_disc_expiry?: string | null;
+	// Photos
 	registration_photo_url?: string | null;
 	vin_photo_url?: string | null;
 	engine_number_photo_url?: string | null;

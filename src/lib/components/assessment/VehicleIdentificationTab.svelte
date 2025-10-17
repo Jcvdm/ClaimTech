@@ -3,8 +3,13 @@
 	import { Button } from '$lib/components/ui/button';
 	import FormField from '$lib/components/forms/FormField.svelte';
 	import PhotoUpload from '$lib/components/forms/PhotoUpload.svelte';
-	import { CheckCircle } from 'lucide-svelte';
+	import RequiredFieldsWarning from './RequiredFieldsWarning.svelte';
+	import { CircleCheck } from 'lucide-svelte';
+	import { debounce } from '$lib/utils/useUnsavedChanges.svelte';
+	import { useDraft } from '$lib/utils/useDraft.svelte';
+	import { onMount } from 'svelte';
 	import type { VehicleIdentification } from '$lib/types/assessment';
+	import { validateVehicleIdentification } from '$lib/utils/validation';
 
 	interface Props {
 		data: VehicleIdentification | null;
@@ -20,7 +25,28 @@
 		onComplete: () => void;
 	}
 
-	let { data, assessmentId, vehicleInfo, onUpdate, onComplete }: Props = $props();
+	// Make props reactive using $derived pattern
+	// This ensures component reacts to parent prop updates without re-mount
+	let props: Props = $props();
+
+	const data = $derived(props.data);
+	const assessmentId = $derived(props.assessmentId);
+	const vehicleInfo = $derived(props.vehicleInfo);
+	const onUpdate = $derived(props.onUpdate);
+	const onComplete = $derived(props.onComplete);
+
+	// Initialize localStorage draft for critical fields
+	const registrationDraft = useDraft(`assessment-${assessmentId}-registration`);
+	const vinDraft = useDraft(`assessment-${assessmentId}-vin`);
+	const engineDraft = useDraft(`assessment-${assessmentId}-engine`);
+	const makeDraft = useDraft(`assessment-${assessmentId}-make`);
+	const modelDraft = useDraft(`assessment-${assessmentId}-model`);
+	const yearDraft = useDraft(`assessment-${assessmentId}-year`);
+
+	// Vehicle info fields (editable)
+	let vehicleMake = $state(data?.vehicle_make || vehicleInfo?.make || '');
+	let vehicleModel = $state(data?.vehicle_model || vehicleInfo?.model || '');
+	let vehicleYear = $state<number | undefined>(data?.vehicle_year || vehicleInfo?.year || undefined);
 
 	let registrationNumber = $state(data?.registration_number || vehicleInfo?.registration || '');
 	let vinNumber = $state(data?.vin_number || vehicleInfo?.vin || '');
@@ -35,11 +61,67 @@
 	let licenseDiscPhotoUrl = $state(data?.license_disc_photo_url || '');
 	let driverLicensePhotoUrl = $state(data?.driver_license_photo_url || '');
 
+	// Sync local state with data prop when it changes (after save)
+	$effect(() => {
+		if (data) {
+			// Only update if there's no draft (draft takes precedence)
+			if (!registrationDraft.hasDraft() && data.registration_number) {
+				registrationNumber = data.registration_number;
+			}
+			if (!vinDraft.hasDraft() && data.vin_number) {
+				vinNumber = data.vin_number;
+			}
+			if (!engineDraft.hasDraft() && data.engine_number) {
+				engineNumber = data.engine_number;
+			}
+			if (!makeDraft.hasDraft() && data.vehicle_make) {
+				vehicleMake = data.vehicle_make;
+			}
+			if (!modelDraft.hasDraft() && data.vehicle_model) {
+				vehicleModel = data.vehicle_model;
+			}
+			if (!yearDraft.hasDraft() && data.vehicle_year) {
+				vehicleYear = data.vehicle_year;
+			}
+
+			// Always update photo URLs from data
+			if (data.registration_photo_url) registrationPhotoUrl = data.registration_photo_url;
+			if (data.vin_photo_url) vinPhotoUrl = data.vin_photo_url;
+			if (data.engine_number_photo_url) engineNumberPhotoUrl = data.engine_number_photo_url;
+			if (data.license_disc_photo_url) licenseDiscPhotoUrl = data.license_disc_photo_url;
+			if (data.driver_license_photo_url) driverLicensePhotoUrl = data.driver_license_photo_url;
+
+			// Update other fields
+			if (data.license_disc_expiry) licenseDiscExpiry = data.license_disc_expiry;
+			if (data.driver_license_number) driverLicenseNumber = data.driver_license_number;
+		}
+	});
+
+	// Load draft values on mount if available
+	onMount(() => {
+		const regDraft = registrationDraft.get();
+		const vinDraftVal = vinDraft.get();
+		const engDraft = engineDraft.get();
+		const makeDraftVal = makeDraft.get();
+		const modelDraftVal = modelDraft.get();
+		const yearDraftVal = yearDraft.get();
+
+		if (regDraft && !data?.registration_number) registrationNumber = regDraft;
+		if (vinDraftVal && !data?.vin_number) vinNumber = vinDraftVal;
+		if (engDraft && !data?.engine_number) engineNumber = engDraft;
+		if (makeDraftVal && !data?.vehicle_make) vehicleMake = makeDraftVal;
+		if (modelDraftVal && !data?.vehicle_model) vehicleModel = modelDraftVal;
+		if (yearDraftVal && !data?.vehicle_year) vehicleYear = yearDraftVal;
+	});
+
 	function handleSave() {
 		onUpdate({
-			registration_number: registrationNumber,
-			vin_number: vinNumber,
-			engine_number: engineNumber,
+			vehicle_make: vehicleMake || undefined,
+			vehicle_model: vehicleModel || undefined,
+			vehicle_year: vehicleYear || undefined,
+			registration_number: registrationNumber || undefined,
+			vin_number: vinNumber || undefined,
+			engine_number: engineNumber || undefined,
 			license_disc_expiry: licenseDiscExpiry || undefined,
 			driver_license_number: driverLicenseNumber || undefined,
 			registration_photo_url: registrationPhotoUrl || undefined,
@@ -48,7 +130,31 @@
 			license_disc_photo_url: licenseDiscPhotoUrl || undefined,
 			driver_license_photo_url: driverLicensePhotoUrl || undefined
 		});
+
+		// Clear drafts after successful save
+		registrationDraft.clear();
+		vinDraft.clear();
+		engineDraft.clear();
+		makeDraft.clear();
+		modelDraft.clear();
+		yearDraft.clear();
 	}
+
+	// Save drafts on input (throttled)
+	function saveDrafts() {
+		registrationDraft.save(registrationNumber);
+		vinDraft.save(vinNumber);
+		engineDraft.save(engineNumber);
+		makeDraft.save(vehicleMake);
+		modelDraft.save(vehicleModel);
+		yearDraft.save(vehicleYear);
+	}
+
+	// Create debounced save function (saves 2 seconds after user stops typing)
+	const debouncedSave = debounce(() => {
+		saveDrafts(); // Save to localStorage
+		handleSave(); // Save to database
+	}, 2000);
 
 	function handleComplete() {
 		handleSave();
@@ -58,32 +164,60 @@
 	const isComplete = $derived(
 		registrationNumber && vinNumber && engineNumber && registrationPhotoUrl && vinPhotoUrl
 	);
+
+	// Validation for warning banner
+	const validation = $derived.by(() => {
+		return validateVehicleIdentification({
+			registration_number: registrationNumber,
+			vin_number: vinNumber,
+			engine_number: engineNumber,
+			registration_photo_url: registrationPhotoUrl,
+			vin_photo_url: vinPhotoUrl
+		});
+	});
 </script>
 
 <div class="space-y-6">
-	<!-- Vehicle Information Display -->
-	{#if vehicleInfo}
-		<Card class="bg-blue-50 p-6">
-			<h3 class="mb-4 text-lg font-semibold text-gray-900">Vehicle Information from Request</h3>
-			<div class="grid gap-4 md:grid-cols-3">
-				<div>
-					<p class="text-sm text-gray-600">Make</p>
-					<p class="font-medium text-gray-900">{vehicleInfo.make || 'N/A'}</p>
-				</div>
-				<div>
-					<p class="text-sm text-gray-600">Model</p>
-					<p class="font-medium text-gray-900">{vehicleInfo.model || 'N/A'}</p>
-				</div>
-				<div>
-					<p class="text-sm text-gray-600">Year</p>
-					<p class="font-medium text-gray-900">{vehicleInfo.year || 'N/A'}</p>
-				</div>
-			</div>
-			<p class="mt-4 text-sm text-gray-600">
-				Please confirm or update the vehicle identification details below
-			</p>
-		</Card>
-	{/if}
+	<!-- Warning Banner -->
+	<RequiredFieldsWarning missingFields={validation.missingFields} />
+	<!-- Vehicle Information (Editable) -->
+	<Card class="p-6">
+		<h3 class="mb-4 text-lg font-semibold text-gray-900">
+			Vehicle Information <span class="text-red-500">*</span>
+		</h3>
+		<p class="mb-4 text-sm text-gray-600">
+			Confirm or update the vehicle details. These may differ from the original request if corrections are needed.
+		</p>
+		<div class="grid gap-6 md:grid-cols-3">
+			<FormField
+				name="vehicle_make"
+				label="Make"
+				type="text"
+				bind:value={vehicleMake}
+				placeholder={vehicleInfo?.make || 'e.g., Toyota, BMW'}
+				required
+				oninput={debouncedSave}
+			/>
+			<FormField
+				name="vehicle_model"
+				label="Model"
+				type="text"
+				bind:value={vehicleModel}
+				placeholder={vehicleInfo?.model || 'e.g., Corolla, 320i'}
+				required
+				oninput={debouncedSave}
+			/>
+			<FormField
+				name="vehicle_year"
+				label="Year"
+				type="number"
+				bind:value={vehicleYear}
+				placeholder={vehicleInfo?.year?.toString() || '2023'}
+				required
+				oninput={debouncedSave}
+			/>
+		</div>
+	</Card>
 
 	<!-- Registration Number -->
 	<Card class="p-6">
@@ -93,11 +227,13 @@
 		<div class="grid gap-6 md:grid-cols-2">
 			<div>
 				<FormField
+					name="registration_number"
 					label="Registration Number"
 					type="text"
 					bind:value={registrationNumber}
 					placeholder="e.g., ABC123GP"
 					required
+					oninput={debouncedSave}
 				/>
 			</div>
 			<PhotoUpload
@@ -127,11 +263,13 @@
 		<div class="grid gap-6 md:grid-cols-2">
 			<div>
 				<FormField
+					name="vin_number"
 					label="VIN Number"
 					type="text"
 					bind:value={vinNumber}
 					placeholder="17-character VIN"
 					required
+					oninput={debouncedSave}
 				/>
 			</div>
 			<PhotoUpload
@@ -156,15 +294,19 @@
 	<!-- Engine Number -->
 	<Card class="p-6">
 		<h3 class="mb-4 text-lg font-semibold text-gray-900">
-			Engine Number <span class="text-red-500">*</span>
+			Engine Number
 		</h3>
+		<p class="mb-4 text-sm text-gray-600">
+			Optional - only if visible on the vehicle
+		</p>
 		<div class="grid gap-6 md:grid-cols-2">
 			<FormField
+				name="engine_number"
 				label="Engine Number"
 				type="text"
 				bind:value={engineNumber}
-				placeholder="Engine number"
-				required
+				placeholder="Engine number (optional if not visible)"
+				oninput={debouncedSave}
 			/>
 			<PhotoUpload
 				value={engineNumberPhotoUrl}
@@ -189,10 +331,12 @@
 		<h3 class="mb-4 text-lg font-semibold text-gray-900">License Disc</h3>
 		<div class="grid gap-6 md:grid-cols-2">
 			<FormField
+				name="license_disc_expiry"
 				label="License Disc Expiry Date"
 				type="date"
 				bind:value={licenseDiscExpiry}
 				placeholder="YYYY-MM-DD"
+				oninput={debouncedSave}
 			/>
 			<PhotoUpload
 				value={licenseDiscPhotoUrl}
@@ -217,10 +361,12 @@
 		<h3 class="mb-4 text-lg font-semibold text-gray-900">Driver License (Optional)</h3>
 		<div class="grid gap-6 md:grid-cols-2">
 			<FormField
+				name="driver_license_number"
 				label="Driver License Number"
 				type="text"
 				bind:value={driverLicenseNumber}
 				placeholder="License number"
+				oninput={debouncedSave}
 			/>
 			<PhotoUpload
 				value={driverLicensePhotoUrl}
@@ -244,7 +390,7 @@
 	<div class="flex justify-between">
 		<Button variant="outline" onclick={handleSave}>Save Progress</Button>
 		<Button onclick={handleComplete} disabled={!isComplete}>
-			<CheckCircle class="mr-2 h-4 w-4" />
+			<CircleCheck class="mr-2 h-4 w-4" />
 			Complete & Continue
 		</Button>
 	</div>

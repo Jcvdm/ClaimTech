@@ -4,15 +4,15 @@
 	import { Input } from '$lib/components/ui/input';
 	import * as Dialog from '$lib/components/ui/dialog';
 	import { Upload, Trash2, Image as ImageIcon, Loader2, ChevronLeft, ChevronRight, ZoomIn, ZoomOut, Maximize2, Minimize2 } from 'lucide-svelte';
-	import type { EstimatePhoto } from '$lib/types/assessment';
+	import type { PreIncidentEstimatePhoto } from '$lib/types/assessment';
 	import { storageService } from '$lib/services/storage.service';
-	import { estimatePhotosService } from '$lib/services/estimate-photos.service';
+	import { preIncidentEstimatePhotosService } from '$lib/services/pre-incident-estimate-photos.service';
 	import { useOptimisticArray } from '$lib/utils/useOptimisticArray.svelte';
 
 	interface Props {
 		estimateId: string;
 		assessmentId: string;
-		photos: EstimatePhoto[];
+		photos: PreIncidentEstimatePhoto[];
 		onUpdate: () => void;
 	}
 
@@ -105,19 +105,19 @@
 					continue;
 				}
 
-				// Upload to storage
+				// Upload to storage with pre-incident category
 				const result = await storageService.uploadAssessmentPhoto(
 					file,
 					assessmentId,
-					'estimate',
-					'incident'
+					'pre-incident',
+					'damage'
 				);
 
 				// Get next display order
-				const displayOrder = await estimatePhotosService.getNextDisplayOrder(estimateId);
+				const displayOrder = await preIncidentEstimatePhotosService.getNextDisplayOrder(estimateId);
 
-				// Create photo record
-				const newPhoto = await estimatePhotosService.createPhoto({
+				// Create photo record in pre_incident_estimate_photos table
+				const newPhoto = await preIncidentEstimatePhotosService.createPhoto({
 					estimate_id: estimateId,
 					photo_url: result.url,
 					photo_path: result.path,
@@ -155,7 +155,7 @@
 			await storageService.deletePhoto(photoPath);
 
 			// Delete from database
-			await estimatePhotosService.deletePhoto(photoId);
+			await preIncidentEstimatePhotosService.deletePhoto(photoId);
 
 			// Refresh photos from parent (will sync via $effect)
 			await onUpdate();
@@ -213,7 +213,7 @@
 
 		try {
 			const photo = photos.value[selectedPhotoIndex];
-			await estimatePhotosService.updatePhotoLabel(photo.id, tempLabel);
+			await preIncidentEstimatePhotosService.updatePhotoLabel(photo.id, tempLabel);
 			await onUpdate();
 		} catch (error) {
 			console.error('Error updating label:', error);
@@ -231,7 +231,7 @@
 			await storageService.deletePhoto(photo.photo_path);
 
 			// Delete from database
-			await estimatePhotosService.deletePhoto(photo.id);
+			await preIncidentEstimatePhotosService.deletePhoto(photo.id);
 
 			// Close modal and refresh
 			closePhotoModal();
@@ -261,7 +261,7 @@
 <div class="space-y-6">
 	<!-- Upload Zone -->
 	<Card class="p-6">
-		<h3 class="mb-4 text-lg font-semibold text-gray-900">Upload Incident Photos</h3>
+		<h3 class="mb-4 text-lg font-semibold text-gray-900">Upload Pre-Incident Damage Photos</h3>
 		
 		<div
 			class="relative border-2 border-dashed rounded-lg p-8 text-center transition-colors {isDragging
@@ -324,13 +324,13 @@
 	<!-- Preview Gallery -->
 	<Card class="p-6">
 		<h3 class="mb-4 text-lg font-semibold text-gray-900">
-			Incident Photos ({photos.value.length})
+			Pre-Incident Damage Photos ({photos.value.length})
 		</h3>
 
 		{#if photos.value.length === 0}
 			<div class="text-center py-12 text-gray-500">
 				<ImageIcon class="mx-auto h-12 w-12 text-gray-400 mb-3" />
-				<p class="text-sm">No photos uploaded yet</p>
+				<p class="text-sm">No pre-incident damage photos uploaded yet</p>
 				<p class="text-xs mt-1">Upload photos using the area above</p>
 			</div>
 		{:else}
@@ -347,7 +347,7 @@
 							<div class="absolute inset-0">
 								<img
 									src={photo.photo_url}
-									alt={photo.label || 'Incident photo'}
+									alt={photo.label || 'Pre-incident damage photo'}
 									class="w-full h-full object-cover cursor-pointer"
 								/>
 							</div>
@@ -447,7 +447,7 @@
 			<div class="bg-gray-100 rounded-lg flex items-center justify-center p-4 overflow-auto">
 				<img
 					src={photos.value[selectedPhotoIndex].photo_url}
-					alt={photos.value[selectedPhotoIndex].label || 'Full size photo'}
+					alt={photos.value[selectedPhotoIndex].label || 'Pre-incident damage photo'}
 					class="w-full h-auto max-h-[60vh] object-contain transition-transform duration-200"
 					style="transform: scale({photoZoom})"
 				/>
@@ -514,3 +514,4 @@
 		</Dialog.Content>
 	</Dialog.Root>
 {/if}
+

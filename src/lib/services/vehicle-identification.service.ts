@@ -62,9 +62,14 @@ export class VehicleIdentificationService {
 		assessmentId: string,
 		input: UpdateVehicleIdentificationInput
 	): Promise<VehicleIdentification> {
+		// Convert undefined to null for Supabase (defensive programming)
+		const cleanedInput = Object.fromEntries(
+			Object.entries(input).map(([key, value]) => [key, value === undefined ? null : value])
+		) as UpdateVehicleIdentificationInput;
+
 		const { data, error} = await supabase
 			.from('assessment_vehicle_identification')
-			.update(input)
+			.update(cleanedInput)
 			.eq('assessment_id', assessmentId)
 			.select()
 			.single();

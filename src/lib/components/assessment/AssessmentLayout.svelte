@@ -1,12 +1,9 @@
 <script lang="ts">
 	import { Button } from '$lib/components/ui/button';
 	import { Badge } from '$lib/components/ui/badge';
-	import { Card } from '$lib/components/ui/card';
 	import {
 		Save,
 		X,
-		CheckCircle,
-		Circle,
 		FileText,
 		Camera,
 		Car,
@@ -18,6 +15,17 @@
 		Plus
 	} from 'lucide-svelte';
 	import type { Assessment } from '$lib/types/assessment';
+	import {
+		validateVehicleIdentification,
+		validateExterior360,
+		validateInteriorMechanical,
+		validateTyres,
+		validateDamage,
+		validateVehicleValues,
+		validatePreIncidentEstimate,
+		validateEstimate,
+		type TabValidation
+	} from '$lib/utils/validation';
 
 	interface Tab {
 		id: string;
@@ -33,6 +41,15 @@
 		onExit: () => void;
 		saving?: boolean;
 		lastSaved?: string | null;
+		// Assessment data for validation
+		vehicleIdentification?: any;
+		exterior360?: any;
+		interiorMechanical?: any;
+		tyres?: any[];
+		damageRecord?: any;
+		vehicleValues?: any;
+		preIncidentEstimate?: any;
+		estimate?: any;
 	}
 
 	let {
@@ -42,7 +59,15 @@
 		onSave,
 		onExit,
 		saving = false,
-		lastSaved = null
+		lastSaved = null,
+		vehicleIdentification = null,
+		exterior360 = null,
+		interiorMechanical = null,
+		tyres = [],
+		damageRecord = null,
+		vehicleValues = null,
+		preIncidentEstimate = null,
+		estimate = null
 	}: Props = $props();
 
 	// Build tabs array dynamically based on finalization status
@@ -73,12 +98,43 @@
 		return baseTabs;
 	});
 
-	const totalTabs = $derived(tabs().length);
-	const completedCount = $derived(assessment?.tabs_completed?.length || 0);
-	const progressPercentage = $derived(Math.round((completedCount / totalTabs) * 100));
+	// Validate tabs and get missing fields count
+	const tabValidations = $derived.by(() => {
+		const validations: Record<string, TabValidation> = {};
 
-	function isTabCompleted(tabId: string): boolean {
-		return assessment?.tabs_completed?.includes(tabId) || false;
+		// Only validate tabs that have data
+		if (vehicleIdentification) {
+			validations['identification'] = validateVehicleIdentification(vehicleIdentification);
+		}
+		if (exterior360) {
+			validations['360'] = validateExterior360(exterior360);
+		}
+		if (interiorMechanical) {
+			validations['interior'] = validateInteriorMechanical(interiorMechanical);
+		}
+		if (tyres && tyres.length > 0) {
+			validations['tyres'] = validateTyres(tyres);
+		}
+		if (damageRecord) {
+			validations['damage'] = validateDamage([damageRecord]);
+		}
+		if (vehicleValues) {
+			validations['values'] = validateVehicleValues(vehicleValues);
+		}
+		if (preIncidentEstimate) {
+			validations['pre-incident'] = validatePreIncidentEstimate(preIncidentEstimate);
+		}
+		if (estimate) {
+			validations['estimate'] = validateEstimate(estimate);
+		}
+
+		return validations;
+	});
+
+	// Get missing fields count for a tab
+	function getMissingFieldsCount(tabId: string): number {
+		const validation = tabValidations[tabId];
+		return validation?.missingFields?.length || 0;
 	}
 
 	function handleTabClick(tabId: string) {
@@ -136,21 +192,6 @@
 			</div>
 		</div>
 
-		<!-- Progress Bar -->
-		<div class="mt-4">
-			<div class="flex items-center justify-between text-sm">
-				<span class="font-medium text-gray-700">Progress</span>
-				<span class="text-gray-600">
-					{completedCount} of {totalTabs} sections complete ({progressPercentage}%)
-				</span>
-			</div>
-			<div class="mt-2 h-2 w-full overflow-hidden rounded-full bg-gray-200">
-				<div
-					class="h-full bg-blue-600 transition-all duration-300"
-					style="width: {progressPercentage}%"
-				></div>
-			</div>
-		</div>
 	</div>
 
 	<!-- Tabs -->
@@ -158,7 +199,7 @@
 		<div class="flex flex-wrap gap-1">
 			{#each tabs() as tab}
 				{@const isActive = currentTab === tab.id}
-				{@const isCompleted = isTabCompleted(tab.id)}
+				{@const missingCount = getMissingFieldsCount(tab.id)}
 				<button
 					onclick={() => handleTabClick(tab.id)}
 					class="relative flex items-center gap-1 sm:gap-2 border-b-2 px-2 sm:px-3 lg:px-4 py-2 sm:py-2.5 lg:py-3 text-xs sm:text-sm font-medium transition-colors whitespace-nowrap {isActive
@@ -168,10 +209,10 @@
 					<svelte:component this={tab.icon} class="h-3 w-3 sm:h-4 sm:w-4" />
 					<span class="hidden sm:inline">{tab.label}</span>
 					<span class="sm:hidden">{getShortLabel(tab.label)}</span>
-					{#if isCompleted}
-						<CheckCircle class="h-3 w-3 sm:h-4 sm:w-4 text-green-600" />
-					{:else}
-						<Circle class="h-3 w-3 sm:h-4 sm:w-4 text-gray-300" />
+					{#if missingCount > 0}
+						<Badge variant="destructive" class="ml-1 h-4 min-w-4 px-1 text-[10px] font-bold">
+							{missingCount}
+						</Badge>
 					{/if}
 				</button>
 			{/each}

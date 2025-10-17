@@ -113,9 +113,14 @@ export class DamageService {
 	 * Update damage record
 	 */
 	async update(id: string, input: UpdateDamageRecordInput): Promise<DamageRecord> {
+		// Convert undefined to null for Supabase (defensive programming)
+		const cleanedInput = Object.fromEntries(
+			Object.entries(input).map(([key, value]) => [key, value === undefined ? null : value])
+		) as UpdateDamageRecordInput;
+
 		const { data, error } = await supabase
 			.from('assessment_damage')
-			.update(input)
+			.update(cleanedInput)
 			.eq('id', id)
 			.select()
 			.single();

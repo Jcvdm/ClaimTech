@@ -15,7 +15,7 @@
 		TrendingUp,
 		TrendingDown,
 		Minus,
-		CheckCircle
+		CircleCheck
 	} from 'lucide-svelte';
 	import type {
 		FinalRepairCosting,
@@ -41,7 +41,15 @@
 		onUpdate: () => Promise<void>;
 	}
 
-	let { assessmentId, estimate, vehicleValues, engineer, onUpdate }: Props = $props();
+	// Make props reactive using $derived pattern
+	// This ensures component reacts to parent prop updates without re-mount
+	let props: Props = $props();
+
+	const assessmentId = $derived(props.assessmentId);
+	const estimate = $derived(props.estimate);
+	const vehicleValues = $derived(props.vehicleValues);
+	const engineer = $derived(props.engineer);
+	const onUpdate = $derived(props.onUpdate);
 
 	let frc = $state<FinalRepairCosting | null>(null);
 	let additionals = $state<AssessmentAdditionals | null>(null);
@@ -404,7 +412,7 @@
 		{#if frc.status === 'completed' && frc.signed_off_by_name}
 			<Card class="p-4 bg-green-50 border-green-200">
 				<div class="flex items-start gap-3">
-					<CheckCircle class="h-5 w-5 text-green-600 mt-0.5" />
+					<CircleCheck class="h-5 w-5 text-green-600 mt-0.5" />
 					<div class="flex-1">
 						<p class="text-sm font-semibold text-green-900">FRC Signed Off</p>
 						<div class="mt-2 text-xs text-green-800 space-y-1">

@@ -19,15 +19,17 @@
 		client: Client | null;
 	}
 
-	let {
-		assessment,
-		vehicleValues,
-		estimate,
-		preIncidentEstimate,
-		inspection,
-		request,
-		client
-	}: Props = $props();
+	// Make props reactive using $derived pattern
+	// This ensures component reacts to parent prop updates without re-mount
+	let props: Props = $props();
+
+	const assessment = $derived(props.assessment);
+	const vehicleValues = $derived(props.vehicleValues);
+	const estimate = $derived(props.estimate);
+	const preIncidentEstimate = $derived(props.preIncidentEstimate);
+	const inspection = $derived(props.inspection);
+	const request = $derived(props.request);
+	const client = $derived(props.client);
 </script>
 
 <div class="space-y-6">

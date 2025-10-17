@@ -4,7 +4,11 @@
 	import FormField from '$lib/components/forms/FormField.svelte';
 	import PdfUpload from '$lib/components/forms/PdfUpload.svelte';
 	import VehicleValueExtrasTable from './VehicleValueExtrasTable.svelte';
-	import { CheckCircle } from 'lucide-svelte';
+	import RequiredFieldsWarning from './RequiredFieldsWarning.svelte';
+	import { CircleCheck } from 'lucide-svelte';
+	import { debounce } from '$lib/utils/useUnsavedChanges.svelte';
+	import { useDraft } from '$lib/utils/useDraft.svelte';
+	import { onMount } from 'svelte';
 	import type {
 		VehicleValues,
 		VehicleValueExtra,
@@ -12,6 +16,7 @@
 		ServiceHistoryStatus
 	} from '$lib/types/assessment';
 	import type { Client } from '$lib/types/client';
+	import { validateVehicleValues } from '$lib/utils/validation';
 	import {
 		formatCurrency,
 		getMonthFromDate,
@@ -37,7 +42,23 @@
 		onComplete: () => void;
 	}
 
-	let { data, assessmentId, client, requestInfo, onUpdate, onComplete }: Props = $props();
+	// Make props reactive using $derived pattern
+	// This ensures component reacts to parent prop updates without re-mount
+	let props: Props = $props();
+
+	const data = $derived(props.data);
+	const assessmentId = $derived(props.assessmentId);
+	const client = $derived(props.client);
+	const requestInfo = $derived(props.requestInfo);
+	const onUpdate = $derived(props.onUpdate);
+	const onComplete = $derived(props.onComplete);
+
+	// Initialize localStorage draft for critical fields
+	const sourcedFromDraft = useDraft(`assessment-${assessmentId}-sourced-from`);
+	const sourcedDateDraft = useDraft(`assessment-${assessmentId}-sourced-date`);
+	const tradeValueDraft = useDraft(`assessment-${assessmentId}-trade-value`);
+	const marketValueDraft = useDraft(`assessment-${assessmentId}-market-value`);
+	const retailValueDraft = useDraft(`assessment-${assessmentId}-retail-value`);
 
 	// Source information
 	let sourcedFrom = $state(data?.sourced_from || '');
@@ -162,6 +183,69 @@
 			valuationPdfUrl
 	);
 
+	// Sync local state with data prop when it changes (after save)
+	$effect(() => {
+		if (data) {
+			// Only update if there's no draft (draft takes precedence)
+			if (!sourcedFromDraft.hasDraft() && data.sourced_from) {
+				sourcedFrom = data.sourced_from;
+			}
+			if (!sourcedDateDraft.hasDraft() && data.sourced_date) {
+				sourcedDate = data.sourced_date;
+			}
+			if (!tradeValueDraft.hasDraft() && data.trade_value) {
+				tradeValue = data.trade_value;
+			}
+			if (!marketValueDraft.hasDraft() && data.market_value) {
+				marketValue = data.market_value;
+			}
+			if (!retailValueDraft.hasDraft() && data.retail_value) {
+				retailValue = data.retail_value;
+			}
+
+			// Always update other fields from data
+			if (data.sourced_code) sourcedCode = data.sourced_code;
+			if (data.warranty_status) warrantyStatus = data.warranty_status;
+			if (data.warranty_period_years) warrantyPeriodYears = data.warranty_period_years;
+			if (data.warranty_start_date) warrantyStartDate = data.warranty_start_date;
+			if (data.warranty_end_date) warrantyEndDate = data.warranty_end_date;
+			if (data.warranty_expiry_mileage) warrantyExpiryMileage = data.warranty_expiry_mileage;
+			if (data.service_history_status) serviceHistoryStatus = data.service_history_status;
+			if (data.warranty_notes) warrantyNotes = data.warranty_notes;
+			if (data.new_list_price) newListPrice = data.new_list_price;
+			if (data.depreciation_percentage) depreciationPercentage = data.depreciation_percentage;
+			if (data.valuation_adjustment) valuationAdjustment = data.valuation_adjustment;
+			if (data.valuation_adjustment_percentage) valuationAdjustmentPercentage = data.valuation_adjustment_percentage;
+			if (data.condition_adjustment_value) conditionAdjustmentValue = data.condition_adjustment_value;
+			if (data.valuation_pdf_url) valuationPdfUrl = data.valuation_pdf_url;
+			if (data.valuation_pdf_path) valuationPdfPath = data.valuation_pdf_path;
+			if (data.remarks) remarks = data.remarks;
+
+			// Update extras
+			if (data.extras && Array.isArray(data.extras)) {
+				extras = data.extras.map((extra: any) => ({
+					...extra,
+					id: extra.id || crypto.randomUUID()
+				}));
+			}
+		}
+	});
+
+	// Load draft values on mount if available
+	onMount(() => {
+		const sourcedFromDraftVal = sourcedFromDraft.get();
+		const sourcedDateDraftVal = sourcedDateDraft.get();
+		const tradeValueDraftVal = tradeValueDraft.get();
+		const marketValueDraftVal = marketValueDraft.get();
+		const retailValueDraftVal = retailValueDraft.get();
+
+		if (sourcedFromDraftVal && !data?.sourced_from) sourcedFrom = sourcedFromDraftVal;
+		if (sourcedDateDraftVal && !data?.sourced_date) sourcedDate = sourcedDateDraftVal;
+		if (tradeValueDraftVal && !data?.trade_value) tradeValue = tradeValueDraftVal;
+		if (marketValueDraftVal && !data?.market_value) marketValue = marketValueDraftVal;
+		if (retailValueDraftVal && !data?.retail_value) retailValue = retailValueDraftVal;
+	});
+
 	function calculateAdjustedValue(
 		baseValue: number,
 		adjustment: number,
@@ -202,7 +286,29 @@
 			valuation_pdf_path: valuationPdfPath || undefined,
 			remarks: remarks || undefined
 		});
+
+		// Clear drafts after successful save
+		sourcedFromDraft.clear();
+		sourcedDateDraft.clear();
+		tradeValueDraft.clear();
+		marketValueDraft.clear();
+		retailValueDraft.clear();
 	}
+
+	// Save drafts on input (throttled)
+	function saveDrafts() {
+		sourcedFromDraft.save(sourcedFrom);
+		sourcedDateDraft.save(sourcedDate);
+		tradeValueDraft.save(tradeValue);
+		marketValueDraft.save(marketValue);
+		retailValueDraft.save(retailValue);
+	}
+
+	// Create debounced save function (saves 2 seconds after user stops typing)
+	const debouncedSave = debounce(() => {
+		saveDrafts(); // Save to localStorage
+		handleSave(); // Save to database
+	}, 2000);
 
 	function handleComplete() {
 		handleSave();
@@ -230,9 +336,23 @@
 		valuationPdfUrl = '';
 		valuationPdfPath = '';
 	}
+
+	// Validation for warning banner
+	const validation = $derived.by(() => {
+		return validateVehicleValues({
+			trade_value: tradeValue,
+			market_value: marketValue,
+			retail_value: retailValue,
+			sourced_from: sourcedFrom,
+			sourced_date: sourcedDate,
+			valuation_pdf_url: valuationPdfUrl
+		});
+	});
 </script>
 
 <div class="space-y-6">
+	<!-- Warning Banner -->
+	<RequiredFieldsWarning missingFields={validation.missingFields} />
 	<!-- Section 1: Vehicle & Source Information -->
 	{#if requestInfo}
 		<Card class="bg-blue-50 p-6">
@@ -297,6 +417,7 @@
 				bind:value={sourcedFrom}
 				placeholder="e.g., TransUnion - iCheck, Lightstone Auto"
 				required
+				oninput={debouncedSave}
 			/>
 			<FormField
 				name="sourced_code"
@@ -313,6 +434,7 @@
 				type="date"
 				bind:value={sourcedDate}
 				required
+				onchange={debouncedSave}
 			/>
 			<div>
 				<label class="mb-2 block text-sm font-medium text-gray-700">Month (Auto-calculated)</label>
@@ -466,6 +588,7 @@
 				bind:value={tradeValue}
 				placeholder="0.00"
 				step="0.01"
+				oninput={debouncedSave}
 			/>
 			<FormField
 				name="market_value"
@@ -474,6 +597,7 @@
 				bind:value={marketValue}
 				placeholder="0.00"
 				step="0.01"
+				oninput={debouncedSave}
 			/>
 			<FormField
 				name="retail_value"
@@ -482,6 +606,7 @@
 				bind:value={retailValue}
 				placeholder="0.00"
 				step="0.01"
+				oninput={debouncedSave}
 			/>
 		</div>
 
@@ -676,7 +801,7 @@
 		<Button variant="outline" onclick={handleSave}>Save Progress</Button>
 		<Button onclick={handleComplete} disabled={!isComplete}>
 			{#if isComplete}
-				<CheckCircle class="mr-2 h-4 w-4" />
+				<CircleCheck class="mr-2 h-4 w-4" />
 			{/if}
 			Complete Values Tab
 		</Button>

@@ -62,9 +62,14 @@ export class InteriorMechanicalService {
 		assessmentId: string,
 		input: UpdateInteriorMechanicalInput
 	): Promise<InteriorMechanical> {
+		// Convert undefined to null for Supabase (defensive programming)
+		const cleanedInput = Object.fromEntries(
+			Object.entries(input).map(([key, value]) => [key, value === undefined ? null : value])
+		) as UpdateInteriorMechanicalInput;
+
 		const { data, error } = await supabase
 			.from('assessment_interior_mechanical')
-			.update(input)
+			.update(cleanedInput)
 			.eq('assessment_id', assessmentId)
 			.select()
 			.single();

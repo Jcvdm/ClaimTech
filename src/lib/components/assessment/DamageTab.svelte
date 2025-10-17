@@ -3,8 +3,13 @@
 	import { Button } from '$lib/components/ui/button';
 	import FormField from '$lib/components/forms/FormField.svelte';
 	import PhotoUpload from '$lib/components/forms/PhotoUpload.svelte';
+	import RequiredFieldsWarning from './RequiredFieldsWarning.svelte';
 	import { CheckCircle2 } from 'lucide-svelte';
+	import { debounce } from '$lib/utils/useUnsavedChanges.svelte';
+	import { useDraft } from '$lib/utils/useDraft.svelte';
+	import { onMount } from 'svelte';
 	import type { DamageRecord, DamageType, DamageArea, DamageSeverity } from '$lib/types/assessment';
+	import { validateDamage } from '$lib/utils/validation';
 
 	interface Props {
 		damageRecord: DamageRecord | null;
@@ -13,12 +18,92 @@
 		onComplete: () => void;
 	}
 
-	let {
-		damageRecord,
-		assessmentId,
-		onUpdateDamage,
-		onComplete
-	}: Props = $props();
+	// Make props reactive using $derived pattern
+	// This ensures component reacts to parent prop updates without re-mount
+	let props: Props = $props();
+
+	const damageRecord = $derived(props.damageRecord);
+	const assessmentId = $derived(props.assessmentId);
+	const onUpdateDamage = $derived(props.onUpdateDamage);
+	const onComplete = $derived(props.onComplete);
+
+	// Initialize localStorage draft for critical fields
+	const mismatchNotesDraft = useDraft(`assessment-${assessmentId}-mismatch-notes`);
+	const damageDescriptionDraft = useDraft(`assessment-${assessmentId}-damage-description`);
+
+	// Local state variables for all fields
+	let matchesDescription = $state<boolean | null>(damageRecord?.matches_description ?? null);
+	let mismatchNotes = $state(damageRecord?.mismatch_notes || '');
+	let damageArea = $state(damageRecord?.damage_area || '');
+	let damageType = $state(damageRecord?.damage_type || '');
+	let severity = $state(damageRecord?.severity || '');
+	let damageDescription = $state(damageRecord?.damage_description || '');
+	let estimatedRepairDurationDays = $state(damageRecord?.estimated_repair_duration_days || null);
+	let locationDescription = $state(damageRecord?.location_description || '');
+	let affectedPanels = $state<string[]>(damageRecord?.affected_panels || []);
+	let photos = $state<Array<{ url: string; description: string; panel?: string }>>(damageRecord?.photos || []);
+
+	// Sync local state with damageRecord prop when it changes (after save)
+	$effect(() => {
+		if (damageRecord) {
+			// Only update if there's no draft (draft takes precedence)
+			if (!mismatchNotesDraft.hasDraft() && damageRecord.mismatch_notes) {
+				mismatchNotes = damageRecord.mismatch_notes;
+			}
+			if (!damageDescriptionDraft.hasDraft() && damageRecord.damage_description) {
+				damageDescription = damageRecord.damage_description;
+			}
+
+			// Always update non-draft fields from data
+			if (damageRecord.matches_description !== null && damageRecord.matches_description !== undefined) {
+				matchesDescription = damageRecord.matches_description;
+			}
+			if (damageRecord.damage_area) damageArea = damageRecord.damage_area;
+			if (damageRecord.damage_type) damageType = damageRecord.damage_type;
+			if (damageRecord.severity) severity = damageRecord.severity;
+			if (damageRecord.estimated_repair_duration_days !== null && damageRecord.estimated_repair_duration_days !== undefined) {
+				estimatedRepairDurationDays = damageRecord.estimated_repair_duration_days;
+			}
+			if (damageRecord.location_description) locationDescription = damageRecord.location_description;
+			if (damageRecord.affected_panels) affectedPanels = damageRecord.affected_panels;
+			if (damageRecord.photos) photos = damageRecord.photos;
+		}
+	});
+
+	// Load draft values on mount if available
+	onMount(() => {
+		const mismatchNotesDraftVal = mismatchNotesDraft.get();
+		const damageDescriptionDraftVal = damageDescriptionDraft.get();
+
+		if (mismatchNotesDraftVal && !damageRecord?.mismatch_notes) {
+			mismatchNotes = mismatchNotesDraftVal;
+		}
+		if (damageDescriptionDraftVal && !damageRecord?.damage_description) {
+			damageDescription = damageDescriptionDraftVal;
+		}
+	});
+
+	// Save drafts on input (throttled)
+	function saveMismatchDrafts(notes: string) {
+		mismatchNotesDraft.save(notes);
+	}
+
+	function saveDamageDescriptionDrafts(description: string) {
+		damageDescriptionDraft.save(description);
+	}
+
+	// Create debounced save functions (saves 2 seconds after user stops typing)
+	const debouncedSaveMismatch = debounce((notes: string) => {
+		saveMismatchDrafts(notes); // Save to localStorage
+		onUpdateDamage({ mismatch_notes: notes }); // Save to database
+		mismatchNotesDraft.clear(); // Clear after successful save
+	}, 2000);
+
+	const debouncedSaveDamageDescription = debounce((description: string) => {
+		saveDamageDescriptionDrafts(description); // Save to localStorage
+		onUpdateDamage({ damage_description: description }); // Save to database
+		damageDescriptionDraft.clear(); // Clear after successful save
+	}, 2000);
 
 	const damageTypeOptions: { value: DamageType; label: string }[] = [
 		{ value: 'collision', label: 'Collision' },
@@ -38,9 +123,16 @@
 		damageRecord.damage_area !== null &&
 		damageRecord.damage_type !== null
 	);
+
+	// Validation for warning banner
+	const validation = $derived.by(() => {
+		return validateDamage(damageRecord ? [damageRecord] : []);
+	});
 </script>
 
 <div class="space-y-6">
+	<!-- Warning Banner -->
+	<RequiredFieldsWarning missingFields={validation.missingFields} />
 	{#if !damageRecord}
 		<Card class="p-6 border-2 border-dashed border-gray-300">
 			<p class="text-center text-gray-600">Loading damage record...</p>
@@ -56,27 +148,37 @@
 			</p>
 			<div class="flex gap-4">
 				<Button
-					variant={damageRecord.matches_description === true ? 'default' : 'outline'}
-					onclick={() => onUpdateDamage({ matches_description: true })}
+					variant={matchesDescription === true ? 'default' : 'outline'}
+					onclick={() => {
+						matchesDescription = true;
+						onUpdateDamage({ matches_description: true });
+					}}
 				>
 					Yes, Matches
 				</Button>
 				<Button
-					variant={damageRecord.matches_description === false ? 'default' : 'outline'}
-					onclick={() => onUpdateDamage({ matches_description: false })}
+					variant={matchesDescription === false ? 'default' : 'outline'}
+					onclick={() => {
+						matchesDescription = false;
+						onUpdateDamage({ matches_description: false });
+					}}
 				>
 					No, Does Not Match
 				</Button>
 			</div>
 
-			{#if damageRecord.matches_description === false}
+			{#if matchesDescription === false}
 				<div class="mt-4">
 					<FormField
+						name="mismatch_notes"
 						label="Explain Mismatch"
 						type="textarea"
-						value={damageRecord.mismatch_notes || ''}
-						onInput={(e) =>
-							onUpdateDamage({ mismatch_notes: (e.target as HTMLTextAreaElement).value })}
+						value={mismatchNotes}
+						oninput={(e: Event) => {
+							const value = (e.target as HTMLTextAreaElement).value;
+							mismatchNotes = value;
+							debouncedSaveMismatch(value);
+						}}
 						placeholder="Describe how the actual damage differs from the reported description..."
 						rows={3}
 						required
@@ -91,13 +193,16 @@
 			<div class="space-y-6">
 				<div class="grid gap-6 md:grid-cols-2">
 					<FormField
+						name="damage_area"
 						label="Damage Area"
 						type="select"
-						value={damageRecord.damage_area}
-						onChange={(e) =>
+						value={damageArea}
+						onchange={(value: string) => {
+							damageArea = value;
 							onUpdateDamage({
-								damage_area: (e.target as HTMLSelectElement).value as DamageArea
-							})}
+								damage_area: (value || undefined) as DamageArea
+							});
+						}}
 						options={[
 							{ value: 'structural', label: 'Structural' },
 							{ value: 'non_structural', label: 'Non-Structural' }
@@ -105,26 +210,32 @@
 						required
 					/>
 					<FormField
+						name="damage_type"
 						label="Damage Type"
 						type="select"
-						value={damageRecord.damage_type}
-						onChange={(e) =>
+						value={damageType}
+						onchange={(value: string) => {
+							damageType = value;
 							onUpdateDamage({
-								damage_type: (e.target as HTMLSelectElement).value as DamageType
-							})}
+								damage_type: (value || undefined) as DamageType
+							});
+						}}
 						options={damageTypeOptions}
 						required
 					/>
 				</div>
 
 				<FormField
+					name="severity"
 					label="Severity"
 					type="select"
-					value={damageRecord.severity || ''}
-					onChange={(e) =>
+					value={severity}
+					onchange={(value: string) => {
+						severity = value;
 						onUpdateDamage({
-							severity: (e.target as HTMLSelectElement).value as DamageSeverity
-						})}
+							severity: (value || undefined) as DamageSeverity
+						});
+					}}
 					options={[
 						{ value: '', label: 'Select severity' },
 						{ value: 'minor', label: 'Minor' },
@@ -135,37 +246,47 @@
 				/>
 
 				<FormField
+					name="estimated_repair_duration_days"
 					label="Estimated Repair Duration (days)"
 					type="number"
-					value={damageRecord.estimated_repair_duration_days?.toString() || ''}
-					onInput={(e) =>
+					value={estimatedRepairDurationDays?.toString() || ''}
+					oninput={(e: Event) => {
+						const value = parseFloat((e.target as HTMLInputElement).value);
+						estimatedRepairDurationDays = value;
 						onUpdateDamage({
-							estimated_repair_duration_days: parseFloat((e.target as HTMLInputElement).value)
-						})}
+							estimated_repair_duration_days: value
+						});
+					}}
 					placeholder="e.g., 1, 3, 7"
 					step="0.5"
 				/>
 
 				<FormField
+					name="location_description"
 					label="Location Description"
 					type="textarea"
-					value={damageRecord.location_description || ''}
-					onInput={(e) =>
+					value={locationDescription}
+					oninput={(e: Event) => {
+						const value = (e.target as HTMLTextAreaElement).value;
+						locationDescription = value;
 						onUpdateDamage({
-							location_description: (e.target as HTMLTextAreaElement).value
-						})}
+							location_description: value
+						});
+					}}
 					placeholder="Describe the location of the damage on the vehicle..."
 					rows={2}
 				/>
 
 				<FormField
+					name="damage_description"
 					label="Damage Description"
 					type="textarea"
-					value={damageRecord.damage_description || ''}
-					onInput={(e) =>
-						onUpdateDamage({
-							damage_description: (e.target as HTMLTextAreaElement).value
-						})}
+					value={damageDescription}
+					oninput={(e: Event) => {
+						const value = (e.target as HTMLTextAreaElement).value;
+						damageDescription = value;
+						debouncedSaveDamageDescription(value);
+					}}
 					placeholder="Detailed description of the damage..."
 					rows={3}
 				/>
@@ -173,7 +294,7 @@
 				<div>
 					<h4 class="mb-2 text-sm font-medium text-gray-700">Damage Photos</h4>
 					<div class="grid gap-4 md:grid-cols-4">
-						{#each damageRecord.photos || [] as photo, photoIndex}
+						{#each photos as photo, photoIndex (photo.url)}
 							<div class="relative bg-gray-100 rounded-lg flex items-center justify-center">
 								<img
 									src={photo.url}
@@ -185,8 +306,9 @@
 									variant="outline"
 									class="absolute right-2 top-2 bg-white"
 									onclick={() => {
-										const newPhotos = [...(damageRecord.photos || [])];
+										const newPhotos = [...photos];
 										newPhotos.splice(photoIndex, 1);
+										photos = newPhotos;
 										onUpdateDamage({ photos: newPhotos });
 									}}
 								>
@@ -202,7 +324,8 @@
 							category="damage"
 							subcategory="damage_record"
 							onUpload={(url) => {
-								const newPhotos = [...(damageRecord.photos || []), { url, description: '' }];
+								const newPhotos = [...photos, { url, description: '' }];
+								photos = newPhotos;
 								onUpdateDamage({ photos: newPhotos });
 							}}
 							height="h-32"

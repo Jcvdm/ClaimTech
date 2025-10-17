@@ -25,9 +25,10 @@
 	import { damageService } from '$lib/services/damage.service';
 	import { estimateService } from '$lib/services/estimate.service';
 	import { preIncidentEstimateService } from '$lib/services/pre-incident-estimate.service';
+	import { estimatePhotosService } from '$lib/services/estimate-photos.service';
+	import { preIncidentEstimatePhotosService } from '$lib/services/pre-incident-estimate-photos.service';
 	import { vehicleValuesService } from '$lib/services/vehicle-values.service';
 	import { documentGenerationService } from '$lib/services/document-generation.service';
-	import { getTabCompletionStatus } from '$lib/utils/validation';
 	import type {
 		VehicleIdentification,
 		Exterior360,
@@ -54,40 +55,9 @@
 	let lastSaved = $state<string | null>(null);
 	let autoSaveInterval: ReturnType<typeof setInterval> | null = null;
 
-	// Check tab completion and update
-	async function updateTabCompletion() {
-		const completionStatus = getTabCompletionStatus({
-			vehicleIdentification: data.vehicleIdentification,
-			exterior360: data.exterior360,
-			interiorMechanical: data.interiorMechanical,
-			tyres: data.tyres,
-			damageRecord: data.damageRecord,
-			vehicleValues: data.vehicleValues,
-			preIncidentEstimate: preIncidentEstimate,
-			estimate: estimate
-		});
-
-		const completedTabs = completionStatus
-			.filter(tab => tab.isComplete)
-			.map(tab => tab.tabId);
-
-		// Update if changed
-		const currentCompleted = data.assessment.tabs_completed || [];
-		const hasChanged =
-			completedTabs.length !== currentCompleted.length ||
-			completedTabs.some(tab => !currentCompleted.includes(tab));
-
-		if (hasChanged) {
-			await assessmentService.updateAssessment(data.assessment.id, {
-				tabs_completed: completedTabs
-			});
-		}
-	}
-
 	async function handleTabChange(tabId: string) {
-		// Auto-save and check completion before switching tabs
+		// Auto-save before switching tabs
 		await handleSave();
-		await updateTabCompletion();
 		currentTab = tabId;
 		await assessmentService.updateCurrentTab(data.assessment.id, tabId);
 	}
@@ -97,8 +67,6 @@
 
 		saving = true;
 		try {
-			// Update tab completion status without full page reload
-			await updateTabCompletion();
 			const now = new Date();
 			lastSaved = now.toLocaleTimeString('en-US', {
 				hour: '2-digit',
@@ -137,24 +105,25 @@
 	// Vehicle Identification handlers
 	async function handleUpdateVehicleIdentification(updateData: Partial<VehicleIdentification>) {
 		try {
-			await vehicleIdentificationService.upsert(data.assessment.id, updateData);
-			// Data is already updated in the service, no need to reload
+			const updated = await vehicleIdentificationService.upsert(data.assessment.id, updateData as any);
+			// Update local data with saved values
+			data.vehicleIdentification = updated;
 		} catch (error) {
 			console.error('Error updating vehicle identification:', error);
 		}
 	}
 
 	async function handleCompleteVehicleIdentification() {
-		await assessmentService.markTabCompleted(data.assessment.id, 'identification');
-		// Tab completion updated, move to next tab
+		// Move to next tab
 		currentTab = '360';
 	}
 
 	// 360 Exterior handlers
 	async function handleUpdateExterior360(updateData: Partial<Exterior360>) {
 		try {
-			await exterior360Service.upsert(data.assessment.id, updateData);
-			// Data is already updated in the service
+			const updated = await exterior360Service.upsert(data.assessment.id, updateData as any);
+			// Update local data with saved values
+			data.exterior360 = updated;
 		} catch (error) {
 			console.error('Error updating 360 exterior:', error);
 		}
@@ -187,24 +156,23 @@
 	}
 
 	async function handleCompleteExterior360() {
-		await assessmentService.markTabCompleted(data.assessment.id, '360');
-		// Tab completion updated, move to next tab
+		// Move to next tab
 		currentTab = 'interior';
 	}
 
 	// Interior/Mechanical handlers
 	async function handleUpdateInteriorMechanical(updateData: Partial<InteriorMechanical>) {
 		try {
-			await interiorMechanicalService.upsert(data.assessment.id, updateData);
-			// Data is already updated in the service
+			const updated = await interiorMechanicalService.upsert(data.assessment.id, updateData as any);
+			// Update local data with saved values
+			data.interiorMechanical = updated;
 		} catch (error) {
 			console.error('Error updating interior/mechanical:', error);
 		}
 	}
 
 	async function handleCompleteInteriorMechanical() {
-		await assessmentService.markTabCompleted(data.assessment.id, 'interior');
-		// Tab completion updated, move to next tab
+		// Move to next tab
 		currentTab = 'tyres';
 	}
 
@@ -212,10 +180,10 @@
 	async function handleUpdateTyre(id: string, updateData: Partial<Tyre>) {
 		try {
 			const updatedTyre = await tyresService.update(id, updateData);
-			// Update local state with updated tyre
+			// Create new array instead of mutating (triggers $derived reactivity)
 			const index = data.tyres.findIndex((t) => t.id === id);
 			if (index !== -1) {
-				data.tyres[index] = updatedTyre;
+				data.tyres = data.tyres.map((t, i) => i === index ? updatedTyre : t);
 			}
 		} catch (error) {
 			console.error('Error updating tyre:', error);
@@ -248,8 +216,7 @@
 	}
 
 	async function handleCompleteTyres() {
-		await assessmentService.markTabCompleted(data.assessment.id, 'tyres');
-		// Tab completion updated, move to next tab
+		// Move to next tab
 		currentTab = 'damage';
 	}
 
@@ -257,8 +224,9 @@
 	async function handleUpdateDamage(updateData: Partial<DamageRecord>) {
 		try {
 			if (data.damageRecord) {
-				await damageService.update(data.damageRecord.id, updateData);
-				// Data is already updated in the service
+				const updated = await damageService.update(data.damageRecord.id, updateData as any);
+				// Update local data with saved values
+				data.damageRecord = updated;
 			}
 		} catch (error) {
 			console.error('Error updating damage record:', error);
@@ -266,8 +234,7 @@
 	}
 
 	async function handleCompleteDamage() {
-		await assessmentService.markTabCompleted(data.assessment.id, 'damage');
-		// Tab completion updated, move to next tab
+		// Move to next tab
 		currentTab = 'values';
 	}
 
@@ -284,8 +251,9 @@
 						}
 					: undefined;
 
-				await vehicleValuesService.update(data.vehicleValues.id, updateData, writeOffPercentages);
-				// Data is already updated in the service
+				const updated = await vehicleValuesService.update(data.vehicleValues.id, updateData as any, writeOffPercentages as any);
+				// Update local data with saved values
+				data.vehicleValues = updated;
 			}
 		} catch (error) {
 			console.error('Error updating vehicle values:', error);
@@ -293,8 +261,7 @@
 	}
 
 	async function handleCompleteVehicleValues() {
-		await assessmentService.markTabCompleted(data.assessment.id, 'values');
-		// Tab completion updated, move to next tab
+		// Move to next tab
 		currentTab = 'pre-incident';
 	}
 
@@ -420,8 +387,7 @@
 	}
 
 	async function handleCompletePreIncidentEstimate() {
-		await assessmentService.markTabCompleted(data.assessment.id, 'pre-incident');
-		// Tab completion updated, move to next tab
+		// Move to next tab
 		currentTab = 'estimate';
 	}
 
@@ -576,7 +542,6 @@
 	}
 
 	async function handleCompleteEstimate() {
-		await assessmentService.markTabCompleted(data.assessment.id, 'estimate');
 		// Note: Status remains 'in_progress' until estimate is finalized
 		// This keeps the assessment in the Open Assessments list
 		// Redirect to finalize tab to complete the process
@@ -658,6 +623,14 @@
 	onExit={handleExit}
 	{saving}
 	{lastSaved}
+	vehicleIdentification={data.vehicleIdentification}
+	exterior360={data.exterior360}
+	interiorMechanical={data.interiorMechanical}
+	tyres={data.tyres}
+	damageRecord={data.damageRecord}
+	vehicleValues={data.vehicleValues}
+	preIncidentEstimate={preIncidentEstimate}
+	{estimate}
 >
 	{#if currentTab === 'summary'}
 		<SummaryTab
@@ -745,7 +718,14 @@
 			onDeleteLineItem={handleDeletePreIncidentLineItem}
 			onBulkDeleteLineItems={handleBulkDeletePreIncidentLineItems}
 			onPhotosUpdate={async () => {
-				// Photos updated, no need to reload entire page
+				// Reload pre-incident photos from database
+				if (preIncidentEstimate) {
+					const updatedPhotos = await preIncidentEstimatePhotosService.getPhotosByEstimate(
+						preIncidentEstimate.id
+					);
+					// Update local state (triggers reactivity)
+					data.preIncidentEstimatePhotos = updatedPhotos;
+				}
 			}}
 			onUpdateRates={handleUpdatePreIncidentRates}
 			onComplete={handleCompletePreIncidentEstimate}
@@ -763,7 +743,12 @@
 			onDeleteLineItem={handleDeleteLineItem}
 			onBulkDeleteLineItems={handleBulkDeleteLineItems}
 			onPhotosUpdate={async () => {
-				// Photos updated, no need to reload entire page
+				// Reload incident photos from database
+				if (estimate) {
+					const updatedPhotos = await estimatePhotosService.getPhotosByEstimate(estimate.id);
+					// Update local state (triggers reactivity)
+					data.estimatePhotos = updatedPhotos;
+				}
 			}}
 			onUpdateRates={handleUpdateRates}
 			onUpdateRepairer={handleUpdateRepairer}
@@ -777,6 +762,14 @@
 			onGenerateDocument={handleGenerateDocument}
 			onDownloadDocument={handleDownloadDocument}
 			onGenerateAll={handleGenerateAll}
+			vehicleIdentification={data.vehicleIdentification}
+			exterior360={data.exterior360}
+			interiorMechanical={data.interiorMechanical}
+			tyres={data.tyres}
+			damageRecord={data.damageRecord}
+			vehicleValues={data.vehicleValues}
+			{preIncidentEstimate}
+			{estimate}
 		/>
 	{:else if currentTab === 'additionals' && estimate}
 		<AdditionalsTab

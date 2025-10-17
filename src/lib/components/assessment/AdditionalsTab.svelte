@@ -30,7 +30,15 @@
 		onUpdate: () => Promise<void>;
 	}
 
-	let { assessmentId, estimate, vehicleValues, repairers, onUpdate }: Props = $props();
+	// Make props reactive using $derived pattern
+	// This ensures component reacts to parent prop updates without re-mount
+	let props: Props = $props();
+
+	const assessmentId = $derived(props.assessmentId);
+	const estimate = $derived(props.estimate);
+	const vehicleValues = $derived(props.vehicleValues);
+	const repairers = $derived(props.repairers);
+	const onUpdate = $derived(props.onUpdate);
 
 	let additionals = $state<AssessmentAdditionals | null>(null);
 	let additionalsPhotos = $state<AdditionalsPhoto[]>([]);

@@ -1,16 +1,15 @@
 <script lang="ts">
-	// TODO: BEFORE PRODUCTION - Set ENABLE_FORCE_FINALIZE to false (line 70)
-	// This allows testing the Additionals feature without completing all 9 sections
 	import { Card } from '$lib/components/ui/card';
 	import { Button } from '$lib/components/ui/button';
 	import { Badge } from '$lib/components/ui/badge';
+	import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '$lib/components/ui/dialog';
 	import DocumentCard from './DocumentCard.svelte';
 	import {
 		FileText,
 		Image,
 		FileArchive,
 		Package,
-		CheckCircle,
+		CircleCheck,
 		AlertCircle
 	} from 'lucide-svelte';
 	import type { Assessment, DocumentGenerationStatus } from '$lib/types/assessment';
@@ -19,15 +18,40 @@
 	import { invalidateAll } from '$app/navigation';
 	import { onMount } from 'svelte';
 	import { formatDateTime } from '$lib/utils/formatters';
+	import { getTabCompletionStatus, type TabValidation } from '$lib/utils/validation';
 
 	interface Props {
 		assessment: Assessment;
 		onGenerateDocument: (type: string) => Promise<void>;
 		onDownloadDocument: (type: string) => void;
 		onGenerateAll: () => Promise<void>;
+		// Assessment data for validation
+		vehicleIdentification?: any;
+		exterior360?: any;
+		interiorMechanical?: any;
+		tyres?: any[];
+		damageRecord?: any;
+		vehicleValues?: any;
+		preIncidentEstimate?: any;
+		estimate?: any;
 	}
 
-	let { assessment, onGenerateDocument, onDownloadDocument, onGenerateAll }: Props = $props();
+	// Make props reactive using $derived pattern
+	// This ensures component reacts to parent prop updates without re-mount
+	let props: Props = $props();
+
+	const assessment = $derived(props.assessment);
+	const onGenerateDocument = $derived(props.onGenerateDocument);
+	const onDownloadDocument = $derived(props.onDownloadDocument);
+	const onGenerateAll = $derived(props.onGenerateAll);
+	const vehicleIdentification = $derived(props.vehicleIdentification ?? null);
+	const exterior360 = $derived(props.exterior360 ?? null);
+	const interiorMechanical = $derived(props.interiorMechanical ?? null);
+	const tyres = $derived(props.tyres ?? []);
+	const damageRecord = $derived(props.damageRecord ?? null);
+	const vehicleValues = $derived(props.vehicleValues ?? null);
+	const preIncidentEstimate = $derived(props.preIncidentEstimate ?? null);
+	const estimate = $derived(props.estimate ?? null);
 
 	let generationStatus = $state<DocumentGenerationStatus>({
 		report_generated: false,
@@ -62,21 +86,63 @@
 
 	let error = $state<string | null>(null);
 	let finalizing = $state(false);
+	let showValidationModal = $state(false);
 
-	// Calculate completion status
-	const completedTabs = $derived(assessment.tabs_completed?.length || 0);
-	const totalTabs = 9; // Total tabs excluding finalize
-	const progressPercentage = $derived(Math.round((completedTabs / totalTabs) * 100));
-	const isComplete = $derived(completedTabs === totalTabs);
+	// Validate all tabs
+	const tabValidations = $derived.by(() => {
+		return getTabCompletionStatus({
+			vehicleIdentification,
+			exterior360,
+			interiorMechanical,
+			tyres,
+			damageRecord,
+			vehicleValues,
+			preIncidentEstimate,
+			estimate
+		});
+	});
 
-	// TODO: REMOVE THIS BEFORE PRODUCTION - Testing override
-	const ENABLE_FORCE_FINALIZE = true; // Set to false to enforce completion check
+	// Get all missing fields across all tabs
+	const allMissingFields = $derived.by(() => {
+		const missing: { tab: string, fields: string[] }[] = [];
+		tabValidations.forEach((validation: TabValidation) => {
+			if (!validation.isComplete && validation.missingFields.length > 0) {
+				missing.push({
+					tab: getTabLabel(validation.tabId),
+					fields: validation.missingFields
+				});
+			}
+		});
+		return missing;
+	});
+
+	const hasRequiredFieldsMissing = $derived(allMissingFields.length > 0);
+
+	function getTabLabel(tabId: string): string {
+		const labels: Record<string, string> = {
+			'identification': 'Vehicle Identification',
+			'360': '360° Exterior',
+			'interior': 'Interior & Mechanical',
+			'tyres': 'Tyres',
+			'damage': 'Damage ID',
+			'values': 'Vehicle Values',
+			'pre-incident': 'Pre-Incident Estimate',
+			'estimate': 'Estimate'
+		};
+		return labels[tabId] || tabId;
+	}
 
 	async function loadGenerationStatus() {
 		generationStatus = await documentGenerationService.getGenerationStatus(assessment.id);
 	}
 
 	async function handleFinalizeEstimate() {
+		// Check for missing required fields
+		if (hasRequiredFieldsMissing) {
+			showValidationModal = true;
+			return;
+		}
+
 		finalizing = true;
 		error = null;
 		try {
@@ -208,51 +274,34 @@
 </script>
 
 <div class="space-y-6">
-	<!-- Completion Status -->
-	<Card class="p-6">
-		<div class="flex items-start justify-between">
-			<div>
-				<h2 class="text-xl font-bold text-gray-900">Assessment Completion Status</h2>
-				<p class="mt-1 text-sm text-gray-600">
-					Complete all sections before generating documents
-				</p>
+	<!-- Validation Modal -->
+	<Dialog bind:open={showValidationModal}>
+		<DialogContent class="max-w-2xl max-h-[80vh] overflow-y-auto">
+			<DialogHeader>
+				<DialogTitle>Required Fields Missing</DialogTitle>
+				<DialogDescription>
+					Please complete the following required fields before finalizing the estimate:
+				</DialogDescription>
+			</DialogHeader>
+			<div class="space-y-4 mt-4">
+				{#each allMissingFields as { tab, fields }}
+					<div class="rounded-md border border-red-200 bg-red-50 p-4">
+						<h4 class="font-semibold text-red-900 mb-2">{tab}</h4>
+						<ul class="list-disc list-inside space-y-1">
+							{#each fields as field}
+								<li class="text-sm text-red-800">{field}</li>
+							{/each}
+						</ul>
+					</div>
+				{/each}
 			</div>
-			{#if isComplete}
-				<Badge variant="default" class="bg-green-100 text-green-800">
-					<CheckCircle class="mr-1 h-4 w-4" />
-					Complete
-				</Badge>
-			{:else}
-				<Badge variant="secondary">
-					<AlertCircle class="mr-1 h-4 w-4" />
-					In Progress
-				</Badge>
-			{/if}
-		</div>
-
-		<div class="mt-4">
-			<div class="flex items-center justify-between text-sm">
-				<span class="font-medium text-gray-700">Progress</span>
-				<span class="text-gray-600">
-					{completedTabs} of {totalTabs} sections complete ({progressPercentage}%)
-				</span>
+			<div class="mt-6 flex justify-end">
+				<Button onclick={() => showValidationModal = false}>
+					Close
+				</Button>
 			</div>
-			<div class="mt-2 h-2 w-full overflow-hidden rounded-full bg-gray-200">
-				<div
-					class="h-full transition-all duration-300 {isComplete ? 'bg-green-600' : 'bg-blue-600'}"
-					style="width: {progressPercentage}%"
-				></div>
-			</div>
-		</div>
-
-		{#if !isComplete}
-			<div class="mt-4 rounded-md bg-yellow-50 p-4">
-				<p class="text-sm text-yellow-800">
-					Please complete all assessment sections before generating documents.
-				</p>
-			</div>
-		{/if}
-	</Card>
+		</DialogContent>
+	</Dialog>
 
 	<!-- Finalize Estimate Section -->
 	{#if !assessment.estimate_finalized_at}
@@ -266,41 +315,35 @@
 					</p>
 				</div>
 
-				{#if !isComplete && ENABLE_FORCE_FINALIZE}
+				{#if hasRequiredFieldsMissing}
 					<div class="rounded-md bg-yellow-50 border border-yellow-200 p-3">
-						<p class="text-xs text-yellow-800 font-medium">
-							⚠️ TESTING MODE: Force finalize is enabled. Complete all sections before using in
-							production.
+						<p class="text-sm text-yellow-800 font-medium">
+							⚠️ Some required fields are missing. Click "Mark Estimate Finalized & Sent" to see details.
 						</p>
+					</div>
+				{/if}
+
+				{#if error}
+					<div class="rounded-md bg-red-50 border border-red-200 p-3">
+						<p class="text-sm text-red-800">{error}</p>
 					</div>
 				{/if}
 
 				<div class="flex gap-3">
 					<Button
 						onclick={handleFinalizeEstimate}
-						disabled={!isComplete || finalizing}
+						disabled={finalizing}
 						class="bg-blue-600 hover:bg-blue-700"
 					>
 						{finalizing ? 'Finalizing...' : 'Mark Estimate Finalized & Sent'}
 					</Button>
-
-					{#if !isComplete && ENABLE_FORCE_FINALIZE}
-						<Button
-							onclick={handleFinalizeEstimate}
-							disabled={finalizing}
-							variant="outline"
-							class="border-orange-500 text-orange-700 hover:bg-orange-50"
-						>
-							{finalizing ? 'Finalizing...' : '🚧 Force Finalize (Testing)'}
-						</Button>
-					{/if}
 				</div>
 			</div>
 		</Card>
 	{:else}
 		<Card class="p-6 border-2 border-green-200 bg-green-50">
 			<div class="flex items-start gap-3">
-				<CheckCircle class="h-6 w-6 text-green-600 mt-0.5" />
+				<CircleCheck class="h-6 w-6 text-green-600 mt-0.5" />
 				<div>
 					<h3 class="text-lg font-semibold text-gray-900">Estimate Finalized</h3>
 					<p class="mt-1 text-sm text-gray-600">
@@ -383,7 +426,7 @@
 	<Card class="p-6">
 		<h3 class="mb-4 text-lg font-semibold text-gray-900">Quick Actions</h3>
 		<div class="flex flex-col gap-3 sm:flex-row">
-			<Button onclick={handleGenerateAll} disabled={generating.all || !isComplete} class="flex-1">
+			<Button onclick={handleGenerateAll} disabled={generating.all} class="flex-1">
 				<Package class="mr-2 h-4 w-4" />
 				{generating.all ? 'Generating All...' : 'Generate All Documents'}
 			</Button>
