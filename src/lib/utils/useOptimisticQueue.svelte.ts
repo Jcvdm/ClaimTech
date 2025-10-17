@@ -176,11 +176,25 @@ export function useOptimisticQueue<T extends { id?: string }>(
 		// 3) Merge in temp creates that parent doesn't yet have
 		const tempCreatesNotInParent = tempDrafts.filter((d) => d.id && !parentIds.has(d.id));
 
-		// 4) Final reconciled array preserves optimistic adds and hides pending deletes
-		items = [...parentFiltered, ...tempCreatesNotInParent];
+		// 3b) Preserve locally created real items not in parent yet
+		let localSnapshot: T[] = [];
+		untrack(() => { localSnapshot = items; });
+		const localRealNotInParent = localSnapshot.filter((i) =>
+			i?.id &&
+			!parentIds.has(i.id as string) &&
+			!(i.id as string).startsWith('temp-') &&
+			!pendingDeleteIds.has(i.id as string)
+		);
 
-		// 5) Clean up statuses/drafts for IDs no longer present in either parent or temp drafts
-		const presentIds = new Set<string>([...parentIds, ...tempDraftIds]);
+		// 4) Final reconciled array preserves optimistic adds and hides pending deletes
+		items = [...parentFiltered, ...tempCreatesNotInParent, ...localRealNotInParent];
+
+		// 5) Clean up statuses/drafts for IDs no longer present in either parent, temp drafts, or local-only real items
+		const presentIds = new Set<string>([
+			...parentIds,
+			...tempDraftIds,
+			...localRealNotInParent.map((i) => i.id as string)
+		]);
 
 		const newStatuses = new Map<string, QueueStatus>();
 		untrack(() => {
