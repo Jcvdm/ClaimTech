@@ -66,6 +66,79 @@ class AdditionalsService {
 	}
 
 	/**
+	 * Update rates from estimate (manual sync)
+	 * Recalculates all line items with new rates
+	 */
+	async updateRates(
+		assessmentId: string,
+		rates: {
+			repairer_id?: string | null;
+			labour_rate: number;
+			paint_rate: number;
+			vat_percentage: number;
+			oem_markup_percentage: number;
+			alt_markup_percentage: number;
+			second_hand_markup_percentage: number;
+			outwork_markup_percentage: number;
+		}
+	): Promise<AssessmentAdditionals> {
+		const additionals = await this.getByAssessment(assessmentId);
+		if (!additionals) throw new Error('Additionals record not found');
+
+		// Recalculate totals with new rates
+		const totals = this.calculateApprovedTotals(
+			additionals.line_items,
+			rates.labour_rate,
+			rates.paint_rate,
+			rates.vat_percentage,
+			rates.oem_markup_percentage,
+			rates.alt_markup_percentage,
+			rates.second_hand_markup_percentage,
+			rates.outwork_markup_percentage
+		);
+
+		const { data, error } = await supabase
+			.from('assessment_additionals')
+			.update({
+				repairer_id: rates.repairer_id,
+				labour_rate: rates.labour_rate,
+				paint_rate: rates.paint_rate,
+				vat_percentage: rates.vat_percentage,
+				oem_markup_percentage: rates.oem_markup_percentage,
+				alt_markup_percentage: rates.alt_markup_percentage,
+				second_hand_markup_percentage: rates.second_hand_markup_percentage,
+				outwork_markup_percentage: rates.outwork_markup_percentage,
+				...totals,
+				updated_at: new Date().toISOString()
+			})
+			.eq('assessment_id', assessmentId)
+			.select()
+			.single();
+
+		if (error) {
+			console.error('Error updating additionals rates:', error);
+			throw error;
+		}
+
+		// Log rate update
+		await auditService.logChange({
+			entity_type: 'estimate',
+			entity_id: assessmentId,
+			action: 'updated',
+			field_name: 'additionals_rates',
+			new_value: 'rates_synced_from_estimate',
+			metadata: {
+				labour_rate: rates.labour_rate,
+				paint_rate: rates.paint_rate,
+				vat_percentage: rates.vat_percentage,
+				repairer_id: rates.repairer_id
+			}
+		});
+
+		return data;
+	}
+
+	/**
 	 * Add a removed line item (negative values from original estimate line)
 	 * This creates a negative line item that is auto-approved to immediately affect totals
 	 */

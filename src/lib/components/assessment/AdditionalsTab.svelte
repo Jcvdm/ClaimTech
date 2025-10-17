@@ -9,7 +9,7 @@
 	import CombinedTotalsSummary from './CombinedTotalsSummary.svelte';
 	import OriginalEstimateLinesPanel from './OriginalEstimateLinesPanel.svelte';
 	import AdditionalsPhotosPanel from './AdditionalsPhotosPanel.svelte';
-	import { Check, X, Clock, Trash2, RotateCcw, Undo2 } from 'lucide-svelte';
+	import { Check, X, Clock, Trash2, RotateCcw, Undo2, AlertTriangle, RefreshCw } from 'lucide-svelte';
 	import type {
 		AssessmentAdditionals,
 		AdditionalLineItem,
@@ -69,6 +69,21 @@
 		return map;
 	});
 
+	// Check if rates differ between estimate and additionals
+	let ratesDiffer = $derived(() => {
+		if (!additionals) return false;
+		return (
+			estimate.labour_rate !== additionals.labour_rate ||
+			estimate.paint_rate !== additionals.paint_rate ||
+			estimate.vat_percentage !== additionals.vat_percentage ||
+			estimate.oem_markup_percentage !== additionals.oem_markup_percentage ||
+			estimate.alt_markup_percentage !== additionals.alt_markup_percentage ||
+			estimate.second_hand_markup_percentage !== additionals.second_hand_markup_percentage ||
+			estimate.outwork_markup_percentage !== additionals.outwork_markup_percentage ||
+			estimate.repairer_id !== additionals.repairer_id
+		);
+	});
+
 	// Load or create additionals
 	async function loadAdditionals() {
 		loading = true;
@@ -89,6 +104,44 @@
 			}
 		} catch (err) {
 			error = err instanceof Error ? err.message : 'Failed to load additionals';
+		} finally {
+			loading = false;
+		}
+	}
+
+	// Sync rates from estimate
+	async function handleSyncRates() {
+		if (!additionals) return;
+
+		const confirmed = confirm(
+			'This will update all additionals rates to match the current estimate rates and recalculate all line items. This action cannot be undone. Continue?'
+		);
+
+		if (!confirmed) return;
+
+		try {
+			error = null;
+			loading = true;
+
+			// Service updates DB and returns updated additionals
+			const updatedAdditionals = await additionalsService.updateRates(assessmentId, {
+				repairer_id: estimate.repairer_id,
+				labour_rate: estimate.labour_rate,
+				paint_rate: estimate.paint_rate,
+				vat_percentage: estimate.vat_percentage,
+				oem_markup_percentage: estimate.oem_markup_percentage,
+				alt_markup_percentage: estimate.alt_markup_percentage,
+				second_hand_markup_percentage: estimate.second_hand_markup_percentage,
+				outwork_markup_percentage: estimate.outwork_markup_percentage
+			});
+
+			// Update local state
+			additionals = updatedAdditionals;
+
+			// Notify parent to refresh
+			await onUpdate();
+		} catch (err) {
+			error = err instanceof Error ? err.message : 'Failed to sync rates';
 		} finally {
 			loading = false;
 		}
@@ -336,6 +389,94 @@
 			</p>
 		</Card>
 
+		<!-- Rates Mismatch Warning Banner -->
+		{#if ratesDiffer()}
+			<Card class="p-4 bg-yellow-50 border-2 border-yellow-400">
+				<div class="flex items-start gap-3">
+					<AlertTriangle class="h-5 w-5 text-yellow-600 mt-0.5 flex-shrink-0" />
+					<div class="flex-1">
+						<h4 class="font-semibold text-yellow-900">Rates Mismatch Detected</h4>
+						<p class="text-sm text-yellow-800 mt-1">
+							The estimate rates have changed since this additionals record was created.
+							Additionals are using the original rates from finalization time to preserve the audit trail.
+						</p>
+						<div class="mt-3 grid grid-cols-2 gap-4 text-xs">
+							<div class="space-y-1">
+								<p class="font-semibold text-yellow-900">Original Rates (Additionals):</p>
+								{#if estimate.repairer_id !== additionals.repairer_id}
+									<p class="text-yellow-700">
+										Repairer: {repairers.find(r => r.id === additionals.repairer_id)?.name || 'None'}
+									</p>
+								{/if}
+								{#if estimate.labour_rate !== additionals.labour_rate}
+									<p class="text-yellow-700">Labour: R{additionals.labour_rate}/hr</p>
+								{/if}
+								{#if estimate.paint_rate !== additionals.paint_rate}
+									<p class="text-yellow-700">Paint: R{additionals.paint_rate}/panel</p>
+								{/if}
+								{#if estimate.vat_percentage !== additionals.vat_percentage}
+									<p class="text-yellow-700">VAT: {additionals.vat_percentage}%</p>
+								{/if}
+								{#if estimate.oem_markup_percentage !== additionals.oem_markup_percentage}
+									<p class="text-yellow-700">OEM Markup: {additionals.oem_markup_percentage}%</p>
+								{/if}
+								{#if estimate.alt_markup_percentage !== additionals.alt_markup_percentage}
+									<p class="text-yellow-700">ALT Markup: {additionals.alt_markup_percentage}%</p>
+								{/if}
+								{#if estimate.second_hand_markup_percentage !== additionals.second_hand_markup_percentage}
+									<p class="text-yellow-700">2nd Hand Markup: {additionals.second_hand_markup_percentage}%</p>
+								{/if}
+								{#if estimate.outwork_markup_percentage !== additionals.outwork_markup_percentage}
+									<p class="text-yellow-700">Outwork Markup: {additionals.outwork_markup_percentage}%</p>
+								{/if}
+							</div>
+							<div class="space-y-1">
+								<p class="font-semibold text-yellow-900">Current Rates (Estimate):</p>
+								{#if estimate.repairer_id !== additionals.repairer_id}
+									<p class="text-yellow-700">
+										Repairer: {repairers.find(r => r.id === estimate.repairer_id)?.name || 'None'}
+									</p>
+								{/if}
+								{#if estimate.labour_rate !== additionals.labour_rate}
+									<p class="text-yellow-700">Labour: R{estimate.labour_rate}/hr</p>
+								{/if}
+								{#if estimate.paint_rate !== additionals.paint_rate}
+									<p class="text-yellow-700">Paint: R{estimate.paint_rate}/panel</p>
+								{/if}
+								{#if estimate.vat_percentage !== additionals.vat_percentage}
+									<p class="text-yellow-700">VAT: {estimate.vat_percentage}%</p>
+								{/if}
+								{#if estimate.oem_markup_percentage !== additionals.oem_markup_percentage}
+									<p class="text-yellow-700">OEM Markup: {estimate.oem_markup_percentage}%</p>
+								{/if}
+								{#if estimate.alt_markup_percentage !== additionals.alt_markup_percentage}
+									<p class="text-yellow-700">ALT Markup: {estimate.alt_markup_percentage}%</p>
+								{/if}
+								{#if estimate.second_hand_markup_percentage !== additionals.second_hand_markup_percentage}
+									<p class="text-yellow-700">2nd Hand Markup: {estimate.second_hand_markup_percentage}%</p>
+								{/if}
+								{#if estimate.outwork_markup_percentage !== additionals.outwork_markup_percentage}
+									<p class="text-yellow-700">Outwork Markup: {estimate.outwork_markup_percentage}%</p>
+								{/if}
+							</div>
+						</div>
+						<div class="mt-4 flex justify-end">
+							<Button
+								size="sm"
+								variant="outline"
+								onclick={handleSyncRates}
+								disabled={loading}
+								class="border-yellow-600 text-yellow-900 hover:bg-yellow-100"
+							>
+								<RefreshCw class="h-4 w-4 mr-2" />
+								Sync Rates from Estimate
+							</Button>
+						</div>
+					</div>
+				</div>
+			</Card>
+		{/if}
+
 		<!-- Combined Totals Summary with Risk Indicator -->
 		<CombinedTotalsSummary
 			{estimate}
@@ -352,10 +493,19 @@
 
 		<!-- Rates Display (Read-only) -->
 		<RatesAndRepairerConfiguration
-			estimate={additionals}
-			repairers={repairers}
+			repairerId={additionals.repairer_id}
+			{repairers}
+			labourRate={additionals.labour_rate}
+			paintRate={additionals.paint_rate}
+			vatPercentage={additionals.vat_percentage}
+			oemMarkup={additionals.oem_markup_percentage}
+			altMarkup={additionals.alt_markup_percentage}
+			secondHandMarkup={additionals.second_hand_markup_percentage}
+			outworkMarkup={additionals.outwork_markup_percentage}
+			onUpdateRates={() => {}}
+			onUpdateRepairer={() => {}}
+			onRepairersUpdate={() => {}}
 			disabled={true}
-			onUpdate={() => {}}
 		/>
 
 		<!-- Quick Add Line Item -->
