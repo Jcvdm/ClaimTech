@@ -235,7 +235,7 @@ export class AssessmentService {
 	 */
 	async updateAssessmentStatus(
 		id: string,
-		status: 'in_progress' | 'completed' | 'submitted'
+		status: 'in_progress' | 'completed' | 'submitted' | 'archived'
 	): Promise<Assessment> {
 		const updateData: UpdateAssessmentInput = { status };
 
@@ -244,6 +244,8 @@ export class AssessmentService {
 		} else if (status === 'submitted') {
 			updateData.submitted_at = new Date().toISOString();
 		}
+		// Note: 'archived' status is set when FRC is completed
+		// No specific timestamp field needed as FRC has completed_at
 
 		return this.updateAssessment(id, updateData);
 	}
@@ -410,6 +412,55 @@ export class AssessmentService {
 		} catch (auditError) {
 			console.error('Error logging audit change:', auditError);
 		}
+	}
+
+	/**
+	 * List archived assessments for archive page
+	 * Joins with appointments, inspections, requests, and clients
+	 * Only returns assessments with 'archived' status (FRC completed)
+	 */
+	async listArchivedAssessments(): Promise<any[]> {
+		const { data, error } = await supabase
+			.from('assessments')
+			.select(`
+				*,
+				appointment:appointments!inner(
+					id,
+					inspection:inspections!inner(
+						id,
+						request:requests!inner(
+							id,
+							request_number,
+							vehicle_make,
+							vehicle_model,
+							vehicle_year,
+							vehicle_registration,
+							client:clients!inner(
+								id,
+								name,
+								type
+							)
+						)
+					)
+				)
+			`)
+			.eq('status', 'archived')
+			.order('updated_at', { ascending: false });
+
+		if (error) {
+			console.error('Error listing archived assessments:', error);
+			return [];
+		}
+
+		return data || [];
+	}
+
+	/**
+	 * @deprecated Use listArchivedAssessments instead
+	 * List completed assessments for archive
+	 */
+	async listCompletedAssessments(): Promise<any[]> {
+		return this.listArchivedAssessments();
 	}
 }
 

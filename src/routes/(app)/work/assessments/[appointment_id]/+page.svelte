@@ -577,9 +577,10 @@
 
 	async function handleCompleteEstimate() {
 		await assessmentService.markTabCompleted(data.assessment.id, 'estimate');
-		await assessmentService.updateAssessmentStatus(data.assessment.id, 'completed');
-		// Redirect to appointment (data will be fresh on next page)
-		goto(`/work/appointments/${data.appointment.id}`);
+		// Note: Status remains 'in_progress' until estimate is finalized
+		// This keeps the assessment in the Open Assessments list
+		// Redirect to finalize tab to complete the process
+		goto(`/work/assessments/${data.appointment.id}?tab=finalize`);
 	}
 
 	// Document generation handlers

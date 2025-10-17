@@ -223,7 +223,7 @@
 		{#if selectedInspection}
 			<SummaryComponent
 				inspection={selectedInspection}
-				request={data.requests.find((r) => r.id === selectedInspection.request_id) || null}
+				request={data.requests?.find((r) => r.id === selectedInspection?.request_id) || null}
 				client={selectedClient}
 				showAssessmentData={false}
 			/>

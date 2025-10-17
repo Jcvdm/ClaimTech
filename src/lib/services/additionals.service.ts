@@ -797,6 +797,112 @@ class AdditionalsService {
 			total_approved: Math.round(total * 100) / 100
 		};
 	}
+
+	/**
+	 * List all additionals records
+	 * Joins with assessments, appointments, inspections, requests, and clients
+	 * Excludes assessments where FRC has been started
+	 */
+	async listAdditionals(): Promise<any[]> {
+		const { data, error } = await supabase
+			.from('assessment_additionals')
+			.select(`
+				*,
+				assessment:assessments!inner(
+					id,
+					assessment_number,
+					appointment:appointments!inner(
+						id,
+						inspection:inspections!inner(
+							id,
+							request:requests!inner(
+								id,
+								request_number,
+								vehicle_make,
+								vehicle_model,
+								vehicle_year,
+								vehicle_registration,
+								client:clients!inner(
+									id,
+									name,
+									type
+								)
+							)
+						)
+					)
+				)
+			`)
+			.order('created_at', { ascending: false });
+
+		if (error) {
+			console.error('Error listing additionals:', error);
+			return [];
+		}
+
+		// Get assessment IDs that have FRC started
+		const { data: frcData } = await supabase.from('assessment_frc').select('assessment_id');
+
+		const assessmentsWithFRC = new Set((frcData || []).map((f) => f.assessment_id));
+
+		// Filter out additionals where FRC has been started
+		const filteredData = (data || []).filter(
+			(record) => !assessmentsWithFRC.has(record.assessment_id)
+		);
+
+		return filteredData;
+	}
+
+	/**
+	 * Get count of additionals with pending items
+	 * Excludes assessments where FRC has been started
+	 */
+	async getPendingCount(): Promise<number> {
+		// Get all additionals with pending items
+		const { data: additionalsData, error } = await supabase
+			.from('assessment_additionals')
+			.select('assessment_id, line_items');
+
+		if (error) {
+			console.error('Error counting pending additionals:', error);
+			return 0;
+		}
+
+		// Filter to only those with pending items
+		const withPending = (additionalsData || []).filter((record) => {
+			const lineItems = record.line_items as AdditionalLineItem[];
+			return lineItems.some((item) => item.status === 'pending');
+		});
+
+		// Get assessment IDs that have FRC started
+		const { data: frcData } = await supabase
+			.from('assessment_frc')
+			.select('assessment_id');
+
+		const assessmentsWithFRC = new Set((frcData || []).map((f) => f.assessment_id));
+
+		// Count only additionals where FRC hasn't been started
+		const pendingCount = withPending.filter(
+			(a) => !assessmentsWithFRC.has(a.assessment_id)
+		).length;
+
+		return pendingCount;
+	}
+
+	/**
+	 * Get total count of additionals records
+	 */
+	async getTotalCount(): Promise<number> {
+		const { count, error } = await supabase
+			.from('assessment_additionals')
+			.select('*', { count: 'exact', head: true });
+
+		if (error) {
+			console.error('Error counting additionals:', error);
+			return 0;
+		}
+
+		return count || 0;
+	}
 }
 
 export const additionalsService = new AdditionalsService();

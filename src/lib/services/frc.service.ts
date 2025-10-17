@@ -428,6 +428,37 @@ class FRCService {
 			throw new Error(`Failed to complete FRC: ${error.message}`);
 		}
 
+		// Update assessment status to 'archived' when FRC is completed
+		// This moves the assessment from Finalized Assessments to Archive
+		try {
+			const { error: assessmentError } = await supabase
+				.from('assessments')
+				.update({ status: 'archived', updated_at: now })
+				.eq('id', frc.assessment_id);
+
+			if (assessmentError) {
+				console.error('Error updating assessment status to archived:', assessmentError);
+				// Don't throw - FRC is already completed, just log the error
+			} else {
+				// Log assessment status change
+				await auditService.logChange({
+					entity_type: 'assessment',
+					entity_id: frc.assessment_id,
+					action: 'status_changed',
+					field_name: 'status',
+					old_value: 'submitted',
+					new_value: 'archived',
+					metadata: {
+						reason: 'FRC completed and signed off',
+						frc_id: frcId
+					}
+				});
+			}
+		} catch (assessmentUpdateError) {
+			console.error('Error in assessment status update:', assessmentUpdateError);
+			// Continue - FRC completion is the primary operation
+		}
+
 		// Log audit with sign-off details
 		await auditService.logChange({
 			entity_type: 'frc',
@@ -448,6 +479,28 @@ class FRCService {
 	}
 
 	/**
+	 * Reopen a completed FRC
+	 * Resets status to 'in_progress' and clears sign-off fields
+	 * Also updates assessment status from 'archived' back to 'submitted'
+	 */
+	async reopenFRC(frcId: string): Promise<void> {
+		const response = await fetch(`/api/frc/${frcId}/reopen`, {
+			method: 'POST',
+			headers: {
+				'Content-Type': 'application/json'
+			}
+		});
+
+		if (!response.ok) {
+			const error = await response.json();
+			throw new Error(error.error || 'Failed to reopen FRC');
+		}
+
+		const result = await response.json();
+		return result;
+	}
+
+	/**
 	 * Get FRC by ID
 	 */
 	async getById(id: string): Promise<FinalRepairCosting | null> {
@@ -463,6 +516,90 @@ class FRCService {
 		}
 
 		return data;
+	}
+
+	/**
+	 * List all FRC records with optional status filter
+	 * Joins with assessments, appointments, inspections, requests, and clients
+	 */
+	async listFRC(filters?: {
+		status?: 'not_started' | 'in_progress' | 'completed';
+	}): Promise<any[]> {
+		let query = supabase
+			.from('assessment_frc')
+			.select(`
+				*,
+				assessment:assessments!inner(
+					id,
+					assessment_number,
+					appointment:appointments!inner(
+						id,
+						inspection:inspections!inner(
+							id,
+							request:requests!inner(
+								id,
+								request_number,
+								vehicle_make,
+								vehicle_model,
+								vehicle_year,
+								vehicle_registration,
+								client:clients!inner(
+									id,
+									name,
+									type
+								)
+							)
+						)
+					)
+				)
+			`)
+			.order('started_at', { ascending: false });
+
+		if (filters?.status) {
+			query = query.eq('status', filters.status);
+		}
+
+		const { data, error } = await query;
+
+		if (error) {
+			console.error('Error listing FRC records:', error);
+			return [];
+		}
+
+		return data || [];
+	}
+
+	/**
+	 * Get count of FRC records by status
+	 */
+	async getCountByStatus(status: 'not_started' | 'in_progress' | 'completed'): Promise<number> {
+		const { count, error } = await supabase
+			.from('assessment_frc')
+			.select('*', { count: 'exact', head: true })
+			.eq('status', status);
+
+		if (error) {
+			console.error('Error counting FRC records:', error);
+			return 0;
+		}
+
+		return count || 0;
+	}
+
+	/**
+	 * Get count of all FRC records
+	 */
+	async getTotalCount(): Promise<number> {
+		const { count, error } = await supabase
+			.from('assessment_frc')
+			.select('*', { count: 'exact', head: true });
+
+		if (error) {
+			console.error('Error counting FRC records:', error);
+			return 0;
+		}
+
+		return count || 0;
 	}
 }
 

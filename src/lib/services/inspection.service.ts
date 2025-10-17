@@ -292,6 +292,40 @@ export class InspectionService {
 
 		return data;
 	}
+
+	/**
+	 * List completed inspections for archive
+	 * Joins with requests and clients
+	 */
+	async listCompletedInspections(): Promise<any[]> {
+		const { data, error } = await supabase
+			.from('inspections')
+			.select(`
+				*,
+				request:requests!inner(
+					id,
+					request_number,
+					vehicle_make,
+					vehicle_model,
+					vehicle_year,
+					vehicle_registration,
+					client:clients!inner(
+						id,
+						name,
+						type
+					)
+				)
+			`)
+			.eq('status', 'completed')
+			.order('updated_at', { ascending: false });
+
+		if (error) {
+			console.error('Error listing completed inspections:', error);
+			return [];
+		}
+
+		return data || [];
+	}
 }
 
 export const inspectionService = new InspectionService();

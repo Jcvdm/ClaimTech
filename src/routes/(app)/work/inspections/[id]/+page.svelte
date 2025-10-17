@@ -155,8 +155,10 @@
 			});
 
 			showAppointmentModal = false;
-			// Refresh page to show updated engineer assignment
-			goto(`/work/inspections/${data.inspection.id}`);
+
+			// ✅ Refresh page data to show updated engineer assignment
+			// Uses invalidateAll to refetch page data (best practice from REFRESH_FIX_IMPLEMENTATION_COMPLETE.md)
+			await goto(`/work/inspections/${data.inspection.id}`, { invalidateAll: true });
 		} catch (err) {
 			console.error('Error appointing engineer:', err);
 			error = err instanceof Error ? err.message : 'Failed to appoint engineer';

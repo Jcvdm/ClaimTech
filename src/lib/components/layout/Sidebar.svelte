@@ -5,6 +5,8 @@
 	import { browser } from '$app/environment';
 	import { inspectionService } from '$lib/services/inspection.service';
 	import { assessmentService } from '$lib/services/assessment.service';
+	import { frcService } from '$lib/services/frc.service';
+	import { additionalsService } from '$lib/services/additionals.service';
 	import type { ComponentType } from 'svelte';
 	import {
 		LayoutDashboard,
@@ -18,7 +20,8 @@
 		UserPlus,
 		Calendar,
 		ClipboardList,
-		Wrench
+		Wrench,
+		Archive
 	} from 'lucide-svelte';
 
 	type NavItem = {
@@ -36,9 +39,12 @@
 	let inspectionCount = $state(0);
 	let assessmentCount = $state(0);
 	let finalizedAssessmentCount = $state(0);
+	let frcCount = $state(0);
+	let additionalsCount = $state(0);
 	let pollingInterval: ReturnType<typeof setInterval> | null = null;
 
-	const navigation: NavGroup[] = [
+	// Reactive navigation with badge counts
+	const navigation = $derived([
 		{
 			label: 'General',
 			items: [{ label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard }]
@@ -57,12 +63,13 @@
 		{
 			label: 'Work',
 			items: [
-				{ label: 'Inspections', href: '/work/inspections', icon: ClipboardCheck },
+				{ label: 'Inspections', href: '/work/inspections', icon: ClipboardCheck, badge: inspectionCount },
 				{ label: 'Appointments', href: '/work/appointments', icon: Calendar },
-				{ label: 'Open Assessments', href: '/work/assessments', icon: ClipboardList },
-				{ label: 'Finalized Assessments', href: '/work/finalized-assessments', icon: FileCheck },
-				{ label: 'FRC', href: '/work/frc', icon: FileCheck },
-				{ label: 'Additionals', href: '/work/additionals', icon: Plus }
+				{ label: 'Open Assessments', href: '/work/assessments', icon: ClipboardList, badge: assessmentCount },
+				{ label: 'Finalized Assessments', href: '/work/finalized-assessments', icon: FileCheck, badge: finalizedAssessmentCount },
+				{ label: 'FRC', href: '/work/frc', icon: FileCheck, badge: frcCount },
+				{ label: 'Additionals', href: '/work/additionals', icon: Plus, badge: additionalsCount },
+				{ label: 'Archive', href: '/work/archive', icon: Archive }
 			]
 		},
 		{
@@ -80,7 +87,7 @@
 			label: 'Settings',
 			items: [{ label: 'Company Settings', href: '/settings', icon: Settings }]
 		}
-	];
+	]);
 
 	function isActive(href: string): boolean {
 		return $page.url.pathname === href || $page.url.pathname.startsWith(href + '/');
@@ -110,11 +117,29 @@
 		}
 	}
 
+	async function loadFRCCount() {
+		try {
+			frcCount = await frcService.getCountByStatus('in_progress');
+		} catch (error) {
+			console.error('Error loading FRC count:', error);
+		}
+	}
+
+	async function loadAdditionalsCount() {
+		try {
+			additionalsCount = await additionalsService.getPendingCount();
+		} catch (error) {
+			console.error('Error loading additionals count:', error);
+		}
+	}
+
 	async function loadAllCounts() {
 		await Promise.all([
 			loadInspectionCount(),
 			loadAssessmentCount(),
-			loadFinalizedAssessmentCount()
+			loadFinalizedAssessmentCount(),
+			loadFRCCount(),
+			loadAdditionalsCount()
 		]);
 	}
 

@@ -1,5 +1,7 @@
 // Assessment status types
-export type AssessmentStatus = 'in_progress' | 'completed' | 'submitted';
+// Flow: in_progress → submitted (finalized) → archived (FRC completed)
+// Note: 'completed' status is deprecated and should not be used
+export type AssessmentStatus = 'in_progress' | 'completed' | 'submitted' | 'archived';
 
 // Vehicle condition types
 export type VehicleCondition = 'excellent' | 'very_good' | 'good' | 'fair' | 'poor' | 'very_poor';

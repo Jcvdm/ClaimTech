@@ -6,7 +6,7 @@ This document explains the complete workflow for processing vehicle damage claim
 
 ## 📊 **Workflow Overview**
 
-Claimtech uses a **phase-based workflow** where each work item moves through distinct phases. Each item appears in **only ONE list at a time**, making it easy to find and manage work.
+Claimtech uses a **phase-based workflow** where each work item moves through distinct phases. Items move forward through the workflow as actions are completed.
 
 ```
 ┌─────────────┐
@@ -25,14 +25,51 @@ Claimtech uses a **phase-based workflow** where each work item moves through dis
        │ [Start Assessment]
        ↓
 ┌─────────────┐
-│ ASSESSMENTS │  Active vehicle assessments in progress
+│ASSESSMENTS  │  Active vehicle assessments in progress
+│(in_progress)│  Status: 'in_progress'
 └──────┬──────┘
-       │ [Complete Assessment]
+       │ [Complete All Tabs + Finalize Estimate]
        ↓
 ┌─────────────┐
-│    QUOTE    │  Awaiting quote/estimate
+│ FINALIZED   │  Estimates finalized and sent to client
+│ ASSESSMENTS │  Status: 'submitted'
+│(submitted)  │  Can add Additionals and start FRC
+└──────┬──────┘
+       │ [Complete FRC + Sign Off]
+       ↓
+┌─────────────┐
+│   ARCHIVE   │  Completed work with FRC signed off
+│ (archived)  │  Status: 'archived'
 └─────────────┘
 ```
+
+---
+
+## 🎯 **Assessment Status Flow**
+
+Understanding how assessment statuses work:
+
+| **Status** | **Meaning** | **Where It Shows** | **Next Step** |
+|-----------|-------------|-------------------|---------------|
+| `in_progress` | Assessment is being worked on | Open Assessments | Complete all tabs + Finalize Estimate |
+| `submitted` | Estimate finalized and sent to client | Finalized Assessments | Add Additionals / Start FRC |
+| `archived` | FRC completed and signed off | Archive | View/Download Reports |
+
+**Note:** The `completed` status is deprecated and should not be used. Assessments go directly from `in_progress` to `submitted` when the estimate is finalized.
+
+### **Key Workflow Points:**
+
+1. **Starting Assessment:** When you click "Start Assessment" on an appointment, the assessment is created with status `in_progress` and appears in Open Assessments.
+
+2. **Completing Estimate:** When you complete the estimate tab, you're redirected to the Finalize tab. The assessment remains `in_progress` until you finalize.
+
+3. **Finalizing Estimate:** When you finalize the estimate, the status changes to `submitted` and the assessment moves to Finalized Assessments list.
+
+4. **Adding Additionals:** Finalized assessments (`submitted` status) can have additional line items added via the Additionals tab.
+
+5. **Starting FRC:** Finalized assessments can have FRC started, which creates an FRC record and shows in the FRC list.
+
+6. **Completing FRC:** When FRC is completed and signed off, the assessment status automatically changes to `archived` and moves to the Archive.
 
 ---
 
@@ -97,16 +134,21 @@ Claimtech uses a **phase-based workflow** where each work item moves through dis
 
 ## 📅 **Phase 3: Appointments**
 
-**Location:** `/work/appointments`  
+**Location:** `/work/appointments`
 **Sidebar:** Work → Appointments
 
 ### **What Appears Here:**
-- Scheduled appointments awaiting assessment
-- **Only appointments with status: `scheduled`**
-- Appointments that haven't been started yet
+- All appointments (scheduled, in progress, completed, cancelled)
+- Filter tabs available: All, Scheduled, Confirmed, In Progress, Completed, Cancelled
+- Type filters: All, In-Person, Digital
 
 ### **Status Indicators:**
 - **Scheduled** (blue) - Ready to start assessment
+- **Confirmed** (green) - Appointment confirmed
+- **In Progress** (yellow) - Assessment in progress
+- **Completed** (gray) - Assessment completed
+- **Cancelled** (red) - Appointment cancelled
+- **Rescheduled** (purple) - Appointment rescheduled
 
 ### **Actions Available:**
 - **View Details** - Click appointment to see full information
@@ -117,7 +159,7 @@ Claimtech uses a **phase-based workflow** where each work item moves through dis
 ### **What Happens When You Start Assessment:**
 1. Assessment record is created (ASM-YYYY-NNN)
 2. Appointment status changes to `in_progress`
-3. Appointment **disappears from Appointments list**
+3. Appointment **remains visible** in Appointments list (filter to "In Progress")
 4. New assessment appears in **Open Assessments list**
 5. User is navigated to assessment page
 
@@ -169,36 +211,114 @@ Claimtech uses a **phase-based workflow** where each work item moves through dis
 
 ---
 
-## 💰 **Phase 5: Quote/Approval**
+## 💰 **Phase 5: Finalized Assessments**
 
-**Location:** `/work/frc` (Final Report Costing)  
-**Sidebar:** Work → FRC
+**Location:** `/work/finalized-assessments`
+**Sidebar:** Work → Finalized Assessments (with badge showing count)
 
 ### **What Appears Here:**
-- Completed assessments awaiting quote
-- Quotes awaiting client approval
+- Assessments where estimates have been finalized and sent to clients
+- Assessments ready for additionals or FRC
 
 ### **Actions Available:**
-- Generate quote/estimate
-- Submit for approval
-- Track approval status
+- View assessment details
+- Add additional line items (Additionals tab)
+- Start FRC process (FRC tab)
+
+---
+
+## ➕ **Phase 6: Additionals**
+
+**Location:** `/work/additionals`
+**Sidebar:** Work → Additionals (with badge showing pending count)
+
+### **What Appears Here:**
+- All assessments with additional line items
+- Filter tabs: All, Pending Items, Approved Items, Declined Items
+
+### **Information Displayed:**
+- Assessment and Request numbers
+- Client name and vehicle details
+- Pending, Approved, and Declined item counts
+- Total approved amount
+
+### **Actions Available:**
+- Click to open assessment with Additionals tab active
+- Review and approve/decline pending items
+- Add new additional line items
+
+---
+
+## 💼 **Phase 7: Final Repair Costing (FRC)**
+
+**Location:** `/work/frc`
+**Sidebar:** Work → FRC (with badge showing in-progress count)
+
+### **What Appears Here:**
+- All FRC records (assessments with FRC started)
+- Filter tabs: All, Not Started, In Progress, Completed
+
+### **Information Displayed:**
+- Assessment and Request numbers
+- Client name and vehicle details
+- FRC status
+- Line item count
+- Started and completed dates
+
+### **Actions Available:**
+- Click to open assessment with FRC tab active
+- Review quoted vs actual costs
+- Agree or adjust line items
+- Upload invoices and documents
+- Mark FRC as completed
+
+---
+
+## 📦 **Archive**
+
+**Location:** `/work/archive`
+**Sidebar:** Work → Archive
+
+### **What Appears Here:**
+- All completed requests, inspections, assessments, and FRC records
+- Unified search across all completed work
+
+### **Filter Options:**
+- **Type Tabs:** All, Requests, Inspections, Assessments, FRC
+- **Search:** By number, client, vehicle, or registration
+
+### **Information Displayed:**
+- Type badge (color-coded)
+- Number (clickable to view details)
+- Client name and type
+- Vehicle and registration
+- Status and completion date
+
+### **Actions Available:**
+- Search for past work
+- View completed item details
+- Download reports (if generated)
 
 ---
 
 ## 🎯 **Key Benefits of Phase-Based Workflow**
 
 ### **1. Clear Separation**
-- Each item appears in only ONE list at a time
-- No confusion about where to find work
+- Items move through distinct phases
+- Filter tabs show all statuses within each phase
 - Easy to see what needs action
 
 ### **2. Focused Work Lists**
-- **Inspections** - Only shows items needing engineer appointment
-- **Appointments** - Only shows scheduled appointments ready to start
-- **Assessments** - Only shows active assessments in progress
+- **Inspections** - Items needing engineer appointment
+- **Appointments** - All appointments with status filters
+- **Assessments** - Active assessments in progress
+- **Finalized Assessments** - Completed assessments ready for additionals/FRC
+- **Additionals** - Additional line items requiring approval
+- **FRC** - Final repair costing in progress
+- **Archive** - All completed work searchable in one place
 
 ### **3. Visual Progress Tracking**
-- Sidebar badges show counts of pending items
+- Sidebar badges show counts of pending/active items
 - Color-coded status indicators
 - Progress percentages for assessments
 - Phase icons in requests list
@@ -219,14 +339,20 @@ Claimtech uses a **phase-based workflow** where each work item moves through dis
 | Schedule appointments | Work → Inspections (after appointing engineer) |
 | Start assessments | Work → Appointments |
 | Continue assessments | Work → Open Assessments |
-| Generate quotes | Work → FRC |
+| Finalize assessments | Work → Open Assessments (complete all tabs) |
+| Add additional items | Work → Additionals |
+| Start FRC process | Work → FRC |
+| Search past work | Work → Archive |
 
 ---
 
 ## 🔔 **Sidebar Badge Indicators**
 
-- **Inspections Badge** - Shows count of inspections awaiting engineer appointment (status: pending)
-- **Open Assessments Badge** - Shows count of assessments in progress (status: in_progress)
+- **Inspections Badge** - Count of inspections awaiting engineer appointment (status: pending)
+- **Open Assessments Badge** - Count of assessments in progress (status: in_progress)
+- **Finalized Assessments Badge** - Count of finalized assessments (status: submitted)
+- **FRC Badge** - Count of FRC records in progress (status: in_progress)
+- **Additionals Badge** - Count of assessments with pending additional items
 
 ---
 
@@ -244,14 +370,18 @@ Claimtech uses a **phase-based workflow** where each work item moves through dis
 
 ---
 
-## 🚀 **Getting Started**
+## 🚀 **Getting Started - Complete Workflow**
 
 1. **New Request Arrives** → Go to Requests
 2. **Accept Request** → Creates inspection in Inspections list
 3. **Appoint Engineer** → Inspection moves to scheduled status
 4. **Schedule Appointment** → Creates appointment in Appointments list
-5. **Start Assessment** → Opens assessment page, appears in Open Assessments
-6. **Complete Assessment** → Ready for quote generation
+5. **Start Assessment** → Opens assessment page, appears in Open Assessments (status: in_progress)
+6. **Complete All Tabs + Finalize Estimate** → Moves to Finalized Assessments (status: submitted)
+7. **Add Additionals (if needed)** → Appears in Additionals list
+8. **Start FRC** → Appears in FRC list
+9. **Complete FRC + Sign Off** → Assessment status changes to 'archived', moves to Archive
+10. **Search Past Work** → Use Archive page
 
 ---
 

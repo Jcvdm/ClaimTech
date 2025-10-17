@@ -61,12 +61,12 @@
 		];
 
 		// Add Additionals tab if estimate is finalized
-		if (assessment.estimate_finalized_at) {
+		if (assessment?.estimate_finalized_at) {
 			baseTabs.push({ id: 'additionals', label: 'Additionals', icon: Plus });
 		}
 
 		// Add FRC tab if assessment is closed (submitted)
-		if (assessment.status === 'submitted') {
+		if (assessment?.status === 'submitted') {
 			baseTabs.push({ id: 'frc', label: 'FRC', icon: FileCheck });
 		}
 
@@ -74,11 +74,11 @@
 	});
 
 	const totalTabs = $derived(tabs().length);
-	const completedCount = $derived(assessment.tabs_completed?.length || 0);
+	const completedCount = $derived(assessment?.tabs_completed?.length || 0);
 	const progressPercentage = $derived(Math.round((completedCount / totalTabs) * 100));
 
 	function isTabCompleted(tabId: string): boolean {
-		return assessment.tabs_completed?.includes(tabId) || false;
+		return assessment?.tabs_completed?.includes(tabId) || false;
 	}
 
 	function handleTabClick(tabId: string) {

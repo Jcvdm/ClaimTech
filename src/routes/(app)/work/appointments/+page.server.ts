@@ -11,8 +11,8 @@ export const load: PageServerLoad = async () => {
 			engineerService.listEngineers(true)
 		]);
 
-		// Only show scheduled appointments (hide in_progress, completed, cancelled)
-		const appointments = allAppointments.filter((apt) => apt.status === 'scheduled');
+		// Return all appointments (filtering will be done client-side)
+		const appointments = allAppointments;
 
 		// Create lookup maps for efficient access
 		const clientMap = Object.fromEntries(clients.map((c) => [c.id, c]));

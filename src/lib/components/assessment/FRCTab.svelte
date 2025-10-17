@@ -71,6 +71,10 @@
 	// Sign-off modal state
 	let showSignOffModal = $state(false);
 
+	// Reopen FRC modal state
+	let showReopenModal = $state(false);
+	let reopening = $state(false);
+
 	// Load FRC and additionals
 	async function loadFRC() {
 		loading = true;
@@ -289,6 +293,25 @@
 		}
 	}
 
+	// Reopen FRC
+	async function handleReopenFRC() {
+		if (!frc) return;
+
+		reopening = true;
+		error = null;
+		try {
+			await frcService.reopenFRC(frc.id);
+			showReopenModal = false;
+			// Reload FRC to get updated status
+			await loadFRC();
+			await onUpdate();
+		} catch (err) {
+			error = err instanceof Error ? err.message : 'Failed to reopen FRC';
+		} finally {
+			reopening = false;
+		}
+	}
+
 	// Calculate deltas for display
 	const quotedVsActual = $derived(() => {
 		if (!frc) return null;
@@ -402,6 +425,9 @@
 							{/if}
 						</div>
 					</div>
+					<Button variant="outline" size="sm" onclick={() => (showReopenModal = true)}>
+						Reopen FRC
+					</Button>
 				</div>
 			</Card>
 		{/if}
@@ -902,3 +928,45 @@
 		onCancel={() => (showSignOffModal = false)}
 	/>
 {/if}
+
+<!-- Reopen FRC Confirmation Modal -->
+<Dialog.Root open={showReopenModal} onOpenChange={(open) => (showReopenModal = open)}>
+	<Dialog.Content class="max-w-md">
+		<Dialog.Header>
+			<Dialog.Title>Reopen FRC?</Dialog.Title>
+			<Dialog.Description>
+				This will reset the FRC status to "In Progress" and move the assessment back to Finalized
+				Assessments. The sign-off details will be cleared.
+			</Dialog.Description>
+		</Dialog.Header>
+
+		<div class="space-y-4 py-4">
+			<div class="bg-amber-50 border border-amber-200 rounded-lg p-3">
+				<p class="text-sm text-amber-800">
+					<strong>Warning:</strong> This action will:
+				</p>
+				<ul class="mt-2 text-xs text-amber-700 space-y-1 list-disc list-inside">
+					<li>Clear the sign-off details</li>
+					<li>Reset FRC status to "In Progress"</li>
+					<li>Move assessment from Archive back to Finalized Assessments</li>
+					<li>Allow you to make changes to line item decisions</li>
+				</ul>
+			</div>
+
+			{#if error}
+				<div class="p-3 bg-red-50 border border-red-200 rounded-md">
+					<p class="text-sm text-red-800">{error}</p>
+				</div>
+			{/if}
+		</div>
+
+		<Dialog.Footer>
+			<Button variant="outline" onclick={() => (showReopenModal = false)} disabled={reopening}>
+				Cancel
+			</Button>
+			<Button onclick={handleReopenFRC} disabled={reopening} class="bg-amber-600 hover:bg-amber-700">
+				{reopening ? 'Reopening...' : 'Reopen FRC'}
+			</Button>
+		</Dialog.Footer>
+	</Dialog.Content>
+</Dialog.Root>
