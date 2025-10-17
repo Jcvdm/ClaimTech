@@ -11,8 +11,10 @@
 	import { Textarea } from '$lib/components/ui/textarea';
 	import { Label } from '$lib/components/ui/label';
 	import { CheckCircle } from 'lucide-svelte';
+	import type { Engineer } from '$lib/types/engineer';
 
 	interface Props {
+		engineer?: Engineer | null;
 		onConfirm: (signOffData: {
 			name: string;
 			email: string;
@@ -22,11 +24,12 @@
 		onCancel: () => void;
 	}
 
-	let { onConfirm, onCancel }: Props = $props();
+	let { engineer, onConfirm, onCancel }: Props = $props();
 
-	let name = $state('');
-	let email = $state('');
-	let role = $state('');
+	// Pre-populate fields from engineer data if available
+	let name = $state(engineer?.name || '');
+	let email = $state(engineer?.email || '');
+	let role = $state(engineer?.specialization || '');
 	let notes = $state('');
 	let errors = $state<Record<string, string>>({});
 

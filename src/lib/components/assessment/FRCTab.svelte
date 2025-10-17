@@ -25,6 +25,7 @@
 		AssessmentAdditionals,
 		VehicleValues
 	} from '$lib/types/assessment';
+	import type { Engineer } from '$lib/types/engineer';
 	import { frcService } from '$lib/services/frc.service';
 	import { frcDocumentsService } from '$lib/services/frc-documents.service';
 	import { additionalsService } from '$lib/services/additionals.service';
@@ -36,10 +37,11 @@
 		assessmentId: string;
 		estimate: Estimate;
 		vehicleValues: VehicleValues | null;
+		engineer?: Engineer | null;
 		onUpdate: () => Promise<void>;
 	}
 
-	let { assessmentId, estimate, vehicleValues, onUpdate }: Props = $props();
+	let { assessmentId, estimate, vehicleValues, engineer, onUpdate }: Props = $props();
 
 	let frc = $state<FinalRepairCosting | null>(null);
 	let additionals = $state<AssessmentAdditionals | null>(null);
@@ -894,5 +896,9 @@
 
 <!-- Sign-Off Modal -->
 {#if showSignOffModal}
-	<FRCSignOffModal onConfirm={handleCompleteFRC} onCancel={() => (showSignOffModal = false)} />
+	<FRCSignOffModal
+		engineer={engineer}
+		onConfirm={handleCompleteFRC}
+		onCancel={() => (showSignOffModal = false)}
+	/>
 {/if}

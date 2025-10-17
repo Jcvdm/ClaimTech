@@ -792,6 +792,7 @@
 			assessmentId={data.assessment.id}
 			estimate={estimate}
 			vehicleValues={data.vehicleValues}
+			engineer={data.engineer}
 			onUpdate={async () => {
 				// FRC updated, no need to reload entire page
 			}}
