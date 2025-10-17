@@ -323,7 +323,7 @@
 		<Card class="p-6 border-red-200 bg-red-50">
 			<p class="text-red-800">{error}</p>
 		</Card>
-	{:else if !frc}
+	{:else if !frc || frc.status === 'not_started'}
 		<!-- Start FRC -->
 		<Card class="p-6">
 			<div class="text-center space-y-4">
