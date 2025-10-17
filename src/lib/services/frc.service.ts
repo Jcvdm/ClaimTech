@@ -45,8 +45,34 @@ class FRCService {
 	): Promise<FinalRepairCosting> {
 		// Check if FRC already exists
 		const existing = await this.getByAssessment(assessmentId);
+
 		if (existing) {
-			throw new Error('FRC already exists for this assessment');
+			// If FRC exists with 'not_started' status, delete it to start fresh
+			if (existing.status === 'not_started') {
+				const { error: deleteError } = await supabase
+					.from('assessment_frc')
+					.delete()
+					.eq('id', existing.id);
+
+				if (deleteError) {
+					console.error('Error deleting not_started FRC:', deleteError);
+					throw new Error(`Failed to clear previous FRC: ${deleteError.message}`);
+				}
+
+				// Log deletion
+				await auditService.logChange({
+					entity_type: 'frc',
+					entity_id: existing.id,
+					action: 'updated',
+					field_name: 'status',
+					old_value: 'not_started',
+					new_value: 'deleted_for_restart',
+					metadata: { assessment_id: assessmentId }
+				});
+			} else {
+				// FRC is in progress or completed - don't allow restart
+				throw new Error('FRC already exists for this assessment');
+			}
 		}
 
 		// Fetch assessment to get frozen rates and markups from finalization
