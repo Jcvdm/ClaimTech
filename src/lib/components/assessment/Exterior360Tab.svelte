@@ -4,10 +4,10 @@
 	import FormField from '$lib/components/forms/FormField.svelte';
 	import PhotoUpload from '$lib/components/forms/PhotoUpload.svelte';
 	import RequiredFieldsWarning from './RequiredFieldsWarning.svelte';
-	import { Plus, CircleCheck, Trash2 } from 'lucide-svelte';
+	import { Plus, CircleCheck, Trash2, Loader2, AlertCircle } from 'lucide-svelte';
 	import { debounce } from '$lib/utils/useUnsavedChanges.svelte';
 	import { useDraft } from '$lib/utils/useDraft.svelte';
-	import { useOptimisticArray } from '$lib/utils/useOptimisticArray.svelte';
+	import { useOptimisticQueue } from '$lib/utils/useOptimisticQueue.svelte';
 	import { onMount, onDestroy } from 'svelte';
 	import type { Exterior360, VehicleAccessory, AccessoryType } from '$lib/types/assessment';
 	import { validateExterior360 } from '$lib/utils/validation';
@@ -17,8 +17,8 @@
 		assessmentId: string;
 		accessories: VehicleAccessory[];
 		onUpdate: (data: Partial<Exterior360>) => void;
-		onAddAccessory: (accessory: { accessory_type: AccessoryType; custom_name?: string }) => void;
-		onDeleteAccessory: (id: string) => void;
+		onAddAccessory: (accessory: { accessory_type: AccessoryType; custom_name?: string }) => Promise<VehicleAccessory>;
+		onDeleteAccessory: (id: string) => Promise<void>;
 		onComplete: () => void;
 	}
 
@@ -32,8 +32,20 @@
 	const onDeleteAccessory = $derived(props.onDeleteAccessory);
 	const onComplete = $derived(props.onComplete);
 
-	// Use optimistic array for immediate UI updates
-	const accessories = useOptimisticArray(props.accessories);
+	// Use optimistic queue for immediate UI updates with status tracking
+	const accessories = useOptimisticQueue(props.accessories, {
+		onCreate: async (draft) => {
+			// Call parent handler which creates in DB and returns the created accessory
+			return await onAddAccessory({
+				accessory_type: draft.accessory_type!,
+				custom_name: draft.custom_name
+			});
+		},
+		onDelete: async (id) => {
+			// Call parent handler which handles temp ID guard and DB delete
+			await onDeleteAccessory(id);
+		}
+	});
 
 	// Initialize localStorage draft for critical fields
 	const conditionDraft = useDraft(`assessment-${assessmentId}-condition`);
@@ -189,6 +201,15 @@
 		onComplete();
 	}
 
+	// Helper functions for queue status
+	function isSaving(id: string | undefined): boolean {
+		return accessories.getStatus(id) === 'saving';
+	}
+
+	function hasError(id: string | undefined): boolean {
+		return accessories.getStatus(id) === 'error';
+	}
+
 	async function handleAddAccessory() {
 		if (selectedAccessoryType === 'custom' && !customAccessoryName.trim()) {
 			alert('Please enter a custom accessory name');
@@ -199,29 +220,24 @@
 		const accessoryType = selectedAccessoryType;
 		const accessoryName = customAccessoryName;
 
-		// Create temporary accessory for optimistic UI
-		const tempAccessory = {
-			id: `temp-${Date.now()}`,
+		// Close modal and reset form first
+		showAccessoryModal = false;
+		customAccessoryName = '';
+		selectedAccessoryType = 'mags';
+
+		// Add to optimistic queue (handles temp ID, status tracking, and DB create)
+		await accessories.add({
 			assessment_id: assessmentId,
 			accessory_type: accessoryType,
 			custom_name: accessoryType === 'custom' ? accessoryName : undefined,
 			created_at: new Date().toISOString(),
 			updated_at: new Date().toISOString()
-		};
+		} as VehicleAccessory);
+	}
 
-		// Add to optimistic array immediately for instant UI feedback
-		accessories.add(tempAccessory);
-
-		// Close modal and reset form
-		showAccessoryModal = false;
-		customAccessoryName = '';
-		selectedAccessoryType = 'mags';
-
-		// Call parent handler (will sync via $effect when complete)
-		await onAddAccessory({
-			accessory_type: accessoryType,
-			custom_name: accessoryType === 'custom' ? accessoryName : undefined
-		});
+	async function handleDeleteAccessory(id: string) {
+		// Queue handles temp ID check and DB delete
+		await accessories.remove(id);
 	}
 
 	const isComplete = $derived(
@@ -334,20 +350,41 @@
 			<div class="space-y-2">
 				{#each accessories.value as accessory}
 					<div class="flex items-center justify-between rounded-lg border p-3">
-						<div>
-							<p class="font-medium text-gray-900">
-								{accessory.accessory_type === 'custom'
-									? accessory.custom_name
-									: accessoryOptions.find((opt) => opt.value === accessory.accessory_type)?.label}
-							</p>
-							{#if accessory.condition}
-								<p class="text-sm text-gray-600">Condition: {accessory.condition}</p>
+						<div class="flex items-center gap-2">
+							<div>
+								<p class="font-medium text-gray-900">
+									{accessory.accessory_type === 'custom'
+										? accessory.custom_name
+										: accessoryOptions.find((opt) => opt.value === accessory.accessory_type)?.label}
+								</p>
+								{#if accessory.condition}
+									<p class="text-sm text-gray-600">Condition: {accessory.condition}</p>
+								{/if}
+							</div>
+
+							<!-- Status indicators -->
+							{#if isSaving(accessory.id)}
+								<Loader2 class="h-4 w-4 animate-spin text-blue-500" />
+							{:else if hasError(accessory.id)}
+								<div class="flex items-center gap-1">
+									<AlertCircle class="h-4 w-4 text-red-500" />
+									<Button
+										size="sm"
+										variant="ghost"
+										onclick={() => accessories.retry(accessory.id!)}
+										class="text-xs text-red-600 hover:text-red-700"
+									>
+										Retry
+									</Button>
+								</div>
 							{/if}
 						</div>
+
 						<Button
 							size="sm"
 							variant="outline"
-							onclick={() => onDeleteAccessory(accessory.id)}
+							onclick={() => handleDeleteAccessory(accessory.id!)}
+							disabled={isSaving(accessory.id)}
 						>
 							<Trash2 class="h-4 w-4 text-red-600" />
 						</Button>

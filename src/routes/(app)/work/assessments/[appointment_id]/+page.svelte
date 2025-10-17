@@ -39,7 +39,8 @@
 		Estimate,
 		EstimateLineItem,
 		AccessoryType,
-		AssessmentResultType
+		AssessmentResultType,
+		VehicleAccessory
 	} from '$lib/types/assessment';
 
 	let { data }: { data: PageData } = $props();
@@ -132,7 +133,7 @@
 	async function handleAddAccessory(accessory: {
 		accessory_type: AccessoryType;
 		custom_name?: string;
-	}) {
+	}): Promise<VehicleAccessory> {
 		try {
 			const newAccessory = await accessoriesService.create({
 				assessment_id: data.assessment.id,
@@ -140,18 +141,24 @@
 			});
 			// Update local state with new accessory
 			data.accessories = [...data.accessories, newAccessory];
+			return newAccessory;
 		} catch (error) {
 			console.error('Error adding accessory:', error);
+			throw error; // Propagate error for queue pattern
 		}
 	}
 
-	async function handleDeleteAccessory(id: string) {
+	async function handleDeleteAccessory(id: string): Promise<void> {
 		try {
-			await accessoriesService.delete(id);
+			// Only delete from database if it's a real UUID (not temporary)
+			if (!id.startsWith('temp-')) {
+				await accessoriesService.delete(id);
+			}
 			// Update local state by removing deleted accessory
 			data.accessories = data.accessories.filter((a) => a.id !== id);
 		} catch (error) {
 			console.error('Error deleting accessory:', error);
+			throw error; // Propagate error for queue pattern
 		}
 	}
 
