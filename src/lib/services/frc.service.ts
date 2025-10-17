@@ -373,9 +373,17 @@ class FRCService {
 	}
 
 	/**
-	 * Complete FRC
+	 * Complete FRC with sign-off details
 	 */
-	async completeFRC(frcId: string): Promise<FinalRepairCosting> {
+	async completeFRC(
+		frcId: string,
+		signOffData: {
+			name: string;
+			email: string;
+			role: string;
+			notes?: string;
+		}
+	): Promise<FinalRepairCosting> {
 		const frc = await this.getById(frcId);
 		if (!frc) {
 			throw new Error('FRC not found');
@@ -397,12 +405,19 @@ class FRCService {
 			}
 		}
 
+		const now = new Date().toISOString();
+
 		const { data, error } = await supabase
 			.from('assessment_frc')
 			.update({
 				status: 'completed',
-				completed_at: new Date().toISOString(),
-				updated_at: new Date().toISOString()
+				completed_at: now,
+				signed_off_by_name: signOffData.name,
+				signed_off_by_email: signOffData.email,
+				signed_off_by_role: signOffData.role,
+				signed_off_at: now,
+				sign_off_notes: signOffData.notes || null,
+				updated_at: now
 			})
 			.eq('id', frcId)
 			.select()
@@ -413,16 +428,19 @@ class FRCService {
 			throw new Error(`Failed to complete FRC: ${error.message}`);
 		}
 
-		// Log audit
+		// Log audit with sign-off details
 		await auditService.logChange({
 			entity_type: 'frc',
 			entity_id: frcId,
 			action: 'completed',
-			new_value: 'FRC completed',
+			new_value: 'FRC completed and signed off',
 			metadata: {
 				quoted_total: frc.quoted_total,
 				actual_total: frc.actual_total,
-				delta: frc.actual_total - frc.quoted_total
+				delta: frc.actual_total - frc.quoted_total,
+				signed_off_by: signOffData.name,
+				signed_off_email: signOffData.email,
+				signed_off_role: signOffData.role
 			}
 		});
 

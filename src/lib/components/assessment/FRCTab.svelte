@@ -7,13 +7,15 @@
 	import { Textarea } from '$lib/components/ui/textarea';
 	import { Label } from '$lib/components/ui/label';
 	import FRCLinesTable from './FRCLinesTable.svelte';
+	import FRCSignOffModal from './FRCSignOffModal.svelte';
 	import {
 		FileText,
 		Upload,
 		Trash2,
 		TrendingUp,
 		TrendingDown,
-		Minus
+		Minus,
+		CheckCircle
 	} from 'lucide-svelte';
 	import type {
 		FinalRepairCosting,
@@ -63,6 +65,9 @@
 	let uploadingDocument = $state(false);
 	let uploadError = $state<string | null>(null);
 	let fileInput = $state<HTMLInputElement>();
+
+	// Sign-off modal state
+	let showSignOffModal = $state(false);
 
 	// Load FRC and additionals
 	async function loadFRC() {
@@ -262,15 +267,20 @@
 		}
 	}
 
-	// Complete FRC
-	async function handleCompleteFRC() {
+	// Complete FRC with sign-off
+	async function handleCompleteFRC(signOffData: {
+		name: string;
+		email: string;
+		role: string;
+		notes?: string;
+	}) {
 		if (!frc) return;
-		if (!confirm('Are you sure you want to mark this FRC as completed?')) return;
 
 		try {
 			error = null;
-			const updated = await frcService.completeFRC(frc.id);
+			const updated = await frcService.completeFRC(frc.id, signOffData);
 			frc = updated;
+			showSignOffModal = false;
 			await onUpdate();
 		} catch (err) {
 			error = err instanceof Error ? err.message : 'Failed to complete FRC';
@@ -358,12 +368,41 @@
 					</p>
 				</div>
 				{#if frc.status === 'in_progress' && allLinesDecided()}
-					<Button onclick={handleCompleteFRC} size="sm">
+					<Button onclick={() => (showSignOffModal = true)} size="sm">
 						Mark as Completed
 					</Button>
 				{/if}
 			</div>
 		</Card>
+
+		<!-- Sign-Off Details (when completed) -->
+		{#if frc.status === 'completed' && frc.signed_off_by_name}
+			<Card class="p-4 bg-green-50 border-green-200">
+				<div class="flex items-start gap-3">
+					<CheckCircle class="h-5 w-5 text-green-600 mt-0.5" />
+					<div class="flex-1">
+						<p class="text-sm font-semibold text-green-900">FRC Signed Off</p>
+						<div class="mt-2 text-xs text-green-800 space-y-1">
+							<p><strong>Signed by:</strong> {frc.signed_off_by_name} ({frc.signed_off_by_role})</p>
+							<p><strong>Email:</strong> {frc.signed_off_by_email}</p>
+							<p>
+								<strong>Date:</strong>
+								{new Date(frc.signed_off_at!).toLocaleString('en-ZA', {
+									year: 'numeric',
+									month: 'short',
+									day: 'numeric',
+									hour: '2-digit',
+									minute: '2-digit'
+								})}
+							</p>
+							{#if frc.sign_off_notes}
+								<p><strong>Notes:</strong> {frc.sign_off_notes}</p>
+							{/if}
+						</div>
+					</div>
+				</div>
+			</Card>
+		{/if}
 
 		<!-- Totals Summary -->
 		<Card class="p-6">
@@ -853,3 +892,7 @@
 	</Dialog.Content>
 </Dialog.Root>
 
+<!-- Sign-Off Modal -->
+{#if showSignOffModal}
+	<FRCSignOffModal onConfirm={handleCompleteFRC} onCancel={() => (showSignOffModal = false)} />
+{/if}

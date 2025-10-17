@@ -856,6 +856,12 @@ export interface FinalRepairCosting {
 	completed_at?: string | null;
 	created_at: string;
 	updated_at: string;
+	// Sign-off details
+	signed_off_by_name?: string | null;
+	signed_off_by_email?: string | null;
+	signed_off_by_role?: string | null;
+	signed_off_at?: string | null;
+	sign_off_notes?: string | null;
 }
 
 export interface FRCDocument {
