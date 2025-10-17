@@ -145,44 +145,59 @@ export function useOptimisticQueue<T extends { id?: string }>(
 	let drafts = $state<Map<string, T>>(new Map());
 
 	// Sync with parent props whenever they change
-	// This replaces temp items with real items from DB
-	// and cleans up stale statuses
+	// Reconcile parent state with optimistic local changes
 	$effect(() => {
-		items = [...parentArray];
+		// 1) Compute helper sets without tracking local maps as dependencies
+		let parentIds = new Set<string>();
+		const pendingDeleteIds = new Set<string>();
+		const tempDrafts: T[] = [];
+		const tempDraftIds = new Set<string>();
 
-		// Clean up statuses for IDs no longer present
-		// (temp IDs that were replaced, or deleted items)
-		// Use parentArray.map() instead of items.map() to avoid reading state we just wrote
-		const presentIds = new Set(
-			parentArray.map(i => i.id).filter(Boolean) as string[]
+		parentIds = new Set(
+			parentArray.map((i) => i.id).filter(Boolean) as string[]
 		);
 
-		// Remove statuses for IDs not in current items
-		// Use untrack to avoid reading statuses as a dependency
-		const newStatuses = new Map<string, QueueStatus>();
 		untrack(() => {
 			for (const [id, status] of statuses) {
-				if (presentIds.has(id)) {
-					newStatuses.set(id, status);
+				// Real-ID deletes set to 'saving' in remove(); keep them hidden during sync
+				if (status === 'saving' && id && !id.startsWith('temp-')) pendingDeleteIds.add(id);
+			}
+			for (const [, draft] of drafts) {
+				if (draft?.id && draft.id.startsWith('temp-')) {
+					tempDrafts.push(draft);
+					tempDraftIds.add(draft.id);
 				}
 			}
 		});
-		// Only assign if size changed to avoid unnecessary writes
+
+		// 2) Start from parent but filter out items pending delete
+		const parentFiltered = parentArray.filter((i) => !pendingDeleteIds.has(i.id as string));
+
+		// 3) Merge in temp creates that parent doesn't yet have
+		const tempCreatesNotInParent = tempDrafts.filter((d) => d.id && !parentIds.has(d.id));
+
+		// 4) Final reconciled array preserves optimistic adds and hides pending deletes
+		items = [...parentFiltered, ...tempCreatesNotInParent];
+
+		// 5) Clean up statuses/drafts for IDs no longer present in either parent or temp drafts
+		const presentIds = new Set<string>([...parentIds, ...tempDraftIds]);
+
+		const newStatuses = new Map<string, QueueStatus>();
+		untrack(() => {
+			for (const [id, status] of statuses) {
+				if (presentIds.has(id)) newStatuses.set(id, status);
+			}
+		});
 		if (newStatuses.size !== statuses.size) {
 			statuses = newStatuses;
 		}
 
-		// Clean up drafts for IDs no longer present
-		// Use untrack to avoid reading drafts as a dependency
 		const newDrafts = new Map<string, T>();
 		untrack(() => {
 			for (const [id, draft] of drafts) {
-				if (presentIds.has(id)) {
-					newDrafts.set(id, draft);
-				}
+				if (presentIds.has(id)) newDrafts.set(id, draft);
 			}
 		});
-		// Only assign if size changed to avoid unnecessary writes
 		if (newDrafts.size !== drafts.size) {
 			drafts = newDrafts;
 		}

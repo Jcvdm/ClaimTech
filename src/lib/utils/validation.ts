@@ -246,40 +246,42 @@ export function validatePreIncidentEstimate(data: any): TabValidation {
  * Validate vehicle values tab
  */
 export function validateVehicleValues(vehicleValues: any): TabValidation {
+	// Normalize to TabValidation with missingFields (interface contract)
+	const missingFields: string[] = [];
+
 	if (!vehicleValues) {
+		missingFields.push('Vehicle values data not found');
 		return {
 			tabId: 'values',
 			isComplete: false,
-			errors: ['Vehicle values data not found']
+			missingFields
 		};
 	}
 
-	const errors: string[] = [];
-
 	// Required: At least one value type must be entered
 	if (!vehicleValues.trade_value && !vehicleValues.market_value && !vehicleValues.retail_value) {
-		errors.push('At least one vehicle value (Trade, Market, or Retail) is required');
+		missingFields.push('At least one vehicle value (Trade, Market, or Retail) is required');
 	}
 
 	// Required: Valuation source
 	if (!vehicleValues.sourced_from) {
-		errors.push('Valuation source is required');
+		missingFields.push('Valuation source is required');
 	}
 
 	// Required: Sourced date
 	if (!vehicleValues.sourced_date) {
-		errors.push('Sourced date is required');
+		missingFields.push('Sourced date is required');
 	}
 
 	// Required: PDF proof
 	if (!vehicleValues.valuation_pdf_url) {
-		errors.push('Valuation report PDF is required');
+		missingFields.push('Valuation report PDF is required');
 	}
 
 	return {
 		tabId: 'values',
-		isComplete: errors.length === 0,
-		errors
+		isComplete: missingFields.length === 0,
+		missingFields
 	};
 }
 
