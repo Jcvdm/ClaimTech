@@ -5,10 +5,9 @@
 	import EmptyState from '$lib/components/data/EmptyState.svelte';
 	import SummaryComponent from '$lib/components/shared/SummaryComponent.svelte';
 	import { Button } from '$lib/components/ui/button';
-	import { Badge } from '$lib/components/ui/badge';
 	import * as Dialog from '$lib/components/ui/dialog';
 	import { ClipboardCheck, ExternalLink } from 'lucide-svelte';
-	import type { Inspection, InspectionStatus } from '$lib/types/inspection';
+	import type { Inspection } from '$lib/types/inspection';
 	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();
@@ -16,8 +15,16 @@
 	let selectedInspection = $state<Inspection | null>(null);
 	let showSummary = $state(false);
 
-	// Status filter state
-	let selectedStatus = $state<InspectionStatus | 'all'>('all');
+	// Create request map for easy lookup
+	const requestMap = data.requests.reduce(
+		(acc, request) => {
+			if (request) {
+				acc[request.id] = request;
+			}
+			return acc;
+		},
+		{} as Record<string, any>
+	);
 
 	// Prepare data for table (no ID column)
 	const allInspectionsWithDetails = data.inspections.map((inspection) => ({
@@ -25,6 +32,13 @@
 		client_name: data.clientMap[inspection.client_id]?.name || 'Unknown Client',
 		vehicle_display:
 			`${inspection.vehicle_make || ''} ${inspection.vehicle_model || ''}`.trim() || '-',
+		request_date: requestMap[inspection.request_id]?.created_at
+			? new Date(requestMap[inspection.request_id].created_at).toLocaleDateString('en-ZA', {
+					year: 'numeric',
+					month: 'short',
+					day: 'numeric'
+				})
+			: '-',
 		formatted_date: new Date(inspection.created_at).toLocaleDateString('en-ZA', {
 			year: 'numeric',
 			month: 'short',
@@ -32,22 +46,8 @@
 		})
 	}));
 
-	// Filter inspections based on selected status
-	const inspectionsWithDetails = $derived(
-		selectedStatus === 'all'
-			? allInspectionsWithDetails
-			: allInspectionsWithDetails.filter((insp) => insp.status === selectedStatus)
-	);
-
-	// Count inspections by status
-	const statusCounts = $derived({
-		all: allInspectionsWithDetails.length,
-		pending: allInspectionsWithDetails.filter((i) => i.status === 'pending').length,
-		scheduled: allInspectionsWithDetails.filter((i) => i.status === 'scheduled').length,
-		in_progress: allInspectionsWithDetails.filter((i) => i.status === 'in_progress').length,
-		completed: allInspectionsWithDetails.filter((i) => i.status === 'completed').length,
-		cancelled: allInspectionsWithDetails.filter((i) => i.status === 'cancelled').length
-	});
+	// Show all inspections (no filtering)
+	const inspectionsWithDetails = $derived(allInspectionsWithDetails);
 
 	const columns = [
 		{
@@ -71,6 +71,19 @@
 			sortable: false
 		},
 		{
+			key: 'type',
+			label: 'Type',
+			sortable: true,
+			render: (value: string) => {
+				return value === 'insurance' ? 'Insurance' : 'Private';
+			}
+		},
+		{
+			key: 'request_date',
+			label: 'Request Date',
+			sortable: true
+		},
+		{
 			key: 'status',
 			label: 'Status',
 			sortable: true,
@@ -90,11 +103,6 @@
 				const className = statusClasses[value] || statusClasses.pending;
 				return `<span class="${className}">${value}</span>`;
 			}
-		},
-		{
-			key: 'formatted_date',
-			label: 'Created',
-			sortable: true
 		}
 	];
 
@@ -128,63 +136,7 @@
 		</div>
 	{/if}
 
-	<!-- Status Filter Tabs -->
-	<div class="flex gap-2 border-b border-gray-200">
-		<button
-			class="px-4 py-2 text-sm font-medium transition-colors {selectedStatus === 'all'
-				? 'border-b-2 border-blue-600 text-blue-600'
-				: 'text-gray-500 hover:text-gray-700'}"
-			onclick={() => (selectedStatus = 'all')}
-		>
-			All
-			<Badge variant="secondary" class="ml-2">{statusCounts.all}</Badge>
-		</button>
-		<button
-			class="px-4 py-2 text-sm font-medium transition-colors {selectedStatus === 'pending'
-				? 'border-b-2 border-blue-600 text-blue-600'
-				: 'text-gray-500 hover:text-gray-700'}"
-			onclick={() => (selectedStatus = 'pending')}
-		>
-			Pending
-			<Badge variant="secondary" class="ml-2">{statusCounts.pending}</Badge>
-		</button>
-		<button
-			class="px-4 py-2 text-sm font-medium transition-colors {selectedStatus === 'scheduled'
-				? 'border-b-2 border-blue-600 text-blue-600'
-				: 'text-gray-500 hover:text-gray-700'}"
-			onclick={() => (selectedStatus = 'scheduled')}
-		>
-			Scheduled
-			<Badge variant="secondary" class="ml-2">{statusCounts.scheduled}</Badge>
-		</button>
-		<button
-			class="px-4 py-2 text-sm font-medium transition-colors {selectedStatus === 'in_progress'
-				? 'border-b-2 border-blue-600 text-blue-600'
-				: 'text-gray-500 hover:text-gray-700'}"
-			onclick={() => (selectedStatus = 'in_progress')}
-		>
-			In Progress
-			<Badge variant="secondary" class="ml-2">{statusCounts.in_progress}</Badge>
-		</button>
-		<button
-			class="px-4 py-2 text-sm font-medium transition-colors {selectedStatus === 'completed'
-				? 'border-b-2 border-blue-600 text-blue-600'
-				: 'text-gray-500 hover:text-gray-700'}"
-			onclick={() => (selectedStatus = 'completed')}
-		>
-			Completed
-			<Badge variant="secondary" class="ml-2">{statusCounts.completed}</Badge>
-		</button>
-		<button
-			class="px-4 py-2 text-sm font-medium transition-colors {selectedStatus === 'cancelled'
-				? 'border-b-2 border-blue-600 text-blue-600'
-				: 'text-gray-500 hover:text-gray-700'}"
-			onclick={() => (selectedStatus = 'cancelled')}
-		>
-			Cancelled
-			<Badge variant="secondary" class="ml-2">{statusCounts.cancelled}</Badge>
-		</button>
-	</div>
+
 
 	{#if inspectionsWithDetails.length === 0}
 		<EmptyState

@@ -1,33 +1,43 @@
 import type { PageServerLoad } from './$types';
 import { requestService } from '$lib/services/request.service';
 import { inspectionService } from '$lib/services/inspection.service';
+import { appointmentService } from '$lib/services/appointment.service';
 import { assessmentService } from '$lib/services/assessment.service';
-import { frcService } from '$lib/services/frc.service';
 
 export const load: PageServerLoad = async () => {
 	try {
-		// Fetch all completed/archived items in parallel
-		const [completedRequests, completedInspections, archivedAssessments, completedFRC] =
-			await Promise.all([
-				requestService.listRequests({ status: 'completed' }),
-				inspectionService.listCompletedInspections(),
-				assessmentService.listArchivedAssessments(), // Assessments with 'archived' status
-				frcService.listFRC({ status: 'completed' })
-			]);
+		// Fetch completed (archived assessments) and all cancelled entities in parallel
+		const [
+			archivedAssessments,
+			cancelledRequests,
+			cancelledInspections,
+			cancelledAppointments,
+			cancelledAssessments
+		] = await Promise.all([
+			assessmentService.listArchivedAssessments(), // Completed = assessments with 'archived' status (FRC completed)
+			requestService.listCancelledRequests(),
+			inspectionService.listCancelledInspections(),
+			appointmentService.listCancelledAppointments(),
+			assessmentService.listCancelledAssessments()
+		]);
 
 		return {
-			completedRequests,
-			completedInspections,
-			completedAssessments: archivedAssessments, // Renamed for clarity
-			completedFRC
+			// Completed items (only archived assessments)
+			archivedAssessments,
+			// Cancelled items (all entity types)
+			cancelledRequests,
+			cancelledInspections,
+			cancelledAppointments,
+			cancelledAssessments
 		};
 	} catch (error) {
 		console.error('Error loading archive:', error);
 		return {
-			completedRequests: [],
-			completedInspections: [],
-			completedAssessments: [],
-			completedFRC: [],
+			archivedAssessments: [],
+			cancelledRequests: [],
+			cancelledInspections: [],
+			cancelledAppointments: [],
+			cancelledAssessments: [],
 			error: 'Failed to load archive'
 		};
 	}

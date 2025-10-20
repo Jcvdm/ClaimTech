@@ -237,6 +237,43 @@ export class AppointmentService {
 
 		return count || 0;
 	}
+
+	/**
+	 * List cancelled appointments with related data for archive
+	 */
+	async listCancelledAppointments(): Promise<any[]> {
+		const { data, error } = await supabase
+			.from('appointments')
+			.select(`
+				*,
+				inspection:inspections!inner(
+					id,
+					inspection_number,
+					request:requests!inner(
+						id,
+						request_number,
+						vehicle_make,
+						vehicle_model,
+						vehicle_year,
+						vehicle_registration,
+						client:clients!inner(
+							id,
+							name,
+							type
+						)
+					)
+				)
+			`)
+			.eq('status', 'cancelled')
+			.order('updated_at', { ascending: false });
+
+		if (error) {
+			console.error('Error listing cancelled appointments:', error);
+			return [];
+		}
+
+		return data || [];
+	}
 }
 
 export const appointmentService = new AppointmentService();

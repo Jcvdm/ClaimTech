@@ -49,6 +49,9 @@ export function generateEstimateHTML(data: EstimateData): string {
 	const paintTotal = lineItems.reduce((sum, item) => sum + (item.paint_cost || 0), 0);
 	const outworkNett = lineItems.reduce((sum, item) => sum + (item.outwork_charge_nett || 0), 0);
 
+	// Calculate total betterment deduction
+	const bettermentTotal = lineItems.reduce((sum, item) => sum + (item.betterment_total || 0), 0);
+
 	// Calculate aggregate markup (parts by type + outwork)
 	let partsMarkup = 0;
 	for (const item of lineItems) {
@@ -377,6 +380,11 @@ export function generateEstimateHTML(data: EstimateData): string {
 			font-weight: 600;
 		}
 
+		.breakdown-betterment {
+			color: #dc2626;
+			font-weight: 600;
+		}
+
 		.breakdown-header {
 			font-weight: bold;
 			color: #1f2937;
@@ -444,6 +452,10 @@ export function generateEstimateHTML(data: EstimateData): string {
 
 			.breakdown-markup {
 				color: #059669 !important;
+			}
+
+			.breakdown-betterment {
+				color: #dc2626 !important;
 			}
 		}
 
@@ -608,6 +620,12 @@ export function generateEstimateHTML(data: EstimateData): string {
 					<td class="breakdown-label">Markup Total</td>
 					<td class="breakdown-value breakdown-markup">${formatCurrency(markupTotal)}</td>
 				</tr>
+				${bettermentTotal > 0 ? `
+				<tr>
+					<td class="breakdown-label">Betterment Deduction</td>
+					<td class="breakdown-value" style="color: #dc2626; font-weight: 600;">-${formatCurrency(bettermentTotal)}</td>
+				</tr>
+				` : ''}
 			</table>
 		</div>
 

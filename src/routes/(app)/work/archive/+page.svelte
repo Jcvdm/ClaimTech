@@ -5,12 +5,12 @@
 	import DataTable from '$lib/components/data/DataTable.svelte';
 	import EmptyState from '$lib/components/data/EmptyState.svelte';
 	import { Badge } from '$lib/components/ui/badge';
-	import { Archive, FileText, ClipboardCheck, ClipboardList, FileCheck } from 'lucide-svelte';
+	import { Archive, FileText, ClipboardCheck, ClipboardList } from 'lucide-svelte';
 
 	let { data }: { data: PageData } = $props();
 
-	// Type filter state
-	type ArchiveType = 'all' | 'requests' | 'inspections' | 'assessments' | 'frc';
+	// Type filter state - simplified to completed/cancelled
+	type ArchiveType = 'all' | 'completed' | 'cancelled';
 	let selectedType = $state<ArchiveType>('all');
 
 	// Search state
@@ -19,13 +19,13 @@
 	// Prepare unified archive data
 	type ArchiveItem = {
 		id: string;
-		type: 'request' | 'inspection' | 'assessment' | 'frc';
+		type: 'request' | 'inspection' | 'appointment' | 'assessment';
 		number: string;
 		clientName: string;
 		clientType: string;
 		vehicle: string;
 		registration: string;
-		status: string;
+		status: 'Completed' | 'Cancelled';
 		completedDate: string;
 		formattedDate: string;
 		detailUrl: string;
@@ -33,53 +33,8 @@
 
 	const allArchiveItems: ArchiveItem[] = [];
 
-	// Add completed requests
-	data.completedRequests.forEach((request: any) => {
-		const client = request.client;
-		allArchiveItems.push({
-			id: request.id,
-			type: 'request',
-			number: request.request_number,
-			clientName: client?.name || 'Unknown Client',
-			clientType: client?.type || 'N/A',
-			vehicle: `${request.vehicle_year || ''} ${request.vehicle_make || ''} ${request.vehicle_model || ''}`.trim() || 'N/A',
-			registration: request.vehicle_registration || 'N/A',
-			status: 'Completed',
-			completedDate: request.updated_at,
-			formattedDate: new Date(request.updated_at).toLocaleDateString('en-ZA', {
-				year: 'numeric',
-				month: 'short',
-				day: 'numeric'
-			}),
-			detailUrl: `/requests/${request.id}`
-		});
-	});
-
-	// Add completed inspections
-	data.completedInspections.forEach((inspection: any) => {
-		const request = inspection.request;
-		const client = request?.client;
-		allArchiveItems.push({
-			id: inspection.id,
-			type: 'inspection',
-			number: inspection.inspection_number,
-			clientName: client?.name || 'Unknown Client',
-			clientType: client?.type || 'N/A',
-			vehicle: `${request?.vehicle_year || ''} ${request?.vehicle_make || ''} ${request?.vehicle_model || ''}`.trim() || 'N/A',
-			registration: request?.vehicle_registration || 'N/A',
-			status: 'Completed',
-			completedDate: inspection.updated_at,
-			formattedDate: new Date(inspection.updated_at).toLocaleDateString('en-ZA', {
-				year: 'numeric',
-				month: 'short',
-				day: 'numeric'
-			}),
-			detailUrl: `/work/inspections/${inspection.id}`
-		});
-	});
-
-	// Add archived assessments (status = 'archived', set when FRC is completed)
-	data.completedAssessments.forEach((assessment: any) => {
+	// COMPLETED ITEMS: Only archived assessments (FRC completed)
+	data.archivedAssessments.forEach((assessment: any) => {
 		const request = assessment.appointment?.inspection?.request;
 		const client = request?.client;
 		allArchiveItems.push({
@@ -91,8 +46,8 @@
 			vehicle: `${request?.vehicle_year || ''} ${request?.vehicle_make || ''} ${request?.vehicle_model || ''}`.trim() || 'N/A',
 			registration: request?.vehicle_registration || 'N/A',
 			status: 'Completed',
-			completedDate: assessment.completed_at || assessment.updated_at,
-			formattedDate: new Date(assessment.completed_at || assessment.updated_at).toLocaleDateString('en-ZA', {
+			completedDate: assessment.updated_at,
+			formattedDate: new Date(assessment.updated_at).toLocaleDateString('en-ZA', {
 				year: 'numeric',
 				month: 'short',
 				day: 'numeric'
@@ -101,33 +56,96 @@
 		});
 	});
 
-	// Add completed FRC
-	data.completedFRC.forEach((frc: any) => {
-		// Skip if assessment data is missing
-		if (!frc.assessment || !frc.assessment.appointment_id) {
-			console.warn('Skipping FRC with missing assessment data:', frc.id);
-			return;
-		}
+	// CANCELLED ITEMS: All entity types with cancelled status
 
-		const assessment = frc.assessment;
-		const request = assessment?.appointment?.inspection?.request;
-		const client = request?.client;
+	// Add cancelled requests
+	data.cancelledRequests.forEach((request: any) => {
+		const client = request.client;
 		allArchiveItems.push({
-			id: frc.id,
-			type: 'frc',
-			number: assessment?.assessment_number || 'N/A',
+			id: request.id,
+			type: 'request',
+			number: request.request_number,
 			clientName: client?.name || 'Unknown Client',
 			clientType: client?.type || 'N/A',
-			vehicle: `${request?.vehicle_year || ''} ${request?.vehicle_make || ''} ${request?.vehicle_model || ''}`.trim() || 'N/A',
-			registration: request?.vehicle_registration || 'N/A',
-			status: 'FRC Completed',
-			completedDate: frc.completed_at || frc.updated_at,
-			formattedDate: new Date(frc.completed_at || frc.updated_at).toLocaleDateString('en-ZA', {
+			vehicle: `${request.vehicle_year || ''} ${request.vehicle_make || ''} ${request.vehicle_model || ''}`.trim() || 'N/A',
+			registration: request.vehicle_registration || 'N/A',
+			status: 'Cancelled',
+			completedDate: request.updated_at,
+			formattedDate: new Date(request.updated_at).toLocaleDateString('en-ZA', {
 				year: 'numeric',
 				month: 'short',
 				day: 'numeric'
 			}),
-			detailUrl: `/work/assessments/${assessment?.appointment_id}?tab=frc`
+			detailUrl: `/requests/${request.id}`
+		});
+	});
+
+	// Add cancelled inspections
+	data.cancelledInspections.forEach((inspection: any) => {
+		const request = inspection.request;
+		const client = request?.client;
+		allArchiveItems.push({
+			id: inspection.id,
+			type: 'inspection',
+			number: inspection.inspection_number,
+			clientName: client?.name || 'Unknown Client',
+			clientType: client?.type || 'N/A',
+			vehicle: `${request?.vehicle_year || ''} ${request?.vehicle_make || ''} ${request?.vehicle_model || ''}`.trim() || 'N/A',
+			registration: request?.vehicle_registration || 'N/A',
+			status: 'Cancelled',
+			completedDate: inspection.updated_at,
+			formattedDate: new Date(inspection.updated_at).toLocaleDateString('en-ZA', {
+				year: 'numeric',
+				month: 'short',
+				day: 'numeric'
+			}),
+			detailUrl: `/work/inspections/${inspection.id}`
+		});
+	});
+
+	// Add cancelled appointments
+	data.cancelledAppointments.forEach((appointment: any) => {
+		const request = appointment.inspection?.request;
+		const client = request?.client;
+		allArchiveItems.push({
+			id: appointment.id,
+			type: 'appointment',
+			number: appointment.inspection?.inspection_number || 'N/A',
+			clientName: client?.name || 'Unknown Client',
+			clientType: client?.type || 'N/A',
+			vehicle: `${request?.vehicle_year || ''} ${request?.vehicle_make || ''} ${request?.vehicle_model || ''}`.trim() || 'N/A',
+			registration: request?.vehicle_registration || 'N/A',
+			status: 'Cancelled',
+			completedDate: appointment.updated_at,
+			formattedDate: new Date(appointment.updated_at).toLocaleDateString('en-ZA', {
+				year: 'numeric',
+				month: 'short',
+				day: 'numeric'
+			}),
+			detailUrl: `/work/appointments/${appointment.id}`
+		});
+	});
+
+	// Add cancelled assessments
+	data.cancelledAssessments.forEach((assessment: any) => {
+		const request = assessment.appointment?.inspection?.request;
+		const client = request?.client;
+		allArchiveItems.push({
+			id: assessment.id,
+			type: 'assessment',
+			number: assessment.assessment_number,
+			clientName: client?.name || 'Unknown Client',
+			clientType: client?.type || 'N/A',
+			vehicle: `${request?.vehicle_year || ''} ${request?.vehicle_make || ''} ${request?.vehicle_model || ''}`.trim() || 'N/A',
+			registration: request?.vehicle_registration || 'N/A',
+			status: 'Cancelled',
+			completedDate: assessment.cancelled_at || assessment.updated_at,
+			formattedDate: new Date(assessment.cancelled_at || assessment.updated_at).toLocaleDateString('en-ZA', {
+				year: 'numeric',
+				month: 'short',
+				day: 'numeric'
+			}),
+			detailUrl: `/work/assessments/${assessment.appointment_id}`
 		});
 	});
 
@@ -137,27 +155,27 @@
 	// Filter and search archive items
 	const archiveItems = $derived(
 		allArchiveItems.filter((item) => {
-			// Type filter
-			const typeMatch = selectedType === 'all' || item.type === selectedType;
-			
+			// Status filter (completed vs cancelled)
+			const statusMatch = selectedType === 'all' ||
+				(selectedType === 'completed' && item.status === 'Completed') ||
+				(selectedType === 'cancelled' && item.status === 'Cancelled');
+
 			// Search filter
-			const searchMatch = searchQuery === '' || 
+			const searchMatch = searchQuery === '' ||
 				item.number.toLowerCase().includes(searchQuery.toLowerCase()) ||
 				item.clientName.toLowerCase().includes(searchQuery.toLowerCase()) ||
 				item.vehicle.toLowerCase().includes(searchQuery.toLowerCase()) ||
 				item.registration.toLowerCase().includes(searchQuery.toLowerCase());
-			
-			return typeMatch && searchMatch;
+
+			return statusMatch && searchMatch;
 		})
 	);
 
-	// Count items by type
+	// Count items by status
 	const typeCounts = $derived({
 		all: allArchiveItems.length,
-		requests: allArchiveItems.filter((i) => i.type === 'request').length,
-		inspections: allArchiveItems.filter((i) => i.type === 'inspection').length,
-		assessments: allArchiveItems.filter((i) => i.type === 'assessment').length,
-		frc: allArchiveItems.filter((i) => i.type === 'frc').length
+		completed: allArchiveItems.filter((i) => i.status === 'Completed').length,
+		cancelled: allArchiveItems.filter((i) => i.status === 'Cancelled').length
 	});
 
 	// Type badge configuration
@@ -172,15 +190,15 @@
 			class: 'bg-blue-100 text-blue-800',
 			icon: ClipboardCheck
 		},
+		appointment: {
+			label: 'Appointment',
+			class: 'bg-yellow-100 text-yellow-800',
+			icon: ClipboardList
+		},
 		assessment: {
 			label: 'Assessment',
 			class: 'bg-purple-100 text-purple-800',
 			icon: ClipboardList
-		},
-		frc: {
-			label: 'FRC',
-			class: 'bg-green-100 text-green-800',
-			icon: FileCheck
 		}
 	};
 
@@ -233,7 +251,8 @@
 			label: 'Status',
 			sortable: true,
 			render: (value: string) => {
-				return `<span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium bg-green-100 text-green-800">${value}</span>`;
+				const isCompleted = value === 'Completed';
+				return `<span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${isCompleted ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}">${value}</span>`;
 			}
 		},
 		{
@@ -278,40 +297,22 @@
 			<Badge variant="secondary" class="ml-2">{typeCounts.all}</Badge>
 		</button>
 		<button
-			class="px-4 py-2 text-sm font-medium transition-colors {selectedType === 'requests'
+			class="px-4 py-2 text-sm font-medium transition-colors {selectedType === 'completed'
 				? 'border-b-2 border-blue-600 text-blue-600'
 				: 'text-gray-500 hover:text-gray-700'}"
-			onclick={() => (selectedType = 'requests')}
+			onclick={() => (selectedType = 'completed')}
 		>
-			Requests
-			<Badge variant="secondary" class="ml-2">{typeCounts.requests}</Badge>
+			Completed
+			<Badge variant="secondary" class="ml-2">{typeCounts.completed}</Badge>
 		</button>
 		<button
-			class="px-4 py-2 text-sm font-medium transition-colors {selectedType === 'inspections'
+			class="px-4 py-2 text-sm font-medium transition-colors {selectedType === 'cancelled'
 				? 'border-b-2 border-blue-600 text-blue-600'
 				: 'text-gray-500 hover:text-gray-700'}"
-			onclick={() => (selectedType = 'inspections')}
+			onclick={() => (selectedType = 'cancelled')}
 		>
-			Inspections
-			<Badge variant="secondary" class="ml-2">{typeCounts.inspections}</Badge>
-		</button>
-		<button
-			class="px-4 py-2 text-sm font-medium transition-colors {selectedType === 'assessments'
-				? 'border-b-2 border-blue-600 text-blue-600'
-				: 'text-gray-500 hover:text-gray-700'}"
-			onclick={() => (selectedType = 'assessments')}
-		>
-			Assessments
-			<Badge variant="secondary" class="ml-2">{typeCounts.assessments}</Badge>
-		</button>
-		<button
-			class="px-4 py-2 text-sm font-medium transition-colors {selectedType === 'frc'
-				? 'border-b-2 border-blue-600 text-blue-600'
-				: 'text-gray-500 hover:text-gray-700'}"
-			onclick={() => (selectedType = 'frc')}
-		>
-			FRC
-			<Badge variant="secondary" class="ml-2">{typeCounts.frc}</Badge>
+			Cancelled
+			<Badge variant="secondary" class="ml-2">{typeCounts.cancelled}</Badge>
 		</button>
 	</div>
 

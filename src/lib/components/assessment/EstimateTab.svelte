@@ -8,7 +8,8 @@
 	import EstimatePhotosPanel from './EstimatePhotosPanel.svelte';
 	import AssessmentResultSelector from './AssessmentResultSelector.svelte';
 	import RequiredFieldsWarning from './RequiredFieldsWarning.svelte';
-	import { Plus, Trash2, Check, CircleAlert, CircleCheck, CircleX, Info } from 'lucide-svelte';
+	import BettermentModal from './BettermentModal.svelte';
+	import { Plus, Trash2, Check, CircleAlert, CircleCheck, CircleX, Info, Percent, ShieldCheck, Package, Recycle } from 'lucide-svelte';
 	import type {
 		Estimate,
 		EstimateLineItem,
@@ -19,7 +20,7 @@
 
 	import type { Repairer } from '$lib/types/repairer';
 	import { getProcessTypeOptions, getProcessTypeConfig, getProcessTypeBadgeColor } from '$lib/constants/processTypes';
-	import { createEmptyLineItem, calculateLineItemTotal } from '$lib/utils/estimateCalculations';
+	import { createEmptyLineItem, calculateLineItemTotal, calculateBetterment } from '$lib/utils/estimateCalculations';
 	import {
 		calculateEstimateThreshold,
 		getThresholdColorClasses,
@@ -28,6 +29,7 @@
 	} from '$lib/utils/estimateThresholds';
 	import { formatCurrency } from '$lib/utils/formatters';
 	import { validateEstimate } from '$lib/utils/validation';
+	import { assessmentNotesService } from '$lib/services/assessment-notes.service';
 
 	interface Props {
 		estimate: Estimate | null;
@@ -55,6 +57,7 @@
 		onUpdateAssessmentResult: (result: AssessmentResultType | null) => void;
 		onComplete: () => void;
 		onRegisterSave?: (saveFn: () => Promise<void>) => void; // Expose save function to parent
+		onNotesUpdate?: () => void; // Callback to refresh notes display
 	}
 
 	// Make props reactive using $derived pattern
@@ -195,6 +198,82 @@
 	const onComplete = $derived(props.onComplete);
 
 	const processTypeOptions = getProcessTypeOptions();
+
+	// State for betterment modal
+	let showBettermentModal = $state(false);
+	let bettermentItem = $state<EstimateLineItem | null>(null);
+
+	function handleBettermentClick(item: EstimateLineItem) {
+		bettermentItem = item;
+		showBettermentModal = true;
+	}
+
+	async function handleBettermentSave(percentages: any) {
+		if (!bettermentItem || !localEstimate) return;
+
+		const idx = localEstimate.line_items.findIndex((i) => i.id === bettermentItem.id);
+		if (idx === -1) return;
+
+		// Update betterment percentages
+		localEstimate.line_items[idx] = {
+			...localEstimate.line_items[idx],
+			...percentages
+		};
+
+		// Recalculate betterment_total and line total
+		const item = localEstimate.line_items[idx];
+		item.betterment_total = calculateBetterment(item);
+		item.total = calculateLineItemTotal(item, localEstimate.labour_rate, localEstimate.paint_rate);
+
+		// Add betterment note to assessment notes
+		await addBettermentNote(item, percentages);
+
+		markDirty();
+		showBettermentModal = false;
+		bettermentItem = null;
+	}
+
+	// Helper function to add betterment note
+	async function addBettermentNote(item: EstimateLineItem, percentages: any) {
+		try {
+			// Build betterment details
+			const bettermentDetails = [];
+
+			if (percentages.betterment_part_percentage) {
+				bettermentDetails.push(`Part: ${percentages.betterment_part_percentage}%`);
+			}
+			if (percentages.betterment_sa_percentage) {
+				bettermentDetails.push(`S&A: ${percentages.betterment_sa_percentage}%`);
+			}
+			if (percentages.betterment_labour_percentage) {
+				bettermentDetails.push(`Labour: ${percentages.betterment_labour_percentage}%`);
+			}
+			if (percentages.betterment_paint_percentage) {
+				bettermentDetails.push(`Paint: ${percentages.betterment_paint_percentage}%`);
+			}
+			if (percentages.betterment_outwork_percentage) {
+				bettermentDetails.push(`Outwork: ${percentages.betterment_outwork_percentage}%`);
+			}
+
+			const noteText = bettermentDetails.length > 0
+				? `${bettermentDetails.join(', ')}\nTotal Deduction: ${formatCurrency(item.betterment_total || 0)}`
+				: `No percentages applied\nTotal Deduction: ${formatCurrency(item.betterment_total || 0)}`;
+
+			// Create betterment note (with deduplication)
+			await assessmentNotesService.createBettermentNote(
+				assessmentId,
+				item.id!,
+				item.description,
+				noteText,
+				item.betterment_total || 0
+			);
+
+			// Trigger parent update to refresh notes display
+			props.onNotesUpdate?.();
+		} catch (error) {
+			console.error('Error adding betterment note:', error);
+		}
+	}
 
 	// State for multi-select functionality
 	let selectedItems = $state<Set<string>>(new Set());
@@ -405,6 +484,7 @@
 }
 
 	// Calculate category totals (nett for parts/outwork; show aggregate markup separately)
+	// Now includes betterment deduction
 	const categoryTotals = $derived(() => {
 		if (!estimate) return null;
 
@@ -421,6 +501,9 @@
 		const outworkNett = vis
 			.filter((i: any) => i.process_type === 'O')
 			.reduce((sum: number, i: any) => sum + (i.outwork_charge_nett || 0), 0);
+
+		// Calculate total betterment deduction
+		const bettermentTotal = vis.reduce((sum: number, i: any) => sum + (i.betterment_total || 0), 0);
 
 		// Aggregate markup (parts by type + outwork)
 		let partsMarkup = 0;
@@ -439,7 +522,8 @@
 		const outworkMarkup = outworkNett * (percentSource.outwork_markup_percentage / 100);
 		const markupTotal = partsMarkup + outworkMarkup;
 
-		const subtotalExVat = partsNett + saTotal + labourTotal + paintTotal + outworkNett + markupTotal;
+		// Subtotal now includes betterment deduction
+		const subtotalExVat = partsNett + saTotal + labourTotal + paintTotal + outworkNett + markupTotal - bettermentTotal;
 		const vatAmount = subtotalExVat * ((percentSource.vat_percentage || 0) / 100);
 		const totalIncVat = subtotalExVat + vatAmount;
 		return {
@@ -449,6 +533,7 @@
 			paintTotal,
 			outworkTotal: outworkNett,
 			markupTotal,
+			bettermentTotal, // NEW
 			subtotalExVat,
 			vatPercentage: percentSource.vat_percentage || 0,
 			vatAmount,
@@ -610,11 +695,11 @@
 				</div>
 			</div>
 
-			<div class="rounded-lg border overflow-x-auto">
+			<div class="rounded-lg border overflow-x-auto max-h-[70vh] overflow-y-auto">
 				<Table.Root>
-					<Table.Header>
-						<Table.Row class="hover:bg-transparent">
-							<Table.Head class="w-[50px] px-3">
+					<Table.Header class="sticky top-0 z-10 bg-white">
+						<Table.Row class="hover:bg-transparent border-b-2">
+							<Table.Head class="w-[40px] px-2">
 								<input
 									type="checkbox"
 									checked={selectAll}
@@ -623,16 +708,17 @@
 									aria-label="Select all items"
 								/>
 							</Table.Head>
-							<Table.Head class="w-[60px] px-3">Type</Table.Head>
-							<Table.Head class="w-[80px] px-3">Part</Table.Head>
-							<Table.Head class="min-w-[200px] px-3">Description</Table.Head>
-							<Table.Head class="w-[140px] text-right px-3">Part Price</Table.Head>
-							<Table.Head class="w-[140px] text-right px-3">S&A</Table.Head>
-							<Table.Head class="w-[150px] text-right px-3">Labour</Table.Head>
-							<Table.Head class="w-[150px] text-right px-3">Paint</Table.Head>
-							<Table.Head class="w-[150px] text-right px-3">Outwork</Table.Head>
-							<Table.Head class="w-[160px] text-right px-3">Total</Table.Head>
-							<Table.Head class="w-[70px] px-2"></Table.Head>
+							<Table.Head class="w-[50px] px-2">Type</Table.Head>
+							<Table.Head class="w-[60px] px-2">Part</Table.Head>
+							<Table.Head class="min-w-[180px] flex-1 px-3">Description</Table.Head>
+							<Table.Head class="w-[120px] text-right px-2">Part Price</Table.Head>
+							<Table.Head class="w-[100px] text-right px-2">S&A</Table.Head>
+							<Table.Head class="w-[120px] text-right px-2">Labour</Table.Head>
+							<Table.Head class="w-[100px] text-right px-2">Paint</Table.Head>
+							<Table.Head class="w-[120px] text-right px-2">Outwork</Table.Head>
+							<Table.Head class="w-[40px] px-2 text-center" title="Betterment">%</Table.Head>
+							<Table.Head class="w-[140px] text-right px-2">Total</Table.Head>
+							<Table.Head class="w-[60px] px-2"></Table.Head>
 						</Table.Row>
 					</Table.Header>
 					<Table.Body>
@@ -687,18 +773,41 @@
 									<!-- Part Type (N only) -->
 									<Table.Cell class="px-3 py-2">
 										{#if item.process_type === 'N'}
+											<div class="relative group">
+												<!-- Hidden select for functionality -->
+												<select
+													value={item.part_type || 'OEM'}
+													onchange={(e) =>
+														handleUpdateLineItem(item.id!, 'part_type', e.currentTarget.value)}
+													class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+												>
+													<option value="OEM">OEM</option>
+													<option value="ALT">ALT</option>
+													<option value="2ND">2ND</option>
+												</select>
 
-
-											<select
-												value={item.part_type || 'OEM'}
-												onchange={(e) =>
-													handleUpdateLineItem(item.id!, 'part_type', e.currentTarget.value)}
-												class="w-full rounded-md border-0 bg-transparent px-2 py-1 text-sm focus:outline-none focus:ring-0"
-											>
-												<option value="OEM">OEM</option>
-												<option value="ALT">ALT</option>
-												<option value="2ND">2ND</option>
-											</select>
+												<!-- Visual Badge with Icon -->
+												<div class="flex items-center justify-center pointer-events-none">
+													{#if item.part_type === 'OEM'}
+														<div class="flex items-center gap-1 px-2 py-1 rounded bg-blue-100 text-blue-800">
+															<ShieldCheck class="h-3 w-3" />
+															<span class="text-xs font-semibold">OEM</span>
+														</div>
+													{:else if item.part_type === 'ALT'}
+														<div class="flex items-center gap-1 px-2 py-1 rounded bg-green-100 text-green-800">
+															<Package class="h-3 w-3" />
+															<span class="text-xs font-semibold">ALT</span>
+														</div>
+													{:else if item.part_type === '2ND'}
+														<div class="flex items-center gap-1 px-2 py-1 rounded bg-amber-100 text-amber-800">
+															<Recycle class="h-3 w-3" />
+															<span class="text-xs font-semibold">2ND</span>
+														</div>
+													{:else}
+														<span class="text-xs text-gray-500">OEM</span>
+													{/if}
+												</div>
+											</div>
 										{:else}
 											<span class="text-gray-400 text-sm">-</span>
 										{/if}
@@ -878,6 +987,23 @@
 										{/if}
 									</Table.Cell>
 
+									<!-- Betterment Icon -->
+									<Table.Cell class="px-2 py-2 text-center">
+										<button
+											onclick={() => handleBettermentClick(item)}
+											class="p-1.5 rounded-md transition-all {item.betterment_total && item.betterment_total > 0
+												? 'bg-orange-100 hover:bg-orange-200 border border-orange-300 shadow-sm'
+												: 'bg-gray-50 hover:bg-gray-100 border border-gray-200'}"
+											title="Set betterment percentages"
+										>
+											{#if item.betterment_total && item.betterment_total > 0}
+												<Percent class="h-4 w-4 text-orange-700 font-bold" />
+											{:else}
+												<Percent class="h-4 w-4 text-gray-400" />
+											{/if}
+										</button>
+									</Table.Cell>
+
 									<!-- Total -->
 									<Table.Cell class="text-right px-3 py-2 font-bold">
 										{formatCurrency(item.total)}
@@ -939,6 +1065,16 @@
 						<span class="text-sm text-gray-600">Outwork Total</span>
 						<span class="text-sm font-medium">{formatCurrency(totals?.outworkTotal || 0)}</span>
 					</div>
+
+					<!-- Betterment Deduction (NEW) -->
+					{#if totals?.bettermentTotal && totals.bettermentTotal > 0}
+						<div class="flex items-center justify-between py-2 border-t border-gray-200">
+							<span class="text-sm font-medium text-gray-900">Betterment Deduction</span>
+							<span class="text-sm font-bold text-red-600">
+								-{formatCurrency(totals.bettermentTotal)}
+							</span>
+						</div>
+					{/if}
 
 					<!-- Subtotal -->
 					<div class="flex items-center justify-between py-2 border-b-2">
@@ -1038,3 +1174,13 @@
 	{/if}
 </div>
 
+<!-- Betterment Modal -->
+<BettermentModal
+	open={showBettermentModal}
+	item={bettermentItem}
+	onClose={() => {
+		showBettermentModal = false;
+		bettermentItem = null;
+	}}
+	onSave={handleBettermentSave}
+/>

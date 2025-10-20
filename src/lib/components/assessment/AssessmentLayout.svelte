@@ -12,7 +12,8 @@
 		DollarSign,
 		ClipboardList,
 		FileCheck,
-		Plus
+		Plus,
+		Trash2
 	} from 'lucide-svelte';
 	import type { Assessment } from '$lib/types/assessment';
 	import {
@@ -39,6 +40,7 @@
 		onTabChange: (tabId: string) => void;
 		onSave: () => void;
 		onExit: () => void;
+		onCancel?: () => void;
 		saving?: boolean;
 		lastSaved?: string | null;
 		// Assessment data for validation
@@ -58,6 +60,7 @@
 		onTabChange,
 		onSave,
 		onExit,
+		onCancel = undefined,
 		saving = false,
 		lastSaved = null,
 		vehicleIdentification = null,
@@ -90,8 +93,9 @@
 			baseTabs.push({ id: 'additionals', label: 'Additionals', icon: Plus });
 		}
 
-		// Add FRC tab if assessment is closed (submitted)
-		if (assessment?.status === 'submitted') {
+		// Add FRC tab if assessment is submitted or archived (FRC in progress or completed)
+		// Keep tab visible for archived assessments so completed FRCs can be viewed and reopened
+		if (assessment?.status === 'submitted' || assessment?.status === 'archived') {
 			baseTabs.push({ id: 'frc', label: 'FRC', icon: FileCheck });
 		}
 
@@ -188,6 +192,12 @@
 						<X class="mr-2 h-4 w-4" />
 						Exit
 					</Button>
+					{#if onCancel && assessment.status === 'in_progress'}
+						<Button variant="destructive" onclick={onCancel} class="flex-1 sm:flex-none">
+							<Trash2 class="mr-2 h-4 w-4" />
+							Cancel
+						</Button>
+					{/if}
 				</div>
 			</div>
 		</div>
@@ -220,8 +230,8 @@
 	</div>
 
 	<!-- Content Area -->
-	<div class="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
-		<div class="mx-auto max-w-5xl">
+	<div class="flex-1 overflow-y-auto p-2 sm:p-3 md:p-4 lg:p-6">
+		<div class="mx-auto w-[98%] sm:w-[95%] md:w-[92%] lg:w-[90%] max-w-[1600px]">
 			<slot />
 		</div>
 	</div>

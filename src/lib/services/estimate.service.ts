@@ -13,11 +13,13 @@ import {
 	calculateTotal,
 	recalculateAllLineItems,
 	calculateLabourCost,
-	calculatePaintCost
+	calculatePaintCost,
+	calculateBetterment
 } from '$lib/utils/estimateCalculations';
 
 
 // Compute aggregate totals applying markup only at aggregate level (parts & outwork)
+// Now includes betterment deduction
 function computeAggregateTotals(
 	lineItems: EstimateLineItem[],
 	vatPercentage: number,
@@ -30,6 +32,7 @@ function computeAggregateTotals(
 	let labourTotal = 0;
 	let paintTotal = 0;
 	let outworkSellingTotal = 0;
+	let bettermentTotal = 0;
 
 	for (const item of lineItems) {
 		if (item.process_type === 'N') {
@@ -38,16 +41,35 @@ function computeAggregateTotals(
 			if (item.part_type === 'OEM') markup = oemMarkup;
 			else if (item.part_type === 'ALT') markup = altMarkup;
 			else if (item.part_type === '2ND') markup = secondHandMarkup;
-			partsSellingTotal += nett * (1 + markup / 100);
+
+			// Apply betterment to nett price before markup
+			const partBetterment = (item.betterment_part_percentage || 0) * nett / 100;
+			const nettAfterBetterment = nett - partBetterment;
+			partsSellingTotal += nettAfterBetterment * (1 + markup / 100);
 		}
 
-		labourTotal += (item.strip_assemble || 0) + (item.labour_cost || 0);
-		paintTotal += item.paint_cost || 0;
+		// Labour and S&A with betterment
+		const saAmount = item.strip_assemble || 0;
+		const saBetterment = (item.betterment_sa_percentage || 0) * saAmount / 100;
+		const labourAmount = item.labour_cost || 0;
+		const labourBetterment = (item.betterment_labour_percentage || 0) * labourAmount / 100;
+		labourTotal += (saAmount - saBetterment) + (labourAmount - labourBetterment);
+
+		// Paint with betterment
+		const paintAmount = item.paint_cost || 0;
+		const paintBetterment = (item.betterment_paint_percentage || 0) * paintAmount / 100;
+		paintTotal += paintAmount - paintBetterment;
 
 		if (item.process_type === 'O') {
 			const nett = item.outwork_charge_nett || 0;
-			outworkSellingTotal += nett * (1 + outworkMarkup / 100);
+			// Apply betterment to nett outwork before markup
+			const outworkBetterment = (item.betterment_outwork_percentage || 0) * nett / 100;
+			const nettAfterBetterment = nett - outworkBetterment;
+			outworkSellingTotal += nettAfterBetterment * (1 + outworkMarkup / 100);
 		}
+
+		// Track total betterment for reference
+		bettermentTotal += item.betterment_total || 0;
 	}
 
 	const subtotal = Number((partsSellingTotal + labourTotal + paintTotal + outworkSellingTotal).toFixed(2));

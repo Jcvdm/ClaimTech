@@ -83,6 +83,13 @@
 	let showReopenModal = $state(false);
 	let reopening = $state(false);
 
+	// FRC report generation state
+	let generatingFRC = $state(false);
+	let frcProgress = $state(0);
+	let frcProgressMessage = $state('');
+	let frcError = $state<string | null>(null);
+	let frcReportUrl = $state<string | null>(null);
+
 	// Load FRC and additionals
 	async function loadFRC() {
 		loading = true;
@@ -98,6 +105,7 @@
 
 			if (frc) {
 				documents = await frcDocumentsService.getDocumentsByFRC(frc.id);
+				frcReportUrl = frc.frc_report_url || null;
 			}
 		} catch (err) {
 			error = err instanceof Error ? err.message : 'Failed to load FRC';
@@ -281,6 +289,70 @@
 		}
 	}
 
+	// Generate FRC Report
+	async function handleGenerateFRCReport() {
+		if (!frc) return;
+
+		generatingFRC = true;
+		frcProgress = 0;
+		frcProgressMessage = '';
+		frcError = null;
+		frcReportUrl = null;
+
+		try {
+			const response = await fetch('/api/generate-frc-report', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ assessmentId })
+			});
+
+			if (!response.ok) {
+				throw new Error('Failed to start FRC report generation');
+			}
+
+			const reader = response.body?.getReader();
+			if (!reader) {
+				throw new Error('No response stream available');
+			}
+
+			const decoder = new TextDecoder();
+			let buffer = '';
+
+			while (true) {
+				const { done, value } = await reader.read();
+				if (done) break;
+
+				buffer += decoder.decode(value, { stream: true });
+				const lines = buffer.split('\n');
+				buffer = lines.pop() || '';
+
+				for (const line of lines) {
+					if (line.startsWith('data: ')) {
+						const data = JSON.parse(line.slice(6));
+
+						if (data.status === 'processing') {
+							frcProgress = data.progress;
+							frcProgressMessage = data.message;
+						} else if (data.status === 'complete') {
+							frcProgress = 100;
+							frcProgressMessage = data.message;
+							frcReportUrl = data.url;
+							// Reload FRC to get updated URL
+							await loadFRC();
+							break;
+						} else if (data.status === 'error') {
+							throw new Error(data.error);
+						}
+					}
+				}
+			}
+		} catch (err) {
+			frcError = err instanceof Error ? err.message : 'Failed to generate FRC report';
+		} finally {
+			generatingFRC = false;
+		}
+	}
+
 	// Complete FRC with sign-off
 	async function handleCompleteFRC(signOffData: {
 		name: string;
@@ -437,6 +509,73 @@
 						Reopen FRC
 					</Button>
 				</div>
+			</Card>
+		{/if}
+
+		<!-- FRC Report Generation (only show when FRC is completed) -->
+		{#if frc.status === 'completed'}
+			<Card class="p-6">
+				<div class="flex items-start justify-between mb-4">
+					<div>
+						<h3 class="text-lg font-semibold text-gray-900">FRC Report</h3>
+						<p class="text-sm text-gray-600 mt-1">
+							Generate comprehensive FRC report with settlement details and line items
+						</p>
+					</div>
+					<div class="flex gap-2">
+						{#if frc.frc_report_url && !generatingFRC}
+							<Button
+								variant="outline"
+								size="sm"
+								onclick={() => {
+									if (frc?.frc_report_url) {
+										window.open(frc.frc_report_url, '_blank');
+									}
+								}}
+							>
+								<FileText class="h-4 w-4 mr-2" />
+								View Report
+							</Button>
+						{/if}
+						<Button
+							size="sm"
+							onclick={handleGenerateFRCReport}
+							disabled={generatingFRC}
+						>
+							<FileText class="h-4 w-4 mr-2" />
+							{frc.frc_report_url ? 'Regenerate Report' : 'Generate Report'}
+						</Button>
+					</div>
+				</div>
+
+				{#if generatingFRC}
+					<div class="space-y-2">
+						<div class="flex items-center justify-between text-sm">
+							<span class="text-gray-600">{frcProgressMessage}</span>
+							<span class="font-medium text-blue-600">{frcProgress}%</span>
+						</div>
+						<div class="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
+							<div
+								class="bg-blue-600 h-2 transition-all duration-300"
+								style="width: {frcProgress}%"
+							></div>
+						</div>
+					</div>
+				{/if}
+
+				{#if frcError}
+					<div class="mt-3 p-3 bg-red-50 border border-red-200 rounded-md">
+						<p class="text-sm text-red-800">{frcError}</p>
+					</div>
+				{/if}
+
+				{#if frcReportUrl && !generatingFRC}
+					<div class="mt-3 p-3 bg-green-50 border border-green-200 rounded-md">
+						<p class="text-sm text-green-800">
+							✓ FRC report generated successfully!
+						</p>
+					</div>
+				{/if}
 			</Card>
 		{/if}
 

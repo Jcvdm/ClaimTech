@@ -3,6 +3,7 @@
 	import { cn } from '$lib/utils';
 	import { onMount } from 'svelte';
 	import { browser } from '$app/environment';
+	import { requestService } from '$lib/services/request.service';
 	import { inspectionService } from '$lib/services/inspection.service';
 	import { assessmentService } from '$lib/services/assessment.service';
 	import { frcService } from '$lib/services/frc.service';
@@ -12,7 +13,6 @@
 		LayoutDashboard,
 		Users,
 		FileText,
-		FilePlus,
 		ClipboardCheck,
 		FileCheck,
 		Plus,
@@ -36,6 +36,7 @@
 		items: NavItem[];
 	};
 
+	let newRequestCount = $state(0);
 	let inspectionCount = $state(0);
 	let assessmentCount = $state(0);
 	let finalizedAssessmentCount = $state(0);
@@ -56,8 +57,7 @@
 		{
 			label: 'Requests',
 			items: [
-				{ label: 'All Requests', href: '/requests', icon: FileText },
-				{ label: 'New Request', href: '/requests/new', icon: FilePlus }
+				{ label: 'New Requests', href: '/requests', icon: FileText, badge: newRequestCount }
 			]
 		},
 		{
@@ -91,6 +91,14 @@
 
 	function isActive(href: string): boolean {
 		return $page.url.pathname === href || $page.url.pathname.startsWith(href + '/');
+	}
+
+	async function loadNewRequestCount() {
+		try {
+			newRequestCount = await requestService.getRequestCount({ status: 'submitted' });
+		} catch (error) {
+			console.error('Error loading new request count:', error);
+		}
 	}
 
 	async function loadInspectionCount() {
@@ -135,6 +143,7 @@
 
 	async function loadAllCounts() {
 		await Promise.all([
+			loadNewRequestCount(),
 			loadInspectionCount(),
 			loadAssessmentCount(),
 			loadFinalizedAssessmentCount(),

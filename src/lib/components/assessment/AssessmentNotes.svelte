@@ -1,9 +1,10 @@
 <script lang="ts">
 	import { Card } from '$lib/components/ui/card';
-	import { Textarea } from '$lib/components/ui/textarea';
-	import { StickyNote } from 'lucide-svelte';
+	import { StickyNote, MessageSquare } from 'lucide-svelte';
 	import { assessmentNotesService } from '$lib/services/assessment-notes.service';
 	import type { AssessmentNote } from '$lib/types/assessment';
+	import NoteBubble from './NoteBubble.svelte';
+	import AddNoteInput from './AddNoteInput.svelte';
 
 	interface Props {
 		assessmentId: string;
@@ -14,85 +15,95 @@
 
 	let { assessmentId, notes, onUpdate, lastSaved = null }: Props = $props();
 
-	// Get the first (and only) note for this assessment
-	let notesText = $state(notes.length > 0 ? notes[0].note_text : '');
-	let saving = $state(false);
+	// Sort notes by created_at (oldest first for chat-style display)
+	const sortedNotes = $derived(
+		[...notes].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
+	);
 
-	// Track initial value for comparison
-	let initialValue = notes.length > 0 ? notes[0].note_text : '';
+	// Scroll to bottom when new notes are added
+	let notesContainer: HTMLDivElement;
+	$effect(() => {
+		if (notesContainer && notes.length > 0) {
+			// Small delay to ensure DOM is updated
+			setTimeout(() => {
+				notesContainer.scrollTop = notesContainer.scrollHeight;
+			}, 100);
+		}
+	});
 
-	// Auto-resize textarea as content grows
-	function handleInput(e: Event) {
-		const textarea = e.target as HTMLTextAreaElement;
-		textarea.style.height = 'auto';
-		const maxHeight = 600; // ~30 rows at default line height
-		textarea.style.height = Math.min(textarea.scrollHeight, maxHeight) + 'px';
-	}
-
-	// Save on blur (when user clicks away)
-	async function handleBlur() {
-		if (notesText !== initialValue) {
-			await handleSave();
+	async function handleAddNote(noteText: string) {
+		try {
+			await assessmentNotesService.createNote({
+				assessment_id: assessmentId,
+				note_text: noteText,
+				note_type: 'manual'
+			});
+			onUpdate();
+		} catch (error) {
+			console.error('Error adding note:', error);
+			throw error;
 		}
 	}
 
-	// Save notes using upsert pattern
-	async function handleSave() {
-		if (saving) return;
-
-		saving = true;
+	async function handleEditNote(noteId: string, noteText: string) {
 		try {
-			await assessmentNotesService.upsertNote(assessmentId, notesText);
-			initialValue = notesText; // Update initial state after successful save
+			await assessmentNotesService.updateNote(noteId, {
+				note_text: noteText,
+				is_edited: true,
+				edited_at: new Date().toISOString()
+			});
 			onUpdate();
 		} catch (error) {
-			console.error('Error saving notes:', error);
-		} finally {
-			saving = false;
+			console.error('Error editing note:', error);
+			throw error;
+		}
+	}
+
+	async function handleDeleteNote(noteId: string) {
+		try {
+			await assessmentNotesService.deleteNote(noteId);
+			onUpdate();
+		} catch (error) {
+			console.error('Error deleting note:', error);
+			throw error;
 		}
 	}
 </script>
 
 <Card class="border-blue-200 bg-blue-50/50">
-	<div class="p-6">
-		<!-- Header -->
-		<div class="mb-4 flex items-center justify-between">
-			<div class="flex items-center gap-2">
-				<StickyNote class="h-5 w-5 text-blue-600" />
-				<h3 class="text-lg font-semibold text-gray-900">Assessment Notes</h3>
-			</div>
-			<div class="text-xs text-gray-500">
-				{#if saving}
-					<span class="text-blue-600">Saving...</span>
-				{:else if lastSaved}
-					<span>Last saved: {lastSaved}</span>
-				{/if}
-			</div>
+	<!-- Header -->
+	<div class="flex items-center justify-between border-b border-blue-200 p-4">
+		<div class="flex items-center gap-2">
+			<StickyNote class="h-5 w-5 text-blue-600" />
+			<h3 class="text-lg font-semibold text-gray-900">Assessment Notes</h3>
 		</div>
-
-		<!-- Large Expandable Textarea -->
-		<Textarea
-			bind:value={notesText}
-			oninput={handleInput}
-			onblur={handleBlur}
-			placeholder="Add notes, observations, and comments about this assessment...
-
-You can add multiple lines and paragraphs here.
-- Use bullet points
-- Document findings
-- Add timestamps if needed
-
-The textarea will automatically expand as you type (up to 30 rows)."
-			rows={10}
-			class="min-h-[250px] max-h-[600px] resize-none overflow-y-auto font-mono text-sm"
-			disabled={saving}
-		/>
-
-		<!-- Footer Info -->
-		<div class="mt-2 flex items-center justify-between text-xs text-gray-500">
-			<span>{notesText.length} characters</span>
-			<span>Auto-saves every 30 seconds</span>
+		<div class="flex items-center gap-2 text-sm text-gray-600">
+			<MessageSquare class="h-4 w-4" />
+			<span>{notes.length} {notes.length === 1 ? 'note' : 'notes'}</span>
 		</div>
+	</div>
+
+	<!-- Notes List (scrollable) -->
+	<div
+		bind:this={notesContainer}
+		class="max-h-[500px] min-h-[200px] space-y-3 overflow-y-auto p-4"
+	>
+		{#if sortedNotes.length === 0}
+			<div class="flex h-[180px] flex-col items-center justify-center text-center text-gray-500">
+				<MessageSquare class="mb-2 h-12 w-12 opacity-30" />
+				<p class="text-sm font-medium">No notes yet</p>
+				<p class="text-xs">Add your first note below</p>
+			</div>
+		{:else}
+			{#each sortedNotes as note (note.id)}
+				<NoteBubble {note} onEdit={handleEditNote} onDelete={handleDeleteNote} />
+			{/each}
+		{/if}
+	</div>
+
+	<!-- Add Note Input (sticky at bottom) -->
+	<div class="border-t border-blue-200 bg-white p-4">
+		<AddNoteInput onAdd={handleAddNote} />
 	</div>
 </Card>
 

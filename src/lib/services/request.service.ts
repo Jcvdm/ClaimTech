@@ -301,6 +301,51 @@ export class RequestService {
 
 		return data || [];
 	}
+
+	/**
+	 * Get request count with optional filters
+	 */
+	async getRequestCount(filters?: { status?: RequestStatus }): Promise<number> {
+		let query = supabase.from('requests').select('*', { count: 'exact', head: true });
+
+		if (filters?.status) {
+			query = query.eq('status', filters.status);
+		}
+
+		const { count, error } = await query;
+
+		if (error) {
+			console.error('Error counting requests:', error);
+			return 0;
+		}
+
+		return count || 0;
+	}
+
+	/**
+	 * List cancelled requests with client data for archive
+	 */
+	async listCancelledRequests(): Promise<any[]> {
+		const { data, error } = await supabase
+			.from('requests')
+			.select(`
+				*,
+				client:clients!inner(
+					id,
+					name,
+					type
+				)
+			`)
+			.eq('status', 'cancelled')
+			.order('updated_at', { ascending: false });
+
+		if (error) {
+			console.error('Error listing cancelled requests:', error);
+			return [];
+		}
+
+		return data || [];
+	}
 }
 
 export const requestService = new RequestService();

@@ -235,7 +235,7 @@ export class AssessmentService {
 	 */
 	async updateAssessmentStatus(
 		id: string,
-		status: 'in_progress' | 'completed' | 'submitted' | 'archived'
+		status: 'in_progress' | 'completed' | 'submitted' | 'archived' | 'cancelled'
 	): Promise<Assessment> {
 		const updateData: UpdateAssessmentInput = { status };
 
@@ -243,6 +243,8 @@ export class AssessmentService {
 			updateData.completed_at = new Date().toISOString();
 		} else if (status === 'submitted') {
 			updateData.submitted_at = new Date().toISOString();
+		} else if (status === 'cancelled') {
+			updateData.cancelled_at = new Date().toISOString();
 		}
 		// Note: 'archived' status is set when FRC is completed
 		// No specific timestamp field needed as FRC has completed_at
@@ -254,8 +256,17 @@ export class AssessmentService {
 	 * Mark estimate as finalized and sent
 	 * Sets status to 'submitted' and records timestamp
 	 * Snapshots rates and markups for FRC consistency
+	 *
+	 * @param id - Assessment ID
+	 * @param options - Optional parameters for forced finalization
 	 */
-	async finalizeEstimate(id: string): Promise<Assessment> {
+	async finalizeEstimate(
+		id: string,
+		options?: {
+			forcedFinalization?: boolean;
+			missingFields?: Array<{ tab: string; fields: string[] }>;
+		}
+	): Promise<Assessment> {
 		const timestamp = new Date().toISOString();
 
 		// Fetch the estimate to snapshot rates and markups
@@ -303,10 +314,12 @@ export class AssessmentService {
 			entity_id: id,
 			action: 'updated',
 			field_name: 'estimate',
-			new_value: 'finalized_and_sent',
+			new_value: options?.forcedFinalization ? 'finalized_and_sent_with_missing_fields' : 'finalized_and_sent',
 			metadata: {
 				finalized_at: timestamp,
 				event: 'estimate_finalized_sent',
+				forced_finalization: options?.forcedFinalization || false,
+				missing_fields: options?.missingFields || [],
 				snapshotted_rates: {
 					labour_rate: estimate.labour_rate,
 					paint_rate: estimate.paint_rate,
@@ -461,6 +474,47 @@ export class AssessmentService {
 	 */
 	async listCompletedAssessments(): Promise<any[]> {
 		return this.listArchivedAssessments();
+	}
+
+	/**
+	 * List cancelled assessments for archive page
+	 * Joins with appointments, inspections, requests, and clients
+	 * Only returns assessments with 'cancelled' status
+	 */
+	async listCancelledAssessments(): Promise<any[]> {
+		const { data, error } = await supabase
+			.from('assessments')
+			.select(`
+				*,
+				appointment:appointments!inner(
+					id,
+					inspection:inspections!inner(
+						id,
+						request:requests!inner(
+							id,
+							request_number,
+							vehicle_make,
+							vehicle_model,
+							vehicle_year,
+							vehicle_registration,
+							client:clients!inner(
+								id,
+								name,
+								type
+							)
+						)
+					)
+				)
+			`)
+			.eq('status', 'cancelled')
+			.order('cancelled_at', { ascending: false });
+
+		if (error) {
+			console.error('Error listing cancelled assessments:', error);
+			return [];
+		}
+
+		return data || [];
 	}
 }
 

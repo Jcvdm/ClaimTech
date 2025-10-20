@@ -155,6 +155,33 @@
 		}
 	}
 
+	/**
+	 * Force finalize estimate despite missing required fields
+	 * User has acknowledged the missing fields and wants to proceed anyway
+	 */
+	async function handleForceFinalize() {
+		finalizing = true;
+		error = null;
+		try {
+			// Pass missing fields info for audit logging
+			const missingFieldsInfo = allMissingFields.map(({ tab, fields }) => ({
+				tab,
+				fields
+			}));
+
+			await assessmentService.finalizeEstimate(assessment.id, {
+				forcedFinalization: true,
+				missingFields: missingFieldsInfo
+			});
+			await invalidateAll(); // Refresh data to show finalized state
+			showValidationModal = false; // Close the modal on success
+		} catch (err) {
+			error = err instanceof Error ? err.message : 'Failed to finalize estimate';
+		} finally {
+			finalizing = false;
+		}
+	}
+
 	async function handleGenerateReport() {
 		generating.report = true;
 		progress.report = 0;
@@ -295,9 +322,21 @@
 					</div>
 				{/each}
 			</div>
-			<div class="mt-6 flex justify-end">
-				<Button onclick={() => showValidationModal = false}>
+
+			<!-- Warning about incomplete reports -->
+			<div class="mt-4 rounded-md bg-yellow-50 border border-yellow-200 p-3">
+				<p class="text-xs text-yellow-800">
+					⚠️ <strong>Warning:</strong> Finalizing with missing fields may result in incomplete reports and documents.
+					It's recommended to complete all required fields before finalizing.
+				</p>
+			</div>
+
+			<div class="mt-6 flex justify-between items-center">
+				<Button onclick={() => showValidationModal = false} variant="outline">
 					Close
+				</Button>
+				<Button onclick={handleForceFinalize} variant="destructive" disabled={finalizing}>
+					{finalizing ? 'Finalizing...' : 'Sign Off Anyway'}
 				</Button>
 			</div>
 		</DialogContent>

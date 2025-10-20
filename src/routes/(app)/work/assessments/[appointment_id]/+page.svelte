@@ -29,6 +29,8 @@
 	import { preIncidentEstimatePhotosService } from '$lib/services/pre-incident-estimate-photos.service';
 	import { vehicleValuesService } from '$lib/services/vehicle-values.service';
 	import { documentGenerationService } from '$lib/services/document-generation.service';
+	import { assessmentNotesService } from '$lib/services/assessment-notes.service';
+	import { supabase } from '$lib/supabase';
 	import type {
 		VehicleIdentification,
 		Exterior360,
@@ -70,6 +72,12 @@
 
 		// Auto-save before switching tabs
 		await handleSave();
+
+		// Refresh notes from database when switching tabs
+		// This ensures any notes added on other tabs (like betterment notes) are visible
+		const updatedNotes = await assessmentNotesService.getNotesByAssessment(data.assessment.id);
+		data.notes = updatedNotes;
+
 		currentTab = tabId;
 		await assessmentService.updateCurrentTab(data.assessment.id, tabId);
 	}
@@ -100,6 +108,23 @@
 			await preIncidentEstimateTabSaveFn();
 		}
 		goto(`/work/appointments/${data.appointment.id}`);
+	}
+
+	async function handleCancelAssessment() {
+		if (!confirm('Are you sure you want to cancel this assessment? This action cannot be undone.')) {
+			return;
+		}
+
+		try {
+			// Update assessment status to cancelled
+			await assessmentService.updateAssessmentStatus(data.assessment.id, 'cancelled');
+
+			// Navigate to archive with cancelled tab selected
+			goto('/work/archive?tab=cancelled');
+		} catch (error) {
+			console.error('Error cancelling assessment:', error);
+			alert('Failed to cancel assessment. Please try again.');
+		}
 	}
 
 	// Set up auto-save interval (every 30 seconds)
@@ -588,8 +613,17 @@
 			// Automatically open the generated PDF in a new tab
 			if (url) {
 				window.open(url, '_blank');
-				// Document URL is stored in database, will be available on next load
-				// No need to invalidate during editing
+
+				// Refresh assessment data to get the updated PDF URL
+				const { data: updatedAssessment, error } = await supabase
+					.from('assessments')
+					.select('*')
+					.eq('id', data.assessment.id)
+					.single();
+
+				if (!error && updatedAssessment) {
+					data.assessment = updatedAssessment;
+				}
 			}
 		} catch (error) {
 			console.error('Error generating document:', error);
@@ -635,8 +669,17 @@
 		generatingDocument = true; // Pause auto-save during generation
 		try {
 			await documentGenerationService.generateAllDocuments(data.assessment.id);
-			// Document URLs are stored in database, will be available on next load
-			// No need to invalidate during editing
+
+			// Refresh assessment data to get the updated PDF URLs
+			const { data: updatedAssessment, error } = await supabase
+				.from('assessments')
+				.select('*')
+				.eq('id', data.assessment.id)
+				.single();
+
+			if (!error && updatedAssessment) {
+				data.assessment = updatedAssessment;
+			}
 		} catch (error) {
 			console.error('Error generating all documents:', error);
 			throw error;
@@ -652,6 +695,7 @@
 	onTabChange={handleTabChange}
 	onSave={handleSave}
 	onExit={handleExit}
+	onCancel={handleCancelAssessment}
 	{saving}
 	{lastSaved}
 	vehicleIdentification={data.vehicleIdentification}
@@ -787,6 +831,11 @@
 			onComplete={handleCompleteEstimate}
 			onRegisterSave={(saveFn) => {
 				estimateTabSaveFn = saveFn;
+			}}
+			onNotesUpdate={async () => {
+				// Reload notes from database
+				const updatedNotes = await assessmentNotesService.getNotesByAssessment(data.assessment.id);
+				data.notes = updatedNotes;
 			}}
 		/>
 	{:else if currentTab === 'finalize'}

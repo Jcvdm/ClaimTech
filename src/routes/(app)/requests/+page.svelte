@@ -3,7 +3,6 @@
 	import PageHeader from '$lib/components/layout/PageHeader.svelte';
 	import DataTable from '$lib/components/data/DataTable.svelte';
 	import EmptyState from '$lib/components/data/EmptyState.svelte';
-	import StatusBadge from '$lib/components/data/StatusBadge.svelte';
 	import { Button } from '$lib/components/ui/button';
 	import { Badge } from '$lib/components/ui/badge';
 	import { FileText, Plus } from 'lucide-svelte';
@@ -18,15 +17,18 @@
 	let selectedStatus = $state<RequestStatus | 'all'>('all');
 
 	// Add client names and formatted dates to requests
-	const allRequestsWithDetails: RequestWithClient[] = data.requests.map((req) => ({
-		...req,
-		client_name: (data.clientMap as Record<string, string>)[req.client_id] || 'Unknown Client',
-		formatted_date: new Date(req.created_at).toLocaleDateString('en-ZA', {
-			year: 'numeric',
-			month: 'short',
-			day: 'numeric'
-		})
-	}));
+	// Only include submitted and draft requests
+	const allRequestsWithDetails: RequestWithClient[] = data.requests
+		.filter((req) => req.status === 'submitted' || req.status === 'draft')
+		.map((req) => ({
+			...req,
+			client_name: (data.clientMap as Record<string, string>)[req.client_id] || 'Unknown Client',
+			formatted_date: new Date(req.created_at).toLocaleDateString('en-ZA', {
+				year: 'numeric',
+				month: 'short',
+				day: 'numeric'
+			})
+		}));
 
 	// Filter requests based on selected status
 	const requestsWithDetails = $derived(
@@ -35,14 +37,11 @@
 			: allRequestsWithDetails.filter((req) => req.status === selectedStatus)
 	);
 
-	// Count requests by status
+	// Count requests by status (only submitted and draft)
 	const statusCounts = $derived({
 		all: allRequestsWithDetails.length,
-		draft: allRequestsWithDetails.filter((r) => r.status === 'draft').length,
 		submitted: allRequestsWithDetails.filter((r) => r.status === 'submitted').length,
-		in_progress: allRequestsWithDetails.filter((r) => r.status === 'in_progress').length,
-		completed: allRequestsWithDetails.filter((r) => r.status === 'completed').length,
-		cancelled: allRequestsWithDetails.filter((r) => r.status === 'cancelled').length
+		draft: allRequestsWithDetails.filter((r) => r.status === 'draft').length
 	});
 
 	const columns = [
@@ -57,32 +56,6 @@
 			sortable: true
 		},
 		{
-			key: 'type' as keyof RequestWithClient,
-			label: 'Type',
-			sortable: true,
-			render: (value: string) => {
-				return value === 'insurance' ? 'Insurance' : 'Private';
-			}
-		},
-		{
-			key: 'status' as keyof RequestWithClient,
-			label: 'Status',
-			sortable: true,
-			render: (value: string | null | undefined, row: RequestWithClient) => {
-				const statusValue = String(value || 'draft');
-				const statusClasses: Record<string, string> = {
-					draft: 'inline-flex items-center rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-800',
-					submitted: 'inline-flex items-center rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-medium text-blue-800',
-					in_progress: 'inline-flex items-center rounded-full bg-yellow-100 px-2.5 py-0.5 text-xs font-medium text-yellow-800',
-					completed: 'inline-flex items-center rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-800',
-					cancelled: 'inline-flex items-center rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-medium text-red-800'
-				};
-				const className = statusClasses[statusValue] || statusClasses.draft;
-				const displayValue = statusValue.replace('_', ' ');
-				return `<span class="${className}">${displayValue}</span>`;
-			}
-		},
-		{
 			key: 'vehicle_make' as keyof RequestWithClient,
 			label: 'Vehicle',
 			sortable: true,
@@ -92,42 +65,16 @@
 			}
 		},
 		{
-			key: 'current_step' as keyof RequestWithClient,
-			label: 'Current Phase',
+			key: 'type' as keyof RequestWithClient,
+			label: 'Type',
 			sortable: true,
-			render: (value: string, row: RequestWithClient) => {
-				const phases: Record<
-					string,
-					{ label: string; icon: string; color: string }
-				> = {
-					request: {
-						label: 'New Request',
-						icon: '📝',
-						color: 'bg-gray-100 text-gray-800'
-					},
-					assessment: {
-						label: 'In Assessment',
-						icon: '🔍',
-						color: 'bg-blue-100 text-blue-800'
-					},
-					quote: {
-						label: 'Awaiting Quote',
-						icon: '💰',
-						color: 'bg-purple-100 text-purple-800'
-					},
-					approval: {
-						label: 'Awaiting Approval',
-						icon: '✅',
-						color: 'bg-green-100 text-green-800'
-					}
-				};
-				const phase = phases[value] || phases.request;
-				return `<span class="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium ${phase.color}"><span>${phase.icon}</span><span>${phase.label}</span></span>`;
+			render: (value: string) => {
+				return value === 'insurance' ? 'Insurance' : 'Private';
 			}
 		},
 		{
 			key: 'formatted_date' as keyof RequestWithClient,
-			label: 'Created',
+			label: 'Date Requested',
 			sortable: true
 		}
 	];
@@ -138,7 +85,7 @@
 </script>
 
 <div class="flex-1 space-y-6 p-8">
-	<PageHeader title="Requests" description="Manage vehicle damage assessment requests">
+	<PageHeader title="New Requests" description="Review and accept new vehicle damage assessment requests">
 		{#snippet actions()}
 			<Button href="/requests/new">
 				<Plus class="mr-2 h-4 w-4" />
@@ -172,24 +119,6 @@
 		>
 			New
 			<Badge variant="secondary" class="ml-2">{statusCounts.submitted}</Badge>
-		</button>
-		<button
-			class="px-4 py-2 text-sm font-medium transition-colors {selectedStatus === 'in_progress'
-				? 'border-b-2 border-blue-600 text-blue-600'
-				: 'text-gray-500 hover:text-gray-700'}"
-			onclick={() => (selectedStatus = 'in_progress')}
-		>
-			Accepted
-			<Badge variant="secondary" class="ml-2">{statusCounts.in_progress}</Badge>
-		</button>
-		<button
-			class="px-4 py-2 text-sm font-medium transition-colors {selectedStatus === 'completed'
-				? 'border-b-2 border-blue-600 text-blue-600'
-				: 'text-gray-500 hover:text-gray-700'}"
-			onclick={() => (selectedStatus = 'completed')}
-		>
-			Completed
-			<Badge variant="secondary" class="ml-2">{statusCounts.completed}</Badge>
 		</button>
 		<button
 			class="px-4 py-2 text-sm font-medium transition-colors {selectedStatus === 'draft'

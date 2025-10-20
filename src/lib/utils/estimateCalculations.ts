@@ -2,7 +2,43 @@ import type { EstimateLineItem, ProcessType } from '$lib/types/assessment';
 import { PROCESS_TYPE_CONFIGS } from '$lib/constants/processTypes';
 
 /**
+ * Calculate betterment deduction for a line item
+ * Returns the total amount to be deducted
+ */
+export function calculateBetterment(item: EstimateLineItem): number {
+	let bettermentTotal = 0;
+
+	// Part price betterment (on nett price)
+	if (item.betterment_part_percentage && item.part_price_nett) {
+		bettermentTotal += (item.part_price_nett * item.betterment_part_percentage) / 100;
+	}
+
+	// S&A betterment
+	if (item.betterment_sa_percentage && item.strip_assemble) {
+		bettermentTotal += (item.strip_assemble * item.betterment_sa_percentage) / 100;
+	}
+
+	// Labour betterment
+	if (item.betterment_labour_percentage && item.labour_cost) {
+		bettermentTotal += (item.labour_cost * item.betterment_labour_percentage) / 100;
+	}
+
+	// Paint betterment
+	if (item.betterment_paint_percentage && item.paint_cost) {
+		bettermentTotal += (item.paint_cost * item.betterment_paint_percentage) / 100;
+	}
+
+	// Outwork betterment (on nett price)
+	if (item.betterment_outwork_percentage && item.outwork_charge_nett) {
+		bettermentTotal += (item.outwork_charge_nett * item.betterment_outwork_percentage) / 100;
+	}
+
+	return Number(bettermentTotal.toFixed(2));
+}
+
+/**
  * Calculate the total cost for a line item based on its process type
+ * Includes betterment deduction
  */
 export function calculateLineItemTotal(
 	item: EstimateLineItem,
@@ -46,6 +82,10 @@ export function calculateLineItemTotal(
 			console.warn(`Unknown process type: ${item.process_type}`);
 			total = 0;
 	}
+
+	// Calculate and subtract betterment
+	const betterment = calculateBetterment(item);
+	total = total - betterment;
 
 	return Number(total.toFixed(2));
 }
@@ -135,12 +175,23 @@ export function recalculateLineItem(
 ): EstimateLineItem {
 	const labourCost = calculateLabourCost(item.labour_hours, labourRate);
 	const paintCost = calculatePaintCost(item.paint_panels, paintRate);
-	const total = calculateLineItemTotal(item, labourRate, paintRate);
+	const stripAssemble = calculateSACost(item.strip_assemble_hours, labourRate);
 
-	return {
+	// Update item with recalculated values
+	const updatedItem = {
 		...item,
 		labour_cost: labourCost,
 		paint_cost: paintCost,
+		strip_assemble: stripAssemble
+	};
+
+	// Calculate betterment and total
+	const bettermentTotal = calculateBetterment(updatedItem);
+	const total = calculateLineItemTotal(updatedItem, labourRate, paintRate);
+
+	return {
+		...updatedItem,
+		betterment_total: bettermentTotal,
 		total
 	};
 }
@@ -215,6 +266,12 @@ export function createEmptyLineItem(processType: ProcessType): Partial<EstimateL
 		paint_cost: 0,
 		outwork_charge_nett: null,
 		outwork_charge: null,
+		betterment_part_percentage: null,
+		betterment_sa_percentage: null,
+		betterment_labour_percentage: null,
+		betterment_paint_percentage: null,
+		betterment_outwork_percentage: null,
+		betterment_total: null,
 		total: 0
 	};
 }

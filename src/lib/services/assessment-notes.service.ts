@@ -54,6 +54,8 @@ class AssessmentNotesService {
 			.insert({
 				assessment_id: input.assessment_id,
 				note_text: input.note_text,
+				note_type: input.note_type || 'manual',
+				note_title: input.note_title,
 				created_by: input.created_by
 			})
 			.select()
@@ -68,44 +70,72 @@ class AssessmentNotesService {
 	}
 
 	/**
-	 * Upsert a note (insert or update) - ensures only one note per assessment
+	 * Create a betterment note with deduplication
+	 * Checks if a betterment note already exists for the same line item and updates it instead of creating a duplicate
 	 */
-	async upsertNote(assessmentId: string, noteText: string, createdBy?: string): Promise<AssessmentNote> {
-		const { data, error } = await supabase
-			.from('assessment_notes')
-			.upsert(
-				{
-					assessment_id: assessmentId,
-					note_text: noteText,
-					created_by: createdBy,
-					updated_at: new Date().toISOString()
-				},
-				{
-					onConflict: 'assessment_id',
-					ignoreDuplicates: false
-				}
-			)
-			.select()
-			.single();
+	async createBettermentNote(
+		assessmentId: string,
+		lineItemId: string,
+		lineItemDescription: string,
+		bettermentDetails: string,
+		totalDeduction: number
+	): Promise<AssessmentNote> {
+		const noteTitle = `Betterment: ${lineItemDescription}`;
 
-		if (error) {
-			console.error('Error upserting assessment note:', error);
-			throw new Error(`Failed to upsert assessment note: ${error.message}`);
+		// Check if betterment note already exists for this line item
+		const { data: existing } = await supabase
+			.from('assessment_notes')
+			.select('*')
+			.eq('assessment_id', assessmentId)
+			.eq('note_type', 'betterment')
+			.eq('note_title', noteTitle)
+			.maybeSingle();
+
+		// If exists, update instead of creating duplicate
+		if (existing) {
+			return await this.updateNote(existing.id, {
+				note_text: bettermentDetails,
+				is_edited: true,
+				edited_at: new Date().toISOString()
+			});
 		}
 
-		return data;
+		// Create new betterment note
+		return await this.createNote({
+			assessment_id: assessmentId,
+			note_text: bettermentDetails,
+			note_type: 'betterment',
+			note_title: noteTitle
+		});
 	}
 
 	/**
 	 * Update a note
 	 */
 	async updateNote(id: string, input: UpdateAssessmentNoteInput): Promise<AssessmentNote> {
+		const updateData: any = {
+			updated_at: new Date().toISOString()
+		};
+
+		if (input.note_text !== undefined) {
+			updateData.note_text = input.note_text;
+		}
+		if (input.note_title !== undefined) {
+			updateData.note_title = input.note_title;
+		}
+		if (input.is_edited !== undefined) {
+			updateData.is_edited = input.is_edited;
+		}
+		if (input.edited_at !== undefined) {
+			updateData.edited_at = input.edited_at;
+		}
+		if (input.edited_by !== undefined) {
+			updateData.edited_by = input.edited_by;
+		}
+
 		const { data, error } = await supabase
 			.from('assessment_notes')
-			.update({
-				note_text: input.note_text,
-				updated_at: new Date().toISOString()
-			})
+			.update(updateData)
 			.eq('id', id)
 			.select()
 			.single();

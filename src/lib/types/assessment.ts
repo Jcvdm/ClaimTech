@@ -1,7 +1,8 @@
 // Assessment status types
 // Flow: in_progress → submitted (finalized) → archived (FRC completed)
 // Note: 'completed' status is deprecated and should not be used
-export type AssessmentStatus = 'in_progress' | 'completed' | 'submitted' | 'archived';
+// 'cancelled' status is used when assessment is cancelled at any stage
+export type AssessmentStatus = 'in_progress' | 'completed' | 'submitted' | 'archived' | 'cancelled';
 
 // Vehicle condition types
 export type VehicleCondition = 'excellent' | 'very_good' | 'good' | 'fair' | 'poor' | 'very_poor';
@@ -75,6 +76,7 @@ export interface Assessment {
 	started_at: string;
 	completed_at?: string | null;
 	submitted_at?: string | null;
+	cancelled_at?: string | null;
 	created_at: string;
 	updated_at: string;
 
@@ -224,14 +226,22 @@ export interface DamageRecord {
 	updated_at: string;
 }
 
-// Assessment note interface (global notes visible across all tabs)
+// Assessment note types
+export type AssessmentNoteType = 'manual' | 'betterment' | 'system';
+
+// Assessment note interface (supports multiple notes per assessment)
 export interface AssessmentNote {
 	id: string;
 	assessment_id: string;
 	note_text: string;
+	note_type: AssessmentNoteType;
+	note_title?: string | null;
 	created_by?: string | null;
 	created_at: string;
 	updated_at: string;
+	is_edited?: boolean;
+	edited_at?: string | null;
+	edited_by?: string | null;
 }
 
 // Input types for creating/updating records
@@ -355,11 +365,17 @@ export interface UpdateDamageRecordInput
 export interface CreateAssessmentNoteInput {
 	assessment_id: string;
 	note_text: string;
+	note_type?: AssessmentNoteType;
+	note_title?: string;
 	created_by?: string;
 }
 
 export interface UpdateAssessmentNoteInput {
 	note_text?: string;
+	note_title?: string;
+	is_edited?: boolean;
+	edited_at?: string;
+	edited_by?: string;
 }
 
 // Estimate line item interface with process-based fields
@@ -380,6 +396,13 @@ export interface EstimateLineItem {
 	outwork_charge_nett?: number | null; // O only - Nett outwork cost without markup (user input)
 	outwork_charge?: number | null; // O only - Selling price with markup (calculated)
 	total: number; // Sum of applicable costs
+	// Betterment fields - percentage deductions (0-100)
+	betterment_part_percentage?: number | null; // Percentage deduction on part_price_nett
+	betterment_sa_percentage?: number | null; // Percentage deduction on strip_assemble
+	betterment_labour_percentage?: number | null; // Percentage deduction on labour_cost
+	betterment_paint_percentage?: number | null; // Percentage deduction on paint_cost
+	betterment_outwork_percentage?: number | null; // Percentage deduction on outwork_charge_nett
+	betterment_total?: number | null; // Total betterment amount deducted (calculated)
 }
 
 // Assessment result type
@@ -870,6 +893,8 @@ export interface FinalRepairCosting {
 	signed_off_by_role?: string | null;
 	signed_off_at?: string | null;
 	sign_off_notes?: string | null;
+	// Generated report URL
+	frc_report_url?: string | null;
 }
 
 export interface FRCDocument {
