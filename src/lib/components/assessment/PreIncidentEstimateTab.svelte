@@ -23,10 +23,6 @@
 		assessmentId: string;
 		estimatePhotos: PreIncidentEstimatePhoto[];
 		onUpdateEstimate: (data: Partial<PreIncidentEstimate>) => void;
-		onAddLineItem: (item: EstimateLineItem) => void;
-		onUpdateLineItem: (itemId: string, data: Partial<EstimateLineItem>) => void;
-		onDeleteLineItem: (itemId: string) => void;
-		onBulkDeleteLineItems: (itemIds: string[]) => void;
 		onPhotosUpdate: () => void;
 		onUpdateRates: (
 			labourRate: number,
@@ -38,6 +34,7 @@
 			outworkMarkup: number
 		) => void;
 		onComplete: () => void;
+		onRegisterSave?: (saveFn: () => Promise<void>) => void; // Expose save function to parent
 	}
 
 	// Make props reactive using $derived pattern
@@ -48,15 +45,92 @@
 	const assessmentId = $derived(props.assessmentId);
 	const estimatePhotos = $derived(props.estimatePhotos);
 	const onUpdateEstimate = $derived(props.onUpdateEstimate);
-	const onAddLineItem = $derived(props.onAddLineItem);
-	const onUpdateLineItem = $derived(props.onUpdateLineItem);
-	const onDeleteLineItem = $derived(props.onDeleteLineItem);
-	const onBulkDeleteLineItems = $derived(props.onBulkDeleteLineItems);
 	const onPhotosUpdate = $derived(props.onPhotosUpdate);
 	const onUpdateRates = $derived(props.onUpdateRates);
 	const onComplete = $derived(props.onComplete);
+	const onRegisterSave = $derived(props.onRegisterSave);
 
 	const processTypeOptions = getProcessTypeOptions();
+
+	// Local buffer pattern (same as EstimateTab)
+	function deepClone<T>(obj: T): T {
+		try { return structuredClone(obj); } catch { return JSON.parse(JSON.stringify(obj)); }
+	}
+
+	/**
+	 * Ensure all line items have unique IDs
+	 * This handles legacy data that was saved without IDs
+	 */
+	function ensureLineItemIds(items: any[]): EstimateLineItem[] {
+		return (items ?? []).map((item) => {
+			if (item && item.id) {
+				return item;
+			}
+			// Generate ID for items without one (legacy data)
+			return { ...(item || {}), id: crypto.randomUUID() } as EstimateLineItem;
+		});
+	}
+
+	let localEstimate = $state<PreIncidentEstimate | null>(null);
+	let dirty = $state(false);
+	let saving = $state(false);
+
+	$effect(() => {
+		// When parent estimate changes and we are not dirty, resync local buffer
+		if (!dirty) {
+			if (estimate) {
+				const cloned = deepClone(estimate);
+				// Normalize line items to ensure all have IDs (handles legacy data)
+				cloned.line_items = ensureLineItemIds(cloned.line_items);
+				localEstimate = cloned;
+			} else {
+				localEstimate = null;
+			}
+		}
+	});
+
+	function markDirty() {
+		dirty = true;
+	}
+
+	async function saveAll() {
+		if (!localEstimate) return;
+		saving = true;
+		try {
+			await onUpdateEstimate({
+				line_items: localEstimate.line_items,
+				labour_rate: localEstimate.labour_rate,
+				paint_rate: localEstimate.paint_rate,
+				vat_percentage: localEstimate.vat_percentage,
+				oem_markup_percentage: localEstimate.oem_markup_percentage,
+				alt_markup_percentage: localEstimate.alt_markup_percentage,
+				second_hand_markup_percentage: localEstimate.second_hand_markup_percentage,
+				outwork_markup_percentage: localEstimate.outwork_markup_percentage
+			});
+			dirty = false;
+		} finally {
+			saving = false;
+		}
+	}
+
+	// Register save function with parent on mount
+	$effect(() => {
+		if (onRegisterSave) {
+			onRegisterSave(saveAll);
+		}
+	});
+
+	function discardAll() {
+		localEstimate = estimate ? deepClone(estimate) : null;
+		dirty = false;
+	}
+
+	// Convenience getter for local line items
+	// Filter out any items without IDs as a defensive fallback
+	const localLineItems = $derived(() => {
+		if (!localEstimate) return [];
+		return (localEstimate.line_items || []).filter((item) => item && item.id);
+	});
 
 	// State for multi-select functionality
 	let selectedItems = $state<Set<string>>(new Set());
@@ -75,13 +149,44 @@
 	let tempOutworkNett = $state<number | null>(null);
 
 	function handleAddEmptyLineItem() {
+		if (!localEstimate) return;
 		const newItem = createEmptyLineItem('N') as EstimateLineItem;
-		onAddLineItem(newItem);
+		newItem.id = crypto.randomUUID();
+		localEstimate.line_items = [...localEstimate.line_items, newItem];
+		markDirty();
 	}
 
 	function handleUpdateLineItem(itemId: string, field: keyof EstimateLineItem, value: any) {
-		onUpdateLineItem(itemId, { [field]: value });
+		if (!localEstimate) return;
+		const idx = localEstimate.line_items.findIndex((item) => item.id === itemId);
+		if (idx === -1) return;
+
+		const updated = { ...localEstimate.line_items[idx], [field]: value };
+		// Recalculate total for this line item
+		updated.total = calculateLineItemTotal(
+			updated,
+			localEstimate.labour_rate,
+			localEstimate.paint_rate
+		);
+
+		localEstimate.line_items[idx] = updated;
+		localEstimate.line_items = [...localEstimate.line_items]; // Trigger reactivity
+		markDirty();
 	}
+
+	function handleDeleteLineItem(itemId: string) {
+		if (!localEstimate) return;
+		localEstimate.line_items = localEstimate.line_items.filter((item) => item.id !== itemId);
+		markDirty();
+	}
+
+	function handleBulkDeleteLineItems(itemIds: string[]) {
+		if (!localEstimate) return;
+		const idsSet = new Set(itemIds);
+		localEstimate.line_items = localEstimate.line_items.filter((item) => !idsSet.has(item.id!));
+		markDirty();
+	}
+
 
 	// Multi-select handlers
 	function handleToggleSelect(itemId: string) {
@@ -91,14 +196,14 @@
 			selectedItems.add(itemId);
 		}
 		selectedItems = new Set(selectedItems); // Trigger reactivity
-		selectAll = selectedItems.size === estimate!.line_items.length;
+		selectAll = selectedItems.size === localLineItems().length;
 	}
 
 	function handleSelectAll() {
 		if (selectAll) {
 			selectedItems.clear();
 		} else {
-			estimate!.line_items.forEach((item) => {
+			localLineItems().forEach((item) => {
 				if (item.id) selectedItems.add(item.id);
 			});
 		}
@@ -112,7 +217,7 @@
 
 		// Convert Set to Array and call bulk delete handler
 		const itemIdsArray = Array.from(selectedItems);
-		onBulkDeleteLineItems(itemIdsArray);
+		handleBulkDeleteLineItems(itemIdsArray);
 
 		selectedItems.clear();
 		selectedItems = new Set(selectedItems); // Trigger reactivity
@@ -128,12 +233,10 @@
 	}
 
 	function handleSASave(itemId: string) {
-		if (tempSAHours !== null && estimate) {
-			const saCost = tempSAHours * estimate.labour_rate;
-			onUpdateLineItem(itemId, {
-				strip_assemble_hours: tempSAHours,
-				strip_assemble: saCost
-			});
+		if (tempSAHours !== null && localEstimate) {
+			const saCost = tempSAHours * localEstimate.labour_rate;
+			handleUpdateLineItem(itemId, 'strip_assemble_hours', tempSAHours);
+			handleUpdateLineItem(itemId, 'strip_assemble', saCost);
 		}
 		editingSA = null;
 		tempSAHours = null;
@@ -153,12 +256,10 @@
 	}
 
 	function handleLabourSave(itemId: string) {
-		if (tempLabourHours !== null && estimate) {
-			const labourCost = tempLabourHours * estimate.labour_rate;
-			onUpdateLineItem(itemId, {
-				labour_hours: tempLabourHours,
-				labour_cost: labourCost
-			});
+		if (tempLabourHours !== null && localEstimate) {
+			const labourCost = tempLabourHours * localEstimate.labour_rate;
+			handleUpdateLineItem(itemId, 'labour_hours', tempLabourHours);
+			handleUpdateLineItem(itemId, 'labour_cost', labourCost);
 		}
 		editingLabour = null;
 		tempLabourHours = null;
@@ -176,12 +277,10 @@
 	}
 
 	function handlePaintSave(itemId: string) {
-		if (tempPaintPanels !== null && estimate) {
-			const paintCost = tempPaintPanels * estimate.paint_rate;
-			onUpdateLineItem(itemId, {
-				paint_panels: tempPaintPanels,
-				paint_cost: paintCost
-			});
+		if (tempPaintPanels !== null && localEstimate) {
+			const paintCost = tempPaintPanels * localEstimate.paint_rate;
+			handleUpdateLineItem(itemId, 'paint_panels', tempPaintPanels);
+			handleUpdateLineItem(itemId, 'paint_cost', paintCost);
 		}
 		editingPaint = null;
 		tempPaintPanels = null;
@@ -200,20 +299,18 @@
 	}
 
 	function handlePartPriceSave(itemId: string, item: EstimateLineItem) {
-		if (tempPartPriceNett !== null && estimate) {
+		if (tempPartPriceNett !== null && localEstimate) {
 			// Get markup percentage based on part type
 			let markupPercentage = 0;
-			if (item.part_type === 'OEM') markupPercentage = estimate.oem_markup_percentage;
-			else if (item.part_type === 'ALT') markupPercentage = estimate.alt_markup_percentage;
-			else if (item.part_type === '2ND') markupPercentage = estimate.second_hand_markup_percentage;
+			if (item.part_type === 'OEM') markupPercentage = localEstimate.oem_markup_percentage;
+			else if (item.part_type === 'ALT') markupPercentage = localEstimate.alt_markup_percentage;
+			else if (item.part_type === '2ND') markupPercentage = localEstimate.second_hand_markup_percentage;
 
 			// Calculate selling price with markup
 			const sellingPrice = tempPartPriceNett * (1 + markupPercentage / 100);
 
-			onUpdateLineItem(itemId, {
-				part_price_nett: tempPartPriceNett,
-				part_price: Number(sellingPrice.toFixed(2))
-			});
+			handleUpdateLineItem(itemId, 'part_price_nett', tempPartPriceNett);
+			handleUpdateLineItem(itemId, 'part_price', Number(sellingPrice.toFixed(2)));
 		}
 		editingPartPrice = null;
 		tempPartPriceNett = null;
@@ -232,14 +329,12 @@
 	}
 
 	function handleOutworkSave(itemId: string) {
-		if (tempOutworkNett !== null && estimate) {
-			const markupPercentage = estimate.outwork_markup_percentage;
+		if (tempOutworkNett !== null && localEstimate) {
+			const markupPercentage = localEstimate.outwork_markup_percentage;
 			const sellingPrice = tempOutworkNett * (1 + markupPercentage / 100);
 
-			onUpdateLineItem(itemId, {
-				outwork_charge_nett: tempOutworkNett,
-				outwork_charge: Number(sellingPrice.toFixed(2))
-			});
+			handleUpdateLineItem(itemId, 'outwork_charge_nett', tempOutworkNett);
+			handleUpdateLineItem(itemId, 'outwork_charge', Number(sellingPrice.toFixed(2)));
 		}
 		editingOutwork = null;
 		tempOutworkNett = null;
@@ -252,16 +347,16 @@
 
 	// Calculate category totals
 	const categoryTotals = $derived(() => {
-		if (!estimate) return null;
+		if (!localEstimate) return null;
 
-		const partsTotal = estimate.line_items.reduce((sum, item) => sum + (item.part_price || 0), 0);
-		const saTotal = estimate.line_items.reduce((sum, item) => sum + (item.strip_assemble || 0), 0);
-		const labourTotal = estimate.line_items.reduce((sum, item) => sum + (item.labour_cost || 0), 0);
-		const paintTotal = estimate.line_items.reduce((sum, item) => sum + (item.paint_cost || 0), 0);
-		const outworkTotal = estimate.line_items.reduce((sum, item) => sum + (item.outwork_charge || 0), 0);
+		const partsTotal = localEstimate.line_items.reduce((sum, item) => sum + (item.part_price || 0), 0);
+		const saTotal = localEstimate.line_items.reduce((sum, item) => sum + (item.strip_assemble || 0), 0);
+		const labourTotal = localEstimate.line_items.reduce((sum, item) => sum + (item.labour_cost || 0), 0);
+		const paintTotal = localEstimate.line_items.reduce((sum, item) => sum + (item.paint_cost || 0), 0);
+		const outworkTotal = localEstimate.line_items.reduce((sum, item) => sum + (item.outwork_charge || 0), 0);
 
 		// Calculate total markup (difference between selling price and nett price)
-		const markupTotal = estimate.line_items.reduce((sum, item) => {
+		const markupTotal = localEstimate.line_items.reduce((sum, item) => {
 			if (item.part_price && item.part_price_nett) {
 				return sum + (item.part_price - item.part_price_nett);
 			}
@@ -280,46 +375,46 @@
 
 	// Check if estimate is complete
 	const isComplete = $derived(
-		estimate !== null &&
-		estimate.line_items.length > 0 &&
-		estimate.total > 0
+		localEstimate !== null &&
+		localEstimate.line_items.length > 0 &&
+		localEstimate.total > 0
 	);
 
 	// Validation for warning banner
 	const validation = $derived.by(() => {
-		return validatePreIncidentEstimate(estimate);
+		return validatePreIncidentEstimate(localEstimate);
 	});
 </script>
 
 <div class="space-y-6">
 	<!-- Warning Banner -->
 	<RequiredFieldsWarning missingFields={validation.missingFields} />
-	{#if !estimate}
+	{#if !localEstimate}
 		<Card class="p-6 border-2 border-dashed border-gray-300">
 			<p class="text-center text-gray-600">Loading pre-incident estimate...</p>
 		</Card>
 	{:else}
 		<!-- Rates Configuration -->
 		<RatesConfiguration
-			labourRate={estimate.labour_rate}
-			paintRate={estimate.paint_rate}
-			vatPercentage={estimate.vat_percentage}
-			oemMarkup={estimate.oem_markup_percentage}
-			altMarkup={estimate.alt_markup_percentage}
-			secondHandMarkup={estimate.second_hand_markup_percentage}
-			outworkMarkup={estimate.outwork_markup_percentage}
+			labourRate={localEstimate.labour_rate}
+			paintRate={localEstimate.paint_rate}
+			vatPercentage={localEstimate.vat_percentage}
+			oemMarkup={localEstimate.oem_markup_percentage}
+			altMarkup={localEstimate.alt_markup_percentage}
+			secondHandMarkup={localEstimate.second_hand_markup_percentage}
+			outworkMarkup={localEstimate.outwork_markup_percentage}
 			onUpdateRates={onUpdateRates}
 		/>
 
 		<!-- Quick Add Form -->
 		<QuickAddLineItem
-			labourRate={estimate.labour_rate}
-			paintRate={estimate.paint_rate}
-			oemMarkup={estimate.oem_markup_percentage}
-			altMarkup={estimate.alt_markup_percentage}
-			secondHandMarkup={estimate.second_hand_markup_percentage}
-			outworkMarkup={estimate.outwork_markup_percentage}
-			onAddLineItem={onAddLineItem}
+			labourRate={localEstimate.labour_rate}
+			paintRate={localEstimate.paint_rate}
+			oemMarkup={localEstimate.oem_markup_percentage}
+			altMarkup={localEstimate.alt_markup_percentage}
+			secondHandMarkup={localEstimate.second_hand_markup_percentage}
+			outworkMarkup={localEstimate.outwork_markup_percentage}
+			onAddLineItem={handleAddEmptyLineItem}
 		/>
 
 		<!-- Line Items Table -->
@@ -327,6 +422,14 @@
 			<div class="mb-4 flex items-center justify-between">
 				<h3 class="text-lg font-semibold text-gray-900">Line Items</h3>
 				<div class="flex gap-2">
+					{#if dirty}
+						<Button onclick={saveAll} size="sm" disabled={saving}>
+							{saving ? 'Saving…' : 'Save Changes'}
+						</Button>
+						<Button onclick={discardAll} size="sm" variant="outline" disabled={saving}>
+							Discard
+						</Button>
+					{/if}
 					{#if selectedItems.size > 0}
 						<Button onclick={handleBulkDelete} size="sm" variant="destructive">
 							<Trash2 class="mr-2 h-4 w-4" />
@@ -366,14 +469,14 @@
 						</Table.Row>
 					</Table.Header>
 					<Table.Body>
-						{#if estimate.line_items.length === 0}
+						{#if localLineItems().length === 0}
 							<Table.Row class="hover:bg-transparent">
 								<Table.Cell colspan={11} class="h-24 text-center text-gray-500">
 									No line items added. Use "Quick Add" above or click "Add Empty Row".
 								</Table.Cell>
 							</Table.Row>
 						{:else}
-							{#each estimate.line_items as item (item.id)}
+							{#each localLineItems() as item (item.id)}
 								<Table.Row class="hover:bg-gray-50">
 									<!-- Checkbox -->
 									<Table.Cell class="px-3 py-2">
@@ -601,7 +704,7 @@
 										<Button
 											variant="ghost"
 											size="sm"
-											onclick={() => onDeleteLineItem(item.id!)}
+											onclick={() => handleDeleteLineItem(item.id!)}
 											class="h-8 w-8 p-0 text-red-600 hover:bg-red-50 hover:text-red-700"
 										>
 											<Trash2 class="h-4 w-4" />
@@ -656,19 +759,19 @@
 					<!-- Subtotal -->
 					<div class="flex items-center justify-between py-2 border-b-2">
 						<span class="text-base font-semibold text-gray-700">Subtotal (Ex VAT)</span>
-						<span class="text-lg font-semibold">{formatCurrency(estimate.subtotal)}</span>
+						<span class="text-lg font-semibold">{formatCurrency(localEstimate.subtotal)}</span>
 					</div>
 
 					<!-- VAT -->
 					<div class="flex items-center justify-between py-2 border-b-2">
-						<span class="text-base font-semibold text-gray-700">VAT ({estimate.vat_percentage}%)</span>
-						<span class="text-lg font-semibold">{formatCurrency(estimate.vat_amount)}</span>
+						<span class="text-base font-semibold text-gray-700">VAT ({localEstimate.vat_percentage}%)</span>
+						<span class="text-lg font-semibold">{formatCurrency(localEstimate.vat_amount)}</span>
 					</div>
 
 					<!-- Total -->
 					<div class="flex items-center justify-between pt-3">
 						<span class="text-lg font-bold text-gray-900">Total (Inc VAT)</span>
-						<span class="text-2xl font-bold text-blue-600">{formatCurrency(estimate.total)}</span>
+						<span class="text-2xl font-bold text-blue-600">{formatCurrency(localEstimate.total)}</span>
 					</div>
 				</div>
 			{/if}
@@ -676,7 +779,7 @@
 
 		<!-- Pre-Incident Damage Photos -->
 		<PreIncidentPhotosPanel
-			estimateId={estimate.id}
+			estimateId={localEstimate.id}
 			{assessmentId}
 			photos={estimatePhotos}
 			onUpdate={onPhotosUpdate}
@@ -684,8 +787,10 @@
 
 		<!-- Actions -->
 		<div class="flex justify-between">
-			<Button variant="outline" onclick={() => {}}>Save Progress</Button>
-			<Button onclick={onComplete} disabled={!isComplete}>
+			<Button onclick={saveAll} size="sm" disabled={saving || !dirty}>
+				{saving ? 'Saving…' : 'Save Progress'}
+			</Button>
+			<Button onclick={onComplete} disabled={!isComplete || dirty}>
 				<Check class="mr-2 h-4 w-4" />
 				Complete Pre-Incident Estimate
 			</Button>

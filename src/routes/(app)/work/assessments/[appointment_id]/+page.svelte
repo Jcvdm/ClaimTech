@@ -56,7 +56,18 @@
 	let lastSaved = $state<string | null>(null);
 	let autoSaveInterval: ReturnType<typeof setInterval> | null = null;
 
+	// Store reference to tab save functions for auto-save on tab change
+	let estimateTabSaveFn: (() => Promise<void>) | null = null;
+	let preIncidentEstimateTabSaveFn: (() => Promise<void>) | null = null;
+
 	async function handleTabChange(tabId: string) {
+		// Auto-save current tab if leaving it with unsaved changes
+		if (currentTab === 'estimate' && estimateTabSaveFn) {
+			await estimateTabSaveFn();
+		} else if (currentTab === 'pre-incident' && preIncidentEstimateTabSaveFn) {
+			await preIncidentEstimateTabSaveFn();
+		}
+
 		// Auto-save before switching tabs
 		await handleSave();
 		currentTab = tabId;
@@ -81,7 +92,13 @@
 		}
 	}
 
-	function handleExit() {
+	async function handleExit() {
+		// Auto-save current tab if on it with unsaved changes
+		if (currentTab === 'estimate' && estimateTabSaveFn) {
+			await estimateTabSaveFn();
+		} else if (currentTab === 'pre-incident' && preIncidentEstimateTabSaveFn) {
+			await preIncidentEstimateTabSaveFn();
+		}
 		goto(`/work/appointments/${data.appointment.id}`);
 	}
 
@@ -413,67 +430,74 @@
 		}
 	}
 
-	async function handleAddLineItem(item: EstimateLineItem) {
+	async function handleAddLineItem(item: EstimateLineItem): Promise<EstimateLineItem> {
 		try {
-			if (estimate) {
-				// Service updates DB and returns updated estimate
-				const updatedEstimate = await estimateService.addLineItem(estimate.id, item);
-
-				// Update local $state variable (triggers Svelte reactivity in child components)
-				estimate = updatedEstimate;
-
-				// ✅ No invalidation needed - preserves user input in other fields
+			if (!estimate) throw new Error('Estimate not found');
+			// Keep a snapshot of current IDs to identify the newly added one
+			const prevIds = new Set(estimate.line_items.map((i) => i.id).filter(Boolean) as string[]);
+			const updatedEstimate = await estimateService.addLineItem(estimate.id, item);
+			estimate = updatedEstimate;
+			// Prefer matching by provided client id (we send id from client for JSON line items)
+			if (item.id) {
+				const createdById = updatedEstimate.line_items.find((i) => i.id === item.id);
+				if (createdById) return createdById;
 			}
+			// Fallback: find the first line that wasn't in the previous set
+			const created = updatedEstimate.line_items.find((i) => i.id && !prevIds.has(i.id));
+			if (!created) throw new Error('Failed to locate newly added line item');
+			return created;
 		} catch (error) {
 			console.error('Error adding line item:', error);
+			throw error;
 		}
 	}
 
-	async function handleUpdateLineItem(itemId: string, updateData: Partial<EstimateLineItem>) {
+	async function handleUpdateLineItem(itemId: string, updateData: Partial<EstimateLineItem>): Promise<EstimateLineItem> {
 		try {
-			if (estimate) {
-				// Service updates DB and returns updated estimate
-				const updatedEstimate = await estimateService.updateLineItem(estimate.id, itemId, updateData);
-
-				// Update local $state variable (triggers Svelte reactivity in child components)
-				estimate = updatedEstimate;
-
-				// ✅ No invalidation needed - preserves user input in other fields
-			}
+			if (!estimate) throw new Error('Estimate not found');
+			const updatedEstimate = await estimateService.updateLineItem(estimate.id, itemId, updateData);
+			estimate = updatedEstimate;
+			const updatedItem = updatedEstimate.line_items.find((i) => i.id === itemId);
+			if (!updatedItem) throw new Error('Failed to locate updated line item');
+			return updatedItem;
 		} catch (error) {
 			console.error('Error updating line item:', error);
+			throw error;
 		}
 	}
 
-	async function handleDeleteLineItem(itemId: string) {
+	async function handleDeleteLineItem(itemId: string): Promise<void> {
 		try {
-			if (estimate) {
-				// Service updates DB and returns updated estimate
-				const updatedEstimate = await estimateService.deleteLineItem(estimate.id, itemId);
-
-				// Update local $state variable (triggers Svelte reactivity in child components)
-				estimate = updatedEstimate;
-
-				// ✅ No invalidation needed - preserves user input in other fields
+			if (!estimate) throw new Error('Estimate not found');
+			// Guard temp IDs (optimistic adds)
+			if (itemId.startsWith('temp-')) {
+				// Remove locally; parent state will reconcile via queue
+				estimate = { ...estimate, line_items: estimate.line_items.filter((i) => i.id !== itemId) };
+				return;
 			}
+			const updatedEstimate = await estimateService.deleteLineItem(estimate.id, itemId);
+			estimate = updatedEstimate;
 		} catch (error) {
 			console.error('Error deleting line item:', error);
+			throw error;
 		}
 	}
 
-	async function handleBulkDeleteLineItems(itemIds: string[]) {
+	async function handleBulkDeleteLineItems(itemIds: string[]): Promise<void> {
 		try {
-			if (estimate) {
-				// Service updates DB and returns updated estimate
-				const updatedEstimate = await estimateService.bulkDeleteLineItems(estimate.id, itemIds);
-
-				// Update local $state variable (triggers Svelte reactivity in child components)
+			if (!estimate) throw new Error('Estimate not found');
+			const realIds = itemIds.filter((id) => !id.startsWith('temp-'));
+			const tempIds = new Set(itemIds.filter((id) => id.startsWith('temp-')));
+			if (realIds.length > 0) {
+				const updatedEstimate = await estimateService.bulkDeleteLineItems(estimate.id, realIds);
 				estimate = updatedEstimate;
-
-				// ✅ No invalidation needed - preserves user input in other fields
+			}
+			if (tempIds.size > 0) {
+				estimate = { ...estimate, line_items: estimate.line_items.filter((i) => !tempIds.has(i.id!)) };
 			}
 		} catch (error) {
 			console.error('Error bulk deleting line items:', error);
+			throw error;
 		}
 	}
 
@@ -720,10 +744,6 @@
 			assessmentId={data.assessment.id}
 			estimatePhotos={data.preIncidentEstimatePhotos}
 			onUpdateEstimate={handleUpdatePreIncidentEstimate}
-			onAddLineItem={handleAddPreIncidentLineItem}
-			onUpdateLineItem={handleUpdatePreIncidentLineItem}
-			onDeleteLineItem={handleDeletePreIncidentLineItem}
-			onBulkDeleteLineItems={handleBulkDeletePreIncidentLineItems}
 			onPhotosUpdate={async () => {
 				// Reload pre-incident photos from database
 				if (preIncidentEstimate) {
@@ -736,6 +756,9 @@
 			}}
 			onUpdateRates={handleUpdatePreIncidentRates}
 			onComplete={handleCompletePreIncidentEstimate}
+			onRegisterSave={(saveFn) => {
+				preIncidentEstimateTabSaveFn = saveFn;
+			}}
 		/>
 	{:else if currentTab === 'estimate'}
 		<EstimateTab
@@ -762,6 +785,9 @@
 			onRepairersUpdate={handleRepairersUpdate}
 			onUpdateAssessmentResult={handleUpdateAssessmentResult}
 			onComplete={handleCompleteEstimate}
+			onRegisterSave={(saveFn) => {
+				estimateTabSaveFn = saveFn;
+			}}
 		/>
 	{:else if currentTab === 'finalize'}
 		<FinalizeTab

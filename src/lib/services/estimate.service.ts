@@ -238,9 +238,14 @@ export class EstimateService {
 		const total = calculateLineItemTotal(item, estimate.labour_rate, estimate.paint_rate);
 
 		// Add unique ID and calculated costs to line item
+		// Always assign a real server-side ID; ignore any client-provided temp IDs
+		const newId = !item.id || (typeof item.id === 'string' && item.id.startsWith('temp-'))
+			? crypto.randomUUID()
+			: item.id;
+
 		const newItem: EstimateLineItem = {
 			...item,
-			id: item.id || crypto.randomUUID(),
+			id: newId,
 			labour_cost: labourCost,
 			paint_cost: paintCost,
 			total

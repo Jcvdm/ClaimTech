@@ -75,7 +75,6 @@
 		const outworkCharge = calculatePartSellingPrice(outworkChargeNett, outworkMarkup);
 
 		const item: EstimateLineItem = {
-			id: crypto.randomUUID(),
 			process_type: processType,
 			part_type: showPartType ? partType : null,
 			description,

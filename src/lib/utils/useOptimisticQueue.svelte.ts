@@ -9,7 +9,7 @@ import { untrack } from 'svelte';
  * - Users can't tell if operations are in progress
  * - Delete operations fail on temporary IDs
  * - No retry mechanism for failed operations
- * 
+ *
  * Key Features:
  * - Maintains local $state array for immediate updates
  * - Tracks per-item status (saving, saved, error) in a Map
@@ -17,7 +17,7 @@ import { untrack } from 'svelte';
  * - Handles temporary IDs gracefully (temp-{timestamp})
  * - Provides retry mechanism for failed operations
  * - Automatically cleans up stale statuses
- * 
+ *
  * Pattern:
  * 1. User performs action (add/delete)
  * 2. Item appears/disappears immediately with "saving" status
@@ -25,14 +25,14 @@ import { untrack } from 'svelte';
  * 4. Status updates to "saved" on success or "error" on failure
  * 5. Parent prop changes automatically sync to local state
  * 6. Retry available for error states
- * 
+ *
  * Usage Example:
  * ```svelte
  * <script lang="ts">
  *   import { useOptimisticQueue } from '$lib/utils/useOptimisticQueue.svelte';
- * 
+ *
  *   let props: Props = $props();
- *   
+ *
  *   const itemsQueue = useOptimisticQueue(props.items, {
  *     onCreate: async (draft) => {
  *       // Call your service to create in DB
@@ -44,37 +44,37 @@ import { untrack } from 'svelte';
  *       await myService.delete(id);
  *     }
  *   });
- * 
- *   function isSaving(id: string) { 
- *     return itemsQueue.getStatus(id) === 'saving'; 
+ *
+ *   function isSaving(id: string) {
+ *     return itemsQueue.getStatus(id) === 'saving';
  *   }
- *   
- *   function hasError(id: string) { 
- *     return itemsQueue.getStatus(id) === 'error'; 
+ *
+ *   function hasError(id: string) {
+ *     return itemsQueue.getStatus(id) === 'error';
  *   }
- * 
+ *
  *   async function handleAdd(data: ItemData) {
  *     await itemsQueue.add({ ...data });
  *   }
- * 
+ *
  *   async function handleDelete(id: string) {
  *     await itemsQueue.remove(id);
  *   }
  * </script>
- * 
+ *
  * <!-- Template -->
  * {#each itemsQueue.value as item}
  *   <div>
  *     {item.name}
- *     
+ *
  *     {#if isSaving(item.id)}
  *       <Loader2 class="h-4 w-4 animate-spin text-blue-500" />
  *     {:else if hasError(item.id)}
  *       <AlertCircle class="h-4 w-4 text-red-500" />
  *       <Button size="sm" onclick={() => itemsQueue.retry(item.id)}>Retry</Button>
  *     {/if}
- *     
- *     <Button 
+ *
+ *     <Button
  *       onclick={() => handleDelete(item.id)}
  *       disabled={isSaving(item.id)}
  *     >
@@ -100,7 +100,7 @@ export interface OptimisticQueueOptions<T> {
 	/**
 	 * Callback to create an item in the database
 	 * Should return the created item with real ID from database
-	 * 
+	 *
 	 * @param draft - The draft item with temp ID
 	 * @returns The created item with real database ID
 	 */
@@ -109,14 +109,14 @@ export interface OptimisticQueueOptions<T> {
 	/**
 	 * Callback to delete an item from the database
 	 * Only called for real IDs (not temp- prefixed)
-	 * 
+	 *
 	 * @param id - The ID of the item to delete
 	 */
 	onDelete?: (id: string) => Promise<void>;
 
 	/**
 	 * Callback to update an item in the database
-	 * 
+	 *
 	 * @param id - The ID of the item to update
 	 * @param updates - Partial updates to apply
 	 * @returns The updated item
@@ -132,7 +132,7 @@ export interface OptimisticQueueOptions<T> {
  * @returns Object with value getter, statuses, and mutation methods
  */
 export function useOptimisticQueue<T extends { id?: string }>(
-	parentArray: T[],
+	parentSource: T[] | (() => T[]),
 	opts: OptimisticQueueOptions<T> = {}
 ) {
 	// Local state for immediate updates
@@ -147,6 +147,9 @@ export function useOptimisticQueue<T extends { id?: string }>(
 	// Sync with parent props whenever they change
 	// Reconcile parent state with optimistic local changes
 	$effect(() => {
+			// Read parent through a getter if provided so changes are tracked reactively
+			const parentArray: T[] = typeof parentSource === 'function' ? (parentSource as () => T[])() : (parentSource as T[]);
+
 		// 1) Compute helper sets without tracking local maps as dependencies
 		let parentIds = new Set<string>();
 		const pendingDeleteIds = new Set<string>();
@@ -187,7 +190,27 @@ export function useOptimisticQueue<T extends { id?: string }>(
 		);
 
 		// 4) Final reconciled array preserves optimistic adds and hides pending deletes
-		items = [...parentFiltered, ...tempCreatesNotInParent, ...localRealNotInParent];
+		const merged = [...parentFiltered, ...tempCreatesNotInParent, ...localRealNotInParent];
+
+		// 4b) Dedupe by id - prefer non-temp items over temp items to handle race conditions
+		const seenIds = new Map<string, T>();
+		for (const item of merged) {
+			if (!item.id) continue;
+			const existing = seenIds.get(item.id);
+			if (!existing) {
+				seenIds.set(item.id, item);
+			} else {
+				// If we have a duplicate, prefer the non-temp version
+				const existingIsTemp = existing.id?.startsWith('temp-');
+				const currentIsTemp = item.id?.startsWith('temp-');
+				if (existingIsTemp && !currentIsTemp) {
+					// Replace temp with real
+					seenIds.set(item.id, item);
+				}
+				// Otherwise keep the first one (which is likely from parent)
+			}
+		}
+		items = Array.from(seenIds.values());
 
 		// 5) Clean up statuses/drafts for IDs no longer present in either parent, temp drafts, or local-only real items
 		const presentIds = new Set<string>([
@@ -219,7 +242,7 @@ export function useOptimisticQueue<T extends { id?: string }>(
 
 	/**
 	 * Get the current status of an item
-	 * 
+	 *
 	 * @param id - The ID of the item
 	 * @returns The status or undefined if not tracked
 	 */
@@ -236,7 +259,7 @@ export function useOptimisticQueue<T extends { id?: string }>(
 	 * - Calls onCreate callback
 	 * - Replaces temp with real item on success
 	 * - Sets status to 'error' on failure
-	 * 
+	 *
 	 * @param draft - The item to add (may have temp or no ID)
 	 * @returns The ID of the added item (temp or real)
 	 */
@@ -244,7 +267,7 @@ export function useOptimisticQueue<T extends { id?: string }>(
 		// Create temp ID if not provided
 		const tempId = draft.id ?? `temp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 		const draftWithId = { ...draft, id: tempId } as T;
-		
+
 		// Add to local array immediately for instant UI feedback
 		items = [...items, draftWithId];
 		statuses.set(tempId, 'saving');
@@ -259,14 +282,17 @@ export function useOptimisticQueue<T extends { id?: string }>(
 		try {
 			// Call onCreate to persist to database
 			const realItem = await opts.onCreate(draftWithId);
-			
-			// Replace temp item with real item from database
-			items = items.map(i => (i.id === tempId ? realItem : i));
-			
-			// Clean up temp status and draft
+
+			// Clean up temp status and draft first
 			statuses.delete(tempId);
 			drafts.delete(tempId);
-			
+
+			// Dedupe: remove both temp item AND any existing item with the real id
+			// This prevents race condition where parent $effect adds real item before we replace temp
+			items = items.filter(i => i.id !== tempId && i.id !== realItem.id);
+			// Now add the single real item
+			items = [...items, realItem];
+
 			// Mark real item as saved
 			if (realItem.id) {
 				statuses.set(realItem.id, 'saved');
@@ -276,7 +302,7 @@ export function useOptimisticQueue<T extends { id?: string }>(
 					statuses = new Map(statuses);
 				}, 2000);
 			}
-			
+
 			return realItem.id ?? tempId;
 		} catch (error) {
 			console.error('Error adding item:', error);
@@ -292,16 +318,16 @@ export function useOptimisticQueue<T extends { id?: string }>(
 	 * - For temp IDs: just removes locally (no DB call)
 	 * - For real IDs: calls onDelete callback
 	 * - Sets status to 'error' on failure and reverts removal
-	 * 
+	 *
 	 * @param id - The ID of the item to remove
 	 */
 	async function remove(id: string): Promise<void> {
 		// Store original item in case we need to revert
 		const originalItem = items.find(i => i.id === id);
-		
+
 		// Remove from local array immediately for instant UI feedback
 		items = items.filter(i => i.id !== id);
-		
+
 		// If temp ID, just remove locally (no DB operation needed)
 		if (id.startsWith('temp-')) {
 			statuses.delete(id);
@@ -336,7 +362,7 @@ export function useOptimisticQueue<T extends { id?: string }>(
 	 * Retry a failed operation
 	 * - For temp IDs with error: retry create
 	 * - For real IDs with error: retry delete (if that's what failed)
-	 * 
+	 *
 	 * @param id - The ID of the item to retry
 	 */
 	async function retry(id: string): Promise<void> {
@@ -355,7 +381,7 @@ export function useOptimisticQueue<T extends { id?: string }>(
 				items = items.map(i => (i.id === id ? realItem : i));
 				statuses.delete(id);
 				drafts.delete(id);
-				
+
 				if (realItem.id) {
 					statuses.set(realItem.id, 'saved');
 					setTimeout(() => {
