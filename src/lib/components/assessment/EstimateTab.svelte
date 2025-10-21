@@ -15,6 +15,7 @@
 		EstimateLineItem,
 		EstimatePhoto,
 		VehicleValues,
+		VehicleIdentification,
 		AssessmentResultType
 	} from '$lib/types/assessment';
 
@@ -38,6 +39,7 @@
 		assessmentNumber: string; // For filename generation
 		estimatePhotos: EstimatePhoto[];
 		vehicleValues: VehicleValues | null;
+		vehicleIdentification: VehicleIdentification | null; // For parts list CSV
 		repairers: Repairer[];
 		onUpdateEstimate: (data: Partial<Estimate>) => void;
 		onAddLineItem: (item: EstimateLineItem) => Promise<EstimateLineItem>;
@@ -71,6 +73,7 @@
 	const assessmentNumber = $derived(props.assessmentNumber);
 	const estimatePhotos = $derived(props.estimatePhotos);
 	const vehicleValues = $derived(props.vehicleValues);
+	const vehicleIdentification = $derived(props.vehicleIdentification);
 	const repairers = $derived(props.repairers);
 	const onUpdateEstimate = $derived(props.onUpdateEstimate);
 	const onPhotosUpdate = $derived(props.onPhotosUpdate);
@@ -289,8 +292,16 @@
 			return;
 		}
 
-		// Generate CSV
-		const csv = generatePartsListCSV(partsOnly);
+		// Prepare vehicle details for CSV header
+		const vehicleDetails = vehicleIdentification ? {
+			vin_number: vehicleIdentification.vin_number,
+			vehicle_year: vehicleIdentification.vehicle_year,
+			vehicle_make: vehicleIdentification.vehicle_make,
+			vehicle_model: vehicleIdentification.vehicle_model
+		} : undefined;
+
+		// Generate CSV with vehicle details
+		const csv = generatePartsListCSV(partsOnly, vehicleDetails);
 
 		// Create blob and download
 		const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });

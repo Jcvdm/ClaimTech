@@ -763,6 +763,7 @@
 			assessmentNumber={data.assessment.assessment_number}
 			estimatePhotos={data.estimatePhotos}
 			vehicleValues={data.vehicleValues}
+			vehicleIdentification={data.vehicleIdentification}
 			repairers={data.repairers}
 			onUpdateEstimate={handleUpdateEstimate}
 			onAddLineItem={handleAddLineItem}
