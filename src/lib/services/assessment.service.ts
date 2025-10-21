@@ -121,6 +121,7 @@ export class AssessmentService {
 
 	/**
 	 * Get all in-progress assessments with related data (for Open Assessments list)
+	 * Pulls vehicle data from assessment_vehicle_identification (updated during assessment)
 	 */
 	async getInProgressAssessments(): Promise<any[]> {
 		const { data, error } = await supabase
@@ -128,6 +129,13 @@ export class AssessmentService {
 			.select(
 				`
 				*,
+				vehicle_identification:assessment_vehicle_identification(
+					vehicle_make,
+					vehicle_model,
+					vehicle_year,
+					registration_number,
+					vin_number
+				),
 				requests:request_id (
 					request_number,
 					vehicle_make,
@@ -430,6 +438,7 @@ export class AssessmentService {
 	/**
 	 * List archived assessments for archive page
 	 * Joins with appointments, inspections, requests, and clients
+	 * Pulls vehicle data from assessment_vehicle_identification (updated during assessment)
 	 * Only returns assessments with 'archived' status (FRC completed)
 	 */
 	async listArchivedAssessments(): Promise<any[]> {
@@ -437,6 +446,13 @@ export class AssessmentService {
 			.from('assessments')
 			.select(`
 				*,
+				vehicle_identification:assessment_vehicle_identification(
+					vehicle_make,
+					vehicle_model,
+					vehicle_year,
+					registration_number,
+					vin_number
+				),
 				appointment:appointments!inner(
 					id,
 					inspection:inspections!inner(
@@ -479,6 +495,7 @@ export class AssessmentService {
 	/**
 	 * List cancelled assessments for archive page
 	 * Joins with appointments, inspections, requests, and clients
+	 * Pulls vehicle data from assessment_vehicle_identification (updated during assessment)
 	 * Only returns assessments with 'cancelled' status
 	 */
 	async listCancelledAssessments(): Promise<any[]> {
@@ -486,6 +503,13 @@ export class AssessmentService {
 			.from('assessments')
 			.select(`
 				*,
+				vehicle_identification:assessment_vehicle_identification(
+					vehicle_make,
+					vehicle_model,
+					vehicle_year,
+					registration_number,
+					vin_number
+				),
 				appointment:appointments!inner(
 					id,
 					inspection:inspections!inner(

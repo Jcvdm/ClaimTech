@@ -42,10 +42,19 @@
 	});
 
 	// Prepare data for table
+	// Use vehicle data from assessment_vehicle_identification (updated during assessment)
+	// Falls back to request data if assessment data is not available
 	const assessmentsWithDetails = data.assessments.map((assessment: any) => {
 		const request = assessment.requests;
 		const appointment = assessment.appointments;
 		const engineer = appointment?.engineers;
+		const vehicleId = assessment.vehicle_identification;
+
+		// Prefer assessment vehicle data over request data
+		const vehicleMake = vehicleId?.vehicle_make || request?.vehicle_make || '';
+		const vehicleModel = vehicleId?.vehicle_model || request?.vehicle_model || '';
+		const vehicleYear = vehicleId?.vehicle_year || request?.vehicle_year || '';
+		const registration = vehicleId?.registration_number || request?.vehicle_registration || '-';
 
 		// Calculate progress percentage
 		const totalTabs = 5; // identification, 360, interior, tyres, damage
@@ -55,10 +64,8 @@
 		return {
 			...assessment,
 			request_number: request?.request_number || '-',
-			vehicle_display:
-				`${request?.vehicle_make || ''} ${request?.vehicle_model || ''} ${request?.vehicle_year || ''}`.trim() ||
-				'-',
-			vehicle_registration: request?.vehicle_registration || '-',
+			vehicle_display: `${vehicleYear} ${vehicleMake} ${vehicleModel}`.trim() || '-',
+			vehicle_registration: registration,
 			engineer_name: engineer?.name || 'Unassigned',
 			progress_percentage: progressPercentage,
 			progress_display: `${completedTabs}/${totalTabs} tabs`,

@@ -34,17 +34,26 @@
 	const allArchiveItems: ArchiveItem[] = [];
 
 	// COMPLETED ITEMS: Only archived assessments (FRC completed)
+	// Use vehicle data from assessment_vehicle_identification (updated during assessment)
 	data.archivedAssessments.forEach((assessment: any) => {
 		const request = assessment.appointment?.inspection?.request;
 		const client = request?.client;
+		const vehicleId = assessment.vehicle_identification;
+
+		// Prefer assessment vehicle data over request data
+		const vehicleMake = vehicleId?.vehicle_make || request?.vehicle_make || '';
+		const vehicleModel = vehicleId?.vehicle_model || request?.vehicle_model || '';
+		const vehicleYear = vehicleId?.vehicle_year || request?.vehicle_year || '';
+		const registration = vehicleId?.registration_number || request?.vehicle_registration || 'N/A';
+
 		allArchiveItems.push({
 			id: assessment.id,
 			type: 'assessment',
 			number: assessment.assessment_number,
 			clientName: client?.name || 'Unknown Client',
 			clientType: client?.type || 'N/A',
-			vehicle: `${request?.vehicle_year || ''} ${request?.vehicle_make || ''} ${request?.vehicle_model || ''}`.trim() || 'N/A',
-			registration: request?.vehicle_registration || 'N/A',
+			vehicle: `${vehicleYear} ${vehicleMake} ${vehicleModel}`.trim() || 'N/A',
+			registration: registration,
 			status: 'Completed',
 			completedDate: assessment.updated_at,
 			formattedDate: new Date(assessment.updated_at).toLocaleDateString('en-ZA', {
@@ -127,17 +136,26 @@
 	});
 
 	// Add cancelled assessments
+	// Use vehicle data from assessment_vehicle_identification (updated during assessment)
 	data.cancelledAssessments.forEach((assessment: any) => {
 		const request = assessment.appointment?.inspection?.request;
 		const client = request?.client;
+		const vehicleId = assessment.vehicle_identification;
+
+		// Prefer assessment vehicle data over request data
+		const vehicleMake = vehicleId?.vehicle_make || request?.vehicle_make || '';
+		const vehicleModel = vehicleId?.vehicle_model || request?.vehicle_model || '';
+		const vehicleYear = vehicleId?.vehicle_year || request?.vehicle_year || '';
+		const registration = vehicleId?.registration_number || request?.vehicle_registration || 'N/A';
+
 		allArchiveItems.push({
 			id: assessment.id,
 			type: 'assessment',
 			number: assessment.assessment_number,
 			clientName: client?.name || 'Unknown Client',
 			clientType: client?.type || 'N/A',
-			vehicle: `${request?.vehicle_year || ''} ${request?.vehicle_make || ''} ${request?.vehicle_model || ''}`.trim() || 'N/A',
-			registration: request?.vehicle_registration || 'N/A',
+			vehicle: `${vehicleYear} ${vehicleMake} ${vehicleModel}`.trim() || 'N/A',
+			registration: registration,
 			status: 'Cancelled',
 			completedDate: assessment.cancelled_at || assessment.updated_at,
 			formattedDate: new Date(assessment.cancelled_at || assessment.updated_at).toLocaleDateString('en-ZA', {

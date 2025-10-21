@@ -3,11 +3,20 @@ import { supabase } from '$lib/supabase';
 
 export const load: PageServerLoad = async () => {
 	// Fetch finalized assessments (status = 'submitted')
+	// Pull vehicle data from assessment_vehicle_identification (updated during assessment)
+	// instead of requests table (original data from client submission)
 	const { data: assessments, error: assessmentsError } = await supabase
 		.from('assessments')
 		.select(
 			`
 			*,
+			vehicle_identification:assessment_vehicle_identification(
+				vehicle_make,
+				vehicle_model,
+				vehicle_year,
+				registration_number,
+				vin_number
+			),
 			appointment:appointments(
 				id,
 				appointment_number,
@@ -23,11 +32,7 @@ export const load: PageServerLoad = async () => {
 							id,
 							name,
 							type
-						),
-						vehicle_make,
-						vehicle_model,
-						vehicle_year,
-						vehicle_registration
+						)
 					)
 				)
 			)

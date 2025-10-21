@@ -801,6 +801,7 @@ class AdditionalsService {
 	/**
 	 * List all additionals records
 	 * Joins with assessments, appointments, inspections, requests, and clients
+	 * Pulls vehicle data from assessment_vehicle_identification (updated during assessment)
 	 * Excludes assessments where FRC has been started
 	 */
 	async listAdditionals(): Promise<any[]> {
@@ -811,6 +812,13 @@ class AdditionalsService {
 				assessment:assessments!inner(
 					id,
 					assessment_number,
+					vehicle_identification:assessment_vehicle_identification(
+						vehicle_make,
+						vehicle_model,
+						vehicle_year,
+						registration_number,
+						vin_number
+					),
 					appointment:appointments!inner(
 						id,
 						inspection:inspections!inner(

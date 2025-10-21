@@ -61,10 +61,19 @@
 	}
 
 	// Prepare table data
+	// Use vehicle data from assessment_vehicle_identification (updated during assessment)
+	// Falls back to request data if assessment data is not available
 	const tableData = $derived(
 		data.assessments.map((assessment: any) => {
 			const request = assessment.appointment?.inspection?.request;
 			const client = request?.client;
+			const vehicleId = assessment.vehicle_identification;
+
+			// Prefer assessment vehicle data over request data
+			const vehicleMake = vehicleId?.vehicle_make || request?.vehicle_make || '';
+			const vehicleModel = vehicleId?.vehicle_model || request?.vehicle_model || '';
+			const vehicleYear = vehicleId?.vehicle_year || request?.vehicle_year || '';
+			const registration = vehicleId?.registration_number || request?.vehicle_registration || 'N/A';
 
 			return {
 				id: assessment.id,
@@ -73,11 +82,8 @@
 				requestNumber: request?.request_number || 'N/A',
 				clientName: client?.name || 'N/A',
 				clientType: client?.type || 'N/A',
-				vehicle: request
-					? `${request.vehicle_year || ''} ${request.vehicle_make || ''} ${request.vehicle_model || ''}`.trim() ||
-						'N/A'
-					: 'N/A',
-				registration: request?.vehicle_registration || 'N/A',
+				vehicle: `${vehicleYear} ${vehicleMake} ${vehicleModel}`.trim() || 'N/A',
+				registration: registration,
 				finalizedAt: assessment.estimate_finalized_at,
 				submittedAt: assessment.submitted_at
 			};
