@@ -596,31 +596,50 @@
 		const assessment = data.assessment;
 		let url: string | null = null;
 		let filename = '';
+		let documentName = '';
 
 		switch (type) {
 			case 'report':
 				url = assessment.report_pdf_url || null;
 				filename = `${assessment.assessment_number}_Report.pdf`;
+				documentName = 'Inspection Report';
 				break;
 			case 'estimate':
 				url = assessment.estimate_pdf_url || null;
 				filename = `${assessment.assessment_number}_Estimate.pdf`;
+				documentName = 'Repair Estimate';
 				break;
 			case 'photos_pdf':
 				url = assessment.photos_pdf_url || null;
 				filename = `${assessment.assessment_number}_Photos.pdf`;
+				documentName = 'Photos PDF';
 				break;
 			case 'photos_zip':
 				url = assessment.photos_zip_url || null;
 				filename = `${assessment.assessment_number}_Photos.zip`;
+				documentName = 'Photos ZIP';
 				break;
 			case 'complete':
 				// TODO: Generate complete package ZIP
+				documentName = 'Complete Package';
 				break;
 		}
 
 		if (url) {
+			console.log(`Downloading ${documentName}:`, url);
 			documentGenerationService.downloadDocument(url, filename);
+		} else {
+			// Show error message instead of failing silently
+			console.error(`Cannot download ${documentName}: URL is null or undefined`);
+			console.log('Assessment data:', {
+				id: assessment.id,
+				assessment_number: assessment.assessment_number,
+				report_pdf_url: assessment.report_pdf_url,
+				estimate_pdf_url: assessment.estimate_pdf_url,
+				photos_pdf_url: assessment.photos_pdf_url,
+				photos_zip_url: assessment.photos_zip_url
+			});
+			alert(`${documentName} has not been generated yet. Please generate it first by clicking the "Generate" button.`);
 		}
 	}
 
