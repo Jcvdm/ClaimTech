@@ -31,7 +31,8 @@
 	import { formatCurrency } from '$lib/utils/formatters';
 	import { validateEstimate } from '$lib/utils/validation';
 	import { assessmentNotesService } from '$lib/services/assessment-notes.service';
-	import { generatePartsListCSV } from '$lib/utils/csv-generator';
+	import { generatePartsListText } from '$lib/utils/csv-generator';
+	import * as Dialog from '$lib/components/ui/dialog';
 
 	interface Props {
 		estimate: Estimate | null;
@@ -103,6 +104,10 @@
 	let localEstimate = $state<Estimate | null>(null);
 	let dirty = $state(false);
 	let saving = $state(false);
+
+	// Parts list modal state
+	let showPartsListModal = $state(false);
+	let partsListText = $state('');
 
 	$effect(() => {
 		// When parent estimate changes and we are not dirty, resync local buffer
@@ -282,17 +287,16 @@
 		}
 	}
 
-	// Download parts list as CSV
-	function handleDownloadPartsList() {
+	// Show parts list as plain text in modal for easy copy/paste
+	function handleShowPartsListText() {
 		const partsOnly = localLineItems().filter(item => item.process_type === 'N');
 
 		if (partsOnly.length === 0) {
-			// TODO: Show toast notification "No parts to export"
 			console.warn('No parts to export');
 			return;
 		}
 
-		// Prepare vehicle details for CSV header
+		// Prepare vehicle details
 		const vehicleDetails = vehicleIdentification ? {
 			vin_number: vehicleIdentification.vin_number,
 			vehicle_year: vehicleIdentification.vehicle_year,
@@ -300,17 +304,26 @@
 			vehicle_model: vehicleIdentification.vehicle_model
 		} : undefined;
 
-		// Generate CSV with vehicle details
-		const csv = generatePartsListCSV(partsOnly, vehicleDetails);
+		// Generate plain text
+		partsListText = generatePartsListText(partsOnly, vehicleDetails, {
+			assessmentNumber: assessmentNumber,
+			companyName: 'Claimtech', // TODO: Get from company settings
+			companyEmail: 'info@claimtech.co.za' // TODO: Get from company settings
+		});
 
-		// Create blob and download
-		const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-		const url = URL.createObjectURL(blob);
-		const link = document.createElement('a');
-		link.href = url;
-		link.download = `${assessmentNumber}_Parts_List.csv`;
-		link.click();
-		URL.revokeObjectURL(url);
+		showPartsListModal = true;
+	}
+
+
+	// Copy parts list text to clipboard
+	async function handleCopyPartsListText() {
+		try {
+			await navigator.clipboard.writeText(partsListText);
+			// TODO: Show toast notification "Copied to clipboard"
+			console.log('Parts list copied to clipboard');
+		} catch (error) {
+			console.error('Failed to copy to clipboard:', error);
+		}
 	}
 
 	// State for multi-select functionality
@@ -720,12 +733,12 @@
 							Discard
 						</Button>
 					{/if}
-					<!-- Parts List Download Button -->
+					<!-- Parts List Button -->
 					<Button
-						onclick={handleDownloadPartsList}
+						onclick={handleShowPartsListText}
 						size="sm"
 						variant="outline"
-						title="Download Parts List (CSV)"
+						title="Parts List (for ordering)"
 					>
 						<Package class="h-4 w-4" />
 					</Button>
@@ -1231,3 +1244,32 @@
 	}}
 	onSave={handleBettermentSave}
 />
+
+<!-- Parts List Text Modal -->
+<Dialog.Root bind:open={showPartsListModal}>
+	<Dialog.Content class="max-w-2xl">
+		<Dialog.Header>
+			<Dialog.Title>Parts Order Request</Dialog.Title>
+			<Dialog.Description>
+				Copy the text below and paste it into your email to suppliers.
+			</Dialog.Description>
+		</Dialog.Header>
+
+		<div class="space-y-4">
+			<!-- Text Display Area -->
+			<div class="relative">
+				<pre class="bg-gray-50 border border-gray-200 rounded-lg p-4 text-sm font-mono overflow-x-auto whitespace-pre-wrap max-h-96 overflow-y-auto">{partsListText}</pre>
+			</div>
+
+			<!-- Action Buttons -->
+			<div class="flex justify-end gap-2">
+				<Button variant="outline" onclick={() => showPartsListModal = false}>
+					Close
+				</Button>
+				<Button onclick={handleCopyPartsListText}>
+					Copy to Clipboard
+				</Button>
+			</div>
+		</div>
+	</Dialog.Content>
+</Dialog.Root>
