@@ -66,7 +66,7 @@ export function generatePartsListCSV(
 
 	// Combine all lines
 	return lines.join('\n');
-
+}
 
 /**
  * Generate a plain text parts list for easy copy/paste into emails
