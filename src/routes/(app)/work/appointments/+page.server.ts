@@ -6,12 +6,13 @@ import { engineerService } from '$lib/services/engineer.service';
 export const load: PageServerLoad = async () => {
 	try {
 		const [allAppointments, clients, engineers] = await Promise.all([
-			appointmentService.listAppointments(),
+			// Only load scheduled appointments (upcoming/open appointments)
+			appointmentService.listAppointments({ status: 'scheduled' }),
 			clientService.listClients(true),
 			engineerService.listEngineers(true)
 		]);
 
-		// Return all appointments (filtering will be done client-side)
+		// Return only scheduled appointments
 		const appointments = allAppointments;
 
 		// Create lookup maps for efficient access

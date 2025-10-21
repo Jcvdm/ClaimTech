@@ -15,7 +15,6 @@
 		damageRecord: DamageRecord | null;
 		assessmentId: string;
 		onUpdateDamage: (data: Partial<DamageRecord>) => void;
-		onComplete: () => void;
 	}
 
 	// Make props reactive using $derived pattern
@@ -25,7 +24,6 @@
 	const damageRecord = $derived(props.damageRecord);
 	const assessmentId = $derived(props.assessmentId);
 	const onUpdateDamage = $derived(props.onUpdateDamage);
-	const onComplete = $derived(props.onComplete);
 
 	// Initialize localStorage draft for critical fields
 	const mismatchNotesDraft = useDraft(`assessment-${assessmentId}-mismatch-notes`);
@@ -115,14 +113,6 @@
 		{ value: 'mechanical', label: 'Mechanical' },
 		{ value: 'other', label: 'Other' }
 	];
-
-	// Check if all required fields are filled
-	const isComplete = $derived(
-		damageRecord !== null &&
-		damageRecord.matches_description !== null &&
-		damageRecord.damage_area !== null &&
-		damageRecord.damage_type !== null
-	);
 
 	// Validation for warning banner
 	const validation = $derived.by(() => {
@@ -334,13 +324,6 @@
 				</div>
 			</div>
 		</Card>
-
-		<div class="flex justify-between">
-			<Button variant="outline" onclick={() => {}}>Save Progress</Button>
-			<Button onclick={onComplete} disabled={!isComplete}>
-				Complete Assessment
-			</Button>
-		</div>
 	{/if}
 </div>
 

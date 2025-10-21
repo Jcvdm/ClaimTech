@@ -5,6 +5,7 @@
 	import { browser } from '$app/environment';
 	import { requestService } from '$lib/services/request.service';
 	import { inspectionService } from '$lib/services/inspection.service';
+	import { appointmentService } from '$lib/services/appointment.service';
 	import { assessmentService } from '$lib/services/assessment.service';
 	import { frcService } from '$lib/services/frc.service';
 	import { additionalsService } from '$lib/services/additionals.service';
@@ -38,6 +39,7 @@
 
 	let newRequestCount = $state(0);
 	let inspectionCount = $state(0);
+	let appointmentCount = $state(0);
 	let assessmentCount = $state(0);
 	let finalizedAssessmentCount = $state(0);
 	let frcCount = $state(0);
@@ -64,7 +66,7 @@
 			label: 'Work',
 			items: [
 				{ label: 'Inspections', href: '/work/inspections', icon: ClipboardCheck, badge: inspectionCount },
-				{ label: 'Appointments', href: '/work/appointments', icon: Calendar },
+				{ label: 'Appointments', href: '/work/appointments', icon: Calendar, badge: appointmentCount },
 				{ label: 'Open Assessments', href: '/work/assessments', icon: ClipboardList, badge: assessmentCount },
 				{ label: 'Finalized Assessments', href: '/work/finalized-assessments', icon: FileCheck, badge: finalizedAssessmentCount },
 				{ label: 'FRC', href: '/work/frc', icon: FileCheck, badge: frcCount },
@@ -109,6 +111,14 @@
 		}
 	}
 
+	async function loadAppointmentCount() {
+		try {
+			appointmentCount = await appointmentService.getAppointmentCount({ status: 'scheduled' });
+		} catch (error) {
+			console.error('Error loading appointment count:', error);
+		}
+	}
+
 	async function loadAssessmentCount() {
 		try {
 			assessmentCount = await assessmentService.getInProgressCount();
@@ -145,6 +155,7 @@
 		await Promise.all([
 			loadNewRequestCount(),
 			loadInspectionCount(),
+			loadAppointmentCount(),
 			loadAssessmentCount(),
 			loadFinalizedAssessmentCount(),
 			loadFRCCount(),
@@ -164,8 +175,8 @@
 	onMount(() => {
 		loadAllCounts();
 
-		// Start polling interval
-		pollingInterval = setInterval(loadAllCounts, 30000);
+		// Start polling interval (10 seconds for faster badge updates)
+		pollingInterval = setInterval(loadAllCounts, 10000);
 
 		return () => {
 			if (pollingInterval) clearInterval(pollingInterval);
@@ -184,9 +195,9 @@
 					pollingInterval = null;
 				}
 			} else {
-				// Resume polling if not already running
+				// Resume polling if not already running (10 seconds for faster badge updates)
 				if (!pollingInterval) {
-					pollingInterval = setInterval(loadAllCounts, 30000);
+					pollingInterval = setInterval(loadAllCounts, 10000);
 				}
 
 				// Refresh counts when navigating to work-related pages
@@ -229,6 +240,15 @@
 									class="inline-flex items-center justify-center rounded-full bg-blue-600 px-2 py-0.5 text-xs font-medium text-white"
 								>
 									{inspectionCount}
+								</span>
+							{/if}
+
+							<!-- Show badge for Appointments with scheduled count -->
+							{#if item.href === '/work/appointments' && appointmentCount > 0}
+								<span
+									class="inline-flex items-center justify-center rounded-full bg-blue-600 px-2 py-0.5 text-xs font-medium text-white"
+								>
+									{appointmentCount}
 								</span>
 							{/if}
 

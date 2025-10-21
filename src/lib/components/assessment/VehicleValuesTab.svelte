@@ -1,11 +1,9 @@
 <script lang="ts">
 	import { Card } from '$lib/components/ui/card';
-	import { Button } from '$lib/components/ui/button';
 	import FormField from '$lib/components/forms/FormField.svelte';
 	import PdfUpload from '$lib/components/forms/PdfUpload.svelte';
 	import VehicleValueExtrasTable from './VehicleValueExtrasTable.svelte';
 	import RequiredFieldsWarning from './RequiredFieldsWarning.svelte';
-	import { CircleCheck } from 'lucide-svelte';
 	import { debounce } from '$lib/utils/useUnsavedChanges.svelte';
 	import { useDraft } from '$lib/utils/useDraft.svelte';
 	import { onMount } from 'svelte';
@@ -39,7 +37,6 @@
 			vehicle_mileage?: number | null;
 		};
 		onUpdate: (data: Partial<VehicleValues>) => void;
-		onComplete: () => void;
 	}
 
 	// Make props reactive using $derived pattern
@@ -51,7 +48,6 @@
 	const client = $derived(props.client);
 	const requestInfo = $derived(props.requestInfo);
 	const onUpdate = $derived(props.onUpdate);
-	const onComplete = $derived(props.onComplete);
 
 	// Initialize localStorage draft for critical fields
 	const sourcedFromDraft = useDraft(`assessment-${assessmentId}-sourced-from`);
@@ -174,14 +170,6 @@
 	const salvageTrade = $derived(tradeTotalAdjusted * (salvagePercentage / 100));
 	const salvageMarket = $derived(marketTotalAdjusted * (salvagePercentage / 100));
 	const salvageRetail = $derived(retailTotalAdjusted * (salvagePercentage / 100));
-
-	// Validation
-	const isComplete = $derived(
-		(tradeValue > 0 || marketValue > 0 || retailValue > 0) &&
-			sourcedFrom &&
-			sourcedDate &&
-			valuationPdfUrl
-	);
 
 	// Sync local state with data prop when it changes (after save)
 	$effect(() => {
@@ -309,11 +297,6 @@
 		saveDrafts(); // Save to localStorage
 		handleSave(); // Save to database
 	}, 2000);
-
-	function handleComplete() {
-		handleSave();
-		onComplete();
-	}
 
 	function handleAddExtra() {
 		extras = [...extras, createEmptyExtra()];
@@ -795,16 +778,5 @@
 
 		<FormField name="remarks" label="Remarks" type="textarea" bind:value={remarks} rows={4} />
 	</Card>
-
-	<!-- Action Buttons -->
-	<div class="flex justify-between">
-		<Button variant="outline" onclick={handleSave}>Save Progress</Button>
-		<Button onclick={handleComplete} disabled={!isComplete}>
-			{#if isComplete}
-				<CircleCheck class="mr-2 h-4 w-4" />
-			{/if}
-			Complete Values Tab
-		</Button>
-	</div>
 </div>
 

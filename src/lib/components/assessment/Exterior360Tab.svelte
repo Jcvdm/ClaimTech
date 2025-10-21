@@ -4,7 +4,7 @@
 	import FormField from '$lib/components/forms/FormField.svelte';
 	import PhotoUpload from '$lib/components/forms/PhotoUpload.svelte';
 	import RequiredFieldsWarning from './RequiredFieldsWarning.svelte';
-	import { Plus, CircleCheck, Trash2, Loader2, AlertCircle } from 'lucide-svelte';
+	import { Plus, Trash2, Loader2, AlertCircle } from 'lucide-svelte';
 	import { debounce } from '$lib/utils/useUnsavedChanges.svelte';
 	import { useDraft } from '$lib/utils/useDraft.svelte';
 	import { useOptimisticQueue } from '$lib/utils/useOptimisticQueue.svelte';
@@ -19,7 +19,6 @@
 		onUpdate: (data: Partial<Exterior360>) => void;
 		onAddAccessory: (accessory: { accessory_type: AccessoryType; custom_name?: string }) => Promise<VehicleAccessory>;
 		onDeleteAccessory: (id: string) => Promise<void>;
-		onComplete: () => void;
 	}
 
 	// Make props reactive using $derived pattern
@@ -30,7 +29,6 @@
 	const onUpdate = $derived(props.onUpdate);
 	const onAddAccessory = $derived(props.onAddAccessory);
 	const onDeleteAccessory = $derived(props.onDeleteAccessory);
-	const onComplete = $derived(props.onComplete);
 
 	// Use optimistic queue for immediate UI updates with status tracking
 	const accessories = useOptimisticQueue(props.accessories, {
@@ -196,11 +194,6 @@
 		handleSave(); // Save to database
 	}, 2000);
 
-	function handleComplete() {
-		handleSave();
-		onComplete();
-	}
-
 	// Helper functions for queue status
 	function isSaving(id: string | undefined): boolean {
 		return accessories.getStatus(id) === 'saving';
@@ -239,19 +232,6 @@
 		// Queue handles temp ID check and DB delete
 		await accessories.remove(id);
 	}
-
-	const isComplete = $derived(
-		overallCondition &&
-			vehicleColor &&
-			frontPhotoUrl &&
-			frontLeftPhotoUrl &&
-			leftPhotoUrl &&
-			rearLeftPhotoUrl &&
-			rearPhotoUrl &&
-			rearRightPhotoUrl &&
-			rightPhotoUrl &&
-			frontRightPhotoUrl
-	);
 
 	// Validation for warning banner
 	const validation = $derived.by(() => {
@@ -393,15 +373,6 @@
 			</div>
 		{/if}
 	</Card>
-
-	<!-- Actions -->
-	<div class="flex justify-between">
-		<Button variant="outline" onclick={handleSave}>Save Progress</Button>
-		<Button onclick={handleComplete} disabled={!isComplete}>
-			<CircleCheck class="mr-2 h-4 w-4" />
-			Complete & Continue
-		</Button>
-	</div>
 </div>
 
 <!-- Add Accessory Modal -->

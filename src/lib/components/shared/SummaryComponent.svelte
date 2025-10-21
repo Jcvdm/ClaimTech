@@ -66,15 +66,6 @@
 		if (!vehicleValues) return null;
 		return formatWarrantyStatus(vehicleValues.warranty_status);
 	});
-
-	// Calculate progress
-	const progressInfo = $derived(() => {
-		if (!assessment) return null;
-		const totalTabs = 8; // Total assessment tabs
-		const completedCount = assessment.tabs_completed?.length || 0;
-		const percentage = Math.round((completedCount / totalTabs) * 100);
-		return { completedCount, totalTabs, percentage };
-	});
 </script>
 
 <div class="space-y-4">
@@ -384,44 +375,6 @@
 						{/if}
 					</div>
 				</div>
-			</Card>
-		{/if}
-
-		<!-- Assessment Progress -->
-		{#if assessment && progressInfo()}
-			{@const progress = progressInfo()}
-			<Card class="p-4">
-				<h3 class="mb-3 text-sm font-semibold text-gray-900">Assessment Progress</h3>
-				<dl class="grid gap-3 text-sm">
-					<div class="grid grid-cols-3 gap-2">
-						<dt class="font-medium text-gray-500">Completed Tabs:</dt>
-						<dd class="col-span-2 text-gray-900">
-							{progress.completedCount} / {progress.totalTabs}
-						</dd>
-					</div>
-					<div class="grid grid-cols-3 gap-2">
-						<dt class="font-medium text-gray-500">Progress:</dt>
-						<dd class="col-span-2">
-							<div class="flex items-center gap-2">
-								<div class="h-2 flex-1 overflow-hidden rounded-full bg-gray-200">
-									<div
-										class="h-full bg-blue-600 transition-all"
-										style="width: {progress.percentage}%"
-									></div>
-								</div>
-								<span class="text-sm font-medium text-gray-900">{progress.percentage}%</span>
-							</div>
-						</dd>
-					</div>
-					<div class="grid grid-cols-3 gap-2">
-						<dt class="font-medium text-gray-500">Status:</dt>
-						<dd class="col-span-2">
-							<Badge variant={progress.percentage === 100 ? 'default' : 'secondary'}>
-								{progress.percentage === 100 ? 'Complete' : 'In Progress'}
-							</Badge>
-						</dd>
-					</div>
-				</dl>
 			</Card>
 		{/if}
 	{/if}

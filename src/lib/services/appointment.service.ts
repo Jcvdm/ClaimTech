@@ -174,7 +174,21 @@ export class AppointmentService {
 			updateData.cancelled_at = new Date().toISOString();
 		}
 
-		return this.updateAppointment(id, updateData);
+		const updated = await this.updateAppointment(id, updateData);
+
+		// Log status change for audit trail
+		await auditService.logChange({
+			entity_type: 'appointment',
+			entity_id: id,
+			action: 'status_changed',
+			field_name: 'status',
+			new_value: status,
+			metadata: {
+				appointment_number: updated.appointment_number
+			}
+		});
+
+		return updated;
 	}
 
 	/**

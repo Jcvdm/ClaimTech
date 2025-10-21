@@ -156,11 +156,6 @@
 		}
 	}
 
-	async function handleCompleteVehicleIdentification() {
-		// Move to next tab
-		currentTab = '360';
-	}
-
 	// 360 Exterior handlers
 	async function handleUpdateExterior360(updateData: Partial<Exterior360>) {
 		try {
@@ -204,11 +199,6 @@
 		}
 	}
 
-	async function handleCompleteExterior360() {
-		// Move to next tab
-		currentTab = 'interior';
-	}
-
 	// Interior/Mechanical handlers
 	async function handleUpdateInteriorMechanical(updateData: Partial<InteriorMechanical>) {
 		try {
@@ -218,11 +208,6 @@
 		} catch (error) {
 			console.error('Error updating interior/mechanical:', error);
 		}
-	}
-
-	async function handleCompleteInteriorMechanical() {
-		// Move to next tab
-		currentTab = 'tyres';
 	}
 
 	// Tyres handlers
@@ -264,11 +249,6 @@
 		}
 	}
 
-	async function handleCompleteTyres() {
-		// Move to next tab
-		currentTab = 'damage';
-	}
-
 	// Damage handlers
 	async function handleUpdateDamage(updateData: Partial<DamageRecord>) {
 		try {
@@ -280,11 +260,6 @@
 		} catch (error) {
 			console.error('Error updating damage record:', error);
 		}
-	}
-
-	async function handleCompleteDamage() {
-		// Move to next tab
-		currentTab = 'values';
 	}
 
 	// Vehicle Values handlers
@@ -307,11 +282,6 @@
 		} catch (error) {
 			console.error('Error updating vehicle values:', error);
 		}
-	}
-
-	async function handleCompleteVehicleValues() {
-		// Move to next tab
-		currentTab = 'pre-incident';
 	}
 
 	// Pre-Incident Estimate handlers
@@ -433,11 +403,6 @@
 		} catch (error) {
 			console.error('Error updating pre-incident rates:', error);
 		}
-	}
-
-	async function handleCompletePreIncidentEstimate() {
-		// Move to next tab
-		currentTab = 'estimate';
 	}
 
 	// Estimate handlers
@@ -597,13 +562,6 @@
 		}
 	}
 
-	async function handleCompleteEstimate() {
-		// Note: Status remains 'in_progress' until estimate is finalized
-		// This keeps the assessment in the Open Assessments list
-		// Redirect to finalize tab to complete the process
-		goto(`/work/assessments/${data.appointment.id}?tab=finalize`);
-	}
-
 	// Document generation handlers
 	async function handleGenerateDocument(type: string) {
 		generatingDocument = true; // Pause auto-save during generation
@@ -729,7 +687,6 @@
 				year: data.inspection?.vehicle_year
 			}}
 			onUpdate={handleUpdateVehicleIdentification}
-			onComplete={handleCompleteVehicleIdentification}
 		/>
 	{:else if currentTab === '360'}
 		<Exterior360Tab
@@ -739,14 +696,12 @@
 			onUpdate={handleUpdateExterior360}
 			onAddAccessory={handleAddAccessory}
 			onDeleteAccessory={handleDeleteAccessory}
-			onComplete={handleCompleteExterior360}
 		/>
 	{:else if currentTab === 'interior'}
 		<InteriorMechanicalTab
 			data={data.interiorMechanical}
 			assessmentId={data.assessment.id}
 			onUpdate={handleUpdateInteriorMechanical}
-			onComplete={handleCompleteInteriorMechanical}
 		/>
 	{:else if currentTab === 'tyres'}
 		<TyresTab
@@ -755,14 +710,12 @@
 			onUpdateTyre={handleUpdateTyre}
 			onAddTyre={handleAddTyre}
 			onDeleteTyre={handleDeleteTyre}
-			onComplete={handleCompleteTyres}
 		/>
 	{:else if currentTab === 'damage'}
 		<DamageTab
 			damageRecord={data.damageRecord}
 			assessmentId={data.assessment.id}
 			onUpdateDamage={handleUpdateDamage}
-			onComplete={handleCompleteDamage}
 		/>
 	{:else if currentTab === 'values'}
 		<VehicleValuesTab
@@ -780,7 +733,6 @@
 				vehicle_mileage: data.request?.vehicle_mileage
 			}}
 			onUpdate={handleUpdateVehicleValues}
-			onComplete={handleCompleteVehicleValues}
 		/>
 	{:else if currentTab === 'pre-incident'}
 		<PreIncidentEstimateTab
@@ -799,7 +751,6 @@
 				}
 			}}
 			onUpdateRates={handleUpdatePreIncidentRates}
-			onComplete={handleCompletePreIncidentEstimate}
 			onRegisterSave={(saveFn) => {
 				preIncidentEstimateTabSaveFn = saveFn;
 			}}
@@ -828,7 +779,6 @@
 			onUpdateRepairer={handleUpdateRepairer}
 			onRepairersUpdate={handleRepairersUpdate}
 			onUpdateAssessmentResult={handleUpdateAssessmentResult}
-			onComplete={handleCompleteEstimate}
 			onRegisterSave={(saveFn) => {
 				estimateTabSaveFn = saveFn;
 			}}

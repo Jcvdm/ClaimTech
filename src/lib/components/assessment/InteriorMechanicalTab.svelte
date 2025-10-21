@@ -1,10 +1,8 @@
 <script lang="ts">
 	import { Card } from '$lib/components/ui/card';
-	import { Button } from '$lib/components/ui/button';
 	import FormField from '$lib/components/forms/FormField.svelte';
 	import PhotoUpload from '$lib/components/forms/PhotoUpload.svelte';
 	import RequiredFieldsWarning from './RequiredFieldsWarning.svelte';
-	import { CircleCheck } from 'lucide-svelte';
 	import { debounce } from '$lib/utils/useUnsavedChanges.svelte';
 	import { useDraft } from '$lib/utils/useDraft.svelte';
 	import { onMount, onDestroy } from 'svelte';
@@ -15,7 +13,6 @@
 		data: InteriorMechanical | null;
 		assessmentId: string;
 		onUpdate: (data: Partial<InteriorMechanical>) => void;
-		onComplete: () => void;
 	}
 
 	// Make props reactive using $derived pattern
@@ -25,7 +22,6 @@
 	const data = $derived(props.data);
 	const assessmentId = $derived(props.assessmentId);
 	const onUpdate = $derived(props.onUpdate);
-	const onComplete = $derived(props.onComplete);
 
 	// Initialize localStorage draft for critical fields
 	const mileageDraft = useDraft(`assessment-${assessmentId}-mileage`);
@@ -143,15 +139,6 @@
 		saveDrafts(); // Save to localStorage
 		handleSave(); // Save to database
 	}, 2000);
-
-	function handleComplete() {
-		handleSave();
-		onComplete();
-	}
-
-	const isComplete = $derived(
-		mileageReading && interiorCondition && srsSystem && steering && brakes && handbrake
-	);
 
 	// Validation for warning banner
 	const validation = $derived.by(() => {
@@ -410,14 +397,5 @@
 			/>
 		</div>
 	</Card>
-
-	<!-- Actions -->
-	<div class="flex justify-between">
-		<Button variant="outline" onclick={handleSave}>Save Progress</Button>
-		<Button onclick={handleComplete} disabled={!isComplete}>
-			<CircleCheck class="mr-2 h-4 w-4" />
-			Complete & Continue
-		</Button>
-	</div>
 </div>
 

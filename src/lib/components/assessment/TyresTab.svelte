@@ -4,7 +4,7 @@
 	import FormField from '$lib/components/forms/FormField.svelte';
 	import PhotoUpload from '$lib/components/forms/PhotoUpload.svelte';
 	import RequiredFieldsWarning from './RequiredFieldsWarning.svelte';
-	import { Plus, CircleCheck, Trash2 } from 'lucide-svelte';
+	import { Plus, Trash2 } from 'lucide-svelte';
 	import type { Tyre } from '$lib/types/assessment';
 	import { validateTyres } from '$lib/utils/validation';
 
@@ -14,10 +14,9 @@
 		onUpdateTyre: (id: string, data: Partial<Tyre>) => void;
 		onAddTyre: () => void;
 		onDeleteTyre: (id: string) => void;
-		onComplete: () => void;
 	}
 
-	let { tyres: tyresProp, assessmentId, onUpdateTyre, onAddTyre, onDeleteTyre, onComplete }: Props = $props();
+	let { tyres: tyresProp, assessmentId, onUpdateTyre, onAddTyre, onDeleteTyre }: Props = $props();
 
 	// Make tyres reactive to prop changes
 	const tyres = $derived(tyresProp);
@@ -63,12 +62,6 @@
 
 		onUpdateTyre(tyreId, updateData);
 	}
-
-	function handleComplete() {
-		onComplete();
-	}
-
-	const isComplete = $derived(tyres.length >= 5); // At least 5 tyres (standard positions)
 
 	// Validation for warning banner
 	const validation = $derived.by(() => {
@@ -230,15 +223,6 @@
 		<Button variant="outline" onclick={onAddTyre}>
 			<Plus class="mr-2 h-4 w-4" />
 			Add Additional Tyre
-		</Button>
-	</div>
-
-	<!-- Actions -->
-	<div class="flex justify-between">
-		<Button variant="outline" onclick={() => {}}>Save Progress</Button>
-		<Button onclick={handleComplete} disabled={!isComplete}>
-			<CircleCheck class="mr-2 h-4 w-4" />
-			Complete & Continue
 		</Button>
 	</div>
 </div>
