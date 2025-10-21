@@ -4,11 +4,21 @@
 	import { onMount } from 'svelte';
 	import { browser } from '$app/environment';
 	import PageHeader from '$lib/components/layout/PageHeader.svelte';
-	import DataTable from '$lib/components/data/DataTable.svelte';
+	import ModernDataTable from '$lib/components/data/ModernDataTable.svelte';
 	import EmptyState from '$lib/components/data/EmptyState.svelte';
-	import StatusBadge from '$lib/components/data/StatusBadge.svelte';
+	import GradientBadge from '$lib/components/data/GradientBadge.svelte';
+	import TableCell from '$lib/components/data/TableCell.svelte';
 	import { Button } from '$lib/components/ui/button';
-	import { FileCheck, RefreshCw } from 'lucide-svelte';
+	import {
+		FileCheck,
+		RefreshCw,
+		ClipboardCheck,
+		FileText,
+		User,
+		Car,
+		Hash,
+		Calendar
+	} from 'lucide-svelte';
 	import { formatDate, formatDateTime } from '$lib/utils/formatters';
 
 	let { data }: { data: PageData } = $props();
@@ -28,6 +38,7 @@
 	}
 
 	// Refresh when page becomes visible (user returns to tab)
+	// This ensures data is fresh when user navigates back after making changes
 	onMount(() => {
 		if (!browser) return;
 
@@ -75,39 +86,45 @@
 
 	const columns = [
 		{
-			key: 'assessmentNumber',
+			key: 'assessmentNumber' as const,
 			label: 'Assessment #',
-			sortable: true
+			sortable: true,
+			icon: ClipboardCheck
 		},
 		{
-			key: 'requestNumber',
+			key: 'requestNumber' as const,
 			label: 'Request #',
-			sortable: true
+			sortable: true,
+			icon: FileText
 		},
 		{
-			key: 'clientName',
+			key: 'clientName' as const,
 			label: 'Client',
-			sortable: true
+			sortable: true,
+			icon: User
 		},
 		{
-			key: 'vehicle',
+			key: 'vehicle' as const,
 			label: 'Vehicle',
-			sortable: true
+			sortable: true,
+			icon: Car
 		},
 		{
-			key: 'registration',
+			key: 'registration' as const,
 			label: 'Registration',
-			sortable: true
+			sortable: true,
+			icon: Hash
 		},
 		{
-			key: 'finalizedAt',
+			key: 'finalizedAt' as const,
 			label: 'Finalized',
-			sortable: true
+			sortable: true,
+			icon: Calendar
 		}
 	];
 </script>
 
-<div class="space-y-6">
+<div class="flex-1 space-y-6 p-8">
 	<PageHeader
 		title="Finalized Assessments"
 		description="View all finalized assessments with estimates sent to clients"
@@ -127,27 +144,61 @@
 			icon={FileCheck}
 		/>
 	{:else}
-		<DataTable
+		<ModernDataTable
 			data={tableData}
 			{columns}
 			onRowClick={(row) => handleViewAssessment(row.appointmentId)}
-			searchPlaceholder="Search by assessment, request, client, or vehicle..."
+			striped={true}
+			animated={true}
 		>
 			{#snippet cellContent(column, row)}
 				{#if column.key === 'assessmentNumber'}
-					<span class="font-medium text-blue-600">{row.assessmentNumber}</span>
-				{:else if column.key === 'clientType'}
-					<StatusBadge
-						status={row.clientType === 'insurance' ? 'in_progress' : 'new'}
-						label={row.clientType === 'insurance' ? 'Insurance' : 'Private'}
-					/>
+					<TableCell variant="primary" icon={ClipboardCheck} iconColor="text-blue-600">
+						{row.assessmentNumber}
+					</TableCell>
+				{:else if column.key === 'requestNumber'}
+					<TableCell variant="default" bold={true}>
+						{row.requestNumber}
+					</TableCell>
+				{:else if column.key === 'clientName'}
+					<TableCell variant="default">
+						<div class="flex flex-col">
+							<span class="font-medium text-gray-900">{row.clientName}</span>
+							<GradientBadge
+								variant={row.clientType === 'insurance' ? 'blue' : 'purple'}
+								label={row.clientType === 'insurance' ? 'Insurance' : 'Private'}
+								class="mt-1"
+							/>
+						</div>
+					</TableCell>
+				{:else if column.key === 'vehicle'}
+					<TableCell variant="default">
+						<div class="flex flex-col">
+							<span class="font-medium text-gray-900">{row.vehicle}</span>
+							<span class="text-xs text-gray-500">{row.registration}</span>
+						</div>
+					</TableCell>
+				{:else if column.key === 'registration'}
+					<!-- Skip - shown with vehicle -->
 				{:else if column.key === 'finalizedAt'}
-					<span class="text-sm text-gray-600">{formatDateTime(row.finalizedAt)}</span>
+					<TableCell variant="muted">
+						<div class="flex items-center gap-2">
+							<Calendar class="h-4 w-4 text-gray-400" />
+							<span class="text-sm">{formatDateTime(row.finalizedAt)}</span>
+						</div>
+					</TableCell>
 				{:else}
 					{row[column.key]}
 				{/if}
 			{/snippet}
-		</DataTable>
+		</ModernDataTable>
+
+		<div class="flex items-center justify-between text-sm text-gray-500">
+			<p>
+				Showing <span class="font-semibold text-gray-900">{tableData.length}</span>
+				{tableData.length === 1 ? 'assessment' : 'assessments'}
+			</p>
+		</div>
 	{/if}
 </div>
 
