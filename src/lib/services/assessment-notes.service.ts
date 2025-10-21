@@ -56,6 +56,7 @@ class AssessmentNotesService {
 				note_text: input.note_text,
 				note_type: input.note_type || 'manual',
 				note_title: input.note_title,
+				source_tab: input.source_tab,
 				created_by: input.created_by
 			})
 			.select()
@@ -78,7 +79,8 @@ class AssessmentNotesService {
 		lineItemId: string,
 		lineItemDescription: string,
 		bettermentDetails: string,
-		totalDeduction: number
+		totalDeduction: number,
+		sourceTab?: string
 	): Promise<AssessmentNote> {
 		const noteTitle = `Betterment: ${lineItemDescription}`;
 
@@ -105,7 +107,8 @@ class AssessmentNotesService {
 			assessment_id: assessmentId,
 			note_text: bettermentDetails,
 			note_type: 'betterment',
-			note_title: noteTitle
+			note_title: noteTitle,
+			source_tab: sourceTab
 		});
 	}
 

@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { Button } from '$lib/components/ui/button';
+	import { Badge } from '$lib/components/ui/badge';
 	import { Textarea } from '$lib/components/ui/textarea';
 	import { Pencil, Trash2, Check, X, Percent, User } from 'lucide-svelte';
 	import type { AssessmentNote } from '$lib/types/assessment';
@@ -103,6 +104,27 @@
 		editText = note.note_text;
 		isEditing = true;
 	}
+
+	// Get tab label from tab ID
+	function getTabLabel(tabId: string | null | undefined): string | null {
+		if (!tabId) return null;
+
+		const tabLabels: Record<string, string> = {
+			'summary': 'Summary',
+			'identification': 'Vehicle ID',
+			'360': '360° Exterior',
+			'interior': 'Interior',
+			'tyres': 'Tyres',
+			'damage': 'Damage',
+			'values': 'Values',
+			'pre-incident': 'Pre-Incident',
+			'estimate': 'Estimate',
+			'finalize': 'Finalize',
+			'additionals': 'Additionals',
+			'frc': 'FRC'
+		};
+		return tabLabels[tabId] || tabId;
+	}
 </script>
 
 <div
@@ -113,7 +135,7 @@
 	<div class="max-w-[85%] rounded-lg border p-3 shadow-sm {getBubbleStyle(note.note_type)}">
 		<!-- Note Header -->
 		<div class="mb-2 flex items-start justify-between gap-2">
-			<div class="flex items-center gap-2">
+			<div class="flex items-center gap-2 flex-wrap">
 				<svelte:component this={getNoteIcon(note.note_type)} class="h-4 w-4 opacity-60" />
 				{#if note.note_title}
 					<span class="text-sm font-semibold">{note.note_title}</span>
@@ -121,6 +143,14 @@
 					<span class="text-xs font-medium opacity-60">
 						{note.note_type === 'betterment' ? 'Betterment' : note.note_type === 'system' ? 'System' : 'Note'}
 					</span>
+				{/if}
+				{#if note.source_tab}
+					{@const tabLabel = getTabLabel(note.source_tab)}
+					{#if tabLabel}
+						<Badge variant="outline" class="text-xs px-1.5 py-0 h-5 bg-blue-50 text-blue-700 border-blue-200">
+							{tabLabel}
+						</Badge>
+					{/if}
 				{/if}
 			</div>
 

@@ -831,9 +831,12 @@
 			<AssessmentNotes
 				assessmentId={data.assessment.id}
 				notes={data.notes}
+				{currentTab}
 				lastSaved={lastSaved}
 				onUpdate={async () => {
-					// Notes updated, no need to reload entire page
+					// Reload notes from database to update UI immediately
+					const updatedNotes = await assessmentNotesService.getNotesByAssessment(data.assessment.id);
+					data.notes = updatedNotes;
 				}}
 			/>
 		</div>

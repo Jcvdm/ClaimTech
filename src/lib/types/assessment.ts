@@ -236,6 +236,7 @@ export interface AssessmentNote {
 	note_text: string;
 	note_type: AssessmentNoteType;
 	note_title?: string | null;
+	source_tab?: string | null; // Tab ID where note was created (e.g., 'summary', 'identification', 'estimate')
 	created_by?: string | null;
 	created_at: string;
 	updated_at: string;
@@ -367,6 +368,7 @@ export interface CreateAssessmentNoteInput {
 	note_text: string;
 	note_type?: AssessmentNoteType;
 	note_title?: string;
+	source_tab?: string; // Tab ID where note was created
 	created_by?: string;
 }
 

@@ -265,7 +265,8 @@
 				item.id!,
 				item.description,
 				noteText,
-				item.betterment_total || 0
+				item.betterment_total || 0,
+				'estimate' // Track that this note was created from the estimate tab
 			);
 
 			// Trigger parent update to refresh notes display

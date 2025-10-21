@@ -9,11 +9,12 @@
 	interface Props {
 		assessmentId: string;
 		notes: AssessmentNote[];
+		currentTab: string; // Current tab ID for tracking note source
 		onUpdate: () => void;
 		lastSaved?: string | null;
 	}
 
-	let { assessmentId, notes, onUpdate, lastSaved = null }: Props = $props();
+	let { assessmentId, notes, currentTab, onUpdate, lastSaved = null }: Props = $props();
 
 	// Sort notes by created_at (oldest first for chat-style display)
 	const sortedNotes = $derived(
@@ -36,7 +37,8 @@
 			await assessmentNotesService.createNote({
 				assessment_id: assessmentId,
 				note_text: noteText,
-				note_type: 'manual'
+				note_type: 'manual',
+				source_tab: currentTab // Track which tab the note was added from
 			});
 			onUpdate();
 		} catch (error) {
