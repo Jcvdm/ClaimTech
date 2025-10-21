@@ -711,6 +711,11 @@
 			onUpdateTyre={handleUpdateTyre}
 			onAddTyre={handleAddTyre}
 			onDeleteTyre={handleDeleteTyre}
+			onNotesUpdate={async () => {
+				// Reload notes from database and update local state
+				const updatedNotes = await assessmentNotesService.getNotesByAssessment(data.assessment.id);
+				notes = updatedNotes; // Update local state to trigger reactivity
+			}}
 		/>
 	{:else if currentTab === 'damage'}
 		<DamageTab

@@ -16,9 +16,10 @@
 		onUpdateTyre: (id: string, data: Partial<Tyre>) => void;
 		onAddTyre: () => void;
 		onDeleteTyre: (id: string) => void;
+		onNotesUpdate?: () => Promise<void>;
 	}
 
-	let { tyres: tyresProp, assessmentId, onUpdateTyre, onAddTyre, onDeleteTyre }: Props = $props();
+	let { tyres: tyresProp, assessmentId, onUpdateTyre, onAddTyre, onDeleteTyre, onNotesUpdate }: Props = $props();
 
 	// Make tyres reactive to prop changes
 	const tyres = $derived(tyresProp);
@@ -112,6 +113,12 @@
 				source_tab: 'tyres'
 			});
 			console.log('Tyre note submitted to assessment notes');
+
+			// Reload notes to update UI immediately
+			if (onNotesUpdate) {
+				await onNotesUpdate();
+			}
+
 			// TODO: Show success toast
 		} catch (error) {
 			console.error('Error submitting tyre note:', error);
@@ -159,6 +166,11 @@ Betterment to Charge: ${calculatedBetterment.betterment.toFixed(1)}%`;
 				note_title: `Tyre Betterment: ${selectedTyreForBetterment.position_label || selectedTyreForBetterment.position}`,
 				source_tab: 'tyres'
 			});
+
+			// Reload notes to update UI immediately
+			if (onNotesUpdate) {
+				await onNotesUpdate();
+			}
 
 			showBettermentModal = false;
 			console.log('Betterment calculation saved to assessment notes');
