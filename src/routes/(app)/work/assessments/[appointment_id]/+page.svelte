@@ -47,10 +47,11 @@
 
 	let { data }: { data: PageData } = $props();
 
-	// Local reactive state for estimates (Svelte 5 runes pattern)
+	// Local reactive state for estimates and notes (Svelte 5 runes pattern)
 	// Reassigning these triggers reactivity in child components
 	let estimate = $state(data.estimate);
 	let preIncidentEstimate = $state(data.preIncidentEstimate);
+	let notes = $state(data.notes); // Extract notes to local state for reactivity
 
 	let currentTab = $state(data.assessment.current_tab || 'identification');
 	let saving = $state(false);
@@ -783,9 +784,9 @@
 				estimateTabSaveFn = saveFn;
 			}}
 			onNotesUpdate={async () => {
-				// Reload notes from database
+				// Reload notes from database and update local state
 				const updatedNotes = await assessmentNotesService.getNotesByAssessment(data.assessment.id);
-				data.notes = updatedNotes;
+				notes = updatedNotes; // Update local state to trigger reactivity
 			}}
 		/>
 	{:else if currentTab === 'finalize'}
@@ -830,13 +831,13 @@
 		<div class="mt-6">
 			<AssessmentNotes
 				assessmentId={data.assessment.id}
-				notes={data.notes}
+				{notes}
 				{currentTab}
 				lastSaved={lastSaved}
 				onUpdate={async () => {
 					// Reload notes from database to update UI immediately
 					const updatedNotes = await assessmentNotesService.getNotesByAssessment(data.assessment.id);
-					data.notes = updatedNotes;
+					notes = updatedNotes; // Update local state to trigger reactivity
 				}}
 			/>
 		</div>
