@@ -30,10 +30,12 @@
 	import { formatCurrency } from '$lib/utils/formatters';
 	import { validateEstimate } from '$lib/utils/validation';
 	import { assessmentNotesService } from '$lib/services/assessment-notes.service';
+	import { generatePartsListCSV } from '$lib/utils/csv-generator';
 
 	interface Props {
 		estimate: Estimate | null;
 		assessmentId: string;
+		assessmentNumber: string; // For filename generation
 		estimatePhotos: EstimatePhoto[];
 		vehicleValues: VehicleValues | null;
 		repairers: Repairer[];
@@ -66,6 +68,7 @@
 
 	const estimate = $derived(props.estimate);
 	const assessmentId = $derived(props.assessmentId);
+	const assessmentNumber = $derived(props.assessmentNumber);
 	const estimatePhotos = $derived(props.estimatePhotos);
 	const vehicleValues = $derived(props.vehicleValues);
 	const repairers = $derived(props.repairers);
@@ -274,6 +277,29 @@
 		} catch (error) {
 			console.error('Error adding betterment note:', error);
 		}
+	}
+
+	// Download parts list as CSV
+	function handleDownloadPartsList() {
+		const partsOnly = localLineItems().filter(item => item.process_type === 'N');
+
+		if (partsOnly.length === 0) {
+			// TODO: Show toast notification "No parts to export"
+			console.warn('No parts to export');
+			return;
+		}
+
+		// Generate CSV
+		const csv = generatePartsListCSV(partsOnly);
+
+		// Create blob and download
+		const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+		const url = URL.createObjectURL(blob);
+		const link = document.createElement('a');
+		link.href = url;
+		link.download = `${assessmentNumber}_Parts_List.csv`;
+		link.click();
+		URL.revokeObjectURL(url);
 	}
 
 	// State for multi-select functionality
@@ -683,6 +709,15 @@
 							Discard
 						</Button>
 					{/if}
+					<!-- Parts List Download Button -->
+					<Button
+						onclick={handleDownloadPartsList}
+						size="sm"
+						variant="outline"
+						title="Download Parts List (CSV)"
+					>
+						<Package class="h-4 w-4" />
+					</Button>
 					{#if selectedItems.size > 0}
 						<Button onclick={handleBulkDelete} size="sm" variant="destructive">
 							<Trash2 class="mr-2 h-4 w-4" />

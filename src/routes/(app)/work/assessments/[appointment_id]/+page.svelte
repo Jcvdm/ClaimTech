@@ -760,6 +760,7 @@
 		<EstimateTab
 			estimate={estimate}
 			assessmentId={data.assessment.id}
+			assessmentNumber={data.assessment.assessment_number}
 			estimatePhotos={data.estimatePhotos}
 			vehicleValues={data.vehicleValues}
 			repairers={data.repairers}
