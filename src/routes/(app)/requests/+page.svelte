@@ -1,11 +1,13 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import PageHeader from '$lib/components/layout/PageHeader.svelte';
-	import DataTable from '$lib/components/data/DataTable.svelte';
+	import ModernDataTable from '$lib/components/data/ModernDataTable.svelte';
+	import GradientBadge from '$lib/components/data/GradientBadge.svelte';
+	import TableCell from '$lib/components/data/TableCell.svelte';
 	import EmptyState from '$lib/components/data/EmptyState.svelte';
 	import { Button } from '$lib/components/ui/button';
 	import { Badge } from '$lib/components/ui/badge';
-	import { FileText, Plus } from 'lucide-svelte';
+	import { FileText, Plus, Hash, User, Car, Calendar } from 'lucide-svelte';
 	import type { Request, RequestStatus } from '$lib/types/request';
 	import type { PageData } from './$types';
 
@@ -48,34 +50,32 @@
 		{
 			key: 'request_number' as keyof RequestWithClient,
 			label: 'Request #',
-			sortable: true
+			sortable: true,
+			icon: Hash
 		},
 		{
 			key: 'client_name' as keyof RequestWithClient,
 			label: 'Client',
-			sortable: true
+			sortable: true,
+			icon: User
 		},
 		{
 			key: 'vehicle_make' as keyof RequestWithClient,
 			label: 'Vehicle',
 			sortable: true,
-			render: (value: string | null, row: RequestWithClient) => {
-				if (!value) return '-';
-				return `${value} ${row.vehicle_model || ''}`.trim();
-			}
+			icon: Car
 		},
 		{
 			key: 'type' as keyof RequestWithClient,
 			label: 'Type',
 			sortable: true,
-			render: (value: string) => {
-				return value === 'insurance' ? 'Insurance' : 'Private';
-			}
+			icon: User
 		},
 		{
 			key: 'formatted_date' as keyof RequestWithClient,
 			label: 'Date Requested',
-			sortable: true
+			sortable: true,
+			icon: Calendar
 		}
 	];
 
@@ -140,14 +140,28 @@
 			onAction={() => goto('/requests/new')}
 		/>
 	{:else}
-		<div class="rounded-lg border bg-white">
-			<DataTable
-				data={requestsWithDetails}
-				{columns}
-				onRowClick={handleRowClick}
-				emptyMessage="No requests found"
-			/>
-		</div>
+		<ModernDataTable data={requestsWithDetails} {columns} onRowClick={handleRowClick} striped>
+			{#snippet cellContent(column, row)}
+				{#if column.key === 'request_number'}
+					<TableCell variant="primary" bold>
+						{row.request_number}
+					</TableCell>
+				{:else if column.key === 'vehicle_make'}
+					{@const vehicle = row.vehicle_make
+						? `${row.vehicle_make} ${row.vehicle_model || ''}`.trim()
+						: '-'}
+					{vehicle}
+				{:else if column.key === 'type'}
+					{@const isInsurance = row.type === 'insurance'}
+					<GradientBadge
+						variant={isInsurance ? 'blue' : 'purple'}
+						label={isInsurance ? 'Insurance' : 'Private'}
+					/>
+				{:else}
+					{row[column.key]}
+				{/if}
+			{/snippet}
+		</ModernDataTable>
 
 		<div class="flex items-center justify-between text-sm text-gray-500">
 			<p>
