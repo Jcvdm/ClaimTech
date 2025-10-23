@@ -16,7 +16,8 @@ export interface UploadPhotoOptions {
 }
 
 class StorageService {
-	private readonly DEFAULT_BUCKET = 'documents';
+	private readonly DEFAULT_BUCKET = 'SVA Photos'; // Changed from 'documents' - photos go to SVA Photos bucket
+	private readonly DOCUMENTS_BUCKET = 'documents'; // For PDFs and generated documents
 	private readonly MAX_FILE_SIZE_MB = 50;
 	private readonly SIGNED_URL_EXPIRY_SECONDS = 3600; // 1 hour
 
@@ -47,6 +48,9 @@ class StorageService {
 
 	/**
 	 * Upload a photo file to Supabase Storage
+	 *
+	 * For SVA Photos bucket: Returns proxy URL (/api/photo/{path})
+	 * For documents bucket: Returns signed URL (for PDFs)
 	 */
 	async uploadPhoto(
 		file: File,
@@ -89,31 +93,41 @@ class StorageService {
 			throw new Error(`Failed to upload photo: ${error.message}`);
 		}
 
-		// Get signed URL (1 hour expiry)
-		const { data: signedUrlData, error: urlError } = await supabaseClient.storage
-			.from(bucket)
-			.createSignedUrl(filePath, this.SIGNED_URL_EXPIRY_SECONDS);
+		// For SVA Photos bucket: Return proxy URL
+		// For documents bucket: Return signed URL
+		if (bucket === 'SVA Photos') {
+			return {
+				url: this.getPhotoProxyUrl(filePath),
+				path: filePath
+			};
+		} else {
+			// Get signed URL for documents bucket (PDFs)
+			const { data: signedUrlData, error: urlError } = await supabaseClient.storage
+				.from(bucket)
+				.createSignedUrl(filePath, this.SIGNED_URL_EXPIRY_SECONDS);
 
-		if (urlError || !signedUrlData) {
-			console.error('Signed URL error:', urlError);
-			throw new Error(`Failed to generate signed URL: ${urlError?.message}`);
+			if (urlError || !signedUrlData) {
+				console.error('Signed URL error:', urlError);
+				throw new Error(`Failed to generate signed URL: ${urlError?.message}`);
+			}
+
+			return {
+				url: signedUrlData.signedUrl,
+				path: filePath
+			};
 		}
-
-		return {
-			url: signedUrlData.signedUrl,
-			path: filePath
-		};
 	}
 
 	/**
 	 * Upload a PDF file to Supabase Storage
+	 * Always uses documents bucket and returns signed URL
 	 */
 	async uploadPdf(
 		file: File,
 		options: UploadPhotoOptions = {}
 	): Promise<UploadPhotoResult> {
 		const {
-			bucket = this.DEFAULT_BUCKET,
+			bucket = this.DOCUMENTS_BUCKET, // PDFs always go to documents bucket
 			folder = 'documents',
 			fileName,
 			maxSizeMB = this.MAX_FILE_SIZE_MB,
@@ -283,6 +297,53 @@ class StorageService {
 	): Promise<UploadPhotoResult> {
 		const folder = `assessments/${assessmentId}/${category}`;
 		return this.uploadPdf(file, { folder });
+	}
+
+	/**
+	 * Get proxy URL for a photo path
+	 * Converts storage path to /api/photo/{path} format
+	 */
+	getPhotoProxyUrl(path: string): string {
+		return `/api/photo/${path}`;
+	}
+
+	/**
+	 * Extract storage path from any URL format
+	 * Handles: signed URLs, public URLs, proxy URLs, or raw paths
+	 */
+	extractStoragePath(urlOrPath: string): string {
+		if (!urlOrPath) return '';
+
+		// Already a path (no protocol)
+		if (!urlOrPath.includes('://') && !urlOrPath.startsWith('/api/')) {
+			return urlOrPath;
+		}
+
+		// Proxy URL format: /api/photo/{path}
+		if (urlOrPath.startsWith('/api/photo/')) {
+			return urlOrPath.replace('/api/photo/', '');
+		}
+
+		// Signed or public URL format
+		const match = urlOrPath.match(/\/storage\/v1\/object\/(?:sign|public)\/[^/]+\/(.+?)(?:\?|$)/);
+		if (match) {
+			return match[1];
+		}
+
+		// Fallback: return as-is
+		return urlOrPath;
+	}
+
+	/**
+	 * Convert any photo URL/path to proxy URL format
+	 * Use this when displaying photos in components
+	 */
+	toPhotoProxyUrl(urlOrPath: string): string {
+		if (!urlOrPath) return '';
+		if (urlOrPath.startsWith('/api/photo/')) return urlOrPath;
+
+		const path = this.extractStoragePath(urlOrPath);
+		return this.getPhotoProxyUrl(path);
 	}
 }
 

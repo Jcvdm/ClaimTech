@@ -1,11 +1,10 @@
 import { error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { supabase } from '$lib/supabase';
 import { generatePDF } from '$lib/utils/pdf-generator';
 import { generateReportHTML } from '$lib/templates/report-template';
 import { createStreamingResponse } from '$lib/utils/streaming-response';
 
-export const POST: RequestHandler = async ({ request }) => {
+export const POST: RequestHandler = async ({ request, locals }) => {
 	const body = await request.json();
 	const assessmentId = body.assessmentId;
 
@@ -24,7 +23,7 @@ export const POST: RequestHandler = async ({ request }) => {
 			yield { status: 'processing', progress: 5, message: 'Fetching assessment data...' };
 
 			// Fetch assessment data
-			const { data: assessment, error: assessmentError } = await supabase
+			const { data: assessment, error: assessmentError } = await locals.supabase
 				.from('assessments')
 				.select('*')
 				.eq('id', assessmentId)
@@ -56,42 +55,42 @@ export const POST: RequestHandler = async ({ request }) => {
 			{ data: repairer },
 			{ data: tyres }
 		] = await Promise.all([
-			supabase
+			locals.supabase
 				.from('assessment_vehicle_identification')
 				.select('*')
 				.eq('assessment_id', assessmentId)
 				.single(),
-			supabase.from('assessment_360_exterior').select('*').eq('assessment_id', assessmentId).single(),
-			supabase
+			locals.supabase.from('assessment_360_exterior').select('*').eq('assessment_id', assessmentId).single(),
+			locals.supabase
 				.from('assessment_interior_mechanical')
 				.select('*')
 				.eq('assessment_id', assessmentId)
 				.single(),
-			supabase.from('assessment_damage').select('*').eq('assessment_id', assessmentId).single(),
-			supabase.from('company_settings').select('*').single(),
-			supabase.from('appointments').select('*').eq('id', assessment.appointment_id).single(),
-			supabase.from('requests').select('*').eq('id', assessment.request_id).single(),
-			supabase.from('inspections').select('*').eq('id', assessment.inspection_id).single(),
+			locals.supabase.from('assessment_damage').select('*').eq('assessment_id', assessmentId).single(),
+			locals.supabase.from('company_settings').select('*').single(),
+			locals.supabase.from('appointments').select('*').eq('id', assessment.appointment_id).single(),
+			locals.supabase.from('requests').select('*').eq('id', assessment.request_id).single(),
+			locals.supabase.from('inspections').select('*').eq('id', assessment.inspection_id).single(),
 			assessment.request_id
-				? supabase
+				? locals.supabase
 						.from('requests')
 						.select('client_id')
 						.eq('id', assessment.request_id)
 						.single()
 						.then(({ data }) =>
 							data
-								? supabase.from('clients').select('*').eq('id', data.client_id).single()
+								? locals.supabase.from('clients').select('*').eq('id', data.client_id).single()
 								: { data: null }
 						)
 				: Promise.resolve({ data: null }),
-			supabase.from('assessment_estimates').select('*').eq('assessment_id', assessmentId).single(),
-			supabase.from('assessment_estimates').select('repairer_id').eq('assessment_id', assessmentId).single()
+			locals.supabase.from('assessment_estimates').select('*').eq('assessment_id', assessmentId).single(),
+			locals.supabase.from('assessment_estimates').select('repairer_id').eq('assessment_id', assessmentId).single()
 				.then(({ data }) =>
 					data?.repairer_id
-						? supabase.from('repairers').select('*').eq('id', data.repairer_id).single()
+						? locals.supabase.from('repairers').select('*').eq('id', data.repairer_id).single()
 						: { data: null }
 				),
-			supabase
+			locals.supabase
 				.from('assessment_tyres')
 				.select('*')
 				.eq('assessment_id', assessmentId)
@@ -104,7 +103,7 @@ export const POST: RequestHandler = async ({ request }) => {
 			let reportNumber = assessment.report_number;
 			if (!reportNumber) {
 				const year = new Date().getFullYear();
-				const { count } = await supabase
+				const { count } = await locals.supabase
 					.from('assessments')
 					.select('*', { count: 'exact', head: true })
 					.like('report_number', `REP-${year}-%`);
@@ -113,7 +112,7 @@ export const POST: RequestHandler = async ({ request }) => {
 				reportNumber = `REP-${year}-${nextNumber.toString().padStart(5, '0')}`;
 
 				// Update assessment with report number
-				await supabase
+				await locals.supabase
 					.from('assessments')
 					.update({ report_number: reportNumber })
 					.eq('id', assessmentId);
@@ -166,7 +165,7 @@ export const POST: RequestHandler = async ({ request }) => {
 			// Delete previous file if it exists to avoid orphaned files
 			if (assessment.report_pdf_path) {
 				console.log('Deleting previous report PDF:', assessment.report_pdf_path);
-				const { error: removeError } = await supabase.storage
+				const { error: removeError } = await locals.supabase.storage
 					.from('documents')
 					.remove([assessment.report_pdf_path]);
 
@@ -187,7 +186,7 @@ export const POST: RequestHandler = async ({ request }) => {
 			console.log('File path:', filePath);
 			console.log('PDF size:', pdfBuffer.length, 'bytes');
 
-			const { data: uploadData, error: uploadError } = await supabase.storage
+			const { data: uploadData, error: uploadError } = await locals.supabase.storage
 				.from('documents')
 				.upload(filePath, pdfBuffer, {
 					contentType: 'application/pdf',
@@ -214,16 +213,14 @@ export const POST: RequestHandler = async ({ request }) => {
 
 			yield { status: 'processing', progress: 95, message: 'Finalizing...' };
 
-			// Get public URL
-			const {
-				data: { publicUrl }
-			} = supabase.storage.from('documents').getPublicUrl(filePath);
+			// Use proxy URL instead of signed URL to avoid CORS/ORB issues with private bucket
+			const proxyUrl = `/api/document/${filePath}`;
 
-			// Update assessment with PDF URL
-			const { error: updateError } = await supabase
+			// Update assessment with proxy URL
+			const { error: updateError } = await locals.supabase
 				.from('assessments')
 				.update({
-					report_pdf_url: publicUrl,
+					report_pdf_url: proxyUrl, // Store proxy URL (doesn't expire)
 					report_pdf_path: filePath,
 					documents_generated_at: new Date().toISOString()
 				})
@@ -239,12 +236,12 @@ export const POST: RequestHandler = async ({ request }) => {
 				return;
 			}
 
-			// Send completion
+			// Send completion with proxy URL
 			yield {
 				status: 'complete',
 				progress: 100,
 				message: 'Report generated successfully!',
-				url: publicUrl
+				url: proxyUrl
 			};
 
 		} catch (err) {

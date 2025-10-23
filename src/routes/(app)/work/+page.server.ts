@@ -5,7 +5,7 @@ import { assessmentService } from '$lib/services/assessment.service';
 import { frcService } from '$lib/services/frc.service';
 import { additionalsService } from '$lib/services/additionals.service';
 
-export const load: PageServerLoad = async () => {
+export const load: PageServerLoad = async ({ locals }) => {
 	try {
 		// Fetch counts for all work phases in parallel
 		const [
@@ -17,13 +17,13 @@ export const load: PageServerLoad = async () => {
 			additionalsCount,
 			archiveCount
 		] = await Promise.all([
-			inspectionService.getInspectionCount({ status: 'pending' }),
-			appointmentService.getAppointmentCount({ status: 'scheduled' }),
-			assessmentService.getAssessmentCount({ status: 'in_progress' }),
-			assessmentService.getAssessmentCount({ status: 'submitted' }),
-			frcService.getFRCCount({ status: 'in_progress' }),
-			additionalsService.getAdditionalsCount({ status: 'pending' }),
-			assessmentService.getAssessmentCount({ status: 'archived' })
+			inspectionService.getInspectionCount({ status: 'pending' }, locals.supabase),
+			appointmentService.getAppointmentCount({ status: 'scheduled' }, locals.supabase),
+			assessmentService.getAssessmentCount({ status: 'in_progress' }, locals.supabase),
+			assessmentService.getAssessmentCount({ status: 'submitted' }, locals.supabase),
+			frcService.getCountByStatus('in_progress', locals.supabase),
+			additionalsService.getPendingCount(locals.supabase),
+			assessmentService.getAssessmentCount({ status: 'archived' }, locals.supabase)
 		]);
 
 		return {

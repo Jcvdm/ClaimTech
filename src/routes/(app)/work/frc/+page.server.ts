@@ -1,9 +1,9 @@
 import type { PageServerLoad } from './$types';
 import { frcService } from '$lib/services/frc.service';
 
-export const load: PageServerLoad = async () => {
+export const load: PageServerLoad = async ({ locals }) => {
 	try {
-		const frcRecords = await frcService.listFRC();
+		const frcRecords = await frcService.listFRC(undefined, locals.supabase);
 
 		return {
 			frcRecords

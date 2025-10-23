@@ -8,7 +8,7 @@ export const GET: RequestHandler = async (event) => {
 	} = event
 	const token_hash = url.searchParams.get('token_hash')
 	const type = url.searchParams.get('type') as 'signup' | 'recovery' | 'email' | null
-	const next = url.searchParams.get('next') ?? '/'
+	const next = url.searchParams.get('next') ?? '/dashboard'
 
 	/**
 	 * Clean up the redirect URL by deleting the Auth flow parameters.

@@ -325,7 +325,7 @@
 							class="w-full h-full"
 						>
 							<img
-								src={photo.photo_url}
+								src={storageService.toPhotoProxyUrl(photo.photo_url)}
 								alt={photo.label || 'Additional photo'}
 								class="w-full h-full object-cover"
 							/>
@@ -374,7 +374,7 @@
 				<div class="relative bg-gray-100 rounded-lg overflow-hidden" style="min-height: 400px;">
 					<div class="overflow-auto max-h-[60vh]">
 						<img
-							src={photo.photo_url}
+							src={storageService.toPhotoProxyUrl(photo.photo_url)}
 							alt={photo.label || 'Additional photo'}
 							class="w-full h-auto transition-transform"
 							style="transform: scale({photoZoom}); transform-origin: center;"

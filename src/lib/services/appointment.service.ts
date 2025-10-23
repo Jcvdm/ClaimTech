@@ -6,15 +6,17 @@ import type {
 	UpdateAppointmentInput,
 	AppointmentStatus
 } from '$lib/types/appointment';
+import type { ServiceClient } from '$lib/types/service';
 
 export class AppointmentService {
 	/**
 	 * Generate unique appointment number (APT-2025-001)
 	 */
-	private async generateAppointmentNumber(): Promise<string> {
+	private async generateAppointmentNumber(client?: ServiceClient): Promise<string> {
+		const db = client ?? supabase;
 		const year = new Date().getFullYear();
 
-		const { count, error } = await supabase
+		const { count, error } = await db
 			.from('appointments')
 			.select('*', { count: 'exact', head: true })
 			.like('appointment_number', `APT-${year}-%`);
@@ -31,10 +33,11 @@ export class AppointmentService {
 	/**
 	 * Create appointment from inspection
 	 */
-	async createAppointment(input: CreateAppointmentInput): Promise<Appointment> {
-		const appointmentNumber = await this.generateAppointmentNumber();
+	async createAppointment(input: CreateAppointmentInput, client?: ServiceClient): Promise<Appointment> {
+		const db = client ?? supabase;
+		const appointmentNumber = await this.generateAppointmentNumber(client);
 
-		const { data, error } = await supabase
+		const { data, error } = await db
 			.from('appointments')
 			.insert({
 				...input,
@@ -75,8 +78,11 @@ export class AppointmentService {
 		appointment_type?: 'in_person' | 'digital';
 		date_from?: string;
 		date_to?: string;
-	}): Promise<Appointment[]> {
-		let query = supabase
+		inspection_id?: string;
+	}, client?: ServiceClient): Promise<Appointment[]> {
+		const db = client ?? supabase;
+
+		let query = db
 			.from('appointments')
 			.select('*')
 			.order('appointment_date', { ascending: true });
@@ -96,6 +102,9 @@ export class AppointmentService {
 		if (filters?.date_to) {
 			query = query.lte('appointment_date', filters.date_to);
 		}
+		if (filters?.inspection_id) {
+			query = query.eq('inspection_id', filters.inspection_id);
+		}
 
 		const { data, error } = await query;
 
@@ -110,8 +119,10 @@ export class AppointmentService {
 	/**
 	 * Get single appointment
 	 */
-	async getAppointment(id: string): Promise<Appointment | null> {
-		const { data, error } = await supabase
+	async getAppointment(id: string, client?: ServiceClient): Promise<Appointment | null> {
+		const db = client ?? supabase;
+
+		const { data, error } = await db
 			.from('appointments')
 			.select('*')
 			.eq('id', id)
@@ -129,10 +140,11 @@ export class AppointmentService {
 	/**
 	 * Update appointment
 	 */
-	async updateAppointment(id: string, input: UpdateAppointmentInput): Promise<Appointment> {
-		const oldAppointment = await this.getAppointment(id);
+	async updateAppointment(id: string, input: UpdateAppointmentInput, client?: ServiceClient): Promise<Appointment> {
+		const oldAppointment = await this.getAppointment(id, client);
 
-		const { data, error } = await supabase
+		const db = client ?? supabase;
+		const { data, error } = await db
 			.from('appointments')
 			.update(input)
 			.eq('id', id)
@@ -165,7 +177,7 @@ export class AppointmentService {
 	/**
 	 * Update appointment status
 	 */
-	async updateAppointmentStatus(id: string, status: AppointmentStatus): Promise<Appointment> {
+	async updateAppointmentStatus(id: string, status: AppointmentStatus, client?: ServiceClient): Promise<Appointment> {
 		const updateData: UpdateAppointmentInput = { status };
 
 		if (status === 'completed') {
@@ -174,7 +186,7 @@ export class AppointmentService {
 			updateData.cancelled_at = new Date().toISOString();
 		}
 
-		const updated = await this.updateAppointment(id, updateData);
+		const updated = await this.updateAppointment(id, updateData, client);
 
 		// Log status change for audit trail
 		await auditService.logChange({
@@ -194,8 +206,10 @@ export class AppointmentService {
 	/**
 	 * Get appointment by inspection ID
 	 */
-	async getAppointmentByInspection(inspectionId: string): Promise<Appointment | null> {
-		const { data, error } = await supabase
+	async getAppointmentByInspection(inspectionId: string, client?: ServiceClient): Promise<Appointment | null> {
+		const db = client ?? supabase;
+
+		const { data, error } = await db
 			.from('appointments')
 			.select('*')
 			.eq('inspection_id', inspectionId)
@@ -213,7 +227,7 @@ export class AppointmentService {
 	/**
 	 * Cancel appointment
 	 */
-	async cancelAppointment(id: string, reason?: string): Promise<Appointment> {
+	async cancelAppointment(id: string, reason?: string, client?: ServiceClient): Promise<Appointment> {
 		const updateData: UpdateAppointmentInput = {
 			status: 'cancelled',
 			cancelled_at: new Date().toISOString()
@@ -223,7 +237,7 @@ export class AppointmentService {
 			updateData.cancellation_reason = reason;
 		}
 
-		return this.updateAppointment(id, updateData);
+		return this.updateAppointment(id, updateData, client);
 	}
 
 	/**
@@ -232,8 +246,10 @@ export class AppointmentService {
 	async getAppointmentCount(filters?: {
 		status?: AppointmentStatus;
 		appointment_type?: 'in_person' | 'digital';
-	}): Promise<number> {
-		let query = supabase.from('appointments').select('*', { count: 'exact', head: true });
+	}, client?: ServiceClient): Promise<number> {
+		const db = client ?? supabase;
+
+		let query = db.from('appointments').select('*', { count: 'exact', head: true });
 
 		if (filters?.status) {
 			query = query.eq('status', filters.status);
@@ -255,8 +271,10 @@ export class AppointmentService {
 	/**
 	 * List cancelled appointments with related data for archive
 	 */
-	async listCancelledAppointments(): Promise<any[]> {
-		const { data, error } = await supabase
+	async listCancelledAppointments(client?: ServiceClient): Promise<any[]> {
+		const db = client ?? supabase;
+
+		const { data, error } = await db
 			.from('appointments')
 			.select(`
 				*,

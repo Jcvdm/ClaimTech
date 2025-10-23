@@ -32,7 +32,15 @@
         {#if showUserMenu}
           <div class="absolute right-0 top-full mt-2 w-48 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-50">
             <div class="py-1">
-              <form method="POST" action="/auth/logout" use:enhance>
+              <form
+                method="POST"
+                action="/auth/logout"
+                use:enhance={() => {
+                  return async ({ update }) => {
+                    await update();
+                  };
+                }}
+              >
                 <button
                   type="submit"
                   class="flex items-center gap-2 w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"

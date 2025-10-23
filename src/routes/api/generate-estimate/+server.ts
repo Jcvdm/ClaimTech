@@ -1,11 +1,10 @@
 import { error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { supabase } from '$lib/supabase';
 import { generatePDF } from '$lib/utils/pdf-generator';
 import { generateEstimateHTML } from '$lib/templates/estimate-template';
 import { createStreamingResponse } from '$lib/utils/streaming-response';
 
-export const POST: RequestHandler = async ({ request }) => {
+export const POST: RequestHandler = async ({ request, locals }) => {
 	const body = await request.json();
 	const assessmentId = body.assessmentId;
 	const requestId = Math.random().toString(36).substring(7);
@@ -29,7 +28,7 @@ export const POST: RequestHandler = async ({ request }) => {
 
 			// Fetch assessment data
 			console.log(`[${new Date().toISOString()}] [Request ${requestId}] Fetching assessment from database...`);
-			const { data: assessment, error: assessmentError } = await supabase
+			const { data: assessment, error: assessmentError } = await locals.supabase
 				.from('assessments')
 				.select('*')
 				.eq('id', assessmentId)
@@ -59,23 +58,23 @@ export const POST: RequestHandler = async ({ request }) => {
 			{ data: requestData, error: requestError },
 			{ data: client, error: clientError }
 		] = await Promise.all([
-			supabase
+			locals.supabase
 				.from('assessment_vehicle_identification')
 				.select('*')
 				.eq('assessment_id', assessmentId)
 				.single(),
-			supabase.from('assessment_estimates').select('*').eq('assessment_id', assessmentId).single(),
-			supabase.from('company_settings').select('*').single(),
-			supabase.from('requests').select('*').eq('id', assessment.request_id).single(),
+			locals.supabase.from('assessment_estimates').select('*').eq('assessment_id', assessmentId).single(),
+			locals.supabase.from('company_settings').select('*').single(),
+			locals.supabase.from('requests').select('*').eq('id', assessment.request_id).single(),
 			assessment.request_id
-				? supabase
+				? locals.supabase
 						.from('requests')
 						.select('client_id')
 						.eq('id', assessment.request_id)
 						.single()
 						.then(({ data }) =>
 							data
-								? supabase.from('clients').select('*').eq('id', data.client_id).single()
+								? locals.supabase.from('clients').select('*').eq('id', data.client_id).single()
 								: { data: null }
 						)
 				: Promise.resolve({ data: null })
@@ -92,7 +91,7 @@ export const POST: RequestHandler = async ({ request }) => {
 
 			// Step 2: Fetch repairer using estimate data (now that estimate is available)
 			const { data: repairer } = estimate?.repairer_id
-				? await supabase.from('repairers').select('*').eq('id', estimate.repairer_id).single()
+				? await locals.supabase.from('repairers').select('*').eq('id', estimate.repairer_id).single()
 				: { data: null };
 
 			// Line items are stored in the estimate JSONB column
@@ -180,7 +179,7 @@ export const POST: RequestHandler = async ({ request }) => {
 			// Delete previous file if it exists to avoid orphaned files
 			if (assessment.estimate_pdf_path) {
 				console.log(`[${new Date().toISOString()}] [Request ${requestId}] Deleting previous estimate PDF: ${assessment.estimate_pdf_path}`);
-				const { error: removeError } = await supabase.storage
+				const { error: removeError } = await locals.supabase.storage
 					.from('documents')
 					.remove([assessment.estimate_pdf_path]);
 
@@ -198,7 +197,7 @@ export const POST: RequestHandler = async ({ request }) => {
 			const filePath = `assessments/${assessmentId}/estimates/${fileName}`;
 
 			console.log(`[${new Date().toISOString()}] [Request ${requestId}] Uploading PDF to Supabase storage: ${filePath}`);
-			const { error: uploadError } = await supabase.storage
+			const { error: uploadError } = await locals.supabase.storage
 				.from('documents')
 				.upload(filePath, pdfBuffer, {
 					contentType: 'application/pdf',
@@ -221,19 +220,17 @@ export const POST: RequestHandler = async ({ request }) => {
 			yield { status: 'processing', progress: 95, message: 'Finalizing...' };
 			console.log(`[${new Date().toISOString()}] [Request ${requestId}] Progress 95% yielded successfully`);
 
-			// Get public URL
-			console.log(`[${new Date().toISOString()}] [Request ${requestId}] Getting public URL for PDF...`);
-			const {
-				data: { publicUrl }
-			} = supabase.storage.from('documents').getPublicUrl(filePath);
-			console.log(`[${new Date().toISOString()}] [Request ${requestId}] Public URL: ${publicUrl}`);
+			// Use proxy URL instead of signed URL to avoid CORS/ORB issues with private bucket
+			console.log(`[${new Date().toISOString()}] [Request ${requestId}] Generating proxy URL for PDF...`);
+			const proxyUrl = `/api/document/${filePath}`;
+			console.log(`[${new Date().toISOString()}] [Request ${requestId}] Proxy URL: ${proxyUrl}`);
 
-			// Update assessment with PDF URL
+			// Update assessment with proxy URL
 			console.log(`[${new Date().toISOString()}] [Request ${requestId}] Updating assessment record with PDF URL...`);
-			const { error: updateError } = await supabase
+			const { error: updateError } = await locals.supabase
 				.from('assessments')
 				.update({
-					estimate_pdf_url: publicUrl,
+					estimate_pdf_url: proxyUrl, // Store proxy URL (doesn't expire)
 					estimate_pdf_path: filePath,
 					documents_generated_at: new Date().toISOString()
 				})
@@ -256,7 +253,7 @@ export const POST: RequestHandler = async ({ request }) => {
 				status: 'complete',
 				progress: 100,
 				message: 'Estimate generated successfully!',
-				url: publicUrl
+				url: proxyUrl
 			};
 			console.log(`[${new Date().toISOString()}] [Request ${requestId}] ✅ COMPLETE status yielded successfully - generator will now exit`);
 

@@ -2,9 +2,9 @@ import { engineerService } from '$lib/services/engineer.service';
 import { error } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 
-export const load: PageServerLoad = async ({ params }) => {
+export const load: PageServerLoad = async ({ params, locals }) => {
 	try {
-		const engineer = await engineerService.getEngineer(params.id);
+		const engineer = await engineerService.getEngineer(params.id, locals.supabase);
 
 		if (!engineer) {
 			throw error(404, 'Engineer not found');

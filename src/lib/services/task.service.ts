@@ -5,13 +5,16 @@ import type {
 	UpdateTaskInput,
 	TaskStatus
 } from '$lib/types/request';
+import type { ServiceClient } from '$lib/types/service';
 
 export class TaskService {
 	/**
 	 * List all tasks for a request
 	 */
-	async listTasksForRequest(requestId: string): Promise<RequestTask[]> {
-		const { data, error } = await supabase
+	async listTasksForRequest(requestId: string, client?: ServiceClient): Promise<RequestTask[]> {
+		const db = client ?? supabase;
+
+		const { data, error } = await db
 			.from('request_tasks')
 			.select('*')
 			.eq('request_id', requestId)
@@ -28,8 +31,10 @@ export class TaskService {
 	/**
 	 * Get a single task by ID
 	 */
-	async getTask(id: string): Promise<RequestTask | null> {
-		const { data, error } = await supabase
+	async getTask(id: string, client?: ServiceClient): Promise<RequestTask | null> {
+		const db = client ?? supabase;
+
+		const { data, error } = await db
 			.from('request_tasks')
 			.select('*')
 			.eq('id', id)
@@ -49,8 +54,10 @@ export class TaskService {
 	/**
 	 * Create a new task
 	 */
-	async createTask(input: CreateTaskInput): Promise<RequestTask> {
-		const { data, error } = await supabase
+	async createTask(input: CreateTaskInput, client?: ServiceClient): Promise<RequestTask> {
+		const db = client ?? supabase;
+
+		const { data, error } = await db
 			.from('request_tasks')
 			.insert({
 				...input,
@@ -70,8 +77,10 @@ export class TaskService {
 	/**
 	 * Update an existing task
 	 */
-	async updateTask(id: string, input: UpdateTaskInput): Promise<RequestTask | null> {
-		const { data, error } = await supabase
+	async updateTask(id: string, input: UpdateTaskInput, client?: ServiceClient): Promise<RequestTask | null> {
+		const db = client ?? supabase;
+
+		const { data, error } = await db
 			.from('request_tasks')
 			.update(input)
 			.eq('id', id)
@@ -92,7 +101,7 @@ export class TaskService {
 	/**
 	 * Update task status
 	 */
-	async updateTaskStatus(id: string, status: TaskStatus): Promise<RequestTask | null> {
+	async updateTaskStatus(id: string, status: TaskStatus, client?: ServiceClient): Promise<RequestTask | null> {
 		const updateData: UpdateTaskInput = { status };
 
 		// If marking as completed, set completed_at timestamp
@@ -100,14 +109,16 @@ export class TaskService {
 			updateData.completed_at = new Date().toISOString();
 		}
 
-		return this.updateTask(id, updateData);
+		return this.updateTask(id, updateData, client);
 	}
 
 	/**
 	 * Delete a task
 	 */
-	async deleteTask(id: string): Promise<boolean> {
-		const { error } = await supabase.from('request_tasks').delete().eq('id', id);
+	async deleteTask(id: string, client?: ServiceClient): Promise<boolean> {
+		const db = client ?? supabase;
+
+		const { error } = await db.from('request_tasks').delete().eq('id', id);
 
 		if (error) {
 			console.error('Error deleting task:', error);
@@ -120,8 +131,10 @@ export class TaskService {
 	/**
 	 * Get tasks assigned to an engineer
 	 */
-	async getTasksByEngineer(engineerId: string): Promise<RequestTask[]> {
-		const { data, error } = await supabase
+	async getTasksByEngineer(engineerId: string, client?: ServiceClient): Promise<RequestTask[]> {
+		const db = client ?? supabase;
+
+		const { data, error } = await db
 			.from('request_tasks')
 			.select('*')
 			.eq('assigned_to', engineerId)
@@ -138,8 +151,10 @@ export class TaskService {
 	/**
 	 * Get tasks by status
 	 */
-	async getTasksByStatus(status: TaskStatus): Promise<RequestTask[]> {
-		const { data, error } = await supabase
+	async getTasksByStatus(status: TaskStatus, client?: ServiceClient): Promise<RequestTask[]> {
+		const db = client ?? supabase;
+
+		const { data, error } = await db
 			.from('request_tasks')
 			.select('*')
 			.eq('status', status)
@@ -156,10 +171,12 @@ export class TaskService {
 	/**
 	 * Get overdue tasks
 	 */
-	async getOverdueTasks(): Promise<RequestTask[]> {
+	async getOverdueTasks(client?: ServiceClient): Promise<RequestTask[]> {
+		const db = client ?? supabase;
+
 		const today = new Date().toISOString().split('T')[0];
 
-		const { data, error } = await supabase
+		const { data, error } = await db
 			.from('request_tasks')
 			.select('*')
 			.lt('due_date', today)

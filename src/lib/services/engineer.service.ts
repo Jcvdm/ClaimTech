@@ -1,12 +1,15 @@
 import { supabase } from '$lib/supabase';
 import type { Engineer, CreateEngineerInput, UpdateEngineerInput } from '$lib/types/engineer';
+import type { ServiceClient } from '$lib/types/service';
 
 export class EngineerService {
 	/**
 	 * List all engineers
 	 */
-	async listEngineers(activeOnly = true): Promise<Engineer[]> {
-		let query = supabase.from('engineers').select('*').order('name', { ascending: true });
+	async listEngineers(activeOnly = true, client?: ServiceClient): Promise<Engineer[]> {
+		const db = client ?? supabase;
+
+		let query = db.from('engineers').select('*').order('name', { ascending: true });
 
 		if (activeOnly) {
 			query = query.eq('is_active', true);
@@ -25,8 +28,10 @@ export class EngineerService {
 	/**
 	 * Get a single engineer by ID
 	 */
-	async getEngineer(id: string): Promise<Engineer | null> {
-		const { data, error } = await supabase
+	async getEngineer(id: string, client?: ServiceClient): Promise<Engineer | null> {
+		const db = client ?? supabase;
+
+		const { data, error } = await db
 			.from('engineers')
 			.select('*')
 			.eq('id', id)
@@ -46,8 +51,10 @@ export class EngineerService {
 	/**
 	 * Create a new engineer
 	 */
-	async createEngineer(input: CreateEngineerInput): Promise<Engineer> {
-		const { data, error } = await supabase
+	async createEngineer(input: CreateEngineerInput, client?: ServiceClient): Promise<Engineer> {
+		const db = client ?? supabase;
+
+		const { data, error } = await db
 			.from('engineers')
 			.insert({
 				...input,
@@ -67,8 +74,10 @@ export class EngineerService {
 	/**
 	 * Update an existing engineer
 	 */
-	async updateEngineer(id: string, input: UpdateEngineerInput): Promise<Engineer | null> {
-		const { data, error } = await supabase
+	async updateEngineer(id: string, input: UpdateEngineerInput, client?: ServiceClient): Promise<Engineer | null> {
+		const db = client ?? supabase;
+
+		const { data, error } = await db
 			.from('engineers')
 			.update(input)
 			.eq('id', id)
@@ -89,8 +98,10 @@ export class EngineerService {
 	/**
 	 * Soft delete an engineer (set is_active to false)
 	 */
-	async deleteEngineer(id: string): Promise<boolean> {
-		const { error } = await supabase
+	async deleteEngineer(id: string, client?: ServiceClient): Promise<boolean> {
+		const db = client ?? supabase;
+
+		const { error } = await db
 			.from('engineers')
 			.update({ is_active: false })
 			.eq('id', id);
@@ -106,8 +117,10 @@ export class EngineerService {
 	/**
 	 * Get engineer by email
 	 */
-	async getEngineerByEmail(email: string): Promise<Engineer | null> {
-		const { data, error } = await supabase
+	async getEngineerByEmail(email: string, client?: ServiceClient): Promise<Engineer | null> {
+		const db = client ?? supabase;
+
+		const { data, error } = await db
 			.from('engineers')
 			.select('*')
 			.eq('email', email)
@@ -127,8 +140,10 @@ export class EngineerService {
 	/**
 	 * List engineers by province
 	 */
-	async listEngineersByProvince(province: string, activeOnly = true): Promise<Engineer[]> {
-		let query = supabase
+	async listEngineersByProvince(province: string, activeOnly = true, client?: ServiceClient): Promise<Engineer[]> {
+		const db = client ?? supabase;
+
+		let query = db
 			.from('engineers')
 			.select('*')
 			.eq('province', province)

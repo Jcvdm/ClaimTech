@@ -4,16 +4,18 @@ import type {
 	CreateAssessmentInput,
 	UpdateAssessmentInput
 } from '$lib/types/assessment';
+import type { ServiceClient } from '$lib/types/service';
 import { auditService } from './audit.service';
 
 export class AssessmentService {
 	/**
 	 * Generate unique assessment number (ASM-2025-001)
 	 */
-	private async generateAssessmentNumber(): Promise<string> {
+	private async generateAssessmentNumber(client?: ServiceClient): Promise<string> {
+		const db = client ?? supabase;
 		const year = new Date().getFullYear();
 
-		const { count, error } = await supabase
+		const { count, error } = await db
 			.from('assessments')
 			.select('*', { count: 'exact', head: true })
 			.like('assessment_number', `ASM-${year}-%`);
@@ -30,10 +32,11 @@ export class AssessmentService {
 	/**
 	 * Create new assessment from appointment
 	 */
-	async createAssessment(input: CreateAssessmentInput): Promise<Assessment> {
-		const assessmentNumber = await this.generateAssessmentNumber();
+	async createAssessment(input: CreateAssessmentInput, client?: ServiceClient): Promise<Assessment> {
+		const db = client ?? supabase;
+		const assessmentNumber = await this.generateAssessmentNumber(client);
 
-		const { data, error } = await supabase
+		const { data, error } = await db
 			.from('assessments')
 			.insert({
 				...input,
@@ -68,8 +71,9 @@ export class AssessmentService {
 	/**
 	 * Get assessment by ID
 	 */
-	async getAssessment(id: string): Promise<Assessment | null> {
-		const { data, error } = await supabase
+	async getAssessment(id: string, client?: ServiceClient): Promise<Assessment | null> {
+		const db = client ?? supabase;
+		const { data, error } = await db
 			.from('assessments')
 			.select('*')
 			.eq('id', id)
@@ -86,8 +90,9 @@ export class AssessmentService {
 	/**
 	 * Get assessment by appointment ID
 	 */
-	async getAssessmentByAppointment(appointmentId: string): Promise<Assessment | null> {
-		const { data, error } = await supabase
+	async getAssessmentByAppointment(appointmentId: string, client?: ServiceClient): Promise<Assessment | null> {
+		const db = client ?? supabase;
+		const { data, error } = await db
 			.from('assessments')
 			.select('*')
 			.eq('appointment_id', appointmentId)
@@ -104,8 +109,9 @@ export class AssessmentService {
 	/**
 	 * Get assessment by inspection ID
 	 */
-	async getAssessmentByInspection(inspectionId: string): Promise<Assessment | null> {
-		const { data, error } = await supabase
+	async getAssessmentByInspection(inspectionId: string, client?: ServiceClient): Promise<Assessment | null> {
+		const db = client ?? supabase;
+		const { data, error} = await db
 			.from('assessments')
 			.select('*')
 			.eq('inspection_id', inspectionId)
@@ -123,8 +129,9 @@ export class AssessmentService {
 	 * Get all in-progress assessments with related data (for Open Assessments list)
 	 * Pulls vehicle data from assessment_vehicle_identification (updated during assessment)
 	 */
-	async getInProgressAssessments(): Promise<any[]> {
-		const { data, error } = await supabase
+	async getInProgressAssessments(client?: ServiceClient): Promise<any[]> {
+		const db = client ?? supabase;
+		const { data, error } = await db
 			.from('assessments')
 			.select(
 				`
@@ -169,8 +176,9 @@ export class AssessmentService {
 	/**
 	 * Get count of in-progress assessments
 	 */
-	async getInProgressCount(): Promise<number> {
-		const { count, error } = await supabase
+	async getInProgressCount(client?: ServiceClient): Promise<number> {
+		const db = client ?? supabase;
+		const { count, error } = await db
 			.from('assessments')
 			.select('*', { count: 'exact', head: true })
 			.eq('status', 'in_progress');
@@ -186,8 +194,9 @@ export class AssessmentService {
 	/**
 	 * Get count of finalized assessments (submitted status)
 	 */
-	async getFinalizedCount(): Promise<number> {
-		const { count, error } = await supabase
+	async getFinalizedCount(client?: ServiceClient): Promise<number> {
+		const db = client ?? supabase;
+		const { count, error } = await db
 			.from('assessments')
 			.select('*', { count: 'exact', head: true })
 			.eq('status', 'submitted');
@@ -395,11 +404,12 @@ export class AssessmentService {
 	/**
 	 * Get assessment count by status
 	 */
-	async getAssessmentCount(status?: 'in_progress' | 'completed' | 'submitted'): Promise<number> {
-		let query = supabase.from('assessments').select('*', { count: 'exact', head: true });
+	async getAssessmentCount(filters?: { status?: 'in_progress' | 'completed' | 'submitted' | 'archived' }, client?: ServiceClient): Promise<number> {
+		const db = client ?? supabase;
+		let query = db.from('assessments').select('*', { count: 'exact', head: true });
 
-		if (status) {
-			query = query.eq('status', status);
+		if (filters?.status) {
+			query = query.eq('status', filters.status);
 		}
 
 		const { count, error } = await query;
@@ -441,8 +451,9 @@ export class AssessmentService {
 	 * Pulls vehicle data from assessment_vehicle_identification (updated during assessment)
 	 * Only returns assessments with 'archived' status (FRC completed)
 	 */
-	async listArchivedAssessments(): Promise<any[]> {
-		const { data, error } = await supabase
+	async listArchivedAssessments(client?: ServiceClient): Promise<any[]> {
+		const db = client ?? supabase;
+		const { data, error } = await db
 			.from('assessments')
 			.select(`
 				*,
@@ -488,8 +499,8 @@ export class AssessmentService {
 	 * @deprecated Use listArchivedAssessments instead
 	 * List completed assessments for archive
 	 */
-	async listCompletedAssessments(): Promise<any[]> {
-		return this.listArchivedAssessments();
+	async listCompletedAssessments(client?: ServiceClient): Promise<any[]> {
+		return this.listArchivedAssessments(client);
 	}
 
 	/**
@@ -498,8 +509,9 @@ export class AssessmentService {
 	 * Pulls vehicle data from assessment_vehicle_identification (updated during assessment)
 	 * Only returns assessments with 'cancelled' status
 	 */
-	async listCancelledAssessments(): Promise<any[]> {
-		const { data, error } = await supabase
+	async listCancelledAssessments(client?: ServiceClient): Promise<any[]> {
+		const db = client ?? supabase;
+		const { data, error } = await db
 			.from('assessments')
 			.select(`
 				*,

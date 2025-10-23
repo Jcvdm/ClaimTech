@@ -6,15 +6,17 @@ import type {
 	UpdateInspectionInput
 } from '$lib/types/inspection';
 import type { Request } from '$lib/types/request';
+import type { ServiceClient } from '$lib/types/service';
 
 export class InspectionService {
 	/**
 	 * Generate unique inspection number (INS-2025-001)
 	 */
-	private async generateInspectionNumber(): Promise<string> {
+	private async generateInspectionNumber(client?: ServiceClient): Promise<string> {
+		const db = client ?? supabase;
 		const year = new Date().getFullYear();
 
-		const { count, error } = await supabase
+		const { count, error } = await db
 			.from('inspections')
 			.select('*', { count: 'exact', head: true })
 			.like('inspection_number', `INS-${year}-%`);
@@ -31,9 +33,11 @@ export class InspectionService {
 	/**
 	 * Create inspection from request
 	 */
-	async createInspectionFromRequest(request: Request): Promise<Inspection> {
+	async createInspectionFromRequest(request: Request, client?: ServiceClient): Promise<Inspection> {
+		const db = client ?? supabase;
+
 		// Check if inspection already exists for this request
-		const { data: existing } = await supabase
+		const { data: existing } = await db
 			.from('inspections')
 			.select('id')
 			.eq('request_id', request.id)
@@ -43,7 +47,7 @@ export class InspectionService {
 			throw new Error('An inspection already exists for this request');
 		}
 
-		const inspectionNumber = await this.generateInspectionNumber();
+		const inspectionNumber = await this.generateInspectionNumber(client);
 
 		const inspectionData: CreateInspectionInput = {
 			request_id: request.id,
@@ -63,7 +67,7 @@ export class InspectionService {
 			notes: request.description || undefined
 		};
 
-		const { data, error } = await supabase
+		const { data, error } = await db
 			.from('inspections')
 			.insert({
 				...inspectionData,
@@ -96,8 +100,10 @@ export class InspectionService {
 	/**
 	 * List all inspections
 	 */
-	async listInspections(filters?: { status?: string }): Promise<Inspection[]> {
-		let query = supabase
+	async listInspections(filters?: { status?: string }, client?: ServiceClient): Promise<Inspection[]> {
+		const db = client ?? supabase;
+
+		let query = db
 			.from('inspections')
 			.select('*')
 			.order('created_at', { ascending: false });
@@ -120,9 +126,11 @@ export class InspectionService {
 	 * List inspections without appointments (for Inspections list page)
 	 * Only shows inspections that haven't had an appointment scheduled yet
 	 */
-	async listInspectionsWithoutAppointments(): Promise<Inspection[]> {
+	async listInspectionsWithoutAppointments(client?: ServiceClient): Promise<Inspection[]> {
+		const db = client ?? supabase;
+
 		// Query inspections and check if they have appointments
-		const { data: inspections, error: inspError } = await supabase
+		const { data: inspections, error: inspError } = await db
 			.from('inspections')
 			.select('*')
 			.in('status', ['pending', 'scheduled'])
@@ -139,7 +147,7 @@ export class InspectionService {
 
 		// Get all appointments for these inspections
 		const inspectionIds = inspections.map((i) => i.id);
-		const { data: appointments, error: appError } = await supabase
+		const { data: appointments, error: appError } = await db
 			.from('appointments')
 			.select('inspection_id')
 			.in('inspection_id', inspectionIds);
@@ -161,8 +169,10 @@ export class InspectionService {
 	/**
 	 * Get single inspection by ID
 	 */
-	async getInspection(id: string): Promise<Inspection | null> {
-		const { data, error } = await supabase
+	async getInspection(id: string, client?: ServiceClient): Promise<Inspection | null> {
+		const db = client ?? supabase;
+
+		const { data, error } = await db
 			.from('inspections')
 			.select('*')
 			.eq('id', id)
@@ -182,8 +192,10 @@ export class InspectionService {
 	/**
 	 * Update inspection
 	 */
-	async updateInspection(id: string, input: UpdateInspectionInput): Promise<Inspection> {
-		const { data, error } = await supabase
+	async updateInspection(id: string, input: UpdateInspectionInput, client?: ServiceClient): Promise<Inspection> {
+		const db = client ?? supabase;
+
+		const { data, error } = await db
 			.from('inspections')
 			.update(input)
 			.eq('id', id)
@@ -203,12 +215,13 @@ export class InspectionService {
 	 */
 	async updateInspectionStatus(
 		id: string,
-		status: 'pending' | 'scheduled' | 'in_progress' | 'completed' | 'cancelled'
+		status: 'pending' | 'scheduled' | 'in_progress' | 'completed' | 'cancelled',
+		client?: ServiceClient
 	): Promise<Inspection> {
 		// Get old inspection for audit logging
-		const oldInspection = await this.getInspection(id);
+		const oldInspection = await this.getInspection(id, client);
 
-		const updated = await this.updateInspection(id, { status });
+		const updated = await this.updateInspection(id, { status }, client);
 
 		// Log status change
 		if (oldInspection && status !== oldInspection.status) {
@@ -231,8 +244,10 @@ export class InspectionService {
 	/**
 	 * Get inspection count
 	 */
-	async getInspectionCount(filters?: { status?: string }): Promise<number> {
-		let query = supabase.from('inspections').select('*', { count: 'exact', head: true });
+	async getInspectionCount(filters?: { status?: string }, client?: ServiceClient): Promise<number> {
+		const db = client ?? supabase;
+
+		let query = db.from('inspections').select('*', { count: 'exact', head: true });
 
 		if (filters?.status) {
 			query = query.eq('status', filters.status);
@@ -254,8 +269,11 @@ export class InspectionService {
 	async appointEngineer(
 		inspectionId: string,
 		engineerId: string,
-		scheduledDate?: string
+		scheduledDate?: string,
+		client?: ServiceClient
 	): Promise<Inspection> {
+		const db = client ?? supabase;
+
 		const updateData: any = {
 			assigned_engineer_id: engineerId,
 			status: 'scheduled'
@@ -265,7 +283,7 @@ export class InspectionService {
 			updateData.scheduled_date = scheduledDate;
 		}
 
-		const { data, error } = await supabase
+		const { data, error } = await db
 			.from('inspections')
 			.update(updateData)
 			.eq('id', inspectionId)
@@ -297,8 +315,10 @@ export class InspectionService {
 	 * List completed inspections for archive
 	 * Joins with requests and clients
 	 */
-	async listCompletedInspections(): Promise<any[]> {
-		const { data, error } = await supabase
+	async listCompletedInspections(client?: ServiceClient): Promise<any[]> {
+		const db = client ?? supabase;
+
+		const { data, error } = await db
 			.from('inspections')
 			.select(`
 				*,
@@ -330,8 +350,10 @@ export class InspectionService {
 	/**
 	 * List cancelled inspections with related data for archive
 	 */
-	async listCancelledInspections(): Promise<any[]> {
-		const { data, error } = await supabase
+	async listCancelledInspections(client?: ServiceClient): Promise<any[]> {
+		const db = client ?? supabase;
+
+		const { data, error } = await db
 			.from('inspections')
 			.select(`
 				*,

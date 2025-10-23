@@ -3,10 +3,10 @@ import { clientService } from '$lib/services/client.service';
 import { requestService } from '$lib/services/request.service';
 import type { PageServerLoad } from './$types';
 
-export const load: PageServerLoad = async () => {
+export const load: PageServerLoad = async ({ locals }) => {
 	try {
 		// Only show inspections that don't have appointments yet
-		const inspections = await inspectionService.listInspectionsWithoutAppointments();
+		const inspections = await inspectionService.listInspectionsWithoutAppointments(locals.supabase);
 
 		// Get all unique client IDs and request IDs
 		const clientIds = [...new Set(inspections.map((i) => i.client_id))];
@@ -14,8 +14,8 @@ export const load: PageServerLoad = async () => {
 
 		// Fetch all clients and requests in parallel
 		const [clients, requests] = await Promise.all([
-			Promise.all(clientIds.map((id) => clientService.getClient(id))),
-			Promise.all(requestIds.map((id) => requestService.getRequest(id)))
+			Promise.all(clientIds.map((id) => clientService.getClient(id, locals.supabase))),
+			Promise.all(requestIds.map((id) => requestService.getRequest(id, locals.supabase)))
 		]);
 
 		// Create client map

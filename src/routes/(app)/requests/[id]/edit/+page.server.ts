@@ -3,11 +3,11 @@ import { clientService } from '$lib/services/client.service';
 import { error } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 
-export const load: PageServerLoad = async ({ params }) => {
+export const load: PageServerLoad = async ({ params, locals }) => {
 	try {
 		const [request, clients] = await Promise.all([
-			requestService.getRequest(params.id),
-			clientService.listClients(true)
+			requestService.getRequest(params.id, locals.supabase),
+			clientService.listClients(true, locals.supabase)
 		]);
 
 		if (!request) {

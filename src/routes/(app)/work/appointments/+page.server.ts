@@ -3,13 +3,13 @@ import { appointmentService } from '$lib/services/appointment.service';
 import { clientService } from '$lib/services/client.service';
 import { engineerService } from '$lib/services/engineer.service';
 
-export const load: PageServerLoad = async () => {
+export const load: PageServerLoad = async ({ locals }) => {
 	try {
 		const [allAppointments, clients, engineers] = await Promise.all([
 			// Only load scheduled appointments (upcoming/open appointments)
-			appointmentService.listAppointments({ status: 'scheduled' }),
-			clientService.listClients(true),
-			engineerService.listEngineers(true)
+			appointmentService.listAppointments({ status: 'scheduled' }, locals.supabase),
+			clientService.listClients(true, locals.supabase),
+			engineerService.listEngineers(true, locals.supabase)
 		]);
 
 		// Return only scheduled appointments

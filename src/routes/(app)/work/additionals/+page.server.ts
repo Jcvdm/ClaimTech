@@ -1,9 +1,9 @@
 import type { PageServerLoad } from './$types';
 import { additionalsService } from '$lib/services/additionals.service';
 
-export const load: PageServerLoad = async () => {
+export const load: PageServerLoad = async ({ locals }) => {
 	try {
-		const additionalsRecords = await additionalsService.listAdditionals();
+		const additionalsRecords = await additionalsService.listAdditionals(locals.supabase);
 
 		return {
 			additionalsRecords

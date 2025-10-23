@@ -6,13 +6,16 @@ import type {
 	EstimateLineItem
 } from '$lib/types/assessment';
 import { auditService } from './audit.service';
+import type { ServiceClient } from '$lib/types/service';
 
 class AdditionalsService {
 	/**
 	 * Get additionals for an assessment
 	 */
-	async getByAssessment(assessmentId: string): Promise<AssessmentAdditionals | null> {
-		const { data, error } = await supabase
+	async getByAssessment(assessmentId: string, client?: ServiceClient): Promise<AssessmentAdditionals | null> {
+		const db = client ?? supabase;
+
+		const { data, error } = await db
 			.from('assessment_additionals')
 			.select('*')
 			.eq('assessment_id', assessmentId)
@@ -30,8 +33,10 @@ class AdditionalsService {
 	/**
 	 * Create default additionals record (snapshot rates from estimate)
 	 */
-	async createDefault(assessmentId: string, estimate: Estimate): Promise<AssessmentAdditionals> {
-		const { data, error } = await supabase
+	async createDefault(assessmentId: string, estimate: Estimate, client?: ServiceClient): Promise<AssessmentAdditionals> {
+		const db = client ?? supabase;
+
+		const { data, error } = await db
 			.from('assessment_additionals')
 			.insert({
 				assessment_id: assessmentId,
@@ -80,9 +85,12 @@ class AdditionalsService {
 			alt_markup_percentage: number;
 			second_hand_markup_percentage: number;
 			outwork_markup_percentage: number;
-		}
+		},
+		client?: ServiceClient
 	): Promise<AssessmentAdditionals> {
-		const additionals = await this.getByAssessment(assessmentId);
+		const db = client ?? supabase;
+
+		const additionals = await this.getByAssessment(assessmentId, client);
 		if (!additionals) throw new Error('Additionals record not found');
 
 		// Recalculate totals with new rates
@@ -97,7 +105,7 @@ class AdditionalsService {
 			rates.outwork_markup_percentage
 		);
 
-		const { data, error } = await supabase
+		const { data, error } = await db
 			.from('assessment_additionals')
 			.update({
 				repairer_id: rates.repairer_id,
@@ -144,9 +152,12 @@ class AdditionalsService {
 	 */
 	async addRemovedLineItem(
 		assessmentId: string,
-		originalLineItem: EstimateLineItem
+		originalLineItem: EstimateLineItem,
+		client?: ServiceClient
 	): Promise<AssessmentAdditionals> {
-		const additionals = await this.getByAssessment(assessmentId);
+		const db = client ?? supabase;
+
+		const additionals = await this.getByAssessment(assessmentId, client);
 		if (!additionals) throw new Error('Additionals record not found');
 
 		// Check if this original line has already been removed
@@ -198,7 +209,7 @@ class AdditionalsService {
 			additionals.outwork_markup_percentage
 		);
 
-		const { data, error } = await supabase
+		const { data, error } = await db
 			.from('assessment_additionals')
 			.update({
 				line_items: updatedLineItems,
@@ -236,9 +247,12 @@ class AdditionalsService {
 	 */
 	async addLineItem(
 		assessmentId: string,
-		lineItem: EstimateLineItem
+		lineItem: EstimateLineItem,
+		client?: ServiceClient
 	): Promise<AssessmentAdditionals> {
-		const additionals = await this.getByAssessment(assessmentId);
+		const db = client ?? supabase;
+
+		const additionals = await this.getByAssessment(assessmentId, client);
 		if (!additionals) throw new Error('Additionals record not found');
 
 		const newItem: AdditionalLineItem = {
@@ -250,7 +264,7 @@ class AdditionalsService {
 
 		const updatedLineItems = [...additionals.line_items, newItem];
 
-		const { data, error } = await supabase
+		const { data, error } = await db
 			.from('assessment_additionals')
 			.update({
 				line_items: updatedLineItems,
@@ -281,8 +295,10 @@ class AdditionalsService {
 	/**
 	 * Approve a line item
 	 */
-	async approveLineItem(assessmentId: string, lineItemId: string): Promise<AssessmentAdditionals> {
-		const additionals = await this.getByAssessment(assessmentId);
+	async approveLineItem(assessmentId: string, lineItemId: string, client?: ServiceClient): Promise<AssessmentAdditionals> {
+		const db = client ?? supabase;
+
+		const additionals = await this.getByAssessment(assessmentId, client);
 		if (!additionals) throw new Error('Additionals record not found');
 
 		const updatedLineItems = additionals.line_items.map((item) =>
@@ -308,7 +324,7 @@ class AdditionalsService {
 			additionals.outwork_markup_percentage
 		);
 
-		const { data, error } = await supabase
+		const { data, error } = await db
 			.from('assessment_additionals')
 			.update({
 				line_items: updatedLineItems,
@@ -345,9 +361,12 @@ class AdditionalsService {
 	async declineLineItem(
 		assessmentId: string,
 		lineItemId: string,
-		reason: string
+		reason: string,
+		client?: ServiceClient
 	): Promise<AssessmentAdditionals> {
-		const additionals = await this.getByAssessment(assessmentId);
+		const db = client ?? supabase;
+
+		const additionals = await this.getByAssessment(assessmentId, client);
 		if (!additionals) throw new Error('Additionals record not found');
 
 		const updatedLineItems = additionals.line_items.map((item) =>
@@ -373,7 +392,7 @@ class AdditionalsService {
 			additionals.outwork_markup_percentage
 		);
 
-		const { data, error } = await supabase
+		const { data, error } = await db
 			.from('assessment_additionals')
 			.update({
 				line_items: updatedLineItems,
@@ -412,8 +431,10 @@ class AdditionalsService {
 	 * Delete a line item (only if pending - for items created in error)
 	 * Note: For approved/declined items, use reversal methods instead
 	 */
-	async deleteLineItem(assessmentId: string, lineItemId: string): Promise<AssessmentAdditionals> {
-		const additionals = await this.getByAssessment(assessmentId);
+	async deleteLineItem(assessmentId: string, lineItemId: string, client?: ServiceClient): Promise<AssessmentAdditionals> {
+		const db = client ?? supabase;
+
+		const additionals = await this.getByAssessment(assessmentId, client);
 		if (!additionals) throw new Error('Additionals record not found');
 
 		const item = additionals.line_items.find((i) => i.id === lineItemId);
@@ -423,7 +444,7 @@ class AdditionalsService {
 
 		const updatedLineItems = additionals.line_items.filter((i) => i.id !== lineItemId);
 
-		const { data, error } = await supabase
+		const { data, error } = await db
 			.from('assessment_additionals')
 			.update({
 				line_items: updatedLineItems,
@@ -458,9 +479,12 @@ class AdditionalsService {
 	async reverseApprovedLineItem(
 		assessmentId: string,
 		lineItemId: string,
-		reason: string
+		reason: string,
+		client?: ServiceClient
 	): Promise<AssessmentAdditionals> {
-		const additionals = await this.getByAssessment(assessmentId);
+		const db = client ?? supabase;
+
+		const additionals = await this.getByAssessment(assessmentId, client);
 		if (!additionals) throw new Error('Additionals record not found');
 
 		const originalItem = additionals.line_items.find((i) => i.id === lineItemId);
@@ -517,7 +541,7 @@ class AdditionalsService {
 			additionals.outwork_markup_percentage
 		);
 
-		const { data, error } = await supabase
+		const { data, error } = await db
 			.from('assessment_additionals')
 			.update({
 				line_items: updatedLineItems,
@@ -558,9 +582,12 @@ class AdditionalsService {
 	async reinstateDeclinedLineItem(
 		assessmentId: string,
 		lineItemId: string,
-		reason: string
+		reason: string,
+		client?: ServiceClient
 	): Promise<AssessmentAdditionals> {
-		const additionals = await this.getByAssessment(assessmentId);
+		const db = client ?? supabase;
+
+		const additionals = await this.getByAssessment(assessmentId, client);
 		if (!additionals) throw new Error('Additionals record not found');
 
 		const originalItem = additionals.line_items.find((i) => i.id === lineItemId);
@@ -603,7 +630,7 @@ class AdditionalsService {
 			additionals.outwork_markup_percentage
 		);
 
-		const { data, error } = await supabase
+		const { data, error } = await db
 			.from('assessment_additionals')
 			.update({
 				line_items: updatedLineItems,
@@ -644,9 +671,12 @@ class AdditionalsService {
 	async reinstateRemovedOriginal(
 		assessmentId: string,
 		originalLineId: string,
-		reason: string
+		reason: string,
+		client?: ServiceClient
 	): Promise<AssessmentAdditionals> {
-		const additionals = await this.getByAssessment(assessmentId);
+		const db = client ?? supabase;
+
+		const additionals = await this.getByAssessment(assessmentId, client);
 		if (!additionals) throw new Error('Additionals record not found');
 
 		// Find the removal entry
@@ -703,7 +733,7 @@ class AdditionalsService {
 			additionals.outwork_markup_percentage
 		);
 
-		const { data, error } = await supabase
+		const { data, error } = await db
 			.from('assessment_additionals')
 			.update({
 				line_items: updatedLineItems,
@@ -804,8 +834,10 @@ class AdditionalsService {
 	 * Pulls vehicle data from assessment_vehicle_identification (updated during assessment)
 	 * Excludes assessments where FRC has been started
 	 */
-	async listAdditionals(): Promise<any[]> {
-		const { data, error } = await supabase
+	async listAdditionals(client?: ServiceClient): Promise<any[]> {
+		const db = client ?? supabase;
+
+		const { data, error } = await db
 			.from('assessment_additionals')
 			.select(`
 				*,
@@ -848,7 +880,7 @@ class AdditionalsService {
 		}
 
 		// Get assessment IDs that have FRC started
-		const { data: frcData } = await supabase.from('assessment_frc').select('assessment_id');
+		const { data: frcData } = await db.from('assessment_frc').select('assessment_id');
 
 		const assessmentsWithFRC = new Set((frcData || []).map((f) => f.assessment_id));
 
@@ -864,9 +896,11 @@ class AdditionalsService {
 	 * Get count of additionals with pending items
 	 * Excludes assessments where FRC has been started
 	 */
-	async getPendingCount(): Promise<number> {
+	async getPendingCount(client?: ServiceClient): Promise<number> {
+		const db = client ?? supabase;
+
 		// Get all additionals with pending items
-		const { data: additionalsData, error } = await supabase
+		const { data: additionalsData, error } = await db
 			.from('assessment_additionals')
 			.select('assessment_id, line_items');
 
@@ -882,7 +916,7 @@ class AdditionalsService {
 		});
 
 		// Get assessment IDs that have FRC started
-		const { data: frcData } = await supabase
+		const { data: frcData } = await db
 			.from('assessment_frc')
 			.select('assessment_id');
 
@@ -899,8 +933,10 @@ class AdditionalsService {
 	/**
 	 * Get total count of additionals records
 	 */
-	async getTotalCount(): Promise<number> {
-		const { count, error } = await supabase
+	async getTotalCount(client?: ServiceClient): Promise<number> {
+		const db = client ?? supabase;
+
+		const { count, error } = await db
 			.from('assessment_additionals')
 			.select('*', { count: 'exact', head: true });
 

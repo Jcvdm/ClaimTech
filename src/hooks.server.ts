@@ -80,9 +80,9 @@ const authGuard: Handle = async ({ event, resolve }) => {
 		redirect(303, '/auth/login')
 	}
 
-	// If authenticated and trying to access auth pages, redirect to home
+	// If authenticated and trying to access auth pages, redirect to dashboard
 	if (session && isPublicRoute && event.url.pathname !== '/auth/callback' && event.url.pathname !== '/auth/confirm') {
-		redirect(303, '/')
+		redirect(303, '/dashboard')
 	}
 
 	return resolve(event)

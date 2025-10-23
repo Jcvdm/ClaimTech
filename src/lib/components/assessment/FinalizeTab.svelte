@@ -198,6 +198,8 @@
 				}
 			);
 			await loadGenerationStatus();
+			// Refresh parent data to update assessment with new document URLs
+			await invalidateAll();
 		} catch (err) {
 			error = err instanceof Error ? err.message : 'Failed to generate report';
 		} finally {
@@ -223,6 +225,8 @@
 				}
 			);
 			await loadGenerationStatus();
+			// Refresh parent data to update assessment with new document URLs
+			await invalidateAll();
 		} catch (err) {
 			error = err instanceof Error ? err.message : 'Failed to generate estimate';
 		} finally {
@@ -248,6 +252,8 @@
 				}
 			);
 			await loadGenerationStatus();
+			// Refresh parent data to update assessment with new document URLs
+			await invalidateAll();
 		} catch (err) {
 			error = err instanceof Error ? err.message : 'Failed to generate photos PDF';
 		} finally {
@@ -273,6 +279,8 @@
 				}
 			);
 			await loadGenerationStatus();
+			// Refresh parent data to update assessment with new document URLs
+			await invalidateAll();
 		} catch (err) {
 			error = err instanceof Error ? err.message : 'Failed to generate photos ZIP';
 		} finally {
@@ -288,6 +296,8 @@
 		try {
 			await onGenerateAll();
 			await loadGenerationStatus();
+			// Refresh parent data to update assessment with new document URLs
+			await invalidateAll();
 		} catch (err) {
 			error = err instanceof Error ? err.message : 'Failed to generate documents';
 		} finally {

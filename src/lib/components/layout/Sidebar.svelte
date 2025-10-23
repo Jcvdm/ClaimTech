@@ -22,8 +22,10 @@
 		Calendar,
 		ClipboardList,
 		Wrench,
-		Archive
+		Archive,
+		LogOut
 	} from 'lucide-svelte';
+	import { enhance } from '$app/forms';
 
 	type NavItem = {
 		label: string;
@@ -97,7 +99,7 @@
 
 	async function loadNewRequestCount() {
 		try {
-			newRequestCount = await requestService.getRequestCount({ status: 'submitted' });
+			newRequestCount = await requestService.getRequestCount({ status: 'submitted' }, $page.data.supabase);
 		} catch (error) {
 			console.error('Error loading new request count:', error);
 		}
@@ -105,7 +107,7 @@
 
 	async function loadInspectionCount() {
 		try {
-			inspectionCount = await inspectionService.getInspectionCount({ status: 'pending' });
+			inspectionCount = await inspectionService.getInspectionCount({ status: 'pending' }, $page.data.supabase);
 		} catch (error) {
 			console.error('Error loading inspection count:', error);
 		}
@@ -113,7 +115,7 @@
 
 	async function loadAppointmentCount() {
 		try {
-			appointmentCount = await appointmentService.getAppointmentCount({ status: 'scheduled' });
+			appointmentCount = await appointmentService.getAppointmentCount({ status: 'scheduled' }, $page.data.supabase);
 		} catch (error) {
 			console.error('Error loading appointment count:', error);
 		}
@@ -121,7 +123,7 @@
 
 	async function loadAssessmentCount() {
 		try {
-			assessmentCount = await assessmentService.getInProgressCount();
+			assessmentCount = await assessmentService.getInProgressCount($page.data.supabase);
 		} catch (error) {
 			console.error('Error loading assessment count:', error);
 		}
@@ -129,7 +131,7 @@
 
 	async function loadFinalizedAssessmentCount() {
 		try {
-			finalizedAssessmentCount = await assessmentService.getFinalizedCount();
+			finalizedAssessmentCount = await assessmentService.getFinalizedCount($page.data.supabase);
 		} catch (error) {
 			console.error('Error loading finalized assessment count:', error);
 		}
@@ -137,7 +139,7 @@
 
 	async function loadFRCCount() {
 		try {
-			frcCount = await frcService.getCountByStatus('in_progress');
+			frcCount = await frcService.getCountByStatus('in_progress', $page.data.supabase);
 		} catch (error) {
 			console.error('Error loading FRC count:', error);
 		}
@@ -145,7 +147,7 @@
 
 	async function loadAdditionalsCount() {
 		try {
-			additionalsCount = await additionalsService.getPendingCount();
+			additionalsCount = await additionalsService.getPendingCount($page.data.supabase);
 		} catch (error) {
 			console.error('Error loading additionals count:', error);
 		}
@@ -209,8 +211,8 @@
 	});
 </script>
 
-<aside class="hidden lg:block w-60 border-r bg-white">
-	<nav class="space-y-6 p-4">
+<aside class="hidden lg:block w-60 border-r bg-white flex flex-col">
+	<nav class="space-y-6 p-4 flex-1">
 		{#each navigation as group}
 			<div class="space-y-1">
 				<h3 class="mb-2 px-3 text-xs font-semibold uppercase tracking-wider text-gray-500">
@@ -275,5 +277,31 @@
 			</div>
 		{/each}
 	</nav>
+
+	<!-- Logout Button at Bottom -->
+	<div class="border-t border-gray-200 p-4">
+		<form
+			method="POST"
+			action="/auth/logout"
+			use:enhance={() => {
+				// Clear polling interval before logout
+				if (pollingInterval) {
+					clearInterval(pollingInterval);
+					pollingInterval = null;
+				}
+				return async ({ update }) => {
+					await update();
+				};
+			}}
+		>
+			<button
+				type="submit"
+				class="flex items-center gap-3 w-full rounded-md px-3 py-2 text-sm font-medium text-red-600 hover:bg-red-50 transition-colors"
+			>
+				<LogOut class="h-4 w-4" />
+				Sign Out
+			</button>
+		</form>
+	</div>
 </aside>
 

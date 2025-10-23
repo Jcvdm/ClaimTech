@@ -1,11 +1,10 @@
 import type { PageServerLoad } from './$types';
-import { supabase } from '$lib/supabase';
 
-export const load: PageServerLoad = async () => {
+export const load: PageServerLoad = async ({ locals }) => {
 	// Fetch finalized assessments (status = 'submitted')
 	// Pull vehicle data from assessment_vehicle_identification (updated during assessment)
 	// instead of requests table (original data from client submission)
-	const { data: assessments, error: assessmentsError } = await supabase
+	const { data: assessments, error: assessmentsError } = await locals.supabase
 		.from('assessments')
 		.select(
 			`
