@@ -2,10 +2,23 @@
 	import type { PageData } from './$types';
 	import { goto } from '$app/navigation';
 	import PageHeader from '$lib/components/layout/PageHeader.svelte';
-	import DataTable from '$lib/components/data/DataTable.svelte';
+	import ModernDataTable from '$lib/components/data/ModernDataTable.svelte';
+	import GradientBadge from '$lib/components/data/GradientBadge.svelte';
+	import TableCell from '$lib/components/data/TableCell.svelte';
 	import EmptyState from '$lib/components/data/EmptyState.svelte';
 	import { Badge } from '$lib/components/ui/badge';
-	import { FileCheck, ClipboardList } from 'lucide-svelte';
+	import {
+		FileCheck,
+		ClipboardList,
+		Hash,
+		FileText,
+		User,
+		Car,
+		CreditCard,
+		Activity,
+		Calendar,
+		CheckCircle2
+	} from 'lucide-svelte';
 
 	let { data }: { data: PageData } = $props();
 
@@ -101,55 +114,56 @@
 		{
 			key: 'assessmentNumber',
 			label: 'Assessment #',
-			sortable: true
+			sortable: true,
+			icon: Hash
 		},
 		{
 			key: 'requestNumber',
 			label: 'Request #',
-			sortable: true
+			sortable: true,
+			icon: FileText
 		},
 		{
 			key: 'clientName',
 			label: 'Client',
-			sortable: true
+			sortable: true,
+			icon: User
 		},
 		{
 			key: 'vehicle',
 			label: 'Vehicle',
-			sortable: true
+			sortable: true,
+			icon: Car
 		},
 		{
 			key: 'registration',
 			label: 'Registration',
-			sortable: true
+			sortable: true,
+			icon: CreditCard
 		},
 		{
 			key: 'status',
 			label: 'Status',
 			sortable: true,
-			render: (value: FRCStatus) => {
-				const config = statusBadgeConfig[value];
-				if (!config) {
-					console.warn(`Unknown FRC status: ${value}`);
-					return `<span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium bg-gray-100 text-gray-800">${value || 'Unknown'}</span>`;
-				}
-				return `<span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${config.class}">${config.label}</span>`;
-			}
+			icon: Activity
 		},
 		{
 			key: 'lineItemCount',
 			label: 'Line Items',
-			sortable: true
+			sortable: true,
+			icon: ClipboardList
 		},
 		{
 			key: 'formattedStarted',
 			label: 'Started',
-			sortable: true
+			sortable: true,
+			icon: Calendar
 		},
 		{
 			key: 'formattedCompleted',
 			label: 'Completed',
-			sortable: true
+			sortable: true,
+			icon: CheckCircle2
 		}
 	];
 
@@ -214,14 +228,35 @@
 			onAction={() => goto('/work/finalized-assessments')}
 		/>
 	{:else}
-		<div class="rounded-lg border bg-white">
-			<DataTable
-				data={frcWithDetails}
-				{columns}
-				onRowClick={handleRowClick}
-				emptyMessage="No FRC records found"
-			/>
-		</div>
+		<ModernDataTable data={frcWithDetails} {columns} onRowClick={handleRowClick} striped>
+			{#snippet cellContent(column, row)}
+				{#if column.key === 'assessmentNumber'}
+					<TableCell variant="primary" bold>
+						{row.assessmentNumber}
+					</TableCell>
+				{:else if column.key === 'status'}
+					{@const variant =
+						row.status === 'completed'
+							? 'green'
+							: row.status === 'in_progress'
+								? 'blue'
+								: 'gray'}
+					{@const label =
+						row.status === 'completed'
+							? 'Completed'
+							: row.status === 'in_progress'
+								? 'In Progress'
+								: 'Not Started'}
+					<GradientBadge {variant} {label} />
+				{:else if column.key === 'lineItemCount'}
+					<TableCell variant={row.lineItemCount > 0 ? 'default' : 'muted'}>
+						{row.lineItemCount}
+					</TableCell>
+				{:else}
+					{row[column.key]}
+				{/if}
+			{/snippet}
+		</ModernDataTable>
 
 		<div class="flex items-center justify-between text-sm text-gray-500">
 			<p>
