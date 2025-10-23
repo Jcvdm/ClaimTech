@@ -1,4 +1,6 @@
 import { supabase } from '$lib/supabase';
+import type { SupabaseClient } from '@supabase/supabase-js';
+import type { Database } from '$lib/types/database';
 
 export interface UploadPhotoResult {
 	url: string;
@@ -10,11 +12,13 @@ export interface UploadPhotoOptions {
 	folder?: string;
 	fileName?: string;
 	maxSizeMB?: number;
+	supabaseClient?: SupabaseClient<Database>;
 }
 
 class StorageService {
-	private readonly DEFAULT_BUCKET = 'SVA Photos';
+	private readonly DEFAULT_BUCKET = 'documents';
 	private readonly MAX_FILE_SIZE_MB = 50;
+	private readonly SIGNED_URL_EXPIRY_SECONDS = 3600; // 1 hour
 
 	/**
 	 * Initialize storage buckets (call this once during app setup)
@@ -52,7 +56,8 @@ class StorageService {
 			bucket = this.DEFAULT_BUCKET,
 			folder = 'general',
 			fileName,
-			maxSizeMB = this.MAX_FILE_SIZE_MB
+			maxSizeMB = this.MAX_FILE_SIZE_MB,
+			supabaseClient = supabase
 		} = options;
 
 		// Validate file size
@@ -74,7 +79,7 @@ class StorageService {
 		const filePath = `${folder}/${uniqueFileName}`;
 
 		// Upload file
-		const { data, error } = await supabase.storage.from(bucket).upload(filePath, file, {
+		const { data, error } = await supabaseClient.storage.from(bucket).upload(filePath, file, {
 			cacheControl: '3600',
 			upsert: false
 		});
@@ -84,13 +89,18 @@ class StorageService {
 			throw new Error(`Failed to upload photo: ${error.message}`);
 		}
 
-		// Get public URL
-		const {
-			data: { publicUrl }
-		} = supabase.storage.from(bucket).getPublicUrl(filePath);
+		// Get signed URL (1 hour expiry)
+		const { data: signedUrlData, error: urlError } = await supabaseClient.storage
+			.from(bucket)
+			.createSignedUrl(filePath, this.SIGNED_URL_EXPIRY_SECONDS);
+
+		if (urlError || !signedUrlData) {
+			console.error('Signed URL error:', urlError);
+			throw new Error(`Failed to generate signed URL: ${urlError?.message}`);
+		}
 
 		return {
-			url: publicUrl,
+			url: signedUrlData.signedUrl,
 			path: filePath
 		};
 	}
@@ -106,7 +116,8 @@ class StorageService {
 			bucket = this.DEFAULT_BUCKET,
 			folder = 'documents',
 			fileName,
-			maxSizeMB = this.MAX_FILE_SIZE_MB
+			maxSizeMB = this.MAX_FILE_SIZE_MB,
+			supabaseClient = supabase
 		} = options;
 
 		// Validate file size
@@ -127,7 +138,7 @@ class StorageService {
 		const filePath = `${folder}/${uniqueFileName}`;
 
 		// Upload file
-		const { data, error } = await supabase.storage.from(bucket).upload(filePath, file, {
+		const { data, error } = await supabaseClient.storage.from(bucket).upload(filePath, file, {
 			cacheControl: '3600',
 			upsert: false,
 			contentType: 'application/pdf'
@@ -138,13 +149,18 @@ class StorageService {
 			throw new Error(`Failed to upload PDF: ${error.message}`);
 		}
 
-		// Get public URL
-		const {
-			data: { publicUrl }
-		} = supabase.storage.from(bucket).getPublicUrl(filePath);
+		// Get signed URL (1 hour expiry)
+		const { data: signedUrlData, error: urlError } = await supabaseClient.storage
+			.from(bucket)
+			.createSignedUrl(filePath, this.SIGNED_URL_EXPIRY_SECONDS);
+
+		if (urlError || !signedUrlData) {
+			console.error('Signed URL error:', urlError);
+			throw new Error(`Failed to generate signed URL: ${urlError?.message}`);
+		}
 
 		return {
-			url: publicUrl,
+			url: signedUrlData.signedUrl,
 			path: filePath
 		};
 	}
@@ -192,13 +208,37 @@ class StorageService {
 	}
 
 	/**
-	 * Get public URL for a photo
+	 * Get signed URL for a photo (1 hour expiry)
 	 */
-	getPublicUrl(path: string, bucket: string = this.DEFAULT_BUCKET): string {
-		const {
-			data: { publicUrl }
-		} = supabase.storage.from(bucket).getPublicUrl(path);
-		return publicUrl;
+	async getSignedUrl(
+		path: string,
+		bucket: string = this.DEFAULT_BUCKET,
+		supabaseClient: SupabaseClient<Database> = supabase
+	): Promise<string> {
+		const { data, error } = await supabaseClient.storage
+			.from(bucket)
+			.createSignedUrl(path, this.SIGNED_URL_EXPIRY_SECONDS);
+
+		if (error || !data) {
+			console.error('Signed URL error:', error);
+			throw new Error(`Failed to generate signed URL: ${error?.message}`);
+		}
+
+		return data.signedUrl;
+	}
+
+	/**
+	 * Get signed URLs for multiple photos
+	 */
+	async getSignedUrls(
+		paths: string[],
+		bucket: string = this.DEFAULT_BUCKET,
+		supabaseClient: SupabaseClient<Database> = supabase
+	): Promise<string[]> {
+		const urls = await Promise.all(
+			paths.map((path) => this.getSignedUrl(path, bucket, supabaseClient))
+		);
+		return urls;
 	}
 
 	/**
