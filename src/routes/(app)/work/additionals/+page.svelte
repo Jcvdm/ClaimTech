@@ -2,10 +2,24 @@
 	import type { PageData } from './$types';
 	import { goto } from '$app/navigation';
 	import PageHeader from '$lib/components/layout/PageHeader.svelte';
-	import DataTable from '$lib/components/data/DataTable.svelte';
+	import ModernDataTable from '$lib/components/data/ModernDataTable.svelte';
+	import GradientBadge from '$lib/components/data/GradientBadge.svelte';
+	import TableCell from '$lib/components/data/TableCell.svelte';
 	import EmptyState from '$lib/components/data/EmptyState.svelte';
 	import { Badge } from '$lib/components/ui/badge';
-	import { Plus, FileCheck } from 'lucide-svelte';
+	import {
+		Plus,
+		Hash,
+		FileText,
+		User,
+		Car,
+		CreditCard,
+		Clock,
+		CheckCircle,
+		XCircle,
+		AlertCircle,
+		DollarSign
+	} from 'lucide-svelte';
 	import type { AdditionalLineItem } from '$lib/types/assessment';
 
 	let { data }: { data: PageData } = $props();
@@ -91,67 +105,62 @@
 		{
 			key: 'assessmentNumber',
 			label: 'Assessment #',
-			sortable: true
+			sortable: true,
+			icon: Hash
 		},
 		{
 			key: 'requestNumber',
 			label: 'Request #',
-			sortable: true
+			sortable: true,
+			icon: FileText
 		},
 		{
 			key: 'clientName',
 			label: 'Client',
-			sortable: true
+			sortable: true,
+			icon: User
 		},
 		{
 			key: 'vehicle',
 			label: 'Vehicle',
-			sortable: true
+			sortable: true,
+			icon: Car
 		},
 		{
 			key: 'registration',
 			label: 'Registration',
-			sortable: true
+			sortable: true,
+			icon: CreditCard
 		},
 		{
 			key: 'pendingCount',
 			label: 'Pending',
 			sortable: true,
-			render: (value: number) => {
-				if (value === 0) return '<span class="text-gray-400">0</span>';
-				return `<span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium bg-yellow-100 text-yellow-800">${value}</span>`;
-			}
+			icon: AlertCircle
 		},
 		{
 			key: 'approvedCount',
 			label: 'Approved',
 			sortable: true,
-			render: (value: number) => {
-				if (value === 0) return '<span class="text-gray-400">0</span>';
-				return `<span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium bg-green-100 text-green-800">${value}</span>`;
-			}
+			icon: CheckCircle
 		},
 		{
 			key: 'declinedCount',
 			label: 'Declined',
 			sortable: true,
-			render: (value: number) => {
-				if (value === 0) return '<span class="text-gray-400">0</span>';
-				return `<span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium bg-red-100 text-red-800">${value}</span>`;
-			}
+			icon: XCircle
 		},
 		{
 			key: 'totalApproved',
 			label: 'Total Approved',
 			sortable: true,
-			render: (value: number) => {
-				return `<span class="font-medium">R ${value.toLocaleString('en-ZA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>`;
-			}
+			icon: DollarSign
 		},
 		{
 			key: 'formattedCreated',
 			label: 'Created',
-			sortable: true
+			sortable: true,
+			icon: Clock
 		}
 	];
 
@@ -216,14 +225,47 @@
 			onAction={() => goto('/work/finalized-assessments')}
 		/>
 	{:else}
-		<div class="rounded-lg border bg-white">
-			<DataTable
-				data={additionalsWithDetails}
-				{columns}
-				onRowClick={handleRowClick}
-				emptyMessage="No additionals found"
-			/>
-		</div>
+		<ModernDataTable
+			data={additionalsWithDetails}
+			{columns}
+			onRowClick={handleRowClick}
+			striped
+		>
+			{#snippet cellContent(column, row)}
+				{#if column.key === 'assessmentNumber'}
+					<TableCell variant="primary" bold>
+						{row.assessmentNumber}
+					</TableCell>
+				{:else if column.key === 'pendingCount'}
+					{#if row.pendingCount === 0}
+						<span class="text-gray-400">0</span>
+					{:else}
+						<GradientBadge variant="yellow" label={row.pendingCount.toString()} />
+					{/if}
+				{:else if column.key === 'approvedCount'}
+					{#if row.approvedCount === 0}
+						<span class="text-gray-400">0</span>
+					{:else}
+						<GradientBadge variant="green" label={row.approvedCount.toString()} />
+					{/if}
+				{:else if column.key === 'declinedCount'}
+					{#if row.declinedCount === 0}
+						<span class="text-gray-400">0</span>
+					{:else}
+						<GradientBadge variant="red" label={row.declinedCount.toString()} />
+					{/if}
+				{:else if column.key === 'totalApproved'}
+					<TableCell variant="success" bold>
+						R {row.totalApproved.toLocaleString('en-ZA', {
+							minimumFractionDigits: 2,
+							maximumFractionDigits: 2
+						})}
+					</TableCell>
+				{:else}
+					{row[column.key]}
+				{/if}
+			{/snippet}
+		</ModernDataTable>
 
 		<div class="flex items-center justify-between text-sm text-gray-500">
 			<p>

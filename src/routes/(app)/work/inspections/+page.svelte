@@ -1,12 +1,23 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import PageHeader from '$lib/components/layout/PageHeader.svelte';
-	import DataTable from '$lib/components/data/DataTable.svelte';
+	import ModernDataTable from '$lib/components/data/ModernDataTable.svelte';
+	import GradientBadge from '$lib/components/data/GradientBadge.svelte';
+	import TableCell from '$lib/components/data/TableCell.svelte';
 	import EmptyState from '$lib/components/data/EmptyState.svelte';
 	import SummaryComponent from '$lib/components/shared/SummaryComponent.svelte';
 	import { Button } from '$lib/components/ui/button';
 	import * as Dialog from '$lib/components/ui/dialog';
-	import { ClipboardCheck, ExternalLink } from 'lucide-svelte';
+	import {
+		ClipboardCheck,
+		ExternalLink,
+		Hash,
+		FileText,
+		User,
+		Car,
+		Calendar,
+		Activity
+	} from 'lucide-svelte';
 	import type { Inspection } from '$lib/types/inspection';
 	import type { PageData } from './$types';
 
@@ -53,56 +64,44 @@
 		{
 			key: 'inspection_number',
 			label: 'Inspection #',
-			sortable: true
+			sortable: true,
+			icon: Hash
 		},
 		{
 			key: 'request_number',
 			label: 'Request #',
-			sortable: true
+			sortable: true,
+			icon: FileText
 		},
 		{
 			key: 'client_name',
 			label: 'Client',
-			sortable: true
+			sortable: true,
+			icon: User
 		},
 		{
 			key: 'vehicle_display',
 			label: 'Vehicle',
-			sortable: false
+			sortable: false,
+			icon: Car
 		},
 		{
 			key: 'type',
 			label: 'Type',
 			sortable: true,
-			render: (value: string) => {
-				return value === 'insurance' ? 'Insurance' : 'Private';
-			}
+			icon: User
 		},
 		{
 			key: 'request_date',
 			label: 'Request Date',
-			sortable: true
+			sortable: true,
+			icon: Calendar
 		},
 		{
 			key: 'status',
 			label: 'Status',
 			sortable: true,
-			render: (value: string) => {
-				const statusClasses: Record<string, string> = {
-					pending:
-						'inline-flex items-center rounded-full bg-yellow-100 px-2.5 py-0.5 text-xs font-medium text-yellow-800',
-					scheduled:
-						'inline-flex items-center rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-medium text-blue-800',
-					in_progress:
-						'inline-flex items-center rounded-full bg-purple-100 px-2.5 py-0.5 text-xs font-medium text-purple-800',
-					completed:
-						'inline-flex items-center rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-800',
-					cancelled:
-						'inline-flex items-center rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-medium text-red-800'
-				};
-				const className = statusClasses[value] || statusClasses.pending;
-				return `<span class="${className}">${value}</span>`;
-			}
+			icon: Activity
 		}
 	];
 
@@ -147,14 +146,40 @@
 			onAction={() => goto('/requests')}
 		/>
 	{:else}
-		<div class="rounded-lg border bg-white">
-			<DataTable
-				data={inspectionsWithDetails}
-				{columns}
-				onRowClick={handleRowClick}
-				emptyMessage="No inspections found"
-			/>
-		</div>
+		<ModernDataTable
+			data={inspectionsWithDetails}
+			{columns}
+			onRowClick={handleRowClick}
+			striped
+		>
+			{#snippet cellContent(column, row)}
+				{#if column.key === 'inspection_number'}
+					<TableCell variant="primary" bold>
+						{row.inspection_number}
+					</TableCell>
+				{:else if column.key === 'type'}
+					{@const isInsurance = row.type === 'insurance'}
+					<GradientBadge
+						variant={isInsurance ? 'blue' : 'purple'}
+						label={isInsurance ? 'Insurance' : 'Private'}
+					/>
+				{:else if column.key === 'status'}
+					{@const variant =
+						row.status === 'pending'
+							? 'yellow'
+							: row.status === 'scheduled'
+								? 'blue'
+								: row.status === 'in_progress'
+									? 'purple'
+									: row.status === 'completed'
+										? 'green'
+										: 'red'}
+					<GradientBadge {variant} label={row.status} />
+				{:else}
+					{row[column.key]}
+				{/if}
+			{/snippet}
+		</ModernDataTable>
 
 		<div class="flex items-center justify-between text-sm text-gray-500">
 			<p>

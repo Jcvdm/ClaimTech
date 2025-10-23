@@ -4,10 +4,22 @@
 	import { onMount } from 'svelte';
 	import { browser } from '$app/environment';
 	import PageHeader from '$lib/components/layout/PageHeader.svelte';
-	import DataTable from '$lib/components/data/DataTable.svelte';
+	import ModernDataTable from '$lib/components/data/ModernDataTable.svelte';
+	import GradientBadge from '$lib/components/data/GradientBadge.svelte';
+	import TableCell from '$lib/components/data/TableCell.svelte';
 	import EmptyState from '$lib/components/data/EmptyState.svelte';
 	import { Button } from '$lib/components/ui/button';
-	import { ClipboardList, RefreshCw } from 'lucide-svelte';
+	import {
+		ClipboardList,
+		RefreshCw,
+		Hash,
+		FileText,
+		Car,
+		CreditCard,
+		User,
+		TrendingUp,
+		Clock
+	} from 'lucide-svelte';
 
 	let { data }: { data: PageData } = $props();
 	let refreshing = $state(false);
@@ -79,54 +91,49 @@
 		};
 	});
 
-	// Define columns for DataTable
+	// Define columns for ModernDataTable
 	const columns = [
 		{
 			key: 'assessment_number',
 			label: 'Assessment #',
-			sortable: true
+			sortable: true,
+			icon: Hash
 		},
 		{
 			key: 'request_number',
 			label: 'Request #',
-			sortable: true
+			sortable: true,
+			icon: FileText
 		},
 		{
 			key: 'vehicle_display',
 			label: 'Vehicle',
-			sortable: true
+			sortable: true,
+			icon: Car
 		},
 		{
 			key: 'vehicle_registration',
 			label: 'Registration',
-			sortable: true
+			sortable: true,
+			icon: CreditCard
 		},
 		{
 			key: 'engineer_name',
 			label: 'Engineer',
-			sortable: true
+			sortable: true,
+			icon: User
 		},
 		{
 			key: 'progress_display',
 			label: 'Progress',
 			sortable: false,
-			render: (value: string, row: any) => {
-				const percentage = row.progress_percentage;
-				const colorClass =
-					percentage === 100
-						? 'bg-green-100 text-green-800'
-						: percentage >= 60
-							? 'bg-blue-100 text-blue-800'
-							: percentage >= 30
-								? 'bg-yellow-100 text-yellow-800'
-								: 'bg-gray-100 text-gray-800';
-				return `<span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${colorClass}">${value} (${percentage}%)</span>`;
-			}
+			icon: TrendingUp
 		},
 		{
 			key: 'formatted_updated',
 			label: 'Last Updated',
-			sortable: true
+			sortable: true,
+			icon: Clock
 		}
 	];
 
@@ -158,14 +165,32 @@
 			onAction={() => goto('/work/appointments')}
 		/>
 	{:else}
-		<div class="rounded-lg border bg-white">
-			<DataTable
-				data={assessmentsWithDetails}
-				{columns}
-				onRowClick={handleRowClick}
-				emptyMessage="No assessments found"
-			/>
-		</div>
+		<ModernDataTable data={assessmentsWithDetails} {columns} onRowClick={handleRowClick} striped>
+			{#snippet cellContent(column, row)}
+				{#if column.key === 'progress_display'}
+					{@const percentage = row.progress_percentage}
+					{@const variant =
+						percentage === 100
+							? 'green'
+							: percentage >= 60
+								? 'blue'
+								: percentage >= 30
+									? 'yellow'
+									: 'gray'}
+					<GradientBadge {variant} label="{row.progress_display} ({percentage}%)" />
+				{:else if column.key === 'engineer_name'}
+					<TableCell variant={row.engineer_name === 'Unassigned' ? 'muted' : 'default'}>
+						{row.engineer_name}
+					</TableCell>
+				{:else if column.key === 'assessment_number'}
+					<TableCell variant="primary" bold>
+						{row.assessment_number}
+					</TableCell>
+				{:else}
+					{row[column.key]}
+				{/if}
+			{/snippet}
+		</ModernDataTable>
 
 		<div class="flex items-center justify-between text-sm text-gray-500">
 			<p>

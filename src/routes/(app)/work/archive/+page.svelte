@@ -2,10 +2,24 @@
 	import type { PageData } from './$types';
 	import { goto } from '$app/navigation';
 	import PageHeader from '$lib/components/layout/PageHeader.svelte';
-	import DataTable from '$lib/components/data/DataTable.svelte';
+	import ModernDataTable from '$lib/components/data/ModernDataTable.svelte';
+	import GradientBadge from '$lib/components/data/GradientBadge.svelte';
+	import TableCell from '$lib/components/data/TableCell.svelte';
 	import EmptyState from '$lib/components/data/EmptyState.svelte';
 	import { Badge } from '$lib/components/ui/badge';
-	import { Archive, FileText, ClipboardCheck, ClipboardList } from 'lucide-svelte';
+	import {
+		Archive,
+		FileText,
+		ClipboardCheck,
+		ClipboardList,
+		Hash,
+		User,
+		Car,
+		CreditCard,
+		CheckCircle2,
+		XCircle,
+		Clock
+	} from 'lucide-svelte';
 
 	let { data }: { data: PageData } = $props();
 
@@ -226,57 +240,49 @@
 			key: 'type',
 			label: 'Type',
 			sortable: true,
-			render: (value: string) => {
-				const config = typeBadgeConfig[value];
-				if (!config) {
-					console.warn(`Unknown archive type: ${value}`);
-					return `<span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium bg-gray-100 text-gray-800">${value}</span>`;
-				}
-				return `<span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${config.class}">${config.label}</span>`;
-			}
+			icon: ClipboardList
 		},
 		{
 			key: 'number',
 			label: 'Number',
-			sortable: true
+			sortable: true,
+			icon: Hash
 		},
 		{
 			key: 'clientName',
 			label: 'Client',
-			sortable: true
+			sortable: true,
+			icon: User
 		},
 		{
 			key: 'clientType',
 			label: 'Client Type',
 			sortable: true,
-			render: (value: string) => {
-				const isInsurance = value === 'insurance';
-				return `<span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${isInsurance ? 'bg-blue-50 text-blue-700' : 'bg-purple-50 text-purple-700'}">${isInsurance ? 'Insurance' : 'Private'}</span>`;
-			}
+			icon: User
 		},
 		{
 			key: 'vehicle',
 			label: 'Vehicle',
-			sortable: true
+			sortable: true,
+			icon: Car
 		},
 		{
 			key: 'registration',
 			label: 'Registration',
-			sortable: true
+			sortable: true,
+			icon: CreditCard
 		},
 		{
 			key: 'status',
 			label: 'Status',
 			sortable: true,
-			render: (value: string) => {
-				const isCompleted = value === 'Completed';
-				return `<span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${isCompleted ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}">${value}</span>`;
-			}
+			icon: CheckCircle2
 		},
 		{
 			key: 'formattedDate',
 			label: 'Completed',
-			sortable: true
+			sortable: true,
+			icon: Clock
 		}
 	];
 
@@ -341,14 +347,41 @@
 			description={searchQuery ? 'Try adjusting your search or filters' : 'Completed items will appear here'}
 		/>
 	{:else}
-		<div class="rounded-lg border bg-white">
-			<DataTable
-				data={archiveItems}
-				{columns}
-				onRowClick={handleRowClick}
-				emptyMessage="No items found"
-			/>
-		</div>
+		<ModernDataTable data={archiveItems} {columns} onRowClick={handleRowClick} striped>
+			{#snippet cellContent(column, row)}
+				{#if column.key === 'type'}
+					{@const config = typeBadgeConfig[row.type]}
+					{@const variant =
+						row.type === 'request'
+							? 'gray'
+							: row.type === 'inspection'
+								? 'blue'
+								: row.type === 'appointment'
+									? 'yellow'
+									: 'purple'}
+					<GradientBadge {variant} label={config?.label || row.type} icon={config?.icon} />
+				{:else if column.key === 'number'}
+					<TableCell variant="primary" bold>
+						{row.number}
+					</TableCell>
+				{:else if column.key === 'clientType'}
+					{@const isInsurance = row.clientType === 'insurance'}
+					<GradientBadge
+						variant={isInsurance ? 'blue' : 'purple'}
+						label={isInsurance ? 'Insurance' : 'Private'}
+					/>
+				{:else if column.key === 'status'}
+					{@const isCompleted = row.status === 'Completed'}
+					<GradientBadge
+						variant={isCompleted ? 'green' : 'red'}
+						label={row.status}
+						icon={isCompleted ? CheckCircle2 : XCircle}
+					/>
+				{:else}
+					{row[column.key]}
+				{/if}
+			{/snippet}
+		</ModernDataTable>
 
 		<div class="flex items-center justify-between text-sm text-gray-500">
 			<p>
