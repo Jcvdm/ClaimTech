@@ -10,7 +10,9 @@
       "mcp__supabase__list_extensions",
       "mcp__supabase__execute_sql",
       "mcp__supabase__get_advisors",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Skill(supabase-development)",
+      "mcp__supabase__apply_migration"
     ],
     "deny": [],
     "ask": []
