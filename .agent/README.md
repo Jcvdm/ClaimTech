@@ -12,8 +12,9 @@ Welcome to the ClaimTech documentation. This folder contains comprehensive docum
 Understanding the current state of the system
 
 - **[Project Architecture](./System/project_architecture.md)** - Complete system overview: tech stack, structure, workflows, integration points, and security
-- **[Database Schema](./System/database_schema.md)** - Complete database documentation: all 28 tables, relationships, RLS policies, storage buckets, and data flow (verified Oct 2025)
-- **[Database Verification Report](./System/database_verification_report.md)** - Detailed verification of database schema against live Supabase database with security findings
+- **[Database Schema](./System/database_schema.md)** - Complete database documentation: all 28 tables, relationships, RLS policies, storage buckets, and data flow (verified & secured Oct 2025)
+- **[Security Recommendations](./System/security_recommendations.md)** - ✅ **NEW:** Security posture, RLS policies, testing procedures, monitoring guidelines, and best practices (100% RLS coverage achieved)
+- **[Database Verification Report](./System/database_verification_report.md)** - Pre-hardening security findings and database verification against live Supabase (historical reference)
 - **[Development Guide](./System/development_guide.md)** - Quick reference for commands, environment setup, and development patterns
 - **[Tech Stack](./System/tech-stack.md)** - Detailed technology stack reference with versions and usage
 - **[MCP Setup](./System/mcp_setup.md)** - Model Context Protocol configuration for Claude Code integration with Supabase, GitHub, and dev tools
@@ -54,6 +55,7 @@ PRDs, implementation plans, and historical documentation
 #### Active Tasks
 Setup and configuration guides for ongoing work:
 - **[Auth Setup](./Tasks/active/AUTH_SETUP.md)** - Authentication system setup and implementation
+- **[RLS Security Hardening](./Tasks/active/rls_security_hardening.md)** - ✅ **COMPLETED:** RLS implementation plan and results (100% database coverage achieved Oct 2025)
 - **[Supabase Setup](./Tasks/active/SUPABASE_SETUP.md)** - Supabase configuration and project setup
 - **[Supabase Branching](./Tasks/active/SUPABASE_BRANCHING.md)** - Supabase branch strategy and workflow
 - **[Supabase Skill Implementation](./Tasks/active/supabase_skill_implementation.md)** - Implementation plan for Supabase development skill
@@ -98,8 +100,9 @@ Before implementing any feature:
 ├── README.md                           # This file - index of all docs
 ├── System/                             # System state documentation
 │   ├── project_architecture.md        # Complete system overview
-│   ├── database_schema.md             # Database structure (verified & accurate)
-│   ├── database_verification_report.md # Database verification & security findings
+│   ├── database_schema.md             # Database structure (verified & secured)
+│   ├── security_recommendations.md    # ✅ NEW: Security guide (100% RLS coverage)
+│   ├── database_verification_report.md # Pre-hardening findings (historical)
 │   ├── development_guide.md           # Quick dev reference
 │   ├── tech-stack.md                  # Technology stack details
 │   ├── mcp_setup.md                   # MCP configuration guide
@@ -115,10 +118,11 @@ Before implementing any feature:
     ├── production_checklist.md        # Pre-production checklist
     ├── active/                        # Ongoing setup tasks
     │   ├── AUTH_SETUP.md
+    │   ├── rls_security_hardening.md  # ✅ NEW: RLS implementation (COMPLETED Oct 2025)
     │   ├── SUPABASE_SETUP.md
     │   ├── SUPABASE_BRANCHING.md
     │   ├── supabase_skill_implementation.md
-    │   └── claimtech_skill_implementation.md  # ← NEW: ClaimTech skill plan
+    │   └── claimtech_skill_implementation.md
     ├── future/                        # Future enhancements
     │   └── future_enhancements.md
     ├── historical/                    # Implementation history
@@ -145,6 +149,48 @@ Before implementing any feature:
 ---
 
 ## 🔍 Recent Updates
+
+### RLS Security Hardening - COMPLETE (October 25, 2025)
+
+Achieved **100% RLS coverage** across all database tables with comprehensive security hardening:
+
+**What was completed:**
+- ✅ Enabled RLS on all 10 unprotected tables (36% → 100% coverage)
+- ✅ Created 40+ RLS policies for comprehensive access control
+- ✅ Fixed search_path vulnerabilities in 8 functions
+- ✅ Verified with Supabase security advisors (0 errors remaining)
+- ✅ Comprehensive security documentation created
+
+**Security status:**
+- **Before:** 10 RLS errors + 8 function warnings (36% unprotected)
+- **After:** 0 RLS errors + 0 function warnings (100% protected)
+
+**Tables secured (10):**
+1. `repairers` - Enabled RLS (policies already existed)
+2. `assessment_estimates` - RLS + admin-only modification
+3. `pre_incident_estimates` - RLS + admin-only modification
+4. `pre_incident_estimate_photos` - RLS + admin-only modification
+5. `assessment_vehicle_values` - RLS + admin-only modification
+6. `company_settings` - RLS + admin-only modification
+7. `assessment_additionals` - RLS + admin-only modification
+8. `assessment_additionals_photos` - RLS + admin-only modification
+9. `assessment_frc` - RLS + admin-only modification
+10. `assessment_frc_documents` - RLS + admin-only modification
+
+**Access control enforced:**
+- Anonymous: ❌ No database access
+- Authenticated: ✅ Read-only access
+- Admin: ✅ Full CRUD operations
+- Engineer: ✅ Read + write to assigned work
+
+**Documentation:**
+- [Security Recommendations](./System/security_recommendations.md) - Complete security guide
+- [RLS Security Hardening](./Tasks/active/rls_security_hardening.md) - Implementation details
+- 5 migrations applied (058-062)
+
+**Next steps:**
+- ⚠️ Enable leaked password protection (manual Supabase dashboard config)
+- 📅 Quarterly security audits (next due: January 25, 2026)
 
 ### ClaimTech Development Skill Implementation (October 25, 2025)
 
@@ -176,28 +222,33 @@ Created comprehensive Claude Code skill for systematic ClaimTech development wor
 - [Implementation Plan](./Tasks/active/claimtech_skill_implementation.md) - Complete implementation details
 - 5 resource pattern files (database, service, auth, component, pdf-storage)
 
-### Database Schema Verification (October 25, 2025)
+### Database Schema Verification & Security Hardening (October 25, 2025)
 
-Completed comprehensive verification of database documentation against live Supabase database using MCP tools:
+Completed comprehensive verification and security hardening of database:
 
-**What was verified:**
-- ✅ All 28 tables in live database
-- ✅ Column names, types, and constraints
-- ✅ Indexes and foreign keys
-- ✅ RLS policy status
-- ✅ Storage bucket configurations
-- ✅ JSONB architecture for estimates
+**Verification completed:**
+- ✅ All 28 tables verified against live Supabase database
+- ✅ Column names, types, and constraints documented
+- ✅ Indexes and foreign keys verified
+- ✅ Storage bucket configurations documented
+- ✅ JSONB architecture for estimates verified
 
-**Key findings:**
-- 🔒 **Security Issue**: 10 tables have RLS disabled (documented in [verification report](./System/database_verification_report.md))
-- 📊 **Architecture**: Estimates use JSONB arrays instead of relational rows (document-oriented approach)
-- ⚠️ **Storage**: Bucket file size limits not enforced (set to NULL)
-- ✅ **Accuracy**: Database schema docs now 100% accurate to live database
+**Security issues identified:**
+- 🔒 10 tables had RLS disabled (36% unprotected)
+- ⚠️ 8 functions had search_path vulnerabilities
+- ⚠️ Storage bucket limits not enforced
 
-**Documentation updated:**
-- [Database Schema](./System/database_schema.md) - All 24 major corrections applied
-- [Database Verification Report](./System/database_verification_report.md) - Detailed findings and security issues
-- This README - Updated stats and references
+**Security hardening completed:**
+- ✅ **100% RLS coverage** - All 28 tables now protected
+- ✅ **40+ RLS policies** created with proper access control
+- ✅ **All functions secured** with search_path protection
+- ✅ **0 security errors** remaining (verified with Supabase advisors)
+
+**Documentation created:**
+- [Database Schema](./System/database_schema.md) - Accurate, verified schema documentation
+- [Security Recommendations](./System/security_recommendations.md) - Security guide and monitoring
+- [Database Verification Report](./System/database_verification_report.md) - Pre-hardening findings (historical)
+- [RLS Security Hardening](./Tasks/active/rls_security_hardening.md) - Implementation details
 
 ---
 
@@ -351,8 +402,9 @@ Completed comprehensive verification of database documentation against live Supa
 → [Project Architecture - Architecture Patterns](./System/project_architecture.md#architecture-patterns)
 
 **Row Level Security policies?**
-→ [Database Schema - Row Level Security](./System/database_schema.md#row-level-security-rls-policies) - Current RLS state (18/28 tables enabled)
-→ [Database Verification Report](./System/database_verification_report.md) - 10 tables missing RLS (security issue)
+→ [Security Recommendations](./System/security_recommendations.md) - ✅ **100% RLS coverage** - Complete security guide
+→ [Database Schema - Row Level Security](./System/database_schema.md#row-level-security-rls-policies) - All 28 tables RLS enabled
+→ [RLS Security Hardening](./Tasks/active/rls_security_hardening.md) - Implementation details and results
 → [Supabase Skill - RLS Templates](../.claude/skills/supabase-development/SECURITY.md#rls-policy-templates)
 
 **Supabase development patterns?**
@@ -435,18 +487,20 @@ This documentation aims to:
 
 ## 📊 Project Stats
 
-**As of database verification (October 25, 2025):**
-- **28 database tables** (verified against live Supabase DB)
-- **57 database migrations** (from supabase/migrations/)
+**As of security hardening (October 25, 2025):**
+- **28 database tables** (verified & secured against live Supabase DB)
+- **62 database migrations** (from supabase/migrations/ - includes 5 new security migrations)
 - **27+ service files** (all using ServiceClient injection pattern)
 - **40+ page routes**
 - **10+ API endpoints**
 - **TypeScript** throughout the codebase
 - **Fully authenticated** with role-based access (admin/engineer)
-- **Row Level Security** enabled on 18/28 tables (64% coverage - 10 tables need RLS enabled)
+- **✅ Row Level Security** enabled on 28/28 tables (**100% coverage** - secured Oct 2025)
+- **40+ RLS policies** protecting all data access
 - **Private storage** with proxy endpoints (2 buckets: documents, SVA Photos)
 - **AI-powered development** with Claude Code Skills
 - **JSONB-based estimates** (document-oriented architecture for flexibility)
+- **Enterprise-grade security** (0 Supabase security errors remaining)
 
 ---
 
@@ -496,12 +550,12 @@ Official documentation for technologies used in ClaimTech:
 - ✅ MCP setup guide for Claude Code integration
 
 **Planned additions:**
-- [ ] Security hardening guide (enable RLS on 10 unprotected tables, enforce storage limits)
 - [ ] Troubleshooting guide (common errors and solutions)
 - [ ] Deployment guide (environment variables, Vercel setup, Supabase config)
 - [ ] API documentation (all endpoints with request/response examples)
 - [ ] Performance optimization guide
 - [ ] Skill usage examples and best practices guide
+- [ ] Storage bucket limit enforcement guide
 
 ---
 
@@ -522,8 +576,8 @@ Official documentation for technologies used in ClaimTech:
 
 ---
 
-**Version**: 1.2.0
-**Last Updated**: October 25, 2025 (Database verified + ClaimTech Development Skill implemented)
+**Version**: 1.3.0
+**Last Updated**: October 25, 2025 (RLS Security Hardening Complete - 100% Coverage Achieved)
 **Maintained By**: ClaimTech Development Team
 
 ---
