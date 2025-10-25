@@ -101,6 +101,61 @@ Read these docs when using agents to understand their full capabilities.
 
 ---
 
+## CLAUDE CODE SKILLS
+
+This project uses Claude Code skills to provide systematic workflows and best practices. Skills auto-invoke based on task context and keywords.
+
+### ClaimTech Development Skill
+
+**Location:** `.claude/skills/claimtech-development/`
+
+**When to use:** Automatically invoked when working with ClaimTech-specific implementations
+
+**Triggers automatically on keywords:**
+- Database: "database", "migration", "schema", "table", "RLS"
+- Service: "service", "data access", "CRUD", "database query"
+- Auth: "auth", "login", "logout", "protect", "RLS"
+- UI: "page", "route", "component", "UI"
+- PDF: "PDF", "report", "document generation", "Puppeteer"
+- Storage: "upload", "photo", "storage", "file", "image"
+
+**Provides workflows for:**
+1. **Database Migration** (15-30 min) - Idempotent migrations with RLS
+2. **Service Layer** (20-40 min) - ServiceClient injection pattern
+3. **Authentication** (10-20 min) - Form actions + RLS policies
+4. **Page Routes** (15-30 min) - SvelteKit pages with Svelte 5
+5. **PDF Generation** (30-60 min) - Puppeteer with storage upload
+6. **Storage & Photos** (20-30 min) - Secure file handling
+
+**Usage:**
+- Skill auto-invokes when relevant keywords detected
+- Provides step-by-step workflows with quality checklists
+- References `.agent/` docs for current system state
+- Includes production-ready code examples
+
+**Resources:**
+- `SKILL.md` - Core workflows and checklists
+- `resources/database-patterns.md` - Migration templates and RLS
+- `resources/service-patterns.md` - ServiceClient injection
+- `resources/auth-patterns.md` - Auth flows and RLS policies
+- `resources/component-patterns.md` - Svelte 5 runes patterns
+- `resources/pdf-storage-patterns.md` - PDF generation & storage
+
+**Integration with agents:**
+- Works alongside specialized agents (Supabase, Svelte, etc.)
+- Skill provides methodology (HOW)
+- `.agent/` docs provide context (WHAT/WHERE)
+- Agents provide domain expertise
+- Together = comprehensive development system
+
+**Best practices:**
+- Trust skill workflows for ClaimTech patterns
+- Use quality checklists before marking tasks complete
+- Reference resource files for detailed patterns
+- Update `.agent/` docs after implementing features
+
+---
+
 ## DEVELOPMENT WORKFLOW
 
 ### Starting Work
@@ -108,12 +163,14 @@ Read these docs when using agents to understand their full capabilities.
 2. Check relevant System docs for architecture
 3. Review applicable SOPs for procedures
 4. Check Agents docs for when to invoke specialists
+5. ClaimTech Development skill auto-invokes for common tasks
 
 ### During Implementation
-1. Follow patterns from SOPs
-2. Invoke specialized agents when needed
-3. Document decisions as you go
-4. Use sub-agents for research-heavy tasks
+1. Follow workflows from ClaimTech Development skill
+2. Use quality checklists from skill before marking complete
+3. Invoke specialized agents when needed
+4. Document decisions as you go
+5. Use sub-agents for research-heavy tasks
 
 ### After Implementation
 1. Update System docs if architecture changed

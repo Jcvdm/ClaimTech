@@ -574,6 +574,46 @@ export const actions: Actions = {
 }
 ```
 
+**CRITICAL: Form Actions vs API Routes**
+
+**Use Form Actions (`+page.server.ts`)** when:
+- Handling HTML form submissions
+- Using `use:enhance` in your Svelte component
+- Need progressive enhancement (works without JavaScript)
+- Examples: Login, logout, create/update/delete operations
+
+**Use API Routes (`+server.ts`)** when:
+- Building JSON API endpoints
+- Handling non-form requests (fetch, external services)
+- Need different HTTP methods on same endpoint
+- Examples: PDF generation, signed URLs, webhooks
+
+**Why this matters:**
+- Form actions return `ActionResult` (JSON-serializable) that `use:enhance` can parse
+- API routes return HTTP `Response` objects (HTML/redirect)
+- Using `+server.ts` with `use:enhance` causes: `JSON.parse: unexpected character at line 1 column 1`
+
+**Example - Login/Logout (CORRECT):**
+```typescript
+// src/routes/auth/logout/+page.server.ts
+import { redirect } from '@sveltejs/kit'
+import type { Actions } from './$types'
+
+export const actions: Actions = {
+  default: async ({ locals: { supabase } }) => {
+    await supabase.auth.signOut()
+    redirect(303, '/auth/login')
+  }
+}
+```
+
+```svelte
+<!-- Component using form action -->
+<form method="POST" action="/auth/logout" use:enhance>
+  <button type="submit">Logout</button>
+</form>
+```
+
 ### 5. Use `enhance` for Progressive Enhancement
 
 Use `enhance` action for better UX:
@@ -622,6 +662,36 @@ Always redirect after successful form submission:
 ```typescript
 throw redirect(303, '/clients')
 ```
+
+### 5. Using +server.ts for Form Submissions
+
+**WRONG:**
+```typescript
+// src/routes/auth/logout/+server.ts
+export const POST: RequestHandler = async ({ locals }) => {
+  await locals.supabase.auth.signOut()
+  redirect(303, '/auth/login') // Returns HTTP Response
+}
+```
+
+```svelte
+<form method="POST" action="/auth/logout" use:enhance>
+  <!-- This will cause JSON.parse error! -->
+</form>
+```
+
+**CORRECT:**
+```typescript
+// src/routes/auth/logout/+page.server.ts
+export const actions: Actions = {
+  default: async ({ locals }) => {
+    await locals.supabase.auth.signOut()
+    redirect(303, '/auth/login') // Returns ActionResult
+  }
+}
+```
+
+**Why:** `use:enhance` requires form actions that return ActionResult, not API routes that return HTTP Response.
 
 ---
 

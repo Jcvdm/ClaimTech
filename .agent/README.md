@@ -2,7 +2,7 @@
 
 Welcome to the ClaimTech documentation. This folder contains comprehensive documentation about the system architecture, development practices, and implementation guides.
 
--CHECK RELEVANT AGENTS USE THEM IN ALL IMPLEMENTATIONS - 
+-CHECK RELEVANT AGENTS USE THEM IN ALL IMPLEMENTATIONS USE SKILLS WHEN RELEVANT
 
 ---
 
@@ -12,9 +12,11 @@ Welcome to the ClaimTech documentation. This folder contains comprehensive docum
 Understanding the current state of the system
 
 - **[Project Architecture](./System/project_architecture.md)** - Complete system overview: tech stack, structure, workflows, integration points, and security
-- **[Database Schema](./System/database_schema.md)** - Complete database documentation: all tables, relationships, RLS policies, storage buckets, and data flow
+- **[Database Schema](./System/database_schema.md)** - Complete database documentation: all 28 tables, relationships, RLS policies, storage buckets, and data flow (verified Oct 2025)
+- **[Database Verification Report](./System/database_verification_report.md)** - Detailed verification of database schema against live Supabase database with security findings
 - **[Development Guide](./System/development_guide.md)** - Quick reference for commands, environment setup, and development patterns
 - **[Tech Stack](./System/tech-stack.md)** - Detailed technology stack reference with versions and usage
+- **[MCP Setup](./System/mcp_setup.md)** - Model Context Protocol configuration for Claude Code integration with Supabase, GitHub, and dev tools
 
 ### Standard Operating Procedures (SOPs)
 Best practices for common development tasks
@@ -23,7 +25,25 @@ Best practices for common development tasks
 - **[Adding Page Routes](./SOP/adding_page_route.md)** - Creating new pages, API endpoints, and dynamic routes in SvelteKit
 - **[Working with Services](./SOP/working_with_services.md)** - Service layer pattern, data access best practices, and examples
 - **[Creating Components](./SOP/creating-components.md)** - Creating reusable Svelte 5 components with runes and TypeScript
+- **[Implementing Form Actions & Auth](./SOP/implementing_form_actions_auth.md)** - Form actions vs API routes, authentication patterns, and common pitfalls
 - **[Testing Guide](./SOP/testing_guide.md)** - Testing patterns and best practices for unit and E2E tests
+
+### Claude Code Skills
+AI-powered development assistance with ClaimTech patterns
+
+- **[ClaimTech Development Skill](../.claude/skills/claimtech-development/)** - Systematic workflows for ClaimTech development
+  - **[SKILL.md](../.claude/skills/claimtech-development/SKILL.md)** - 6 core workflows with step-by-step instructions and quality checklists
+  - **[database-patterns.md](../.claude/skills/claimtech-development/resources/database-patterns.md)** - Migration templates, RLS policies, indexes, triggers, JSONB patterns
+  - **[service-patterns.md](../.claude/skills/claimtech-development/resources/service-patterns.md)** - ServiceClient injection, CRUD templates, error handling, filtering
+  - **[auth-patterns.md](../.claude/skills/claimtech-development/resources/auth-patterns.md)** - Form actions, RLS policies, session management, protected routes
+  - **[component-patterns.md](../.claude/skills/claimtech-development/resources/component-patterns.md)** - Svelte 5 runes, TypeScript, composition, ClaimTech components
+  - **[pdf-storage-patterns.md](../.claude/skills/claimtech-development/resources/pdf-storage-patterns.md)** - PDF generation with Puppeteer, storage service, proxy endpoints
+
+- **[Supabase Development Skill](../.claude/skills/supabase-development/)** - Complete Supabase patterns and templates
+  - **[SKILL.md](../.claude/skills/supabase-development/SKILL.md)** - Quick reference: ServiceClient pattern, CRUD templates, RLS helpers, storage patterns
+  - **[PATTERNS.md](../.claude/skills/supabase-development/PATTERNS.md)** - Deep dive: migrations, type safety, query optimization, performance
+  - **[SECURITY.md](../.claude/skills/supabase-development/SECURITY.md)** - RLS policies, auth patterns, storage security, common gaps
+  - **[EXAMPLES.md](../.claude/skills/supabase-development/EXAMPLES.md)** - Real code from codebase: complete services, migrations, queries
 
 ### Tasks & Features
 PRDs, implementation plans, and historical documentation
@@ -36,6 +56,8 @@ Setup and configuration guides for ongoing work:
 - **[Auth Setup](./Tasks/active/AUTH_SETUP.md)** - Authentication system setup and implementation
 - **[Supabase Setup](./Tasks/active/SUPABASE_SETUP.md)** - Supabase configuration and project setup
 - **[Supabase Branching](./Tasks/active/SUPABASE_BRANCHING.md)** - Supabase branch strategy and workflow
+- **[Supabase Skill Implementation](./Tasks/active/supabase_skill_implementation.md)** - Implementation plan for Supabase development skill
+- **[ClaimTech Skill Implementation](./Tasks/active/claimtech_skill_implementation.md)** - Implementation plan for ClaimTech development skill with 6 core workflows
 
 #### Historical Implementation Summaries
 Complete record of all implementations and fixes in `Tasks/historical/` folder:
@@ -76,28 +98,106 @@ Before implementing any feature:
 ├── README.md                           # This file - index of all docs
 ├── System/                             # System state documentation
 │   ├── project_architecture.md        # Complete system overview
-│   ├── database_schema.md             # Database structure
+│   ├── database_schema.md             # Database structure (verified & accurate)
+│   ├── database_verification_report.md # Database verification & security findings
 │   ├── development_guide.md           # Quick dev reference
-│   └── tech-stack.md                  # Technology stack details
+│   ├── tech-stack.md                  # Technology stack details
+│   ├── mcp_setup.md                   # MCP configuration guide
+│   └── documentation_update_summary.md # Documentation update history
 ├── SOP/                               # Standard Operating Procedures
 │   ├── adding_migration.md            # Migration workflow
 │   ├── adding_page_route.md           # Route creation guide
 │   ├── working_with_services.md       # Service layer guide
 │   ├── creating-components.md         # Component creation guide
+│   ├── implementing_form_actions_auth.md  # Form actions & auth patterns
 │   └── testing_guide.md               # Testing best practices
 └── Tasks/                             # Tasks, features, and history
     ├── production_checklist.md        # Pre-production checklist
     ├── active/                        # Ongoing setup tasks
     │   ├── AUTH_SETUP.md
     │   ├── SUPABASE_SETUP.md
-    │   └── SUPABASE_BRANCHING.md
+    │   ├── SUPABASE_BRANCHING.md
+    │   ├── supabase_skill_implementation.md
+    │   └── claimtech_skill_implementation.md  # ← NEW: ClaimTech skill plan
     ├── future/                        # Future enhancements
     │   └── future_enhancements.md
     ├── historical/                    # Implementation history
     │   └── [50+ implementation docs]
     └── scan_reports/                  # Code scan reports
         └── task_scan_report.md
+
+../.claude/skills/                     # Claude Code AI Skills
+├── claimtech-development/             # ← NEW: ClaimTech systematic workflows
+│   ├── SKILL.md                       # 6 core workflows with checklists
+│   └── resources/                     # Pattern templates (3,100+ lines)
+│       ├── database-patterns.md       # Migrations, RLS, indexes, triggers
+│       ├── service-patterns.md        # ServiceClient injection, CRUD
+│       ├── auth-patterns.md           # Form actions, RLS, sessions
+│       ├── component-patterns.md      # Svelte 5 runes, TypeScript
+│       └── pdf-storage-patterns.md    # PDF generation, storage
+└── supabase-development/              # Supabase development patterns
+    ├── SKILL.md                       # Quick reference
+    ├── PATTERNS.md                    # Detailed patterns
+    ├── SECURITY.md                    # Security templates
+    └── EXAMPLES.md                    # Real code examples
 ```
+
+---
+
+## 🔍 Recent Updates
+
+### ClaimTech Development Skill Implementation (October 25, 2025)
+
+Created comprehensive Claude Code skill for systematic ClaimTech development workflows:
+
+**What was created:**
+- ✅ Core SKILL.md with 6 systematic workflows
+- ✅ 5 resource files with production-ready patterns (3,100+ lines)
+- ✅ Quality checklists for all workflows
+- ✅ Auto-invocation on ClaimTech keywords
+- ✅ Integration with existing `.agent/` documentation
+
+**Workflows provided:**
+1. 🗄️ **Database Migration** (15-30 min) - Idempotent migrations with RLS, indexes, triggers
+2. 🔧 **Service Layer** (20-40 min) - ServiceClient injection, CRUD operations, error handling
+3. 🔐 **Authentication** (10-20 min) - Form actions, RLS policies, session management
+4. 📄 **Page Routes** (15-30 min) - SvelteKit pages with Svelte 5 runes
+5. 📑 **PDF Generation** (30-60 min) - Puppeteer templates, storage upload, signed URLs
+6. 📸 **Storage & Photos** (20-30 min) - Secure file handling, proxy endpoints
+
+**Integration:**
+- Works alongside specialized agents (Supabase, Svelte, Research)
+- Skill provides methodology (HOW to implement)
+- `.agent/` docs provide context (WHAT/WHERE in system)
+- Auto-invokes based on task keywords
+
+**Files created:**
+- [ClaimTech Development Skill](../.claude/skills/claimtech-development/SKILL.md) - Core workflows
+- [Implementation Plan](./Tasks/active/claimtech_skill_implementation.md) - Complete implementation details
+- 5 resource pattern files (database, service, auth, component, pdf-storage)
+
+### Database Schema Verification (October 25, 2025)
+
+Completed comprehensive verification of database documentation against live Supabase database using MCP tools:
+
+**What was verified:**
+- ✅ All 28 tables in live database
+- ✅ Column names, types, and constraints
+- ✅ Indexes and foreign keys
+- ✅ RLS policy status
+- ✅ Storage bucket configurations
+- ✅ JSONB architecture for estimates
+
+**Key findings:**
+- 🔒 **Security Issue**: 10 tables have RLS disabled (documented in [verification report](./System/database_verification_report.md))
+- 📊 **Architecture**: Estimates use JSONB arrays instead of relational rows (document-oriented approach)
+- ⚠️ **Storage**: Bucket file size limits not enforced (set to NULL)
+- ✅ **Accuracy**: Database schema docs now 100% accurate to live database
+
+**Documentation updated:**
+- [Database Schema](./System/database_schema.md) - All 24 major corrections applied
+- [Database Verification Report](./System/database_verification_report.md) - Detailed findings and security issues
+- This README - Updated stats and references
 
 ---
 
@@ -105,53 +205,79 @@ Before implementing any feature:
 
 ### I want to add a new feature
 
+**Use the ClaimTech Development Skill** - Auto-invokes with systematic workflows:
 1. Review [Project Architecture](./System/project_architecture.md) to understand where it fits
 2. Check [Database Schema](./System/database_schema.md) if data changes needed
-3. Follow [Adding Database Migrations](./SOP/adding_migration.md) for schema changes
-4. Follow [Adding Page Routes](./SOP/adding_page_route.md) for new pages
-5. Follow [Working with Services](./SOP/working_with_services.md) for data access
+3. **Skill auto-invokes**: Follow [Database Migration Workflow](../.claude/skills/claimtech-development/SKILL.md#workflow-1-database-migration) with quality checklist
+4. **Skill auto-invokes**: Follow [Page Route Workflow](../.claude/skills/claimtech-development/SKILL.md#workflow-4-page-route-creation) for new pages
+5. **Skill auto-invokes**: Follow [Service Layer Workflow](../.claude/skills/claimtech-development/SKILL.md#workflow-2-service-layer-implementation) for data access
 6. Update System docs if architecture changes significantly
+
+**Alternative**: Follow SOPs directly ([Adding Migrations](./SOP/adding_migration.md), [Adding Routes](./SOP/adding_page_route.md), [Working with Services](./SOP/working_with_services.md))
 
 ### I want to add a database table
 
+**Use the Database Migration Workflow** (auto-invokes when you mention "database", "migration", "schema", or "table"):
 1. Review [Database Schema](./System/database_schema.md) for existing structure
-2. Follow [Adding Database Migrations](./SOP/adding_migration.md) step-by-step
-3. Update [Database Schema](./System/database_schema.md) with new table info
-4. Create service in `src/lib/services/` for CRUD operations
+2. **Skill provides**: [Database Migration Workflow](../.claude/skills/claimtech-development/SKILL.md#workflow-1-database-migration) with step-by-step instructions
+3. **Skill provides**: [Database Pattern Templates](../.claude/skills/claimtech-development/resources/database-patterns.md) - Migration templates, RLS policies, indexes
+4. Update [Database Schema](./System/database_schema.md) with new table info
+5. **Skill provides**: [Service Layer Workflow](../.claude/skills/claimtech-development/SKILL.md#workflow-2-service-layer-implementation) for data access
+
+**Manual alternative**: Follow [Adding Database Migrations SOP](./SOP/adding_migration.md) step-by-step
 
 ### I want to add a new page
 
+**Use the Page Route Workflow** (auto-invokes when you mention "page", "route", or "component"):
 1. Review [Project Architecture - Project Structure](./System/project_architecture.md#project-structure)
-2. Follow [Adding Page Routes](./SOP/adding_page_route.md) for complete guide
-3. Use [Working with Services](./SOP/working_with_services.md) for data fetching
-4. Update navigation if user-facing feature
+2. **Skill provides**: [Page Route Creation Workflow](../.claude/skills/claimtech-development/SKILL.md#workflow-4-page-route-creation) with quality checklist
+3. **Skill provides**: [Component Patterns](../.claude/skills/claimtech-development/resources/component-patterns.md) - Svelte 5 runes, TypeScript
+4. **Skill provides**: [Service Layer Workflow](../.claude/skills/claimtech-development/SKILL.md#workflow-2-service-layer-implementation) for data fetching
+5. Update navigation if user-facing feature
+
+**Manual alternative**: Follow [Adding Page Routes SOP](./SOP/adding_page_route.md) for complete guide
 
 ### I want to create a reusable component
 
+**Use the Component Patterns** (auto-invokes when you mention "component", "UI", or "Svelte"):
 1. Review [Project Architecture - Client-Side State Management](./System/project_architecture.md#client-side-state-management)
-2. Place in `src/lib/components/` (UI components in `ui/` subfolder)
-3. Use TypeScript for type safety
-4. Follow Svelte 5 runes patterns ($state, $derived, $effect)
+2. **Skill provides**: [Component Patterns](../.claude/skills/claimtech-development/resources/component-patterns.md) - Svelte 5 runes, TypeScript, composition
+3. Place in `src/lib/components/` (UI components in `ui/` subfolder)
+4. Use TypeScript for type safety
+5. Follow Svelte 5 runes patterns ($state, $derived, $effect)
 
-### I want to understand the authentication flow
+**Manual alternative**: Follow [Creating Components SOP](./SOP/creating-components.md)
 
+### I want to implement authentication
+
+**Use the Authentication Workflow** (auto-invokes when you mention "auth", "login", "logout", or "protect"):
 1. Read [Project Architecture - Security & Authentication](./System/project_architecture.md#security--authentication)
-2. Review [Database Schema - Authentication & User Tables](./System/database_schema.md#authentication--user-tables)
-3. Check `src/hooks.server.ts` for implementation
+2. **Skill provides**: [Authentication Workflow](../.claude/skills/claimtech-development/SKILL.md#workflow-3-authentication-flow) with step-by-step instructions
+3. **Skill provides**: [Auth Patterns](../.claude/skills/claimtech-development/resources/auth-patterns.md) - Form actions, RLS policies, session management
+4. Review [Database Schema - Authentication & User Tables](./System/database_schema.md#authentication--user-tables)
+5. Check `src/hooks.server.ts` for implementation
 
-### I want to understand document generation (PDF/ZIP)
+**Manual alternative**: Follow [Implementing Form Actions & Auth SOP](./SOP/implementing_form_actions_auth.md)
 
+### I want to generate PDFs or export documents
+
+**Use the PDF Generation Workflow** (auto-invokes when you mention "PDF", "report", or "document generation"):
 1. Read [Project Architecture - PDF Generation Workflow](./System/project_architecture.md#pdf-generation-workflow)
-2. Check `src/routes/api/generate-*/+server.ts` for PDF endpoints
-3. Review `src/lib/templates/` for HTML templates
-4. See `src/lib/utils/pdf-generator.ts` for Puppeteer logic
+2. **Skill provides**: [PDF Generation Workflow](../.claude/skills/claimtech-development/SKILL.md#workflow-5-pdf-generation) with quality checklist
+3. **Skill provides**: [PDF & Storage Patterns](../.claude/skills/claimtech-development/resources/pdf-storage-patterns.md) - Puppeteer templates, storage upload
+4. Check `src/routes/api/generate-*/+server.ts` for PDF endpoints
+5. Review `src/lib/templates/` for HTML templates
+6. See `src/lib/utils/pdf-generator.ts` for Puppeteer logic
 
-### I want to understand storage and signed URLs
+### I want to upload files or handle photos
 
+**Use the Storage & Photos Workflow** (auto-invokes when you mention "upload", "photo", "storage", or "file"):
 1. Read [Project Architecture - Storage Architecture](./System/project_architecture.md#storage-architecture)
-2. Review [Database Schema - Storage Buckets](./System/database_schema.md#storage-buckets)
-3. Check `src/lib/services/storage.service.ts` for implementation
-4. See `src/routes/api/photo/` and `src/routes/api/document/` for signed URL endpoints
+2. **Skill provides**: [Storage & Photos Workflow](../.claude/skills/claimtech-development/SKILL.md#workflow-6-storage--photo-upload) with step-by-step instructions
+3. **Skill provides**: [PDF & Storage Patterns](../.claude/skills/claimtech-development/resources/pdf-storage-patterns.md) - Storage service, proxy endpoints
+4. Review [Database Schema - Storage Buckets](./System/database_schema.md#storage-buckets)
+5. Check `src/lib/services/storage.service.ts` for implementation
+6. See `src/routes/api/photo/` and `src/routes/api/document/` for signed URL endpoints
 
 ---
 
@@ -179,10 +305,17 @@ Before implementing any feature:
 → [Development Guide](./System/development_guide.md)
 
 **Database tables and columns?**
-→ [Database Schema](./System/database_schema.md)
+→ [Database Schema](./System/database_schema.md) (verified against live DB Oct 2025)
+→ [Database Verification Report](./System/database_verification_report.md) - Security findings and discrepancies fixed
 
 **How authentication works?**
 → [Project Architecture - Security & Authentication](./System/project_architecture.md#security--authentication)
+
+**How to implement login/logout/signup?**
+→ [Implementing Form Actions & Auth](./SOP/implementing_form_actions_auth.md)
+
+**Form actions vs API routes - when to use which?**
+→ [Implementing Form Actions & Auth](./SOP/implementing_form_actions_auth.md#critical-distinction-form-actions-vs-api-routes)
 
 **How to create a new page?**
 → [Adding Page Routes](./SOP/adding_page_route.md)
@@ -218,7 +351,26 @@ Before implementing any feature:
 → [Project Architecture - Architecture Patterns](./System/project_architecture.md#architecture-patterns)
 
 **Row Level Security policies?**
-→ [Database Schema - Row Level Security](./System/database_schema.md#row-level-security-rls-policies)
+→ [Database Schema - Row Level Security](./System/database_schema.md#row-level-security-rls-policies) - Current RLS state (18/28 tables enabled)
+→ [Database Verification Report](./System/database_verification_report.md) - 10 tables missing RLS (security issue)
+→ [Supabase Skill - RLS Templates](../.claude/skills/supabase-development/SECURITY.md#rls-policy-templates)
+
+**Supabase development patterns?**
+→ [Supabase Development Skill](../.claude/skills/supabase-development/SKILL.md) - Quick reference
+→ [PATTERNS.md](../.claude/skills/supabase-development/PATTERNS.md) - Detailed patterns
+→ [SECURITY.md](../.claude/skills/supabase-development/SECURITY.md) - Security templates
+→ [EXAMPLES.md](../.claude/skills/supabase-development/EXAMPLES.md) - Real code examples
+
+**ClaimTech development workflows?**
+→ [ClaimTech Development Skill](../.claude/skills/claimtech-development/SKILL.md) - 6 systematic workflows
+→ [Database Patterns](../.claude/skills/claimtech-development/resources/database-patterns.md) - Migration templates, RLS
+→ [Service Patterns](../.claude/skills/claimtech-development/resources/service-patterns.md) - ServiceClient injection
+→ [Auth Patterns](../.claude/skills/claimtech-development/resources/auth-patterns.md) - Form actions, RLS policies
+→ [Component Patterns](../.claude/skills/claimtech-development/resources/component-patterns.md) - Svelte 5 runes
+→ [PDF & Storage Patterns](../.claude/skills/claimtech-development/resources/pdf-storage-patterns.md) - PDF generation, storage
+
+**How to use Claude Code with Supabase/GitHub/dev tools?**
+→ [MCP Setup](./System/mcp_setup.md) - Model Context Protocol configuration and usage
 
 ---
 
@@ -283,16 +435,18 @@ This documentation aims to:
 
 ## 📊 Project Stats
 
-**As of documentation initialization (January 2025):**
-- **50+ database tables**
-- **50+ database migrations**
-- **30+ service files**
+**As of database verification (October 25, 2025):**
+- **28 database tables** (verified against live Supabase DB)
+- **57 database migrations** (from supabase/migrations/)
+- **27+ service files** (all using ServiceClient injection pattern)
 - **40+ page routes**
 - **10+ API endpoints**
 - **TypeScript** throughout the codebase
 - **Fully authenticated** with role-based access (admin/engineer)
-- **Row Level Security** enabled on all tables
-- **Private storage** with signed URLs
+- **Row Level Security** enabled on 18/28 tables (64% coverage - 10 tables need RLS enabled)
+- **Private storage** with proxy endpoints (2 buckets: documents, SVA Photos)
+- **AI-powered development** with Claude Code Skills
+- **JSONB-based estimates** (document-oriented architecture for flexibility)
 
 ---
 
@@ -330,18 +484,24 @@ Official documentation for technologies used in ClaimTech:
 
 **Completed:**
 - ✅ Complete system architecture documentation
-- ✅ Database schema documentation with RLS policies
+- ✅ Database schema documentation with RLS policies (verified Oct 2025)
+- ✅ Database verification report with security findings
 - ✅ Standard Operating Procedures (migrations, routes, services, components, testing)
 - ✅ Development guide with commands and patterns
 - ✅ Historical implementation summaries organized
 - ✅ Active task documentation (auth, Supabase setup)
 - ✅ Future enhancements planning
+- ✅ Supabase Development Skill (AI-powered pattern assistance)
+- ✅ ClaimTech Development Skill (6 systematic workflows with 3,100+ lines of patterns)
+- ✅ MCP setup guide for Claude Code integration
 
 **Planned additions:**
+- [ ] Security hardening guide (enable RLS on 10 unprotected tables, enforce storage limits)
 - [ ] Troubleshooting guide (common errors and solutions)
 - [ ] Deployment guide (environment variables, Vercel setup, Supabase config)
 - [ ] API documentation (all endpoints with request/response examples)
 - [ ] Performance optimization guide
+- [ ] Skill usage examples and best practices guide
 
 ---
 
@@ -362,8 +522,8 @@ Official documentation for technologies used in ClaimTech:
 
 ---
 
-**Version**: 1.0.0
-**Last Updated**: January 25, 2025
+**Version**: 1.2.0
+**Last Updated**: October 25, 2025 (Database verified + ClaimTech Development Skill implemented)
 **Maintained By**: ClaimTech Development Team
 
 ---

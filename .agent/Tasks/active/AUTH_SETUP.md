@@ -92,8 +92,11 @@ This document describes the authentication system implemented for ClaimTech usin
 - Link back to login
 
 #### Logout Route (`/auth/logout`)
-- POST endpoint to sign out
-- Redirects to login page
+- **Implementation:** Form action in `+page.server.ts` (NOT `+server.ts`)
+- Calls `supabase.auth.signOut()` to clear session
+- Redirects to `/auth/login` with 303 status
+- **Why form action:** Compatible with `use:enhance` in form submissions
+- **File:** `src/routes/auth/logout/+page.server.ts`
 
 ### 8. App Layout Updates
 

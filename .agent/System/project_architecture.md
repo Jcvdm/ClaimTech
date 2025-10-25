@@ -253,6 +253,8 @@ The assessment page (`/work/assessments/[appointment_id]`) contains multiple tab
 11. **Summary & Finalize**: Review and finalize
 
 ### 3. Authentication Flow
+
+**Login Flow:**
 ```
 User visits protected route
   ↓
@@ -260,13 +262,36 @@ hooks.server.ts checks session
   ↓
 If no session → redirect to /auth/login
   ↓
-User logs in via Supabase Auth
+User logs in via Supabase Auth (form action in +page.server.ts)
   ↓
 Session created and stored in cookies
   ↓
 User profile created/updated in user_profiles table
   ↓
 User redirected to /dashboard
+```
+
+**Logout Flow:**
+```
+User clicks logout button
+  ↓
+Form submits to /auth/logout (form action)
+  ↓
++page.server.ts calls supabase.auth.signOut()
+  ↓
+Session cleared from cookies
+  ↓
+User redirected to /auth/login
+```
+
+**Root Route (`/`) Handling:**
+```
+User navigates to /
+  ↓
+hooks.server.ts checks session
+  ↓
+If authenticated → redirect to /dashboard
+If not authenticated → redirect to /auth/login
 ```
 
 ---
@@ -341,10 +366,19 @@ All API routes are in `src/routes/api/`:
 
 ### Auth Guard
 Implemented in `src/hooks.server.ts`:
-- Checks session on every request
-- Redirects unauthenticated users to `/auth/login`
+- Checks session on every request via `safeGetSession()` (validates JWT)
+- **Explicit root route (`/`) handling**: Redirects to `/dashboard` if authenticated, `/auth/login` if not
+- Redirects unauthenticated users to `/auth/login` for protected routes
 - Redirects authenticated users away from auth pages to `/dashboard`
 - Public routes: `/auth/login`, `/auth/signup`, `/auth/callback`, `/auth/confirm`
+- **Single source of truth**: All auth redirects handled in hooks.server.ts, no redirect logic in page server loads
+
+### Form Actions vs API Routes
+**Authentication uses form actions** (`+page.server.ts`), not POST handlers (`+server.ts`):
+- **Login**: `src/routes/auth/login/+page.server.ts` - form action
+- **Logout**: `src/routes/auth/logout/+page.server.ts` - form action
+- **Why**: Form actions return `ActionResult` (JSON) compatible with SvelteKit's `use:enhance`
+- **POST handlers** (`+server.ts`) return HTTP responses and should only be used for API endpoints, not forms
 
 ### Storage Security
 - All buckets are **private** (no public access)

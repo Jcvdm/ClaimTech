@@ -71,6 +71,11 @@ const authGuard: Handle = async ({ event, resolve }) => {
 	event.locals.session = session
 	event.locals.user = user
 
+	// Explicit root route handling
+	if (event.url.pathname === '/') {
+		redirect(303, session ? '/dashboard' : '/auth/login')
+	}
+
 	// Public routes that don't require authentication
 	const publicRoutes = ['/auth/login', '/auth/signup', '/auth/callback', '/auth/confirm']
 	const isPublicRoute = publicRoutes.some(route => event.url.pathname.startsWith(route))
