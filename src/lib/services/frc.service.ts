@@ -573,6 +573,9 @@ class FRCService {
 			`)
 			.order('started_at', { ascending: false });
 
+		// Filter by assessment stage (frc_in_progress)
+		query = query.eq('assessment.stage', 'frc_in_progress');
+
 		if (filters?.status) {
 			query = query.eq('status', filters.status);
 		}
@@ -599,7 +602,8 @@ class FRCService {
 		let query = db
 			.from('assessment_frc')
 			.select('*, assessments!inner(appointment_id, appointments!inner(engineer_id))', { count: 'exact', head: true })
-			.eq('status', status);
+			.eq('status', status)
+			.eq('assessments.stage', 'frc_in_progress');
 
 		// Filter by engineer if provided
 		if (engineer_id) {
