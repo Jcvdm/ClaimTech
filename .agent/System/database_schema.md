@@ -2,13 +2,52 @@
 
 ## Overview
 
-The ClaimTech database is built on **PostgreSQL** via **Supabase**. The schema consists of 50+ tables organized around the core workflow: Requests → Inspections → Appointments → Assessments → Estimates → FRC.
+The ClaimTech database is built on **PostgreSQL** via **Supabase**. The schema consists of 50+ tables organized around the **assessment-centric architecture** (Jan 2025): Requests → Assessments (stage pipeline) → Documents → Archive.
 
 All tables have:
 - UUID primary keys (`id`)
 - `created_at` and `updated_at` timestamps (auto-managed via triggers)
 - Row Level Security (RLS) enabled
 - Appropriate indexes for performance
+
+---
+
+## Custom Database Types
+
+### `assessment_stage` (ENUM)
+10-stage pipeline for assessment workflow (Migration 068, Jan 2025):
+```sql
+CREATE TYPE assessment_stage AS ENUM (
+  'request_submitted',      -- 1. Initial request created (assessment created here)
+  'request_reviewed',       -- 2. Admin reviewed request
+  'inspection_scheduled',   -- 3. Inspection scheduled
+  'appointment_scheduled',  -- 4. Appointment created (appointment_id linked)
+  'assessment_in_progress', -- 5. Engineer started assessment
+  'estimate_review',        -- 6. Estimate under review
+  'estimate_sent',          -- 7. Estimate sent to client
+  'estimate_finalized',     -- 8. Estimate finalized
+  'frc_in_progress',        -- 9. Final Repair Costing started
+  'archived',               -- 10a. Completed
+  'cancelled'               -- 10b. Cancelled at any stage
+);
+```
+
+**Used in:** `assessments.stage` column (NOT NULL, DEFAULT 'request_submitted')
+
+**Query pattern:** All list pages query assessments by stage (not status)
+
+### `assessment_result_type` (ENUM)
+Final assessment outcome:
+```sql
+CREATE TYPE assessment_result_type AS ENUM (
+  'repair',      -- Vehicle repairable
+  'code_2',      -- Code 2 write-off
+  'code_3',      -- Code 3 write-off
+  'total_loss'   -- Total loss
+);
+```
+
+**Used in:** `assessment_frc.assessment_result` column
 
 ---
 
@@ -232,14 +271,29 @@ Scheduled appointments for inspections - supports both in-person and digital ass
 ## Assessment Tables
 
 ### `assessments`
-Main assessment records for vehicle inspections.
+Main assessment records for vehicle inspections. **Assessment-centric architecture** (Jan 2025): Assessments are created when requests are submitted (not at "Start Assessment"), serving as the single source of truth.
 
-**Columns:**
+**Core Columns:**
 - `id` (UUID, PK)
-- `assessment_number` (TEXT, UNIQUE, NOT NULL)
-- `appointment_id` (UUID, FK → appointments, NOT NULL)
-- `inspection_id` (UUID, FK → inspections, NOT NULL)
-- `request_id` (UUID, FK → requests, NOT NULL)
+- `assessment_number` (TEXT, UNIQUE, NOT NULL) - Format: ASM-YYYY-NNN
+- `request_id` (UUID, FK → requests, NOT NULL, UNIQUE) - One assessment per request
+- `appointment_id` (UUID, FK → appointments, **NULL initially**) - Linked when appointment created
+- `inspection_id` (UUID, FK → inspections, **NULL initially**) - Legacy field, nullable
+
+**Stage-Based Pipeline (10 stages):**
+- `stage` (assessment_stage ENUM, NOT NULL, DEFAULT 'request_submitted') - Current pipeline stage
+  - `request_submitted` → Initial request created (assessment created here)
+  - `request_reviewed` → Admin reviewed request
+  - `inspection_scheduled` → Inspection scheduled
+  - `appointment_scheduled` → Appointment created (appointment_id linked)
+  - `assessment_in_progress` → Engineer started assessment
+  - `estimate_review` → Estimate under review
+  - `estimate_sent` → Estimate sent to client
+  - `estimate_finalized` → Estimate finalized
+  - `frc_in_progress` → Final Repair Costing started
+  - `archived` or `cancelled` → Completed or cancelled
+
+**Legacy Status Field (deprecated, kept for backward compatibility):**
 - `status` (TEXT, CHECK: 'in_progress' | 'completed' | 'submitted' | 'archived' | 'cancelled')
 
 **Progress Tracking:**
@@ -271,11 +325,16 @@ Main assessment records for vehicle inspections.
 **Cancellation:**
 - `cancelled_at` (TIMESTAMPTZ)
 
+**Constraints:**
+- `uq_assessments_request` - UNIQUE constraint on `request_id` (one assessment per request)
+- `require_appointment_when_scheduled` - CHECK constraint ensuring `appointment_id` is NOT NULL for stages 4-9
+
 **Indexes:**
+- `idx_assessments_stage` on `stage` (PRIMARY - all list pages query by stage)
+- `idx_assessments_request_id` on `request_id`
 - `idx_assessments_appointment` on `appointment_id`
 - `idx_assessments_inspection` on `inspection_id`
-- `idx_assessments_request` on `request_id`
-- `idx_assessments_status` on `status`
+- `idx_assessments_status` on `status` (legacy, deprecated)
 
 ---
 

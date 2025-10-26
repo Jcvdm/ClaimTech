@@ -225,26 +225,89 @@ SvelteKit's `+page.server.ts` files use server load functions to fetch data:
 
 ## Key Workflows
 
-### 1. Request → Assessment → Report Flow
+### 1. Assessment-Centric Workflow (Implemented Jan 2025)
+
+**Core Architecture:**
+ClaimTech uses an **assessment-centric architecture** where assessments are created at the moment a request is submitted, not at "Start Assessment". The assessment serves as the single source of truth that moves through a 10-stage pipeline.
+
+**10-Stage Pipeline:**
 ```
-Request Created
-  ↓
-Inspection Scheduled
-  ↓
-Appointment Created
-  ↓
-Assessment Started (Engineer)
-  ↓ (Tabs: Identification, Exterior, Tyres, Interior, Accessories, Damage, Estimate)
-Assessment Submitted (Finalized)
-  ↓
-Documents Generated (Report PDF, Estimate PDF, Photos PDF/ZIP)
-  ↓
-Final Repair Costing (FRC)
-  ↓
-Assessment Archived
+1. request_submitted      → Initial request created (assessment created here)
+2. request_reviewed       → Admin reviews request
+3. inspection_scheduled   → Inspection scheduled (no appointment yet)
+4. appointment_scheduled  → Appointment created and scheduled
+5. assessment_in_progress → Engineer started assessment
+6. estimate_review        → Estimate under review
+7. estimate_sent          → Estimate sent to client
+8. estimate_finalized     → Estimate finalized
+9. frc_in_progress        → Final Repair Costing started
+10. archived/cancelled    → Completed or cancelled
 ```
 
-### 2. Assessment Process (Multi-Tab Data Collection)
+**Complete Workflow:**
+```
+Request Created (by client or admin)
+  ↓ [Assessment automatically created with request_id]
+Stage: request_submitted
+  ↓ [Admin reviews]
+Stage: request_reviewed
+  ↓ [Admin schedules inspection]
+Stage: inspection_scheduled
+  ↓ [Admin/Engineer creates appointment]
+Stage: appointment_scheduled (appointment_id linked)
+  ↓ [Engineer clicks "Start Assessment"]
+Stage: assessment_in_progress
+  ↓ [Engineer completes all tabs: Identification, Exterior, Tyres, Interior, Accessories, Damage, Estimate]
+Stage: estimate_review
+  ↓ [Estimate reviewed]
+Stage: estimate_sent
+  ↓ [Estimate finalized]
+Stage: estimate_finalized
+  ↓ [Documents Generated: Report PDF, Estimate PDF, Photos PDF/ZIP]
+  ↓ [Admin starts FRC]
+Stage: frc_in_progress
+  ↓ [FRC completed]
+Stage: archived
+```
+
+**Key Principles:**
+- ✅ **One assessment per request**: Enforced by unique constraint on `request_id`
+- ✅ **Assessment created WITH request**: Not at "Start Assessment" (eliminates race conditions)
+- ✅ **Nullable foreign keys**: `appointment_id` starts NULL, linked when appointment created
+- ✅ **Constraint enforcement**: `appointment_id` required for stages 4-9 (check constraint)
+- ✅ **Idempotent operations**: All operations safe to call multiple times
+- ✅ **Stage-based queries**: All list pages query by `stage` field (not status)
+- ✅ **Audit trail**: All stage transitions logged
+
+### 2. List Pages and Stage-Based Queries (Implemented Jan 2025)
+
+All list pages in ClaimTech query assessments by `stage` field, providing a single source of truth:
+
+| Page | Route | Stage Filter | Description |
+|------|-------|--------------|-------------|
+| **Requests** | `/requests` | `request_submitted`, `request_reviewed` | New requests awaiting review |
+| **Inspections** | `/work/inspections` | `inspection_scheduled` | Assessments ready for inspection scheduling |
+| **Appointments** | `/work/appointments` | `appointment_scheduled`, `assessment_in_progress` | Scheduled appointments and ongoing assessments |
+| **Open Assessments** | `/work/assessments` | `assessment_in_progress`, `estimate_review`, `estimate_sent` | Active assessments being worked on |
+| **Finalized Assessments** | `/work/finalized-assessments` | `estimate_finalized` | Completed assessments ready for review |
+| **FRC** | `/work/frc` | `frc_in_progress` | Final Repair Costing in progress |
+| **Archive** | `/work/archive` | `archived`, `cancelled` | Completed or cancelled assessments |
+
+**Query Pattern Example:**
+```typescript
+// All pages follow this pattern - query assessments by stage
+const { data: assessments } = await locals.supabase
+  .from('assessments')
+  .select(`
+    *,
+    request:requests!inner(*, client:clients(*)),
+    appointment:appointments(*, engineer:engineers(*))
+  `)
+  .eq('stage', 'inspection_scheduled')  // or .in('stage', [...])
+  .order('updated_at', { ascending: false });
+```
+
+### 3. Assessment Process (Multi-Tab Data Collection)
 The assessment page (`/work/assessments/[appointment_id]`) contains multiple tabs:
 1. **Identification**: Vehicle details, photos (VIN, registration, license disc)
 2. **Exterior 360**: 8-position 360° photos + additional photos
@@ -258,7 +321,7 @@ The assessment page (`/work/assessments/[appointment_id]`) contains multiple tab
 10. **Notes**: Assessment notes by tab/section
 11. **Summary & Finalize**: Review and finalize
 
-### 3. Authentication Flow
+### 4. Authentication Flow
 
 **Login Flow:**
 ```
@@ -338,7 +401,7 @@ If authenticated → redirect to /dashboard
 If not authenticated → redirect to /auth/login
 ```
 
-### 4. Engineer Management Workflow (Admin-Only)
+### 5. Engineer Management Workflow (Admin-Only)
 
 **Engineer List & Search:**
 ```
@@ -421,7 +484,7 @@ Engineer receives new password reset email
 
 ---
 
-### 5. Engineer Workflow & Role-Based Filtering
+### 6. Engineer Workflow & Role-Based Filtering
 
 The platform implements comprehensive role-based access control with two distinct user experiences:
 
