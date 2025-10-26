@@ -4,7 +4,7 @@ export const load: PageServerLoad = async ({ locals, parent }) => {
 	const { role, engineer_id } = await parent();
 	const isEngineer = role === 'engineer';
 
-	// Fetch finalized assessments (status = 'submitted')
+	// Fetch finalized assessments (stage = 'estimate_finalized')
 	// Pull vehicle data from assessment_vehicle_identification (updated during assessment)
 	// instead of requests table (original data from client submission)
 	let query = locals.supabase
@@ -41,7 +41,7 @@ export const load: PageServerLoad = async ({ locals, parent }) => {
 			)
 		`
 		)
-		.eq('status', 'submitted');
+		.eq('stage', 'estimate_finalized');
 
 	// Engineers only see their own finalized assessments
 	if (isEngineer && engineer_id) {
