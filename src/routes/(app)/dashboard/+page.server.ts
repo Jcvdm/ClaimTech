@@ -64,9 +64,9 @@ export const load: PageServerLoad = async ({ locals, parent }) => {
 	let assessmentQuery = locals.supabase
 		.from('assessments')
 		.select('started_at, submitted_at, created_at, appointment_id, appointments!inner(engineer_id)')
-		.eq('status', 'submitted')
+		.eq('stage', 'estimate_finalized')
 		.gte('submitted_at', thirtyDaysAgo.toISOString())
-		.order('submitted_at', { ascending: false });
+		.order('submitted_at', { ascending: false});
 
 	// Filter by engineer if not admin
 	if (isEngineer && engineer_id) {
@@ -107,7 +107,7 @@ export const load: PageServerLoad = async ({ locals, parent }) => {
 			requests!inner(created_at),
 			appointments!inner(engineer_id)
 		`)
-		.eq('status', 'submitted')
+		.eq('stage', 'estimate_finalized')
 		.gte('submitted_at', thirtyDaysAgo.toISOString());
 
 	// Filter by engineer if not admin
