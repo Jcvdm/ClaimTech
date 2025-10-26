@@ -79,8 +79,8 @@
 			</div>
 
 			<div class="text-center">
-				<a href="/auth/signup" class="text-sm text-blue-600 hover:text-blue-500">
-					Don't have an account? Sign up
+				<a href="/auth/forgot-password" class="text-sm text-blue-600 hover:text-blue-500">
+					Forgot your password?
 				</a>
 			</div>
 		</form>

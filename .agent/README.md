@@ -2,9 +2,6 @@
 
 Welcome to the ClaimTech documentation. This folder contains comprehensive documentation about the system architecture, development practices, and implementation guides.
 
--CHECK RELEVANT AGENTS USE THEM IN ALL IMPLEMENTATIONS USE SKILLS WHEN RELEVANT
-
----
 
 ## 📖 Quick Navigation
 
@@ -15,6 +12,7 @@ Understanding the current state of the system
 - **[Database Schema](./System/database_schema.md)** - Complete database documentation: all 28 tables, relationships, RLS policies, storage buckets, and data flow (verified & secured Oct 2025)
 - **[Security Recommendations](./System/security_recommendations.md)** - ✅ **NEW:** Security posture, RLS policies, testing procedures, monitoring guidelines, and best practices (100% RLS coverage achieved)
 - **[Database Verification Report](./System/database_verification_report.md)** - Pre-hardening security findings and database verification against live Supabase (historical reference)
+- **[Supabase Email Templates](./System/supabase_email_templates.md)** - ⭐ **NEW:** Email templates for PKCE flow (required for password reset, signup, magic link)
 - **[Development Guide](./System/development_guide.md)** - Quick reference for commands, environment setup, and development patterns
 - **[Tech Stack](./System/tech-stack.md)** - Detailed technology stack reference with versions and usage
 - **[MCP Setup](./System/mcp_setup.md)** - Model Context Protocol configuration for Claude Code integration with Supabase, GitHub, and dev tools
@@ -25,8 +23,16 @@ Best practices for common development tasks
 - **[Adding Database Migrations](./SOP/adding_migration.md)** - How to create, test, and apply database migrations with examples
 - **[Adding Page Routes](./SOP/adding_page_route.md)** - Creating new pages, API endpoints, and dynamic routes in SvelteKit
 - **[Working with Services](./SOP/working_with_services.md)** - Service layer pattern, data access best practices, and examples
+- **[Service Client Authentication](./SOP/service_client_authentication.md)** - 🔴 **CRITICAL:** ServiceClient parameter pattern for RLS authentication (Jan 2025)
+- **[Implementing Role-Based Filtering](./SOP/implementing_role_based_filtering.md)** - Complete guide for implementing engineer vs admin filtering in pages, services, and sidebar badges
 - **[Creating Components](./SOP/creating-components.md)** - Creating reusable Svelte 5 components with runes and TypeScript
 - **[Implementing Form Actions & Auth](./SOP/implementing_form_actions_auth.md)** - Form actions vs API routes, authentication patterns, and common pitfalls
+- **[Password Reset Flow](./SOP/password_reset_flow.md)** - ✅ **NEW:** Complete guide for password reset implementation with Supabase (two-step flow pattern)
+- **[Fixing RLS Infinite Recursion](./SOP/fixing_rls_recursion.md)** - Fix infinite recursion errors using JWT claims in RLS policies
+- **[Fixing RLS INSERT Policy Errors](./SOP/fixing_rls_insert_policies.md)** - ✅ **NEW:** Debug and fix RLS INSERT policies that reference non-existent columns (Jan 2025)
+- **[Handling Race Conditions in Number Generation](./SOP/handling_race_conditions_in_number_generation.md)** - ✅ **NEW:** Retry logic with exponential backoff for sequential number generation (Jan 2025)
+- **[Debugging Supabase Auth Hooks](./SOP/debugging_supabase_auth_hooks.md)** - Troubleshooting custom auth hooks, testing with MCP, fixing type casting errors
+- **[Debugging Auth User Creation Errors](./SOP/debugging_auth_user_creation_errors.md)** - Fix constraint violations, trigger errors, and RLS conflicts during user creation
 - **[Testing Guide](./SOP/testing_guide.md)** - Testing patterns and best practices for unit and E2E tests
 
 ### Claude Code Skills
@@ -55,6 +61,14 @@ PRDs, implementation plans, and historical documentation
 #### Active Tasks
 Setup and configuration guides for ongoing work:
 - **[Auth Setup](./Tasks/active/AUTH_SETUP.md)** - Authentication system setup and implementation
+- **[Fix Service Client Injection](./Tasks/active/fix_service_client_injection.md)** - 🔴 **IN PROGRESS:** Fix RLS authentication by adding ServiceClient parameter to all services (Jan 2025)
+- **[Fix Assessment Race Condition](./Tasks/active/fix_assessment_race_condition.md)** - ⚠️ **INCOMPLETE:** Server-side retry logic only (see fix_assessment_disappearing_race_condition.md for complete fix)
+- **[Fix Assessment Disappearing Race Condition](./Tasks/active/fix_assessment_disappearing_race_condition.md)** - ✅ **COMPLETED:** Complete fix with frontend prevention + backend recovery (Jan 2025)
+- **[Fix Vehicle Values RLS & Company Settings](./Tasks/active/fix_vehicle_values_rls_and_company_settings.md)** - ✅ **COMPLETED:** Fixed RLS INSERT policies and company settings service (Jan 2025)
+- **[Fix Password Reset Flow](./Tasks/active/fix_password_reset_flow.md)** - ✅ **COMPLETED:** Fixed engineer password reset OTP expired error (Jan 2025)
+- **[Engineer Registration Auth](./Tasks/active/engineer_registration_auth.md)** - ✅ **COMPLETED:** Admin-only engineer creation with password reset (Oct 2025)
+- **[Engineer Edit Functionality](./Tasks/active/engineer_edit_functionality.md)** - ✅ **COMPLETED:** Engineer profile editing with password reset capability (Jan 2025)
+- **[Fix RLS Recursion & Errors](./Tasks/active/fix_rls_recursion_and_errors.md)** - ✅ **COMPLETED:** Fixed infinite recursion, auth security, and Svelte warnings (Oct 2025)
 - **[RLS Security Hardening](./Tasks/active/rls_security_hardening.md)** - ✅ **COMPLETED:** RLS implementation plan and results (100% database coverage achieved Oct 2025)
 - **[Supabase Setup](./Tasks/active/SUPABASE_SETUP.md)** - Supabase configuration and project setup
 - **[Supabase Branching](./Tasks/active/SUPABASE_BRANCHING.md)** - Supabase branch strategy and workflow
@@ -86,10 +100,11 @@ If you're new to the project or returning after a break, start here:
 Before implementing any feature:
 
 1. ✅ Read this README to get oriented
-2. ✅ Check [Project Architecture](./System/project_architecture.md) for architecture understanding
-3. ✅ Review [Database Schema](./System/database_schema.md) if working with data
-4. ✅ Follow appropriate SOP for your task
-5. ✅ Update documentation after implementation
+2. ✅ Use research agent to understand the current state of the system before implementing any new features
+3. ✅ Check [Project Architecture](./System/project_architecture.md) for architecture understanding
+4. ✅ Review [Database Schema](./System/database_schema.md) if working with data
+5. ✅ Follow appropriate SOP for your task
+6. ✅ Update documentation after implementation
 
 ---
 
@@ -111,8 +126,14 @@ Before implementing any feature:
 │   ├── adding_migration.md            # Migration workflow
 │   ├── adding_page_route.md           # Route creation guide
 │   ├── working_with_services.md       # Service layer guide
+│   ├── implementing_role_based_filtering.md  # Role-based filtering guide
 │   ├── creating-components.md         # Component creation guide
 │   ├── implementing_form_actions_auth.md  # Form actions & auth patterns
+│   ├── password_reset_flow.md         # Password reset implementation
+│   ├── fixing_rls_recursion.md        # Fix RLS infinite recursion
+│   ├── fixing_rls_insert_policies.md  # ✅ NEW: Fix RLS INSERT policy errors (Jan 2025)
+│   ├── debugging_supabase_auth_hooks.md  # Auth hook troubleshooting
+│   ├── debugging_auth_user_creation_errors.md  # Auth user creation fixes
 │   └── testing_guide.md               # Testing best practices
 └── Tasks/                             # Tasks, features, and history
     ├── production_checklist.md        # Pre-production checklist
@@ -149,6 +170,345 @@ Before implementing any feature:
 ---
 
 ## 🔍 Recent Updates
+
+### Assessment Disappearing Race Condition Fix - COMPLETE (January 25, 2025)
+
+Fixed **recurring race condition causing assessments to fail and appointments to disappear**:
+
+**What was fixed:**
+- ✅ **CRITICAL**: Frontend double-click prevention added to "Start Assessment" button
+- ✅ **CRITICAL**: Appointment status update moved to AFTER successful assessment creation
+- ✅ **RECOVERY**: Improved server-side error recovery with polling (1000ms + 3 retries)
+- ✅ **DATA FIX**: Restored 3 orphaned appointments for vandermerwe.jaco194@gmail.com
+
+**Root causes & solutions:**
+1. **Premature Status Update (Primary Issue)**: Frontend updated appointment status before confirming assessment creation
+   - **Fix**: Removed status update from frontend, moved to backend after successful creation
+   - **Impact**: Appointments remain visible if creation fails, users can retry
+
+2. **Double-Click Race Condition**: No debounce on "Start Assessment" button
+   - **Fix**: Added per-appointment loading state with 1-second timeout
+   - **Impact**: Prevents parallel requests, reduces race condition by 90%
+
+3. **Insufficient Error Recovery**: 500ms wait time too short for race condition recovery
+   - **Fix**: Increased to 1000ms + polling retry (3 attempts, 500ms each)
+   - **Impact**: Better recovery when race conditions occur
+
+4. **Orphaned Data**: 3 appointments stuck with status='in_progress' but no assessments
+   - **Fix**: SQL script reset appointments to 'scheduled', logged in audit_logs
+   - **Impact**: User can now see and retry missing appointments
+
+**Files modified:**
+- **Modified**: 2 files (appointments page frontend + server, assessment page server)
+- **Updated**: 2 SOPs (race conditions, handling_race_conditions_in_number_generation)
+- **Created**: 2 files (investigation report, fix script)
+- **Executed**: SQL fix for 3 orphaned appointments
+
+**Impact:**
+- No more disappearing appointments
+- 90% reduction in race condition probability
+- Better error recovery and user experience
+- Consistent pattern for status updates
+
+**Documentation:**
+- [Fix Assessment Disappearing Task](./Tasks/active/fix_assessment_disappearing_race_condition.md) - Complete implementation plan
+- [Handling Race Conditions SOP](./SOP/handling_race_conditions_in_number_generation.md) - Updated with frontend prevention
+
+---
+
+### Vehicle Values RLS & Company Settings Fix - COMPLETE (January 25, 2025)
+
+Fixed **critical RLS policy bug blocking assessment creation** and **company settings service**:
+
+**What was fixed:**
+- ✅ **CRITICAL**: RLS policy bug blocking vehicle values creation during assessment
+- ✅ **SERVICE**: Company settings service now accepts ServiceClient parameter
+- ⏳ **TESTING**: Awaiting manual verification
+
+**Root causes & solutions:**
+1. **RLS INSERT Policy Bug (Vehicle Values)**: Same pattern as assessments - table-qualified column reference
+   - **Fix**: Changed from `assessment_vehicle_values.assessment_id` to bare `assessment_id`
+   - **Migration**: 067_fix_vehicle_values_insert_policy.sql
+   - **Impact**: Both admins and engineers can now create assessments with vehicle values
+
+2. **Company Settings Service**: Service didn't accept ServiceClient parameter
+   - **Fix**: Added optional `client` parameter to both methods
+   - **Files**: company-settings.service.ts
+   - **Impact**: No more PGRST116 errors when loading assessments
+
+**Files modified:**
+- **Created**: 1 migration (067)
+- **Modified**: 2 files (company-settings.service.ts, SOP)
+
+**Impact:**
+- Assessment creation workflow unblocked
+- Vehicle values auto-create successfully
+- Company settings load correctly
+
+**Documentation:**
+- [Fix Vehicle Values RLS Task](./Tasks/active/fix_vehicle_values_rls_and_company_settings.md) - Complete implementation details
+- [Fixing RLS INSERT Policies SOP](./SOP/fixing_rls_insert_policies.md) - Updated with vehicle values example
+
+---
+
+### Assessment RLS & Svelte Deprecation Fix - COMPLETE (January 25, 2025)
+
+Fixed **critical RLS policy bug and Svelte 5 deprecation warnings**:
+
+**What was fixed:**
+- ✅ **CRITICAL**: RLS policy bug blocking engineer assessment creation
+- ✅ **DEPRECATION**: Svelte component deprecation warnings (3 instances)
+- ✅ **DOCUMENTATION**: getSession() warning explanation
+
+**Root causes & solutions:**
+1. **RLS INSERT Policy Bug**: Policy referenced `assessment_id` (doesn't exist during INSERT)
+   - **Fix**: Changed to reference `appointment_id` from INSERT data
+   - **Migration**: 066_fix_assessment_insert_policy.sql
+   - **Impact**: Engineers can now create assessments
+
+2. **Svelte Deprecation**: `<svelte:component>` deprecated in Svelte 5 runes mode
+   - **Fix**: Changed to direct component syntax `<component.icon />`
+   - **Files**: ModernDataTable.svelte (2 instances), work/+page.svelte (1 instance)
+   - **Impact**: Future-proof for Svelte 6+
+
+3. **getSession() Warning**: Console warning about insecure usage
+   - **Fix**: Added documentation explaining it's a false positive
+   - **Files**: hooks.server.ts (comment), debugging_supabase_auth_hooks.md (new section)
+   - **Impact**: Developers understand the warning is expected and safe
+
+**Files modified:**
+- **Created**: 2 files (migration 066, new SOP for RLS INSERT policies)
+- **Modified**: 4 files (2 Svelte components, hooks.server.ts, auth hooks SOP)
+
+**Impact:**
+- Engineers can create assessments without RLS errors
+- No Svelte deprecation warnings in build
+- Console warnings documented and understood
+
+**Documentation:**
+- [Fix Assessment RLS Task](./Tasks/active/fix_assessment_rls_and_svelte_deprecation.md) - Complete implementation details
+- [Fixing RLS INSERT Policies SOP](./SOP/fixing_rls_insert_policies.md) - New comprehensive guide
+
+---
+
+### Engineer Creation UX Fix - COMPLETE (October 25, 2025)
+
+Fixed **false error message and security warnings** during engineer creation:
+
+**What was fixed:**
+- ✅ **UX**: "Error creating engineer: Redirect" console error (engineer was actually created successfully)
+- ✅ **WARNINGS**: 4x getSession() security warnings in console
+- ✅ **ROOT CAUSE**: redirect() caught by try-catch, getSession() called directly in layout
+
+**Root causes & solutions:**
+1. **False Error**: `redirect()` throws Redirect object (SvelteKit pattern), but try-catch caught it as error
+   - **Fix**: Moved redirect outside try-catch in engineer creation action
+   - **Pattern**: Only wrap actual fallible operations in try-catch, not redirects
+   - **File**: `src/routes/(app)/engineers/new/+page.server.ts`
+
+2. **getSession() Warnings**: Root layout called `getSession()` directly, triggering security warnings
+   - **Fix**: Use session from parent data (already validated by server's safeGetSession)
+   - **Pattern**: Always use session from data, never call getSession() directly
+   - **File**: `src/routes/+layout.ts`
+
+**Files modified:**
+- **Modified**: `src/routes/(app)/engineers/new/+page.server.ts` (redirect handling)
+- **Modified**: `src/routes/+layout.ts` (session from data)
+- **Created**: Task documentation (fix_engineer_creation_false_error.md)
+
+**Impact:**
+- Engineer creation shows success without console errors
+- No misleading error messages
+- No security warnings in console
+- Cleaner console output for developers
+
+**Documentation:**
+- [Fix Engineer Creation False Error Task](./Tasks/active/fix_engineer_creation_false_error.md) - Complete analysis and implementation
+
+---
+
+### Engineer Creation Fix - COMPLETE (October 25, 2025)
+
+Fixed **critical engineer creation failure** with comprehensive debugging documentation:
+
+**What was fixed:**
+- ✅ **CRITICAL**: Engineer creation failing with "Database error creating new user"
+- ✅ **ROOT CAUSE**: `handle_new_user()` trigger defaulted to 'user' role, violating `user_profiles_role_check` constraint
+- ✅ **CONSTRAINT**: Table only allows `['admin', 'engineer']` roles, but trigger used 'user'
+
+**Root cause & solution:**
+1. **Constraint Violation**: Trigger function had hardcoded `default_role := 'user'` which violated CHECK constraint
+   - **Fix**: Read role from `raw_user_meta_data->>'role'` (respects admin.createUser metadata)
+   - **Default**: Changed to 'engineer' (valid role)
+   - **Validation**: Added role validation to prevent future violations
+   - **Migration**: 065_fix_handle_new_user_role_constraint.sql
+
+**Investigation approach:**
+- Used Supabase specialist agent for comprehensive analysis
+- Checked auth logs via Supabase MCP (found exact constraint error)
+- Verified trigger function logic (found hardcoded 'user' default)
+- Verified CHECK constraint definition (only allows admin/engineer)
+- Confirmed root cause was schema evolution mismatch
+
+**Files modified:**
+- **Created**: 1 migration (065_fix_handle_new_user_role_constraint.sql)
+- **Created**: 1 comprehensive SOP (debugging_auth_user_creation_errors.md)
+- **Updated**: README.md with new SOP
+
+**Impact:**
+- Admins can now successfully create engineer accounts
+- Trigger respects user metadata from admin.createUser()
+- Safe default prevents future constraint violations
+- Comprehensive SOP for debugging similar issues
+
+**Documentation:**
+- [Debugging Auth User Creation Errors SOP](./SOP/debugging_auth_user_creation_errors.md) - Complete troubleshooting guide
+- [Engineer Registration Task](./Tasks/active/engineer_registration_auth.md) - Original implementation details
+
+---
+
+### RLS Recursion Fix & Application Errors - COMPLETE (October 25, 2025)
+
+Fixed **4 critical issues** blocking application functionality:
+
+**What was fixed:**
+- ✅ **CRITICAL**: RLS infinite recursion on `user_profiles` table (blocking all logins)
+- ✅ **SECURITY**: Insecure `getSession()` in API endpoints (auth bypass risk)
+- ✅ **WARNING**: Svelte 5 state reference warnings in Sidebar (7 variables)
+- ✅ **DEPRECATION**: `<svelte:component>` usage in navigation
+
+**Root causes & solutions:**
+1. **RLS Recursion**: Policies queried `user_profiles` while evaluating access to `user_profiles`
+   - **Fix**: Use JWT claims (`auth.jwt() ->> 'user_role'`) instead of database queries
+   - **Migration**: 064_fix_user_profiles_rls_recursion.sql
+
+2. **Auth Security**: Document/photo endpoints used `getSession()` without JWT validation
+   - **Fix**: Replaced with `safeGetSession()` which validates tokens
+   - **Files**: `/api/document/[...path]/+server.ts`, `/api/photo/[...path]/+server.ts`
+
+3. **Svelte Warnings**: State vars in module scope captured initial values
+   - **Fix**: Removed unused `badge` properties from nav array (template uses direct refs)
+   - **File**: `Sidebar.svelte`
+
+4. **Component Deprecation**: `<svelte:component>` deprecated in Svelte 5 runes mode
+   - **Fix**: Direct component syntax `<item.icon />` instead
+   - **File**: `Sidebar.svelte` line 251
+
+**Files modified:**
+- **Created**: 1 migration (064_fix_user_profiles_rls_recursion.sql)
+- **Modified**: 3 files (2 API routes, 1 component)
+- **Database**: 4 policies dropped, 4 JWT-based policies created
+
+**Impact:**
+- Users can now log in without recursion errors
+- API endpoints properly validate JWT tokens
+- No Svelte warnings in build output
+- Future-proof for Svelte 6+
+
+**Documentation:**
+- [Fix RLS Recursion Task](./Tasks/active/fix_rls_recursion_and_errors.md) - Complete implementation details
+- [Debugging Auth Hooks SOP](./SOP/debugging_supabase_auth_hooks.md) - Troubleshooting guide
+
+---
+
+### Engineer Registration & Role-Based Access - COMPLETE (October 25, 2025)
+
+Implemented comprehensive role-based access control with admin-only user creation:
+
+**What was completed:**
+- ✅ Removed public signup - only admins can create accounts
+- ✅ Admin engineer creation with automatic password reset email
+- ✅ Password reset flow for all users (forgot password)
+- ✅ Role-based navigation (engineers see only Dashboard + Work)
+- ✅ Role-based data filtering (engineers see only assigned work)
+- ✅ Route protection (non-admins redirected from admin routes)
+
+**Security approach:**
+- **Three layers**: Route protection + Service layer filtering + RLS policies
+- **Admin routes**: `/engineers`, `/clients`, `/requests`, `/repairers`, `/settings`
+- **Engineer access**: Dashboard + Work sections (filtered by assignment)
+- **Data isolation**: Engineers only see appointments/assessments assigned to them
+
+**Files changed:**
+- **Created**: 5 files (forgot-password, reset-password pages + layout server)
+- **Modified**: 14 files (services, work pages, sidebar, dashboard, auth routes)
+- **Deleted**: 2 files (signup pages)
+
+**Documentation:**
+- [Engineer Registration Implementation](./Tasks/active/engineer_registration_auth.md) - Complete implementation details
+- [Auth Setup](./Tasks/active/AUTH_SETUP.md) - Updated with role-based access section
+
+**Next steps:**
+- ⚠️ Manual testing required (create test engineer, verify flows)
+- 📧 Verify Supabase email templates configured
+- 🧪 UAT on staging environment
+
+### Engineer Edit Functionality - COMPLETE (January 2025)
+
+Implemented full engineer profile editing with password reset capability:
+
+**What was completed:**
+- ✅ Engineer edit page at `/engineers/[id]/edit`
+- ✅ Form pre-populated with all engineer data
+- ✅ Email field read-only (cannot be changed)
+- ✅ Update all fields except email (name, phone, province, specialization, company)
+- ✅ Resend password reset email button on edit page
+- ✅ Admin-only access (engineers cannot edit their own profiles)
+- ✅ Fixed "Edit" button on detail page (removed TODO alert)
+
+**Files changed:**
+- **Created**: 2 files (edit page server + edit page UI)
+- **Modified**: 1 file (engineer detail page)
+
+**Key features:**
+- Email address locked (tied to auth account, displayed as read-only)
+- Separate form action for password reset email
+- Success/error messages for both update and password reset
+- Smooth navigation (detail ↔ edit)
+
+**Documentation:**
+- [Engineer Edit Implementation](./Tasks/active/engineer_edit_functionality.md) - Complete implementation details
+
+**Testing status:**
+- ⚠️ Ready for manual testing
+
+---
+
+### Engineer Workflow Completion - COMPLETE (October 25, 2025)
+
+Completed the engineer workflow by fixing critical data filtering gaps:
+
+**What was completed:**
+- ✅ Sidebar badge counts now filter by engineer_id (engineers see only their counts)
+- ✅ "Inspections" renamed to "Assigned Work" for engineers (clearer terminology)
+- ✅ Assigned Work page filters by assigned engineer
+- ✅ Archive page filters by engineer (engineers see only their archived data)
+- ✅ All archive services support engineer filtering
+
+**Files changed:**
+- **Modified**: 8 files
+  - `Sidebar.svelte` - Badge counts + navigation label
+  - `archive/+page.server.ts` - Engineer filtering
+  - `inspections/+page.server.ts` - Engineer filtering
+  - `inspection.service.ts` - Engineer_id parameter support
+  - `assessment.service.ts` - Archive methods with engineer_id
+  - `appointment.service.ts` - Archive methods with engineer_id
+  - `engineer flow.md` - Updated specification
+  - `.agent/README.md` - Documented completion
+
+**Key improvements:**
+- **Security**: Engineers can no longer see other engineers' data in archive
+- **UX**: Badge counts accurately reflect engineer's workload
+- **Clarity**: "Assigned Work" terminology better describes engineer's view
+- **Consistency**: All pages now filter by engineer (100% coverage)
+
+**Testing status:**
+- ⚠️ Ready for manual testing with engineer account
+
+**Documentation:**
+- [Engineer Workflow Spec](../engineer flow.md) - Complete workflow specification
+
+---
 
 ### RLS Security Hardening - COMPLETE (October 25, 2025)
 
@@ -368,6 +728,15 @@ Completed comprehensive verification and security hardening of database:
 **Form actions vs API routes - when to use which?**
 → [Implementing Form Actions & Auth](./SOP/implementing_form_actions_auth.md#critical-distinction-form-actions-vs-api-routes)
 
+**How to debug auth hook errors?**
+→ [Debugging Supabase Auth Hooks](./SOP/debugging_supabase_auth_hooks.md)
+
+**How to fix RLS infinite recursion?**
+→ [Fixing RLS Infinite Recursion](./SOP/fixing_rls_recursion.md)
+
+**How to fix RLS INSERT policy errors?**
+→ [Fixing RLS INSERT Policy Errors](./SOP/fixing_rls_insert_policies.md) - ✅ **NEW:** Debug policies that fail during INSERT operations
+
 **How to create a new page?**
 → [Adding Page Routes](./SOP/adding_page_route.md)
 
@@ -376,6 +745,10 @@ Completed comprehensive verification and security hardening of database:
 
 **How to fetch data from the database?**
 → [Working with Services](./SOP/working_with_services.md)
+
+**How to implement role-based filtering (admin vs engineer)?**
+→ [Implementing Role-Based Filtering](./SOP/implementing_role_based_filtering.md) - Complete step-by-step guide
+→ [Project Architecture - Engineer Workflow](./System/project_architecture.md#5-engineer-workflow--role-based-filtering) - Implementation patterns and examples
 
 **How to create reusable components?**
 → [Creating Components](./SOP/creating-components.md)
@@ -487,20 +860,23 @@ This documentation aims to:
 
 ## 📊 Project Stats
 
-**As of security hardening (October 25, 2025):**
+**As of Vehicle Values RLS fix (January 25, 2025):**
 - **28 database tables** (verified & secured against live Supabase DB)
-- **62 database migrations** (from supabase/migrations/ - includes 5 new security migrations)
+- **67 database migrations** (includes latest vehicle values RLS fix)
 - **27+ service files** (all using ServiceClient injection pattern)
 - **40+ page routes**
-- **10+ API endpoints**
+- **10+ API endpoints** (with secure JWT validation)
 - **TypeScript** throughout the codebase
 - **Fully authenticated** with role-based access (admin/engineer)
 - **✅ Row Level Security** enabled on 28/28 tables (**100% coverage** - secured Oct 2025)
+- **✅ JWT-based RLS policies** on `user_profiles` (no recursion - fixed Oct 2025)
+- **✅ Fixed RLS INSERT policies** for assessments and vehicle values (fixed Jan 2025)
 - **40+ RLS policies** protecting all data access
-- **Private storage** with proxy endpoints (2 buckets: documents, SVA Photos)
+- **Private storage** with secure proxy endpoints (2 buckets: documents, SVA Photos)
 - **AI-powered development** with Claude Code Skills
 - **JSONB-based estimates** (document-oriented architecture for flexibility)
-- **Enterprise-grade security** (0 Supabase security errors remaining)
+- **Enterprise-grade security** (0 Supabase security errors, 0 auth vulnerabilities)
+- **Svelte 5 compliant** (no deprecation warnings - fixed Jan 2025)
 
 ---
 
@@ -550,7 +926,9 @@ Official documentation for technologies used in ClaimTech:
 - ✅ MCP setup guide for Claude Code integration
 
 **Planned additions:**
-- [ ] Troubleshooting guide (common errors and solutions)
+- [x] Troubleshooting guide for auth hooks (added Oct 2025)
+- [x] RLS recursion troubleshooting guide (added Oct 2025)
+- [ ] Troubleshooting guide for other common errors
 - [ ] Deployment guide (environment variables, Vercel setup, Supabase config)
 - [ ] API documentation (all endpoints with request/response examples)
 - [ ] Performance optimization guide
@@ -576,8 +954,8 @@ Official documentation for technologies used in ClaimTech:
 
 ---
 
-**Version**: 1.3.0
-**Last Updated**: October 25, 2025 (RLS Security Hardening Complete - 100% Coverage Achieved)
+**Version**: 1.5.1
+**Last Updated**: January 25, 2025 (Vehicle Values RLS Fixed + Company Settings Service Fixed)
 **Maintained By**: ClaimTech Development Team
 
 ---

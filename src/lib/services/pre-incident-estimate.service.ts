@@ -5,6 +5,7 @@ import type {
 	CreatePreIncidentEstimateInput,
 	UpdatePreIncidentEstimateInput
 } from '$lib/types/assessment';
+import type { ServiceClient } from '$lib/types/service';
 import { auditService } from './audit.service';
 import {
 	calculateLineItemTotal,
@@ -20,8 +21,9 @@ export class PreIncidentEstimateService {
 	/**
 	 * Get pre-incident estimate by assessment ID (single estimate per assessment)
 	 */
-	async getByAssessment(assessmentId: string): Promise<PreIncidentEstimate | null> {
-		const { data, error } = await supabase
+	async getByAssessment(assessmentId: string, client?: ServiceClient): Promise<PreIncidentEstimate | null> {
+		const db = client ?? supabase;
+		const { data, error } = await db
 			.from('pre_incident_estimates')
 			.select('*')
 			.eq('assessment_id', assessmentId)
@@ -38,7 +40,7 @@ export class PreIncidentEstimateService {
 	/**
 	 * Create default pre-incident estimate for a new assessment
 	 */
-	async createDefault(assessmentId: string): Promise<PreIncidentEstimate> {
+	async createDefault(assessmentId: string, client?: ServiceClient): Promise<PreIncidentEstimate> {
 		return this.create({
 			assessment_id: assessmentId,
 			labour_rate: 500.0,
@@ -51,13 +53,14 @@ export class PreIncidentEstimateService {
 			notes: '',
 			vat_percentage: 15.0,
 			currency: 'ZAR'
-		});
+		}, client);
 	}
 
 	/**
 	 * Create pre-incident estimate
 	 */
-	async create(input: CreatePreIncidentEstimateInput): Promise<PreIncidentEstimate> {
+	async create(input: CreatePreIncidentEstimateInput, client?: ServiceClient): Promise<PreIncidentEstimate> {
+		const db = client ?? supabase;
 		// Calculate totals
 		const lineItems = input.line_items || [];
 		const labourRate = input.labour_rate || 500.0;
@@ -67,7 +70,7 @@ export class PreIncidentEstimateService {
 		const vatAmount = calculateVAT(subtotal, vatPercentage);
 		const total = calculateTotal(subtotal, vatAmount);
 
-		const { data, error } = await supabase
+		const { data, error} = await db
 			.from('pre_incident_estimates')
 			.insert({
 				assessment_id: input.assessment_id,

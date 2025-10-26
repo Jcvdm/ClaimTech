@@ -834,10 +834,10 @@ class AdditionalsService {
 	 * Pulls vehicle data from assessment_vehicle_identification (updated during assessment)
 	 * Excludes assessments where FRC has been started
 	 */
-	async listAdditionals(client?: ServiceClient): Promise<any[]> {
+	async listAdditionals(client?: ServiceClient, engineer_id?: string | null): Promise<any[]> {
 		const db = client ?? supabase;
 
-		const { data, error } = await db
+		let query = db
 			.from('assessment_additionals')
 			.select(`
 				*,
@@ -853,6 +853,7 @@ class AdditionalsService {
 					),
 					appointment:appointments!inner(
 						id,
+						engineer_id,
 						inspection:inspections!inner(
 							id,
 							request:requests!inner(
@@ -873,6 +874,13 @@ class AdditionalsService {
 				)
 			`)
 			.order('created_at', { ascending: false });
+
+		// Filter by engineer if provided
+		if (engineer_id) {
+			query = query.eq('assessment.appointment.engineer_id', engineer_id);
+		}
+
+		const { data, error } = await query;
 
 		if (error) {
 			console.error('Error listing additionals:', error);
@@ -896,13 +904,20 @@ class AdditionalsService {
 	 * Get count of additionals with pending items
 	 * Excludes assessments where FRC has been started
 	 */
-	async getPendingCount(client?: ServiceClient): Promise<number> {
+	async getPendingCount(client?: ServiceClient, engineer_id?: string | null): Promise<number> {
 		const db = client ?? supabase;
 
-		// Get all additionals with pending items
-		const { data: additionalsData, error } = await db
+		// Get all additionals with pending items, joined with assessments/appointments
+		let query = db
 			.from('assessment_additionals')
-			.select('assessment_id, line_items');
+			.select('assessment_id, line_items, assessments!inner(appointment_id, appointments!inner(engineer_id))');
+
+		// Filter by engineer if provided
+		if (engineer_id) {
+			query = query.eq('assessments.appointments.engineer_id', engineer_id);
+		}
+
+		const { data: additionalsData, error } = await query;
 
 		if (error) {
 			console.error('Error counting pending additionals:', error);

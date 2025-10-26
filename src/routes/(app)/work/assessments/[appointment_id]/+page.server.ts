@@ -35,29 +35,74 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 
 		// Get or create assessment
 		let assessment = await assessmentService.getAssessmentByAppointment(appointmentId, locals.supabase);
+		let assessmentWasCreated = false; // Track if we created a new assessment
 
 		if (!assessment) {
-			// Create new assessment
-			assessment = await assessmentService.createAssessment({
-				appointment_id: appointmentId,
-				inspection_id: appointment.inspection_id,
-				request_id: appointment.request_id
-			}, locals.supabase);
+			try {
+				// Create new assessment
+				assessment = await assessmentService.createAssessment({
+					appointment_id: appointmentId,
+					inspection_id: appointment.inspection_id,
+					request_id: appointment.request_id
+				}, locals.supabase);
+				assessmentWasCreated = true;
 
-			// Create default tyres (5 standard positions)
-			await tyresService.createDefaultTyres(assessment.id);
+				// Create default tyres (5 standard positions)
+				await tyresService.createDefaultTyres(assessment.id, locals.supabase);
 
-			// Create default damage record (one per assessment)
-			await damageService.createDefault(assessment.id);
+				// Create default damage record (one per assessment)
+				await damageService.createDefault(assessment.id, locals.supabase);
 
-			// Create default vehicle values (one per assessment)
-			await vehicleValuesService.createDefault(assessment.id);
+				// Create default vehicle values (one per assessment)
+				await vehicleValuesService.createDefault(assessment.id, locals.supabase);
 
-			// Create default pre-incident estimate (one per assessment)
-			await preIncidentEstimateService.createDefault(assessment.id);
+				// Create default pre-incident estimate (one per assessment)
+				await preIncidentEstimateService.createDefault(assessment.id, locals.supabase);
 
-			// Create default estimate (one per assessment)
-			await estimateService.createDefault(assessment.id);
+				// Create default estimate (one per assessment)
+				await estimateService.createDefault(assessment.id, locals.supabase);
+
+				// ✅ FIX: Update appointment status AFTER successful assessment creation
+				// This prevents appointments from disappearing if assessment creation fails
+				await appointmentService.updateAppointmentStatus(appointmentId, 'in_progress', locals.supabase);
+				console.log('Assessment created successfully, appointment status updated to in_progress');
+
+			} catch (createError: any) {
+				// Handle race condition: duplicate key error when user double-clicks or multiple requests run simultaneously
+				if (createError.message && createError.message.includes('duplicate key')) {
+					console.log('Race condition detected: assessment already exists, fetching existing assessment...');
+
+					// Wait longer for the other request to complete (increased from 500ms to 1000ms)
+					await new Promise(resolve => setTimeout(resolve, 1000));
+
+					// Fetch the existing assessment created by the other request
+					assessment = await assessmentService.getAssessmentByAppointment(appointmentId, locals.supabase);
+
+					if (!assessment) {
+						// Retry fetch with polling (3 attempts, 500ms apart)
+						console.log('Assessment not found on first fetch, retrying with polling...');
+						for (let i = 0; i < 3; i++) {
+							await new Promise(resolve => setTimeout(resolve, 500));
+							assessment = await assessmentService.getAssessmentByAppointment(appointmentId, locals.supabase);
+							if (assessment) {
+								console.log(`Assessment found on retry attempt ${i + 1}`);
+								break;
+							}
+						}
+					}
+
+					if (!assessment) {
+						console.error('Failed to fetch assessment after duplicate key error and retries');
+						throw error(500, 'Failed to create or fetch assessment. Please try again.');
+					}
+
+					console.log('Successfully recovered from race condition, using existing assessment:', assessment.id);
+				} else {
+					// Re-throw other errors
+					console.error('Error creating assessment:', createError);
+					throw error(500, `Failed to create assessment: ${createError.message}`);
+				}
+			}
 		}
 
 		// Load all assessment data

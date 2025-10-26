@@ -26,6 +26,7 @@
 	let selectedType = $state<AppointmentType | 'all'>('all');
 	let dateFilter = $state<string>(''); // Date picker value
 	let loading = $state(false);
+	let startingAssessment = $state<string | null>(null); // Track which assessment is being started
 
 	// Schedule/Reschedule modal state
 	let showScheduleModal = $state(false);
@@ -159,16 +160,25 @@
 	}
 
 	async function handleStartAssessment(appointmentId: string) {
-		loading = true;
+		// Prevent double-click: if already starting this assessment, ignore
+		if (startingAssessment === appointmentId) {
+			console.log('Assessment already being started, ignoring duplicate click');
+			return;
+		}
+
+		startingAssessment = appointmentId;
 		try {
-			// Update appointment status to in_progress
-			await appointmentService.updateAppointmentStatus(appointmentId, 'in_progress');
 			// Navigate to assessment page (will auto-create assessment)
+			// Status will be updated on server-side AFTER successful assessment creation
 			goto(`/work/assessments/${appointmentId}`);
 		} catch (error) {
 			console.error('Error starting assessment:', error);
 			alert('Failed to start assessment. Please try again.');
-			loading = false;
+		} finally {
+			// Reset after navigation delay to allow button to be clicked again if needed
+			setTimeout(() => {
+				startingAssessment = null;
+			}, 1000);
 		}
 	}
 
@@ -380,10 +390,10 @@
 											e.stopPropagation();
 											handleStartAssessment(appointment.id);
 										}}
-										disabled={loading}
+										disabled={startingAssessment === appointment.id}
 									>
 										<Play class="mr-2 h-4 w-4" />
-										Start Assessment
+										{startingAssessment === appointment.id ? 'Starting...' : 'Start Assessment'}
 									</Button>
 								</div>
 							</div>
@@ -477,10 +487,10 @@
 												e.stopPropagation();
 												handleStartAssessment(appointment.id);
 											}}
-											disabled={loading}
+											disabled={startingAssessment === appointment.id}
 										>
 											<Play class="mr-2 h-4 w-4" />
-											Start Assessment
+											{startingAssessment === appointment.id ? 'Starting...' : 'Start Assessment'}
 										</Button>
 									</div>
 								</div>

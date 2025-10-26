@@ -1,12 +1,14 @@
 import { supabase } from '$lib/supabase';
 import type { CompanySettings, UpdateCompanySettingsInput } from '$lib/types/assessment';
+import type { ServiceClient } from '$lib/types/service';
 
 class CompanySettingsService {
 	/**
 	 * Get company settings (always returns single row)
 	 */
-	async getSettings(): Promise<CompanySettings | null> {
-		const { data, error } = await supabase.from('company_settings').select('*').single();
+	async getSettings(client?: ServiceClient): Promise<CompanySettings | null> {
+		const db = client ?? supabase;
+		const { data, error } = await db.from('company_settings').select('*').single();
 
 		if (error) {
 			console.error('Error fetching company settings:', error);
@@ -19,14 +21,15 @@ class CompanySettingsService {
 	/**
 	 * Update company settings
 	 */
-	async updateSettings(input: UpdateCompanySettingsInput): Promise<CompanySettings | null> {
+	async updateSettings(input: UpdateCompanySettingsInput, client?: ServiceClient): Promise<CompanySettings | null> {
 		// Get the single settings row
-		const existing = await this.getSettings();
+		const existing = await this.getSettings(client);
 		if (!existing) {
 			throw new Error('Company settings not found');
 		}
 
-		const { data, error } = await supabase
+		const db = client ?? supabase;
+		const { data, error } = await db
 			.from('company_settings')
 			.update(input)
 			.eq('id', existing.id)

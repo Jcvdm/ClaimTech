@@ -25,8 +25,10 @@ This project uses specialized sub-agents for specific domains. Use these agents 
 
 #### 1. Research Context Gatherer (Haiku)
 **When to use:** Thorough research, context gathering, analyzing existing systems, preparing background material
+  VITAL - Use research agent to understand the current state of the system before implementing any new features
 
 **Trigger automatically when:**
+- User mentions "research", "gather context", or "analyze" OR VITAL READ
 - User asks "what are the latest..." or "current state of..."
 - User asks to "research" or "gather context about..."
 - User says "analyze existing..." or "review current..."
@@ -36,6 +38,7 @@ This project uses specialized sub-agents for specific domains. Use these agents 
 - "Research best practices for GraphQL federation"
 - "Gather context about our authentication system before refactoring"
 - "Analyze our current database schema"
+- "Read"
 
 #### 2. Supabase Specialist (Sonnet)
 **When to use:** Database schema, RLS policies, Supabase auth, real-time, edge functions, storage

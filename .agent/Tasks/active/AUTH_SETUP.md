@@ -68,19 +68,34 @@ This document describes the authentication system implemented for ClaimTech usin
 #### Login Page (`/auth/login`)
 - Email/password form
 - Error handling
-- Link to signup page
-- Redirects to home on success
+- ~~Link to signup page~~ → **REMOVED** (October 25, 2025)
+- Link to forgot password page
+- Redirects to dashboard on success
 
-#### Signup Page (`/auth/signup`)
-- Full name, email, password, role fields
-- Role selection: Admin or Engineer
-- Success message with email confirmation instructions
-- Metadata passed to trigger for profile creation
+#### ~~Signup Page (`/auth/signup`)~~ → **REMOVED** (October 25, 2025)
+- **Public signup disabled** - Only admins can create user accounts
+- Users are created by admins via `/engineers/new`
+- New engineers receive password reset email automatically
+
+#### Forgot Password Page (`/auth/forgot-password`) → **NEW** (October 25, 2025)
+- Email input form
+- Calls `supabase.auth.resetPasswordForEmail()`
+- Shows success message after email sent
+- Public route (no authentication required)
+
+#### Reset Password Page (`/auth/reset-password`) → **NEW** (October 25, 2025)
+- New password input form
+- Accessed via email link (password reset or new engineer welcome)
+- Calls `supabase.auth.updateUser({ password })`
+- Redirects to dashboard on success
+- Public route (accessed with recovery token)
 
 #### Callback Route (`/auth/callback`)
 - Handles OAuth callbacks
 - Exchanges code for session
-- Redirects to intended destination
+- **NEW:** Handles `type=recovery` for password reset flow
+- Redirects to `/auth/reset-password` for password reset
+- Redirects to intended destination for other flows
 
 #### Confirm Route (`/auth/confirm`)
 - Handles email confirmation links
@@ -271,15 +286,122 @@ Create admin pages for:
 - [Supabase RLS](https://supabase.com/docs/guides/auth/row-level-security)
 - [SvelteKit Hooks](https://kit.svelte.dev/docs/hooks)
 
+## 🚀 Role-Based Access Implementation (October 25, 2025)
+
+### Overview
+Implemented comprehensive role-based access control with admin-only user creation, automatic password reset, and engineer data filtering.
+
+### Key Changes
+
+**Authentication Flow:**
+- ❌ Public signup removed
+- ✅ Admin-only engineer creation at `/engineers/new`
+- ✅ Automatic password reset email sent to new engineers
+- ✅ Forgot password flow for all users
+
+**Role-Based UI:**
+- ✅ Navigation sidebar adapts to user role
+- ✅ Engineers only see: Dashboard + Work sections
+- ✅ Engineers cannot see: Clients, Requests, Engineers, Repairers, Settings
+
+**Data Filtering:**
+- ✅ Engineers only see work assigned to them
+- ✅ Dashboard counts filtered by engineer_id
+- ✅ All work pages filtered by engineer_id
+- ✅ Service layer supports engineer_id filtering
+
+**Route Protection:**
+- ✅ Admin-only routes redirect non-admins to dashboard
+- ✅ Protected routes: `/engineers`, `/clients`, `/requests`, `/repairers`, `/settings`
+
+### Implementation Files
+
+**Created:**
+- `src/routes/auth/forgot-password/+page.svelte`
+- `src/routes/auth/forgot-password/+page.server.ts`
+- `src/routes/auth/reset-password/+page.svelte`
+- `src/routes/auth/reset-password/+page.server.ts`
+- `src/routes/(app)/+layout.server.ts`
+
+**Updated:**
+- `src/hooks.server.ts` - Updated public routes
+- `src/routes/auth/login/+page.svelte` - Added forgot password link
+- `src/routes/auth/callback/+server.ts` - Password reset handling
+- `src/routes/(app)/engineers/new/+page.server.ts` - Admin user creation
+- `src/lib/components/layout/Sidebar.svelte` - Role-based navigation
+- `src/routes/(app)/dashboard/+page.server.ts` - Role-based filtering
+- 4 service files - Engineer filtering support
+- 5 work page servers - Engineer filtering
+
+**Deleted:**
+- `src/routes/auth/signup/+page.svelte`
+- `src/routes/auth/signup/+page.server.ts`
+
+### Security Architecture
+
+**Three-layer security approach:**
+
+1. **Route Protection** (Layout Server)
+   - Non-admins redirected from admin-only paths
+   - Implemented in `src/routes/(app)/+layout.server.ts`
+
+2. **Data Filtering** (Service Layer)
+   - Engineers only receive data for assigned work
+   - Services accept optional `engineer_id` parameter
+   - Pages use `await parent()` to access role and engineer_id
+
+3. **Database Security** (RLS)
+   - Row-level security policies enforce access at database level
+   - RLS policies already in place (migration 063)
+
+### Related Documentation
+
+- [Engineer Registration Implementation](./ engineer_registration_auth.md) - Complete implementation details
+- [Implementing Form Actions & Auth](../../SOP/implementing_form_actions_auth.md) - Form action patterns
+- [Database Schema - Authentication](../../System/database_schema.md#authentication--user-tables)
+- [RLS Security Hardening](./rls_security_hardening.md) - Database security
+
+---
+
 ## 🎉 Summary
 
-The authentication foundation is now in place! The system supports:
+The authentication system is now fully implemented with role-based access control! The system supports:
+
+**Authentication:**
 - ✅ Email/password authentication
 - ✅ User profiles with roles (admin/engineer)
 - ✅ Server-side session validation
 - ✅ Protected routes
-- ✅ Login/signup/logout flows
+- ✅ Login/logout flows
+- ✅ Password reset flow
 - ✅ User menu in app header
 
-Next steps are to apply the migration, configure Supabase settings, test the flow, and implement role-based access control throughout the app.
+**User Management:**
+- ✅ Admin-only engineer creation
+- ✅ Automatic password reset for new engineers
+- ✅ Forgot password for existing users
+
+**Access Control:**
+- ✅ Role-based navigation filtering
+- ✅ Route protection (admin-only paths)
+- ✅ Data filtering by engineer assignment
+- ✅ Three-layer security (routes + services + RLS)
+
+**Security Fixes (October 25, 2025):**
+- ✅ **RLS Recursion Fixed**: Migration 064 uses JWT claims instead of database queries
+- ✅ **Auth Security Fixed**: API endpoints use `safeGetSession()` for JWT validation
+- ✅ **Custom Access Token Hook**: Working correctly with proper casting
+- ✅ **Svelte 5 Compatibility**: Fixed component deprecation and state warnings
+
+**Critical Lessons Learned:**
+1. **RLS + Helper Functions**: Never query the same table in RLS policies that protect it
+2. **JWT Claims Solution**: Use `auth.jwt() ->> 'user_role'` to avoid database queries
+3. **Server-Side Auth**: Always use `safeGetSession()` in API routes, never plain `getSession()`
+4. **Svelte 5 Runes**: Don't reference `$state` variables in module-scope arrays
+
+**Next Steps:**
+- Manual testing of all flows
+- Create test engineer account
+- Verify data filtering
+- Deploy to staging for UAT
 

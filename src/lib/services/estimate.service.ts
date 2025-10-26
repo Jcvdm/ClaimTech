@@ -5,6 +5,7 @@ import type {
 	CreateEstimateInput,
 	UpdateEstimateInput
 } from '$lib/types/assessment';
+import type { ServiceClient } from '$lib/types/service';
 import { auditService } from './audit.service';
 import {
 	calculateLineItemTotal,
@@ -82,8 +83,9 @@ export class EstimateService {
 	/**
 	 * Get estimate by assessment ID (single estimate per assessment)
 	 */
-	async getByAssessment(assessmentId: string): Promise<Estimate | null> {
-		const { data, error } = await supabase
+	async getByAssessment(assessmentId: string, client?: ServiceClient): Promise<Estimate | null> {
+		const db = client ?? supabase;
+		const { data, error } = await db
 			.from('assessment_estimates')
 			.select('*')
 			.eq('assessment_id', assessmentId)
@@ -100,7 +102,7 @@ export class EstimateService {
 	/**
 	 * Create default estimate for a new assessment
 	 */
-	async createDefault(assessmentId: string): Promise<Estimate> {
+	async createDefault(assessmentId: string, client?: ServiceClient): Promise<Estimate> {
 		return this.create({
 			assessment_id: assessmentId,
 			labour_rate: 500.0,
@@ -109,13 +111,14 @@ export class EstimateService {
 			notes: '',
 			vat_percentage: 15.0,
 			currency: 'ZAR'
-		});
+		}, client);
 	}
 
 	/**
 	 * Create estimate
 	 */
-	async create(input: CreateEstimateInput): Promise<Estimate> {
+	async create(input: CreateEstimateInput, client?: ServiceClient): Promise<Estimate> {
+		const db = client ?? supabase;
 		// Calculate totals (nett per-line; markup at aggregate)
 		const lineItems = input.line_items || [];
 		const labourRate = input.labour_rate || 500.0;
@@ -134,7 +137,7 @@ export class EstimateService {
 			outwork
 		);
 
-		const { data, error } = await supabase
+		const { data, error } = await db
 			.from('assessment_estimates')
 			.insert({
 				assessment_id: input.assessment_id,

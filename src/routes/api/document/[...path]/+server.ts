@@ -25,12 +25,10 @@ export const GET: RequestHandler = async ({ params, locals, request }) => {
 		throw error(400, 'Document path is required');
 	}
 
-	// Authenticate user
-	const {
-		data: { session }
-	} = await locals.supabase.auth.getSession();
+	// Authenticate user (secure JWT validation)
+	const { session, user } = await locals.safeGetSession();
 
-	if (!session) {
+	if (!session || !user) {
 		throw error(401, 'Authentication required');
 	}
 

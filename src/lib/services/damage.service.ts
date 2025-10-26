@@ -4,14 +4,16 @@ import type {
 	CreateDamageRecordInput,
 	UpdateDamageRecordInput
 } from '$lib/types/assessment';
+import type { ServiceClient } from '$lib/types/service';
 import { auditService } from './audit.service';
 
 export class DamageService {
 	/**
 	 * Create damage record
 	 */
-	async create(input: CreateDamageRecordInput): Promise<DamageRecord> {
-		const { data, error } = await supabase
+	async create(input: CreateDamageRecordInput, client?: ServiceClient): Promise<DamageRecord> {
+		const db = client ?? supabase;
+		const { data, error } = await db
 			.from('assessment_damage')
 			.insert(input)
 			.select()
@@ -44,8 +46,9 @@ export class DamageService {
 	/**
 	 * Get damage record by ID
 	 */
-	async get(id: string): Promise<DamageRecord | null> {
-		const { data, error } = await supabase
+	async get(id: string, client?: ServiceClient): Promise<DamageRecord | null> {
+		const db = client ?? supabase;
+		const { data, error } = await db
 			.from('assessment_damage')
 			.select('*')
 			.eq('id', id)
@@ -62,8 +65,9 @@ export class DamageService {
 	/**
 	 * Get damage record by assessment ID (single record per assessment)
 	 */
-	async getByAssessment(assessmentId: string): Promise<DamageRecord | null> {
-		const { data, error } = await supabase
+	async getByAssessment(assessmentId: string, client?: ServiceClient): Promise<DamageRecord | null> {
+		const db = client ?? supabase;
+		const { data, error } = await db
 			.from('assessment_damage')
 			.select('*')
 			.eq('assessment_id', assessmentId)
@@ -81,8 +85,9 @@ export class DamageService {
 	 * List damage records by assessment ID
 	 * @deprecated Use getByAssessment() instead - each assessment should have only one damage record
 	 */
-	async listByAssessment(assessmentId: string): Promise<DamageRecord[]> {
-		const { data, error } = await supabase
+	async listByAssessment(assessmentId: string, client?: ServiceClient): Promise<DamageRecord[]> {
+		const db = client ?? supabase;
+		const { data, error } = await db
 			.from('assessment_damage')
 			.select('*')
 			.eq('assessment_id', assessmentId)
@@ -99,26 +104,27 @@ export class DamageService {
 	/**
 	 * Create default damage record for a new assessment
 	 */
-	async createDefault(assessmentId: string): Promise<DamageRecord> {
+	async createDefault(assessmentId: string, client?: ServiceClient): Promise<DamageRecord> {
 		return this.create({
 			assessment_id: assessmentId,
 			damage_area: 'non_structural',
 			damage_type: 'collision',
 			affected_panels: [],
 			photos: []
-		});
+		}, client);
 	}
 
 	/**
 	 * Update damage record
 	 */
-	async update(id: string, input: UpdateDamageRecordInput): Promise<DamageRecord> {
+	async update(id: string, input: UpdateDamageRecordInput, client?: ServiceClient): Promise<DamageRecord> {
+		const db = client ?? supabase;
 		// Convert undefined to null for Supabase (defensive programming)
 		const cleanedInput = Object.fromEntries(
 			Object.entries(input).map(([key, value]) => [key, value === undefined ? null : value])
 		) as UpdateDamageRecordInput;
 
-		const { data, error } = await supabase
+		const { data, error } = await db
 			.from('assessment_damage')
 			.update(cleanedInput)
 			.eq('id', id)
@@ -147,8 +153,9 @@ export class DamageService {
 	/**
 	 * Delete damage record
 	 */
-	async delete(id: string): Promise<void> {
-		const { error } = await supabase.from('assessment_damage').delete().eq('id', id);
+	async delete(id: string, client?: ServiceClient): Promise<void> {
+		const db = client ?? supabase;
+		const { error } = await db.from('assessment_damage').delete().eq('id', id);
 
 		if (error) {
 			console.error('Error deleting damage record:', error);

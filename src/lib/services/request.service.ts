@@ -110,41 +110,62 @@ export class RequestService {
 	}
 
 	/**
-	 * Create a new request
+	 * Create a new request with retry logic to handle race conditions
 	 */
-	async createRequest(input: CreateRequestInput, client?: ServiceClient): Promise<Request> {
+	async createRequest(input: CreateRequestInput, client?: ServiceClient, maxRetries: number = 3): Promise<Request> {
 		const db = client ?? supabase;
-		const requestNumber = await this.generateRequestNumber(input.type, client);
 
-		const { data, error } = await db
-			.from('requests')
-			.insert({
-				...input,
-				request_number: requestNumber,
-				status: 'draft',
-				current_step: 'request'
-			})
-			.select()
-			.single();
+		// Retry loop to handle race conditions in request number generation
+		for (let attempt = 0; attempt < maxRetries; attempt++) {
+			try {
+				const requestNumber = await this.generateRequestNumber(input.type, client);
 
-		if (error) {
-			console.error('Error creating request:', error);
-			throw new Error(`Failed to create request: ${error.message}`);
+				const { data, error } = await db
+					.from('requests')
+					.insert({
+						...input,
+						request_number: requestNumber,
+						status: 'draft',
+						current_step: 'request'
+					})
+					.select()
+					.single();
+
+				if (error) {
+					// Check if this is a duplicate key error (race condition)
+					if (error.code === '23505' && attempt < maxRetries - 1) {
+						console.log(`Duplicate request number detected (attempt ${attempt + 1}/${maxRetries}), retrying...`);
+						await new Promise(resolve => setTimeout(resolve, 100 * Math.pow(2, attempt)));
+						continue;
+					}
+
+					console.error('Error creating request:', error);
+					throw new Error(`Failed to create request: ${error.message}`);
+				}
+
+				// Success! Log creation
+				await auditService.logChange({
+					entity_type: 'request',
+					entity_id: data.id,
+					action: 'created',
+					new_value: requestNumber,
+					metadata: {
+						type: input.type,
+						client_id: input.client_id
+					}
+				});
+
+				return data;
+
+			} catch (error) {
+				if (attempt === maxRetries - 1) {
+					console.error('Failed to create request after maximum retries:', error);
+					throw error;
+				}
+			}
 		}
 
-		// Log creation
-		await auditService.logChange({
-			entity_type: 'request',
-			entity_id: data.id,
-			action: 'created',
-			new_value: requestNumber,
-			metadata: {
-				type: input.type,
-				client_id: input.client_id
-			}
-		});
-
-		return data;
+		throw new Error('Failed to create request after maximum retries');
 	}
 
 	/**

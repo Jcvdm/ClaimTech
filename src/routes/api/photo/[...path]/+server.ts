@@ -43,12 +43,10 @@ export const GET: RequestHandler = async ({ params, locals, request }) => {
 		throw error(400, 'Photo path is required');
 	}
 
-	// Check if user is authenticated
-	const {
-		data: { session }
-	} = await locals.supabase.auth.getSession();
+	// Check if user is authenticated (secure JWT validation)
+	const { session, user } = await locals.safeGetSession();
 
-	if (!session) {
+	if (!session || !user) {
 		throw error(401, 'Authentication required');
 	}
 

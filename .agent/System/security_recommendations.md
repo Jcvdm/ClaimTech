@@ -26,36 +26,82 @@ ClaimTech database security has been significantly hardened with **100% RLS cove
 
 **Tables Secured:**
 1. `repairers` - Enabled RLS (policies already existed)
-2. `assessment_estimates` - RLS + admin-only modification policies
-3. `pre_incident_estimates` - RLS + admin-only modification policies
-4. `pre_incident_estimate_photos` - RLS + admin-only modification policies
-5. `assessment_vehicle_values` - RLS + admin-only modification policies
-6. `company_settings` - RLS + admin-only modification policies
-7. `assessment_additionals` - RLS + admin-only modification policies
-8. `assessment_additionals_photos` - RLS + admin-only modification policies
-9. `assessment_frc` - RLS + admin-only modification policies
-10. `assessment_frc_documents` - RLS + admin-only modification policies
+2. `company_settings` - RLS + admin-only modification policies ✅ Correct (system config)
 
-**Policy Pattern:**
+**Assessment Tables (updated with multi-policy pattern - migration 063):**
+3. `assessment_estimates` - RLS + multi-policy (admin + engineer) ✅
+4. `assessment_vehicle_values` - RLS + multi-policy (admin + engineer) ✅
+5. `pre_incident_estimates` - RLS + multi-policy (admin + engineer) ✅
+6. `pre_incident_estimate_photos` - RLS + multi-policy (admin + engineer) ✅
+7. `assessment_additionals` - RLS + multi-policy (admin + engineer) ✅
+8. `assessment_additionals_photos` - RLS + multi-policy (admin + engineer) ✅
+9. `assessment_frc` - RLS + multi-policy (admin + engineer) ✅
+10. `assessment_frc_documents` - RLS + multi-policy (admin + engineer) ✅
+
+**Policy Pattern (System Config Tables):**
 ```sql
 -- SELECT: All authenticated users can view data
 CREATE POLICY "Authenticated users can view [table]"
-ON [table] FOR SELECT
-TO authenticated
+ON [table] FOR SELECT TO authenticated
 USING (true);
 
 -- INSERT/UPDATE/DELETE: Admins only
 CREATE POLICY "Only admins can modify [table]"
-ON [table] FOR ALL
-TO authenticated
+ON [table] FOR ALL TO authenticated
+USING (is_admin());
+```
+
+**Policy Pattern (Assessment Tables - Multi-Policy):**
+```sql
+-- SELECT: All authenticated users can view
+CREATE POLICY "Authenticated users can view [table]"
+ON [table] FOR SELECT TO authenticated
+USING (true);
+
+-- INSERT: Admins OR Engineers (for their assessments)
+CREATE POLICY "Admins can insert [table]"
+ON [table] FOR INSERT TO authenticated
+WITH CHECK (is_admin());
+
+CREATE POLICY "Engineers can insert [table]"
+ON [table] FOR INSERT TO authenticated
+WITH CHECK (
+  EXISTS (
+    SELECT 1 FROM assessments
+    JOIN appointments ON assessments.appointment_id = appointments.id
+    WHERE assessments.id = [table].assessment_id
+    AND appointments.engineer_id = get_user_engineer_id()
+  )
+);
+
+-- UPDATE: Admins OR Engineers (for their assessments)
+CREATE POLICY "Admins can update [table]"
+ON [table] FOR UPDATE TO authenticated
+USING (is_admin());
+
+CREATE POLICY "Engineers can update [table]"
+ON [table] FOR UPDATE TO authenticated
+USING (
+  EXISTS (
+    SELECT 1 FROM assessments
+    JOIN appointments ON assessments.appointment_id = appointments.id
+    WHERE assessments.id = [table].assessment_id
+    AND appointments.engineer_id = get_user_engineer_id()
+  )
+);
+
+-- DELETE: Admins only
+CREATE POLICY "Only admins can delete [table]"
+ON [table] FOR DELETE TO authenticated
 USING (is_admin());
 ```
 
 **Migrations Applied:**
-- `058_enable_rls_repairers.sql`
-- `059_rls_estimates_valuations_frc.sql`
-- `060_rls_pre_incident_additionals.sql`
-- `061_rls_company_settings_frc_documents.sql`
+- `058_enable_rls_repairers.sql` - Enabled RLS on repairers
+- `059_rls_estimates_valuations_frc.sql` - Initial RLS (admin-only, too restrictive)
+- `060_rls_pre_incident_additionals.sql` - Initial RLS (admin-only, too restrictive)
+- `061_rls_company_settings_frc_documents.sql` - RLS for company settings
+- **`063_fix_rls_engineer_access.sql`** - ✅ **FIXED:** Updated 8 assessment tables with multi-policy pattern (admin + engineer)
 
 ### 2. Function Search Path Protection - COMPLETE ✅
 

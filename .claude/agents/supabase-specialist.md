@@ -11,6 +11,14 @@ trigger_phrases:
   - "real-time subscription"
   - "edge function"
   - "supabase storage"
+  - "supabase api"
+  - "supabase performance"
+  - "supabase security"
+  - "supabase optimization" 
+  - "Database Schema"
+  - "Database Optimization"
+  - "DB"
+  - "db"
 ---
 
 # Supabase Specialist Agent
@@ -80,6 +88,7 @@ CREATE INDEX idx_posts_search ON posts USING GIN(search_vector);
 - ⚡ **Performance Matters**: Optimize policies to avoid N+1 queries
 - 🧪 **Test Thoroughly**: Validate security boundaries with all roles
 - 📝 **Document Logic**: Explain policy reasoning clearly
+- **AuthDocs** https://supabase.com/docs/guides/auth
 
 **Policy Patterns:**
 

@@ -881,12 +881,82 @@ setAll: (cookiesToSet) => {
 
 ---
 
+## Common Pitfalls & Solutions
+
+### ❌ CRITICAL: Don't Catch redirect() in try-catch
+
+**Problem:**
+`redirect()` throws a `Redirect` object (SvelteKit's control flow mechanism). If caught by try-catch, it appears as an error even though the operation succeeded.
+
+**Wrong ❌:**
+```typescript
+export const actions: Actions = {
+  default: async ({ request, locals }) => {
+    try {
+      const formData = await request.formData()
+      // ... create record ...
+      redirect(303, '/success')  // ❌ Gets caught as "error"
+    } catch (err) {
+      console.error('Error:', err)  // ❌ Shows "Redirect" as error
+      return fail(500, { error: 'Failed' })
+    }
+  }
+}
+```
+
+**Result:** Console shows `Error: Redirect { status: 303, location: '/success' }` even though everything worked!
+
+**Correct ✅:**
+```typescript
+export const actions: Actions = {
+  default: async ({ request, locals }) => {
+    const formData = await request.formData()
+
+    // Handle errors for each operation individually
+    const { data, error } = await locals.supabase.from('table').insert(formData)
+    if (error) return fail(500, { error: error.message })
+
+    // Redirect OUTSIDE any try-catch (throws Redirect object)
+    redirect(303, `/success/${data.id}`)
+  }
+}
+```
+
+**Key Rules:**
+- ✅ `redirect()` must NEVER be inside try-catch
+- ✅ Only wrap actual fallible code in try-catch
+- ✅ Handle Supabase errors via `if (error)` checks, not exceptions
+
+### ❌ Don't Use getSession() Without JWT Validation
+
+**Problem:**
+`getSession()` reads directly from cookies without validating the JWT. This can allow forged sessions.
+
+**Wrong ❌:**
+```typescript
+const { data: { session } } = await locals.supabase.auth.getSession()  // ❌ INSECURE
+```
+
+**Correct ✅:**
+```typescript
+const { session, user } = await locals.safeGetSession()  // ✅ SECURE: Validates JWT
+```
+
+**In layouts:**
+```typescript
+// +layout.ts (client)
+const { session, user } = data  // ✅ Use validated session from parent data
+```
+
+---
+
 ## Related Documentation
 
 - [Project Architecture - Security & Authentication](../System/project_architecture.md#security--authentication)
 - [Adding Page Routes](./adding_page_route.md)
 - [Working with Services](./working_with_services.md)
 - [Auth Setup Documentation](../Tasks/active/AUTH_SETUP.md)
+- [Debugging Auth User Creation Errors](./debugging_auth_user_creation_errors.md)
 
 ---
 
@@ -958,5 +1028,5 @@ export const actions: Actions = {
 
 ---
 
-**Last Updated:** January 25, 2025
+**Last Updated:** October 25, 2025 (Added redirect() and getSession() pitfalls)
 **Applies to:** SvelteKit 2.22.0+, Svelte 5.0+, Supabase Auth

@@ -31,42 +31,63 @@ export class AppointmentService {
 	}
 
 	/**
-	 * Create appointment from inspection
+	 * Create appointment from inspection with retry logic to handle race conditions
 	 */
-	async createAppointment(input: CreateAppointmentInput, client?: ServiceClient): Promise<Appointment> {
+	async createAppointment(input: CreateAppointmentInput, client?: ServiceClient, maxRetries: number = 3): Promise<Appointment> {
 		const db = client ?? supabase;
-		const appointmentNumber = await this.generateAppointmentNumber(client);
 
-		const { data, error } = await db
-			.from('appointments')
-			.insert({
-				...input,
-				appointment_number: appointmentNumber,
-				status: 'scheduled',
-				duration_minutes: input.duration_minutes || 60
-			})
-			.select()
-			.single();
+		// Retry loop to handle race conditions in appointment number generation
+		for (let attempt = 0; attempt < maxRetries; attempt++) {
+			try {
+				const appointmentNumber = await this.generateAppointmentNumber(client);
 
-		if (error) {
-			console.error('Error creating appointment:', error);
-			throw new Error(`Failed to create appointment: ${error.message}`);
+				const { data, error } = await db
+					.from('appointments')
+					.insert({
+						...input,
+						appointment_number: appointmentNumber,
+						status: 'scheduled',
+						duration_minutes: input.duration_minutes || 60
+					})
+					.select()
+					.single();
+
+				if (error) {
+					// Check if this is a duplicate key error (race condition)
+					if (error.code === '23505' && attempt < maxRetries - 1) {
+						console.log(`Duplicate appointment number detected (attempt ${attempt + 1}/${maxRetries}), retrying...`);
+						await new Promise(resolve => setTimeout(resolve, 100 * Math.pow(2, attempt)));
+						continue;
+					}
+
+					console.error('Error creating appointment:', error);
+					throw new Error(`Failed to create appointment: ${error.message}`);
+				}
+
+				// Success! Log appointment creation
+				await auditService.logChange({
+					entity_type: 'appointment',
+					entity_id: data.id,
+					action: 'created',
+					new_value: appointmentNumber,
+					metadata: {
+						inspection_id: input.inspection_id,
+						appointment_type: input.appointment_type,
+						appointment_date: input.appointment_date
+					}
+				});
+
+				return data;
+
+			} catch (error) {
+				if (attempt === maxRetries - 1) {
+					console.error('Failed to create appointment after maximum retries:', error);
+					throw error;
+				}
+			}
 		}
 
-		// Log appointment creation
-		await auditService.logChange({
-			entity_type: 'appointment',
-			entity_id: data.id,
-			action: 'created',
-			new_value: appointmentNumber,
-			metadata: {
-				inspection_id: input.inspection_id,
-				appointment_type: input.appointment_type,
-				appointment_date: input.appointment_date
-			}
-		});
-
-		return data;
+		throw new Error('Failed to create appointment after maximum retries');
 	}
 
 	/**
@@ -246,6 +267,7 @@ export class AppointmentService {
 	async getAppointmentCount(filters?: {
 		status?: AppointmentStatus;
 		appointment_type?: 'in_person' | 'digital';
+		engineer_id?: string;
 	}, client?: ServiceClient): Promise<number> {
 		const db = client ?? supabase;
 
@@ -256,6 +278,9 @@ export class AppointmentService {
 		}
 		if (filters?.appointment_type) {
 			query = query.eq('appointment_type', filters.appointment_type);
+		}
+		if (filters?.engineer_id) {
+			query = query.eq('engineer_id', filters.engineer_id);
 		}
 
 		const { count, error } = await query;
@@ -270,11 +295,13 @@ export class AppointmentService {
 
 	/**
 	 * List cancelled appointments with related data for archive
+	 * @param client - Supabase client
+	 * @param engineer_id - Optional engineer ID to filter by assigned engineer
 	 */
-	async listCancelledAppointments(client?: ServiceClient): Promise<any[]> {
+	async listCancelledAppointments(client?: ServiceClient, engineer_id?: string | null): Promise<any[]> {
 		const db = client ?? supabase;
 
-		const { data, error } = await db
+		let query = db
 			.from('appointments')
 			.select(`
 				*,
@@ -298,6 +325,13 @@ export class AppointmentService {
 			`)
 			.eq('status', 'cancelled')
 			.order('updated_at', { ascending: false });
+
+		// Filter by engineer if engineer_id provided
+		if (engineer_id) {
+			query = query.eq('engineer_id', engineer_id);
+		}
+
+		const { data, error } = await query;
 
 		if (error) {
 			console.error('Error listing cancelled appointments:', error);

@@ -27,6 +27,9 @@
 	} from 'lucide-svelte';
 	import { enhance } from '$app/forms';
 
+	// Props
+	let { role = 'engineer', engineer_id = null }: { role?: string; engineer_id?: string | null } = $props();
+
 	type NavItem = {
 		label: string;
 		href: string;
@@ -48,50 +51,66 @@
 	let additionalsCount = $state(0);
 	let pollingInterval: ReturnType<typeof setInterval> | null = null;
 
-	// Reactive navigation with badge counts
-	const navigation = $derived([
+	// All navigation items
+	const allNavigation = [
 		{
 			label: 'General',
-			items: [{ label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard }]
+			items: [{ label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard }],
+			adminOnly: false
 		},
 		{
 			label: 'Clients',
-			items: [{ label: 'All Clients', href: '/clients', icon: Users }]
+			items: [{ label: 'All Clients', href: '/clients', icon: Users }],
+			adminOnly: true
 		},
 		{
 			label: 'Requests',
 			items: [
-				{ label: 'New Requests', href: '/requests', icon: FileText, badge: newRequestCount }
-			]
+				{ label: 'New Requests', href: '/requests', icon: FileText }
+			],
+			adminOnly: true
 		},
 		{
 			label: 'Work',
 			items: [
-				{ label: 'Inspections', href: '/work/inspections', icon: ClipboardCheck, badge: inspectionCount },
-				{ label: 'Appointments', href: '/work/appointments', icon: Calendar, badge: appointmentCount },
-				{ label: 'Open Assessments', href: '/work/assessments', icon: ClipboardList, badge: assessmentCount },
-				{ label: 'Finalized Assessments', href: '/work/finalized-assessments', icon: FileCheck, badge: finalizedAssessmentCount },
-				{ label: 'FRC', href: '/work/frc', icon: FileCheck, badge: frcCount },
-				{ label: 'Additionals', href: '/work/additionals', icon: Plus, badge: additionalsCount },
+				// Note: Badge counts are rendered directly in the template using state variables
+				// The reactive state refs are used in conditional rendering below (lines 257-290)
+				{ label: role === 'engineer' ? 'Assigned Work' : 'Inspections', href: '/work/inspections', icon: ClipboardCheck },
+				{ label: 'Appointments', href: '/work/appointments', icon: Calendar },
+				{ label: 'Open Assessments', href: '/work/assessments', icon: ClipboardList },
+				{ label: 'Finalized Assessments', href: '/work/finalized-assessments', icon: FileCheck },
+				{ label: 'FRC', href: '/work/frc', icon: FileCheck },
+				{ label: 'Additionals', href: '/work/additionals', icon: Plus },
 				{ label: 'Archive', href: '/work/archive', icon: Archive }
-			]
+			],
+			adminOnly: false
 		},
 		{
 			label: 'Engineers',
 			items: [
 				{ label: 'All Engineers', href: '/engineers', icon: Users },
 				{ label: 'New Engineer', href: '/engineers/new', icon: UserPlus }
-			]
+			],
+			adminOnly: true
 		},
 		{
 			label: 'Repairers',
-			items: [{ label: 'All Repairers', href: '/repairers', icon: Wrench }]
+			items: [{ label: 'All Repairers', href: '/repairers', icon: Wrench }],
+			adminOnly: true
 		},
 		{
 			label: 'Settings',
-			items: [{ label: 'Company Settings', href: '/settings', icon: Settings }]
+			items: [{ label: 'Company Settings', href: '/settings', icon: Settings }],
+			adminOnly: true
 		}
-	]);
+	];
+
+	// Filter navigation based on role
+	const navigation = $derived(
+		role === 'admin'
+			? allNavigation
+			: allNavigation.filter(group => !group.adminOnly)
+	);
 
 	function isActive(href: string): boolean {
 		return $page.url.pathname === href || $page.url.pathname.startsWith(href + '/');
@@ -107,7 +126,11 @@
 
 	async function loadInspectionCount() {
 		try {
-			inspectionCount = await inspectionService.getInspectionCount({ status: 'pending' }, $page.data.supabase);
+			const filters: any = { status: 'pending' };
+			if (role === 'engineer' && engineer_id) {
+				filters.engineer_id = engineer_id;
+			}
+			inspectionCount = await inspectionService.getInspectionCount(filters, $page.data.supabase);
 		} catch (error) {
 			console.error('Error loading inspection count:', error);
 		}
@@ -115,7 +138,11 @@
 
 	async function loadAppointmentCount() {
 		try {
-			appointmentCount = await appointmentService.getAppointmentCount({ status: 'scheduled' }, $page.data.supabase);
+			const filters: any = { status: 'scheduled' };
+			if (role === 'engineer' && engineer_id) {
+				filters.engineer_id = engineer_id;
+			}
+			appointmentCount = await appointmentService.getAppointmentCount(filters, $page.data.supabase);
 		} catch (error) {
 			console.error('Error loading appointment count:', error);
 		}
@@ -123,7 +150,8 @@
 
 	async function loadAssessmentCount() {
 		try {
-			assessmentCount = await assessmentService.getInProgressCount($page.data.supabase);
+			const engineerIdFilter = role === 'engineer' ? engineer_id : undefined;
+			assessmentCount = await assessmentService.getInProgressCount($page.data.supabase, engineerIdFilter);
 		} catch (error) {
 			console.error('Error loading assessment count:', error);
 		}
@@ -131,7 +159,8 @@
 
 	async function loadFinalizedAssessmentCount() {
 		try {
-			finalizedAssessmentCount = await assessmentService.getFinalizedCount($page.data.supabase);
+			const engineerIdFilter = role === 'engineer' ? engineer_id : undefined;
+			finalizedAssessmentCount = await assessmentService.getFinalizedCount($page.data.supabase, engineerIdFilter);
 		} catch (error) {
 			console.error('Error loading finalized assessment count:', error);
 		}
@@ -139,7 +168,8 @@
 
 	async function loadFRCCount() {
 		try {
-			frcCount = await frcService.getCountByStatus('in_progress', $page.data.supabase);
+			const engineerIdFilter = role === 'engineer' ? engineer_id : undefined;
+			frcCount = await frcService.getCountByStatus('in_progress', $page.data.supabase, engineerIdFilter);
 		} catch (error) {
 			console.error('Error loading FRC count:', error);
 		}
@@ -147,7 +177,8 @@
 
 	async function loadAdditionalsCount() {
 		try {
-			additionalsCount = await additionalsService.getPendingCount($page.data.supabase);
+			const engineerIdFilter = role === 'engineer' ? engineer_id : undefined;
+			additionalsCount = await additionalsService.getPendingCount($page.data.supabase, engineerIdFilter);
 		} catch (error) {
 			console.error('Error loading additionals count:', error);
 		}
@@ -231,7 +262,7 @@
 						>
 							<span class="flex items-center gap-3">
 								{#if item.icon}
-									<svelte:component this={item.icon} class="h-4 w-4" />
+									<item.icon class="h-4 w-4" />
 								{/if}
 								{item.label}
 							</span>

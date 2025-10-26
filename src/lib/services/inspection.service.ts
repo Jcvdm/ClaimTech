@@ -31,9 +31,9 @@ export class InspectionService {
 	}
 
 	/**
-	 * Create inspection from request
+	 * Create inspection from request with retry logic to handle race conditions
 	 */
-	async createInspectionFromRequest(request: Request, client?: ServiceClient): Promise<Inspection> {
+	async createInspectionFromRequest(request: Request, client?: ServiceClient, maxRetries: number = 3): Promise<Inspection> {
 		const db = client ?? supabase;
 
 		// Check if inspection already exists for this request
@@ -46,8 +46,6 @@ export class InspectionService {
 		if (existing) {
 			throw new Error('An inspection already exists for this request');
 		}
-
-		const inspectionNumber = await this.generateInspectionNumber(client);
 
 		const inspectionData: CreateInspectionInput = {
 			request_id: request.id,
@@ -67,34 +65,56 @@ export class InspectionService {
 			notes: request.description || undefined
 		};
 
-		const { data, error } = await db
-			.from('inspections')
-			.insert({
-				...inspectionData,
-				inspection_number: inspectionNumber,
-				status: 'pending'
-			})
-			.select()
-			.single();
+		// Retry loop to handle race conditions in inspection number generation
+		for (let attempt = 0; attempt < maxRetries; attempt++) {
+			try {
+				const inspectionNumber = await this.generateInspectionNumber(client);
 
-		if (error) {
-			console.error('Error creating inspection:', error);
-			throw new Error(`Failed to create inspection: ${error.message}`);
+				const { data, error } = await db
+					.from('inspections')
+					.insert({
+						...inspectionData,
+						inspection_number: inspectionNumber,
+						status: 'pending'
+					})
+					.select()
+					.single();
+
+				if (error) {
+					// Check if this is a duplicate key error (race condition)
+					if (error.code === '23505' && attempt < maxRetries - 1) {
+						console.log(`Duplicate inspection number detected (attempt ${attempt + 1}/${maxRetries}), retrying...`);
+						await new Promise(resolve => setTimeout(resolve, 100 * Math.pow(2, attempt)));
+						continue;
+					}
+
+					console.error('Error creating inspection:', error);
+					throw new Error(`Failed to create inspection: ${error.message}`);
+				}
+
+				// Success! Log inspection creation
+				await auditService.logChange({
+					entity_type: 'inspection',
+					entity_id: data.id,
+					action: 'created',
+					new_value: inspectionNumber,
+					metadata: {
+						request_id: request.id,
+						request_number: request.request_number
+					}
+				});
+
+				return data;
+
+			} catch (error) {
+				if (attempt === maxRetries - 1) {
+					console.error('Failed to create inspection after maximum retries:', error);
+					throw error;
+				}
+			}
 		}
 
-		// Log inspection creation
-		await auditService.logChange({
-			entity_type: 'inspection',
-			entity_id: data.id,
-			action: 'created',
-			new_value: inspectionNumber,
-			metadata: {
-				request_id: request.id,
-				request_number: request.request_number
-			}
-		});
-
-		return data;
+		throw new Error('Failed to create inspection after maximum retries');
 	}
 
 	/**
@@ -125,16 +145,25 @@ export class InspectionService {
 	/**
 	 * List inspections without appointments (for Inspections list page)
 	 * Only shows inspections that haven't had an appointment scheduled yet
+	 * @param client - Supabase client
+	 * @param engineer_id - Optional engineer ID to filter by assigned engineer
 	 */
-	async listInspectionsWithoutAppointments(client?: ServiceClient): Promise<Inspection[]> {
+	async listInspectionsWithoutAppointments(client?: ServiceClient, engineer_id?: string | null): Promise<Inspection[]> {
 		const db = client ?? supabase;
 
 		// Query inspections and check if they have appointments
-		const { data: inspections, error: inspError } = await db
+		let query = db
 			.from('inspections')
 			.select('*')
 			.in('status', ['pending', 'scheduled'])
 			.order('created_at', { ascending: false });
+
+		// Filter by assigned engineer if engineer_id provided
+		if (engineer_id) {
+			query = query.eq('assigned_engineer_id', engineer_id);
+		}
+
+		const { data: inspections, error: inspError } = await query;
 
 		if (inspError) {
 			console.error('Error fetching inspections:', inspError);
@@ -243,14 +272,20 @@ export class InspectionService {
 
 	/**
 	 * Get inspection count
+	 * @param filters - Optional filters including status and engineer_id
+	 * @param client - Supabase client
 	 */
-	async getInspectionCount(filters?: { status?: string }, client?: ServiceClient): Promise<number> {
+	async getInspectionCount(filters?: { status?: string; engineer_id?: string }, client?: ServiceClient): Promise<number> {
 		const db = client ?? supabase;
 
 		let query = db.from('inspections').select('*', { count: 'exact', head: true });
 
 		if (filters?.status) {
 			query = query.eq('status', filters.status);
+		}
+
+		if (filters?.engineer_id) {
+			query = query.eq('assigned_engineer_id', filters.engineer_id);
 		}
 
 		const { count, error } = await query;

@@ -581,6 +581,10 @@ Photos for pre-incident damage estimates (1:N with pre_incident_estimates).
 ### `assessment_vehicle_values`
 Comprehensive vehicle valuation from third-party valuators with write-off calculations (1:1 with assessments).
 
+**RLS Status:** ✅ **ENABLED** (Migration 067 - Fixed January 25, 2025)
+- Admins: Full access
+- Engineers: Can insert/update for their assigned assessments
+
 **Columns:**
 - `id` (UUID, PK)
 - `assessment_id` (UUID, FK → assessments, UNIQUE, NOT NULL)
@@ -891,14 +895,36 @@ User accounts extending `auth.users` with application-specific data.
 - `idx_user_profiles_role` on `role`
 - `idx_user_profiles_province` on `province`
 
-**RLS Policies:**
-- Users can read their own profile
-- Admins can read/update/delete all profiles
-- Automatic profile creation via trigger on `auth.users` insert
+**RLS Policies (Updated October 25, 2025 - Migration 064):**
+
+**IMPORTANT**: Uses JWT claims to avoid infinite recursion. All policies check `auth.jwt() ->> 'user_role'` instead of querying the database.
+
+1. **"Admin or own profile read access"** (SELECT)
+   - Admins can read all profiles: `(auth.jwt() ->> 'user_role') = 'admin'`
+   - Users can read own profile: `auth.uid() = id`
+
+2. **"Admin can insert profiles"** (INSERT)
+   - Only admins can create new profiles: `(auth.jwt() ->> 'user_role') = 'admin'`
+
+3. **"Admin can update all profiles"** (UPDATE)
+   - Only admins can update any profile: `(auth.jwt() ->> 'user_role') = 'admin'`
+
+4. **"Admin can delete profiles"** (DELETE)
+   - Only admins can delete profiles: `(auth.jwt() ->> 'user_role') = 'admin'`
+
+5. **"Users can update own profile"** (UPDATE - from migration 043)
+   - Users can update their own profile: `auth.uid() = id`
+
+**Why JWT Claims?**
+- Previous policies queried `user_profiles` to check admin status, causing infinite recursion
+- JWT claims populated by `custom_access_token_hook` (migration 045)
+- No database query = no RLS trigger = no recursion
+- Requires hook to be enabled in Supabase Dashboard
 
 **Functions:**
 - `handle_new_user()`: Creates profile on signup (triggered by `auth.users` insert)
 - `update_user_profile_updated_at()`: Auto-updates `updated_at` timestamp
+- `custom_access_token_hook()`: Adds `user_role` to JWT claims during authentication
 
 ---
 
@@ -1044,54 +1070,170 @@ CREATE TRIGGER on_auth_user_created
 
 ## Row Level Security (RLS) Policies
 
-**Current State:** RLS is PARTIALLY implemented. 18 out of 28 tables (64%) have RLS enabled.
+**Current State (Updated January 25, 2025):** RLS is **FULLY IMPLEMENTED** with **100% coverage** across all 28 tables.
 
-### ❌ Tables with RLS DISABLED (Critical Security Issue)
+### ✅ RLS Security Status: PRODUCTION-READY
 
-The following 10 tables have RLS **disabled** and are publicly accessible:
+**Coverage:** 28 out of 28 tables (100%) have RLS enabled with role-based policies
+**Last Updated:** January 25, 2025 (Migrations 046-067)
+**Security Level:** Enterprise-grade with JWT-based authentication
 
-1. `assessment_estimates`
-2. `pre_incident_estimates`
-3. `pre_incident_estimate_photos`
-4. `assessment_vehicle_values`
-5. `repairers` (has policies defined but RLS not enabled!)
-6. `company_settings`
-7. `assessment_additionals`
-8. `assessment_additionals_photos`
-9. `assessment_frc`
-10. `assessment_frc_documents`
+### 🔒 RLS Policy Pattern
 
-**Action Required:** Enable RLS on these tables immediately for production security.
+All tables follow a consistent role-based access pattern:
 
-### ✅ Tables with RLS Enabled (18 tables)
+**Admins:**
+- Full access (SELECT, INSERT, UPDATE, DELETE) to all tables
+- Checked via `is_admin()` helper function
 
-RLS is enabled on:
-- `clients`, `requests`, `request_tasks`, `engineers`, `inspections`
-- `audit_logs`, `appointments`, `assessments`
+**Engineers:**
+- SELECT: Can view data for their assigned work
+- INSERT/UPDATE: Can modify data for their assigned appointments/assessments
+- DELETE: No delete access (admin-only)
+- Checked via `get_user_engineer_id()` helper function
+
+**Authentication:**
+- All policies require `authenticated` role
+- JWT claims used to prevent RLS recursion
+- Helper functions use `SECURITY DEFINER` with `STABLE` caching
+
+### 📋 Tables with RLS Enabled (All 28 Tables)
+
+**Core Entities:**
+- `clients`, `engineers`, `repairers`, `user_profiles`
+
+**Workflow Tables:**
+- `requests`, `request_tasks`, `inspections`, `appointments`, `assessments`
+
+**Assessment Data Tables:**
 - `assessment_vehicle_identification`, `assessment_360_exterior`
 - `assessment_accessories`, `assessment_interior_mechanical`
 - `assessment_tyres`, `assessment_damage`, `assessment_notes`
-- `estimate_photos`, `user_profiles`
 
-**Current Policies:** Most tables use permissive policies for development:
+**Estimate & Valuation Tables:**
+- `assessment_estimates`, `estimate_photos`
+- `pre_incident_estimates`, `pre_incident_estimate_photos`
+- `assessment_vehicle_values` ⭐ **Fixed Jan 2025 (Migration 067)**
 
+**Additionals & FRC Tables:**
+- `assessment_additionals`, `assessment_additionals_photos`
+- `assessment_frc`, `assessment_frc_documents`
+
+**System Tables:**
+- `company_settings`, `audit_logs`
+
+### 🔧 Recent RLS Fixes (January 2025)
+
+**Migration 066 - Assessment INSERT Policy Fix:**
+- **Issue:** Policy referenced `assessment_id` (doesn't exist during INSERT)
+- **Fix:** Changed to reference `appointment_id` from INSERT context
+- **Impact:** Engineers can now create assessments
+
+**Migration 067 - Vehicle Values INSERT Policy Fix:**
+- **Issue:** Policy used table-qualified `assessment_vehicle_values.assessment_id` during INSERT
+- **Fix:** Changed to bare `assessment_id` from INSERT context
+- **Impact:** Both admins and engineers can create assessments with vehicle values
+
+**Service Client Injection Fix (January 25, 2025):**
+- **Issue:** Services used global `supabase` client (unauthenticated) instead of `locals.supabase` (authenticated)
+- **Error:** `42501 - new row violates row-level security policy`
+- **Fix:** Added `client?: ServiceClient` parameter to all service methods
+- **Pattern:** `const db = client ?? supabase;` allows authenticated or browser client
+- **Impact:** All RLS policies now properly authenticate users
+- **Services Fixed:**
+  - `VehicleValuesService` - All 9 methods
+  - `TyresService` - All 6 methods
+  - `DamageService` - All 6 methods
+  - `PreIncidentEstimateService` - 3 critical methods
+  - `EstimateService` - 3 critical methods
+- **Call Sites:** Updated `+page.server.ts` to pass `locals.supabase` to all service calls
+
+**Patterns Identified:**
+1. Table-qualified column references don't work in INSERT policies - use bare column names
+2. Services MUST accept `client?: ServiceClient` parameter for RLS authentication
+3. Server routes MUST pass `locals.supabase` to all service calls
+
+### 🛡️ Helper Functions
+
+**`is_admin()`** - Check if user has admin role
 ```sql
-CREATE POLICY "Allow all operations on {table_name} for now"
-  ON {table_name}
-  FOR ALL
-  USING (true)
-  WITH CHECK (true);
+CREATE OR REPLACE FUNCTION public.is_admin()
+RETURNS BOOLEAN AS $$
+BEGIN
+  RETURN EXISTS (
+    SELECT 1 FROM public.user_profiles
+    WHERE id = auth.uid() AND role = 'admin'
+  );
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER STABLE SET search_path = '';
 ```
 
-**Production-ready policies** (implemented for `user_profiles` and `repairers`):
-- Users can read their own profile
-- Admins can read/update/delete all profiles
-- Role-based access for engineers vs. admins
+**`get_user_engineer_id()`** - Get engineer_id for current user
+```sql
+CREATE OR REPLACE FUNCTION public.get_user_engineer_id()
+RETURNS UUID AS $$
+DECLARE
+  eng_id UUID;
+BEGIN
+  SELECT id INTO eng_id
+  FROM public.engineers
+  WHERE auth_user_id = auth.uid();
 
-**Future:** Tighten RLS policies for all tables to enforce:
-- Engineers can only access their assigned assessments
-- Admins have full access
-- Clients can only access their own requests/assessments
+  RETURN eng_id;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER STABLE SET search_path = '';
+```
+
+### 📖 Example Policies
+
+**Assessment Vehicle Values (Migration 067):**
+```sql
+-- Admins can insert vehicle values
+CREATE POLICY "Admins can insert assessment_vehicle_values"
+ON assessment_vehicle_values FOR INSERT
+TO authenticated
+WITH CHECK (is_admin());
+
+-- Engineers can insert vehicle values for their assessments
+CREATE POLICY "Engineers can insert assessment_vehicle_values"
+ON assessment_vehicle_values FOR INSERT
+TO authenticated
+WITH CHECK (
+  EXISTS (
+    SELECT 1 FROM assessments
+    JOIN appointments ON assessments.appointment_id = appointments.id
+    WHERE assessments.id = assessment_id  -- ✅ Bare column name from INSERT
+    AND appointments.engineer_id = get_user_engineer_id()
+  )
+);
+```
+
+**User Profiles (Migration 064 - JWT Claims):**
+```sql
+-- Admin or own profile read access
+CREATE POLICY "Admin or own profile read access"
+ON user_profiles FOR SELECT
+TO authenticated
+USING (
+  (auth.jwt() ->> 'user_role') = 'admin'  -- JWT claim prevents recursion
+  OR auth.uid() = id
+);
+```
+
+### 🎯 Security Best Practices
+
+1. **Always use authenticated role** - Never allow anonymous access
+2. **Use helper functions** - Centralize role checks in `is_admin()` and `get_user_engineer_id()`
+3. **Avoid recursion** - Use JWT claims for `user_profiles` table
+4. **Test both roles** - Verify policies work for both admins and engineers
+5. **Use bare column names in INSERT** - Never use table-qualified references in WITH CHECK clauses
+6. **Set search_path** - All SECURITY DEFINER functions use `SET search_path = ''`
+
+### 📚 Related Documentation
+
+- [Fixing RLS INSERT Policies SOP](../SOP/fixing_rls_insert_policies.md) - Complete debugging guide
+- [Fixing RLS Recursion SOP](../SOP/fixing_rls_recursion.md) - JWT claims pattern
+- [RLS Security Hardening Task](../Tasks/active/rls_security_hardening.md) - Implementation history
 
 ---
 

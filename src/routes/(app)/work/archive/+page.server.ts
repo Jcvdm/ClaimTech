@@ -4,9 +4,14 @@ import { inspectionService } from '$lib/services/inspection.service';
 import { appointmentService } from '$lib/services/appointment.service';
 import { assessmentService } from '$lib/services/assessment.service';
 
-export const load: PageServerLoad = async ({ locals }) => {
+export const load: PageServerLoad = async ({ locals, parent }) => {
 	try {
+		// Get role and engineer_id from parent layout
+		const { role, engineer_id } = await parent();
+		const isEngineer = role === 'engineer';
+
 		// Fetch completed (archived assessments) and all cancelled entities in parallel
+		// Engineers only see their own data; requests and inspections are admin-only
 		const [
 			archivedAssessments,
 			cancelledRequests,
@@ -14,11 +19,11 @@ export const load: PageServerLoad = async ({ locals }) => {
 			cancelledAppointments,
 			cancelledAssessments
 		] = await Promise.all([
-			assessmentService.listArchivedAssessments(locals.supabase), // Completed = assessments with 'archived' status (FRC completed)
-			requestService.listCancelledRequests(locals.supabase),
-			inspectionService.listCancelledInspections(locals.supabase),
-			appointmentService.listCancelledAppointments(locals.supabase),
-			assessmentService.listCancelledAssessments(locals.supabase)
+			assessmentService.listArchivedAssessments(locals.supabase, isEngineer ? engineer_id : undefined), // Completed = assessments with 'archived' status (FRC completed)
+			isEngineer ? [] : requestService.listCancelledRequests(locals.supabase), // Admin-only
+			isEngineer ? [] : inspectionService.listCancelledInspections(locals.supabase), // Admin-only
+			appointmentService.listCancelledAppointments(locals.supabase, isEngineer ? engineer_id : undefined),
+			assessmentService.listCancelledAssessments(locals.supabase, isEngineer ? engineer_id : undefined)
 		]);
 
 		// Debug logging

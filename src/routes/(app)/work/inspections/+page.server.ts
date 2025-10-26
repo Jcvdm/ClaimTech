@@ -3,10 +3,18 @@ import { clientService } from '$lib/services/client.service';
 import { requestService } from '$lib/services/request.service';
 import type { PageServerLoad } from './$types';
 
-export const load: PageServerLoad = async ({ locals }) => {
+export const load: PageServerLoad = async ({ locals, parent }) => {
 	try {
+		// Get role and engineer_id from parent layout
+		const { role, engineer_id } = await parent();
+		const isEngineer = role === 'engineer';
+
 		// Only show inspections that don't have appointments yet
-		const inspections = await inspectionService.listInspectionsWithoutAppointments(locals.supabase);
+		// For engineers, filter by assigned engineer
+		const inspections = await inspectionService.listInspectionsWithoutAppointments(
+			locals.supabase,
+			isEngineer ? engineer_id : undefined
+		);
 
 		// Get all unique client IDs and request IDs
 		const clientIds = [...new Set(inspections.map((i) => i.client_id))];

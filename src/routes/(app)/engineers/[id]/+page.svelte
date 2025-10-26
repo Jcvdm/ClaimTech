@@ -20,8 +20,7 @@
 	}
 
 	function handleEdit() {
-		// TODO: Implement edit functionality
-		alert('Edit functionality coming soon!');
+		goto(`/engineers/${data.engineer.id}/edit`);
 	}
 
 	async function handleDeactivate() {

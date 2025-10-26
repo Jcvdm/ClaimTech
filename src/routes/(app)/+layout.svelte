@@ -8,8 +8,10 @@
 
   let showUserMenu = $state(false);
 
-  // Get user email from session
-  const userEmail = $derived(data.session?.user?.email || 'User');
+  // Get user info from layout data
+  const userEmail = $derived(data.user?.email || data.session?.user?.email || 'User');
+  const userName = $derived(data.user?.full_name || userEmail);
+  const userRole = $derived(data.role || 'user');
 </script>
 
 <div class="min-h-screen bg-gray-50 text-gray-900">
@@ -26,7 +28,7 @@
           onclick={() => showUserMenu = !showUserMenu}
         >
           <User class="h-4 w-4" />
-          <span>{userEmail}</span>
+          <span>{userName}</span>
         </button>
 
         {#if showUserMenu}
@@ -57,7 +59,7 @@
   </header>
 
   <div class="flex">
-    <Sidebar />
+    <Sidebar role={userRole} engineer_id={data.engineer_id} />
 
     <!-- Main content -->
     <main class="flex-1 p-6">

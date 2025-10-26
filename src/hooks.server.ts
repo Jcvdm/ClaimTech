@@ -34,6 +34,15 @@ const supabase: Handle = async ({ event, resolve }) => {
 	 * Unlike `supabase.auth.getSession()`, which returns the session _without_
 	 * validating the JWT, this function also calls `getUser()` to validate the
 	 * JWT before returning the session.
+	 *
+	 * NOTE: The getSession() call below triggers a Supabase warning about insecure usage.
+	 * This is a FALSE POSITIVE - the code is secure because:
+	 * 1. getSession() retrieves the session from cookies
+	 * 2. Immediately followed by getUser() which validates the JWT (line 49)
+	 * 3. This is the recommended pattern from Supabase SSR documentation
+	 *
+	 * The warning is generic and doesn't detect the validation that follows.
+	 * See: https://supabase.com/docs/guides/auth/server-side/sveltekit
 	 */
 	event.locals.safeGetSession = async () => {
 		const {
@@ -77,7 +86,7 @@ const authGuard: Handle = async ({ event, resolve }) => {
 	}
 
 	// Public routes that don't require authentication
-	const publicRoutes = ['/auth/login', '/auth/signup', '/auth/callback', '/auth/confirm']
+	const publicRoutes = ['/auth/login', '/auth/callback', '/auth/confirm', '/auth/forgot-password']
 	const isPublicRoute = publicRoutes.some(route => event.url.pathname.startsWith(route))
 
 	// If not authenticated and trying to access protected route, redirect to login

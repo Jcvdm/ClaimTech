@@ -13,117 +13,220 @@ All services are in `src/lib/services/*.service.ts`
 
 ### Naming Convention
 - File: `{entity}.service.ts` (e.g., `client.service.ts`)
-- Functions: `get{Entity}`, `create{Entity}`, `update{Entity}`, `delete{Entity}`
+- Class: `{Entity}Service` (e.g., `ClientService`)
+- Methods: `get()`, `create()`, `update()`, `delete()`, `list()`
 
 ### Core Principles
-1. **Accept Supabase client as first parameter**: Allows flexibility between authenticated and service role clients
-2. **Return raw Supabase response**: Let the caller handle errors
-3. **Use TypeScript generics**: Leverage Supabase's type system
-4. **Single responsibility**: Each service handles one entity or domain
+1. **Accept optional ServiceClient parameter**: All methods that interact with the database MUST accept `client?: ServiceClient` as the last parameter
+2. **Use authenticated client pattern**: `const db = client ?? supabase;` to support both server-side (authenticated) and client-side operations
+3. **RLS Authentication**: Always pass `locals.supabase` from server routes to ensure RLS policies can authenticate the user
+4. **Return typed data**: Use TypeScript types from database schema
+5. **Single responsibility**: Each service handles one entity or domain
+6. **Error handling**: Throw descriptive errors with context
 
 ---
 
 ## Basic Service Structure
 
-### Template
+### Modern Class-Based Template (RECOMMENDED)
 
 ```typescript
 // src/lib/services/entity.service.ts
-import type { SupabaseClient } from '@supabase/supabase-js'
-import type { Database } from '$lib/types/database'
+import { supabase } from '$lib/supabase';
+import type { Entity, CreateEntityInput, UpdateEntityInput } from '$lib/types/assessment';
+import type { ServiceClient } from '$lib/types/service';
+import { auditService } from './audit.service';
 
-// Type aliases for better readability
-type EntityRow = Database['public']['Tables']['entities']['Row']
-type EntityInsert = Database['public']['Tables']['entities']['Insert']
-type EntityUpdate = Database['public']['Tables']['entities']['Update']
+export class EntityService {
+  /**
+   * Get all entities with optional filtering
+   */
+  async list(filters?: { is_active?: boolean }, client?: ServiceClient): Promise<Entity[]> {
+    const db = client ?? supabase;
+    let query = db
+      .from('entities')
+      .select('*')
+      .order('created_at', { ascending: false });
 
-/**
- * Get all entities
- */
-export async function getEntities(
-  supabase: SupabaseClient<Database>,
-  filters?: { is_active?: boolean }
-) {
-  let query = supabase
-    .from('entities')
-    .select('*')
-    .order('created_at', { ascending: false })
+    if (filters?.is_active !== undefined) {
+      query = query.eq('is_active', filters.is_active);
+    }
 
-  if (filters?.is_active !== undefined) {
-    query = query.eq('is_active', filters.is_active)
+    const { data, error } = await query;
+
+    if (error) {
+      console.error('Error listing entities:', error);
+      return [];
+    }
+
+    return data || [];
   }
 
-  return await query
+  /**
+   * Get single entity by ID
+   */
+  async get(id: string, client?: ServiceClient): Promise<Entity | null> {
+    const db = client ?? supabase;
+    const { data, error } = await db
+      .from('entities')
+      .select('*')
+      .eq('id', id)
+      .maybeSingle();
+
+    if (error) {
+      console.error('Error fetching entity:', error);
+      return null;
+    }
+
+    return data;
+  }
+
+  /**
+   * Create new entity
+   */
+  async create(input: CreateEntityInput, client?: ServiceClient): Promise<Entity> {
+    const db = client ?? supabase;
+    const { data, error } = await db
+      .from('entities')
+      .insert(input)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error creating entity:', error);
+      throw new Error(`Failed to create entity: ${error.message}`);
+    }
+
+    // Log audit trail
+    try {
+      await auditService.logChange({
+        entity_type: 'entity',
+        entity_id: data.id,
+        action: 'created',
+        metadata: { name: input.name }
+      });
+    } catch (auditError) {
+      console.error('Error logging audit change:', auditError);
+    }
+
+    return data;
+  }
+
+  /**
+   * Update entity
+   */
+  async update(id: string, input: UpdateEntityInput, client?: ServiceClient): Promise<Entity> {
+    const db = client ?? supabase;
+    const { data, error } = await db
+      .from('entities')
+      .update(input)
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error updating entity:', error);
+      throw new Error(`Failed to update entity: ${error.message}`);
+    }
+
+    // Log audit trail
+    try {
+      await auditService.logChange({
+        entity_type: 'entity',
+        entity_id: id,
+        action: 'updated'
+      });
+    } catch (auditError) {
+      console.error('Error logging audit change:', auditError);
+    }
+
+    return data;
+  }
+
+  /**
+   * Delete entity (soft delete by setting is_active = false)
+   */
+  async delete(id: string, client?: ServiceClient): Promise<void> {
+    const db = client ?? supabase;
+    const { error } = await db
+      .from('entities')
+      .update({ is_active: false })
+      .eq('id', id);
+
+    if (error) {
+      console.error('Error deleting entity:', error);
+      throw new Error(`Failed to delete entity: ${error.message}`);
+    }
+
+    // Log audit trail
+    try {
+      await auditService.logChange({
+        entity_type: 'entity',
+        entity_id: id,
+        action: 'cancelled'
+      });
+    } catch (auditError) {
+      console.error('Error logging audit change:', auditError);
+    }
+  }
 }
 
-/**
- * Get single entity by ID
- */
-export async function getEntity(
-  supabase: SupabaseClient<Database>,
-  id: string
-) {
-  return await supabase
-    .from('entities')
-    .select('*')
-    .eq('id', id)
-    .single()
-}
+export const entityService = new EntityService();
+```
 
-/**
- * Create new entity
- */
-export async function createEntity(
-  supabase: SupabaseClient<Database>,
-  entity: EntityInsert
-) {
-  return await supabase
+### Key Points
+
+1. **ServiceClient Parameter**: Always add `client?: ServiceClient` as the last parameter
+2. **Authenticated Client Pattern**: Use `const db = client ?? supabase;` at the start of each method
+3. **Error Handling**: Log errors and throw descriptive messages
+4. **Audit Logging**: Log all create/update/delete operations
+5. **Return Types**: Always specify return types for type safety
+
+---
+
+## Why ServiceClient Parameter is Critical
+
+### The Problem
+Without the `client` parameter, services always use the global `supabase` client which has no authentication context. This causes RLS policies to fail with error 42501:
+
+```
+Error: new row violates row-level security policy for table "..."
+```
+
+### The Solution
+By accepting `client?: ServiceClient` and using `const db = client ?? supabase;`, services can:
+- Use `locals.supabase` (authenticated) when called from server routes
+- Use the global `supabase` client when called from browser code
+- Properly authenticate with RLS policies
+
+### Example: Before vs After
+
+**❌ Before (BROKEN):**
+```typescript
+async create(input: CreateInput): Promise<Entity> {
+  const { data, error } = await supabase  // ❌ Always unauthenticated
     .from('entities')
-    .insert(entity)
+    .insert(input)
     .select()
-    .single()
-}
+    .single();
 
-/**
- * Update entity
- */
-export async function updateEntity(
-  supabase: SupabaseClient<Database>,
-  id: string,
-  updates: EntityUpdate
-) {
-  return await supabase
+  if (error) throw new Error(error.message);
+  return data;
+}
+```
+
+**✅ After (CORRECT):**
+```typescript
+async create(input: CreateInput, client?: ServiceClient): Promise<Entity> {
+  const db = client ?? supabase;  // ✅ Use authenticated client if provided
+  const { data, error } = await db
     .from('entities')
-    .update(updates)
-    .eq('id', id)
+    .insert(input)
     .select()
-    .single()
-}
+    .single();
 
-/**
- * Delete entity (soft delete by setting is_active = false)
- */
-export async function deleteEntity(
-  supabase: SupabaseClient<Database>,
-  id: string
-) {
-  return await supabase
-    .from('entities')
-    .update({ is_active: false })
-    .eq('id', id)
-}
-
-/**
- * Hard delete entity
- */
-export async function hardDeleteEntity(
-  supabase: SupabaseClient<Database>,
-  id: string
-) {
-  return await supabase
-    .from('entities')
-    .delete()
-    .eq('id', id)
+  if (error) throw new Error(error.message);
+  return data;
 }
 ```
 
@@ -131,35 +234,33 @@ export async function hardDeleteEntity(
 
 ## Using Services in Routes
 
-### In `+page.server.ts`
+### In `+page.server.ts` (ALWAYS pass locals.supabase)
 
 ```typescript
 import type { PageServerLoad } from './$types'
-import { getEntities } from '$lib/services/entity.service'
+import { entityService } from '$lib/services/entity.service'
 import { error } from '@sveltejs/kit'
 
 export const load: PageServerLoad = async ({ locals }) => {
-  // Use authenticated client from locals
-  const { data: entities, error: fetchError } = await getEntities(
-    locals.supabase,
-    { is_active: true }
-  )
+  try {
+    // ✅ CRITICAL: Always pass locals.supabase for RLS authentication
+    const entities = await entityService.list({ is_active: true }, locals.supabase);
 
-  if (fetchError) {
-    throw error(500, 'Failed to load entities')
-  }
-
-  return {
-    entities: entities ?? []
+    return {
+      entities
+    }
+  } catch (err) {
+    console.error('Error loading entities:', err);
+    throw error(500, 'Failed to load entities');
   }
 }
 ```
 
-### In Form Actions
+### In Form Actions (ALWAYS pass locals.supabase)
 
 ```typescript
 import type { Actions } from './$types'
-import { createEntity, updateEntity } from '$lib/services/entity.service'
+import { entityService } from '$lib/services/entity.service'
 import { fail, redirect } from '@sveltejs/kit'
 
 export const actions: Actions = {
@@ -174,6 +275,40 @@ export const actions: Actions = {
     if (!entity.name) {
       return fail(400, { error: 'Name is required' })
     }
+
+    try {
+      // ✅ CRITICAL: Always pass locals.supabase for RLS authentication
+      await entityService.create(entity, locals.supabase);
+      throw redirect(303, '/entities');
+    } catch (err) {
+      console.error('Error creating entity:', err);
+      return fail(500, { error: 'Failed to create entity' });
+    }
+  },
+
+  update: async ({ request, locals }) => {
+    const formData = await request.formData();
+    const id = formData.get('id')?.toString();
+
+    if (!id) {
+      return fail(400, { error: 'ID is required' });
+    }
+
+    const updates = {
+      name: formData.get('name')?.toString(),
+      description: formData.get('description')?.toString()
+    };
+
+    try {
+      // ✅ CRITICAL: Always pass locals.supabase for RLS authentication
+      await entityService.update(id, updates, locals.supabase);
+      throw redirect(303, '/entities');
+    } catch (err) {
+      console.error('Error updating entity:', err);
+      return fail(500, { error: 'Failed to update entity' });
+    }
+  }
+}
 
     const { error: createError } = await createEntity(
       locals.supabase,

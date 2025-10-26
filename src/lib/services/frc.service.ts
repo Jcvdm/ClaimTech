@@ -538,6 +538,7 @@ class FRCService {
 	 */
 	async listFRC(filters?: {
 		status?: 'not_started' | 'in_progress' | 'completed';
+		engineer_id?: string;
 	}, client?: ServiceClient): Promise<any[]> {
 		const db = client ?? supabase;
 
@@ -550,6 +551,7 @@ class FRCService {
 					assessment_number,
 					appointment:appointments!inner(
 						id,
+						engineer_id,
 						inspection:inspections!inner(
 							id,
 							request:requests!inner(
@@ -574,6 +576,9 @@ class FRCService {
 		if (filters?.status) {
 			query = query.eq('status', filters.status);
 		}
+		if (filters?.engineer_id) {
+			query = query.eq('assessment.appointment.engineer_id', filters.engineer_id);
+		}
 
 		const { data, error } = await query;
 
@@ -588,13 +593,20 @@ class FRCService {
 	/**
 	 * Get count of FRC records by status
 	 */
-	async getCountByStatus(status: 'not_started' | 'in_progress' | 'completed', client?: ServiceClient): Promise<number> {
+	async getCountByStatus(status: 'not_started' | 'in_progress' | 'completed', client?: ServiceClient, engineer_id?: string | null): Promise<number> {
 		const db = client ?? supabase;
 
-		const { count, error } = await db
+		let query = db
 			.from('assessment_frc')
-			.select('*', { count: 'exact', head: true })
+			.select('*, assessments!inner(appointment_id, appointments!inner(engineer_id))', { count: 'exact', head: true })
 			.eq('status', status);
+
+		// Filter by engineer if provided
+		if (engineer_id) {
+			query = query.eq('assessments.appointments.engineer_id', engineer_id);
+		}
+
+		const { count, error } = await query;
 
 		if (error) {
 			console.error('Error counting FRC records:', error);

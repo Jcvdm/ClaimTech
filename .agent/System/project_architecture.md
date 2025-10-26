@@ -111,7 +111,12 @@ claimtech/
 │   │   │   ├── dashboard/           # Dashboard overview
 │   │   │   ├── requests/            # Request management
 │   │   │   ├── clients/             # Client management
-│   │   │   ├── engineers/           # Engineer management
+│   │   │   ├── engineers/           # Engineer management (CRUD + password reset)
+│   │   │   │   ├── +page.svelte     # Engineer list
+│   │   │   │   ├── new/             # Create engineer (admin-only)
+│   │   │   │   └── [id]/            # Engineer detail & edit
+│   │   │   │       ├── +page.svelte # Engineer detail view
+│   │   │   │       └── edit/        # Edit engineer profile
 │   │   │   ├── repairers/           # Repairer management
 │   │   │   ├── work/                # Work management
 │   │   │   │   ├── appointments/    # Appointment scheduling
@@ -123,11 +128,12 @@ claimtech/
 │   │   │   │   ├── frc/             # Final Repair Costing
 │   │   │   │   └── archive/         # Archived assessments
 │   │   │   └── settings/            # Company settings
-│   │   ├── auth/                    # Authentication routes
-│   │   │   ├── login/
-│   │   │   ├── signup/
-│   │   │   ├── callback/            # OAuth callback
-│   │   │   └── confirm/             # Email confirmation
+│   │   ├── auth/                    # Authentication routes (public)
+│   │   │   ├── login/               # Login page (form action)
+│   │   │   ├── forgot-password/     # Password reset request
+│   │   │   ├── reset-password/      # Set new password
+│   │   │   ├── callback/            # OAuth & password reset callback
+│   │   │   └── logout/              # Logout (form action)
 │   │   ├── api/                     # API endpoints
 │   │   │   ├── generate-report/     # PDF report generation
 │   │   │   ├── generate-estimate/   # PDF estimate generation
@@ -284,6 +290,44 @@ Session cleared from cookies
 User redirected to /auth/login
 ```
 
+**Password Reset Flow:**
+```
+User clicks "Forgot password?" on login page
+  ↓
+Enters email on /auth/forgot-password
+  ↓
+Supabase sends password reset email
+  ↓
+User clicks link in email
+  ↓
+Redirected to /auth/callback?type=recovery
+  ↓
+Callback handler redirects to /auth/reset-password
+  ↓
+User sets new password
+  ↓
+Redirected to /dashboard
+```
+
+**Engineer Creation with Password Reset (Admin-Only):**
+```
+Admin navigates to /engineers/new
+  ↓
+Fills in engineer details (name, email, phone, province, company)
+  ↓
+Form submits to +page.server.ts
+  ↓
+Server creates auth user with Supabase Admin API
+  ↓
+Creates engineer record with auth_user_id
+  ↓
+Triggers password reset email
+  ↓
+Engineer receives email and sets password
+  ↓
+Admin redirected to engineer detail page
+```
+
 **Root Route (`/`) Handling:**
 ```
 User navigates to /
@@ -293,6 +337,239 @@ hooks.server.ts checks session
 If authenticated → redirect to /dashboard
 If not authenticated → redirect to /auth/login
 ```
+
+### 4. Engineer Management Workflow (Admin-Only)
+
+**Engineer List & Search:**
+```
+Admin navigates to /engineers
+  ↓
+DataTable displays all engineers
+  ↓
+Click row → navigate to /engineers/[id] (detail page)
+  ↓
+Click "New Engineer" → navigate to /engineers/new
+```
+
+**Create Engineer:**
+```
+Admin fills in form (name, email, phone, province, specialization, company)
+  ↓
+Form action creates:
+  1. Auth user (Supabase Admin API with temp password)
+  2. Engineer record (linked via auth_user_id)
+  ↓
+Triggers password reset email
+  ↓
+Engineer receives email with password reset link
+  ↓
+Admin redirected to /engineers/[id] (detail page)
+```
+
+**View Engineer Details:**
+```
+Admin on /engineers/[id]
+  ↓
+Displays:
+  - Basic info (name, email, phone, province)
+  - Professional details (specialization, company type)
+  - Status (active/inactive)
+  - Metadata (created, last updated)
+  ↓
+Actions available:
+  - Edit (navigate to edit page)
+  - Activate/Deactivate (toggle is_active)
+```
+
+**Edit Engineer:**
+```
+Admin clicks "Edit" button on detail page
+  ↓
+Navigates to /engineers/[id]/edit
+  ↓
+Form pre-populated with current engineer data
+  ↓
+Email field is READ-ONLY (cannot be changed)
+  ↓
+Admin updates fields and submits
+  ↓
+Form action updates engineer record
+  ↓
+Redirected back to /engineers/[id] (detail page)
+```
+
+**Resend Password Reset:**
+```
+Admin on /engineers/[id]/edit
+  ↓
+Clicks "Resend Password Reset Email" button
+  ↓
+Separate form action (action="?/resendPassword")
+  ↓
+Server sends password reset email via Supabase
+  ↓
+Success message displayed on same page
+  ↓
+Engineer receives new password reset email
+```
+
+**Access Control:**
+- All `/engineers/*` routes are admin-only (enforced by parent layout)
+- Engineers cannot access engineer management pages
+- Engineers cannot edit their own profiles (admin-only)
+- Email address cannot be changed (tied to auth account)
+
+---
+
+### 5. Engineer Workflow & Role-Based Filtering
+
+The platform implements comprehensive role-based access control with two distinct user experiences:
+
+**Admin Experience:**
+- Full access to all data across the system
+- Can see ALL requests, inspections, appointments, assessments, FRC, and additionals
+- Manages clients, engineers, and company settings
+- Sidebar badge counts show total system counts
+
+**Engineer Experience:**
+- Limited to assigned work only
+- Dashboard shows only metrics for their assigned appointments/assessments
+- Sidebar badge counts filtered by engineer_id
+- Cannot access admin-only sections
+
+#### Engineer Navigation & Filtering
+
+**Sidebar Sections (Engineer View):**
+```
+General
+  - Dashboard (filtered metrics)
+
+Work
+  - Assigned Work (inspections assigned to engineer)
+  - Appointments (engineer's scheduled appointments)
+  - Open Assessments (engineer's in-progress assessments)
+  - Finalized Assessments (engineer's submitted assessments)
+  - FRC (engineer's FRC records)
+  - Additionals (engineer's additional work items)
+  - Archive (engineer's archived/cancelled work)
+```
+
+**Hidden from Engineers:**
+- Clients
+- Requests
+- Inspections (shown as "Assigned Work" for engineers)
+- Engineers (admin-only)
+- Repairers
+- Settings
+
+#### Data Filtering Pattern
+
+**Three-Layer Security:**
+1. **Route Protection** - Layout server redirects non-admins from admin routes
+2. **Service Layer** - All services accept optional `engineer_id` parameter
+3. **RLS Policies** - Database-level enforcement (future enhancement)
+
+**Service Layer Implementation:**
+```typescript
+// Pattern used across all services
+async listAppointments(filters?: {
+  status?: string;
+  engineer_id?: string;  // Optional engineer filtering
+}, client?: ServiceClient): Promise<Appointment[]> {
+  let query = db.from('appointments').select('*');
+
+  if (filters?.engineer_id) {
+    query = query.eq('engineer_id', filters.engineer_id);
+  }
+
+  return data || [];
+}
+```
+
+**Page Server Implementation:**
+```typescript
+// Pattern used across all work pages
+export const load: PageServerLoad = async ({ locals, parent }) => {
+  const { role, engineer_id } = await parent();  // From layout server
+  const isEngineer = role === 'engineer';
+
+  const data = await service.listItems(
+    locals.supabase,
+    isEngineer ? engineer_id : undefined  // Filter by engineer if engineer role
+  );
+
+  return { data };
+};
+```
+
+#### Sidebar Badge Counts
+
+**Implementation:**
+```typescript
+// Sidebar.svelte - Badge loading functions
+async function loadAppointmentCount() {
+  const filters: any = { status: 'scheduled' };
+  if (role === 'engineer' && engineer_id) {
+    filters.engineer_id = engineer_id;  // Filter for engineers
+  }
+  appointmentCount = await appointmentService.getAppointmentCount(filters, $page.data.supabase);
+}
+```
+
+**All badge counts filter by engineer:**
+- Assigned Work (inspections) - `assigned_engineer_id`
+- Appointments - `engineer_id`
+- Open Assessments - via `appointments.engineer_id` join
+- Finalized Assessments - via `appointments.engineer_id` join
+- FRC - via nested `assessments.appointments.engineer_id` join
+- Additionals - via nested `assessments.appointments.engineer_id` join
+
+#### Archive Filtering
+
+**Archive page shows role-specific data:**
+```typescript
+// Admin sees all archive data
+// Engineers see only their archived/cancelled work
+
+const [archivedAssessments, cancelledAppointments, cancelledAssessments] = await Promise.all([
+  assessmentService.listArchivedAssessments(locals.supabase, isEngineer ? engineer_id : undefined),
+  appointmentService.listCancelledAppointments(locals.supabase, isEngineer ? engineer_id : undefined),
+  assessmentService.listCancelledAssessments(locals.supabase, isEngineer ? engineer_id : undefined)
+]);
+
+// Requests and inspections return empty arrays for engineers (admin-only)
+const cancelledRequests = isEngineer ? [] : await requestService.listCancelledRequests(locals.supabase);
+const cancelledInspections = isEngineer ? [] : await inspectionService.listCancelledInspections(locals.supabase);
+```
+
+#### Engineer Workflow Steps
+
+**Complete Workflow (Engineer Perspective):**
+```
+1. Admin assigns inspection to engineer
+   ↓
+2. Inspection appears in engineer's "Assigned Work"
+   ↓
+3. Engineer creates appointment from inspection
+   ↓
+4. Appointment shows in "Appointments"
+   ↓
+5. Engineer conducts assessment (appears in "Open Assessments")
+   ↓
+6. Engineer finalizes assessment (moves to "Finalized Assessments")
+   ↓
+7. FRC workflow begins (appears in "FRC")
+   ↓
+8. Additional work items (appears in "Additionals")
+   ↓
+9. Completed work archived (appears in "Archive")
+```
+
+**Data Visibility Throughout Workflow:**
+- Engineer sees ONLY inspections/appointments/assessments assigned to them
+- Dashboard metrics reflect only their workload
+- Badge counts show only their pending work
+- Archive shows only their completed/cancelled work
 
 ---
 
@@ -370,13 +647,18 @@ Implemented in `src/hooks.server.ts`:
 - **Explicit root route (`/`) handling**: Redirects to `/dashboard` if authenticated, `/auth/login` if not
 - Redirects unauthenticated users to `/auth/login` for protected routes
 - Redirects authenticated users away from auth pages to `/dashboard`
-- Public routes: `/auth/login`, `/auth/signup`, `/auth/callback`, `/auth/confirm`
+- Public routes: `/auth/login`, `/auth/forgot-password`, `/auth/reset-password`, `/auth/callback`, `/auth/logout`
 - **Single source of truth**: All auth redirects handled in hooks.server.ts, no redirect logic in page server loads
+- **Role-based access**: Parent layout (`/routes/(app)/+layout.server.ts`) enforces admin-only routes
 
 ### Form Actions vs API Routes
-**Authentication uses form actions** (`+page.server.ts`), not POST handlers (`+server.ts`):
+**Authentication and user management use form actions** (`+page.server.ts`), not POST handlers (`+server.ts`):
 - **Login**: `src/routes/auth/login/+page.server.ts` - form action
 - **Logout**: `src/routes/auth/logout/+page.server.ts` - form action
+- **Forgot Password**: `src/routes/auth/forgot-password/+page.server.ts` - form action
+- **Reset Password**: `src/routes/auth/reset-password/+page.server.ts` - form action
+- **Create Engineer**: `src/routes/(app)/engineers/new/+page.server.ts` - form action
+- **Edit Engineer**: `src/routes/(app)/engineers/[id]/edit/+page.server.ts` - multiple form actions (default + resendPassword)
 - **Why**: Form actions return `ActionResult` (JSON) compatible with SvelteKit's `use:enhance`
 - **POST handlers** (`+server.ts`) return HTTP responses and should only be used for API endpoints, not forms
 

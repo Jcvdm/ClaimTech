@@ -23,44 +23,72 @@ function calculateAverageDays(items: Array<{ start: string | null; end: string |
 	return Math.round((totalDays / validItems.length) * 10) / 10; // Round to 1 decimal
 }
 
-export const load: PageServerLoad = async ({ locals }) => {
+export const load: PageServerLoad = async ({ locals, parent }) => {
+	const { role, engineer_id } = await parent();
+
+	// Engineers only see their own data
+	const isEngineer = role === 'engineer';
+
 	// Load counts for each work category
+	// For engineers: filter by their engineer_id, For admins: see all
 	const [newRequestCount, inspectionCount, appointmentCount, assessmentCount, finalizedCount, frcCount, additionalsCount] = await Promise.all([
-		requestService.getRequestCount({ status: 'submitted' }, locals.supabase),
-		inspectionService.getInspectionCount({ status: 'pending' }, locals.supabase),
-		appointmentService.getAppointmentCount({ status: 'scheduled' }, locals.supabase),
-		assessmentService.getInProgressCount(locals.supabase),
-		assessmentService.getFinalizedCount(locals.supabase),
-		frcService.getCountByStatus('in_progress', locals.supabase),
-		additionalsService.getPendingCount(locals.supabase)
+		isEngineer ? 0 : requestService.getRequestCount({ status: 'submitted' }, locals.supabase), // Engineers don't handle requests
+		isEngineer ? 0 : inspectionService.getInspectionCount({ status: 'pending' }, locals.supabase), // Engineers don't handle inspections directly
+		appointmentService.getAppointmentCount(
+			isEngineer ? { status: 'scheduled', engineer_id } : { status: 'scheduled' },
+			locals.supabase
+		),
+		assessmentService.getInProgressCount(locals.supabase, isEngineer ? engineer_id : undefined),
+		assessmentService.getFinalizedCount(locals.supabase, isEngineer ? engineer_id : undefined),
+		frcService.getCountByStatus('in_progress', locals.supabase, isEngineer ? engineer_id : undefined),
+		additionalsService.getPendingCount(locals.supabase, isEngineer ? engineer_id : undefined)
 	]);
 
 	// Load recent items for activity feed
+	// Engineers only see their assigned work
 	const [recentRequests, recentInspections, recentAppointments, recentAssessments] = await Promise.all([
-		requestService.listRequests({ status: 'submitted' }, locals.supabase).then(items => items.slice(0, 5)),
-		inspectionService.listInspections({ status: 'pending' }, locals.supabase).then(items => items.slice(0, 5)),
-		appointmentService.listAppointments({ status: 'scheduled' }, locals.supabase).then(items => items.slice(0, 5)),
-		assessmentService.getInProgressAssessments(locals.supabase).then(items => items.slice(0, 5))
+		isEngineer ? [] : requestService.listRequests({ status: 'submitted' }, locals.supabase).then(items => items.slice(0, 5)),
+		isEngineer ? [] : inspectionService.listInspections({ status: 'pending' }, locals.supabase).then(items => items.slice(0, 5)),
+		appointmentService.listAppointments(
+			isEngineer ? { status: 'scheduled', engineer_id } : { status: 'scheduled' },
+			locals.supabase
+		).then(items => items.slice(0, 5)),
+		assessmentService.getInProgressAssessments(locals.supabase, isEngineer ? engineer_id : undefined).then(items => items.slice(0, 5))
 	]);
 
 	// Fetch completed assessments for time tracking (last 30 days)
 	const thirtyDaysAgo = new Date();
 	thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
-	const { data: completedAssessments } = await locals.supabase
+	// Build query for completed assessments
+	let assessmentQuery = locals.supabase
 		.from('assessments')
-		.select('started_at, submitted_at, created_at')
+		.select('started_at, submitted_at, created_at, appointment_id, appointments!inner(engineer_id)')
 		.eq('status', 'submitted')
 		.gte('submitted_at', thirtyDaysAgo.toISOString())
 		.order('submitted_at', { ascending: false });
 
+	// Filter by engineer if not admin
+	if (isEngineer && engineer_id) {
+		assessmentQuery = assessmentQuery.eq('appointments.engineer_id', engineer_id);
+	}
+
+	const { data: completedAssessments } = await assessmentQuery;
+
 	// Fetch completed FRCs for time tracking (last 30 days)
-	const { data: completedFRCs } = await locals.supabase
+	let frcQuery = locals.supabase
 		.from('assessment_frc')
-		.select('started_at, completed_at, created_at')
+		.select('started_at, completed_at, created_at, assessment_id, assessments!inner(appointment_id, appointments!inner(engineer_id))')
 		.eq('status', 'completed')
 		.gte('completed_at', thirtyDaysAgo.toISOString())
 		.order('completed_at', { ascending: false });
+
+	// Filter by engineer if not admin
+	if (isEngineer && engineer_id) {
+		frcQuery = frcQuery.eq('assessments.appointments.engineer_id', engineer_id);
+	}
+
+	const { data: completedFRCs } = await frcQuery;
 
 	// Calculate average times
 	const avgAssessmentTime = calculateAverageDays(
@@ -72,14 +100,22 @@ export const load: PageServerLoad = async ({ locals }) => {
 	);
 
 	// Calculate total workflow time (request created to assessment finalized)
-	const { data: workflowData } = await locals.supabase
+	let workflowQuery = locals.supabase
 		.from('assessments')
 		.select(`
 			submitted_at,
-			requests!inner(created_at)
+			requests!inner(created_at),
+			appointments!inner(engineer_id)
 		`)
 		.eq('status', 'submitted')
 		.gte('submitted_at', thirtyDaysAgo.toISOString());
+
+	// Filter by engineer if not admin
+	if (isEngineer && engineer_id) {
+		workflowQuery = workflowQuery.eq('appointments.engineer_id', engineer_id);
+	}
+
+	const { data: workflowData } = await workflowQuery;
 
 	const avgTotalWorkflowTime = calculateAverageDays(
 		(workflowData || []).map(item => ({
