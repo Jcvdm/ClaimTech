@@ -1,42 +1,52 @@
 import type { PageServerLoad } from './$types';
-import { appointmentService } from '$lib/services/appointment.service';
-import { clientService } from '$lib/services/client.service';
-import { engineerService } from '$lib/services/engineer.service';
 
 export const load: PageServerLoad = async ({ locals, parent }) => {
 	const { role, engineer_id } = await parent();
 	const isEngineer = role === 'engineer';
 
 	try {
-		const [allAppointments, clients, engineers] = await Promise.all([
-			// Only load scheduled appointments (upcoming/open appointments)
-			// Engineers only see their own appointments
-			appointmentService.listAppointments(
-				isEngineer ? { status: 'scheduled', engineer_id: engineer_id! } : { status: 'scheduled' },
-				locals.supabase
-			),
-			clientService.listClients(true, locals.supabase),
-			engineerService.listEngineers(true, locals.supabase)
-		]);
+		// Query assessments at appointment-related stages
+		// In assessment-centric model, appointments are scheduled when stage = 'appointment_scheduled'
+		// and may be in progress when stage = 'assessment_in_progress'
+		let query = locals.supabase
+			.from('assessments')
+			.select(`
+				*,
+				request:requests!inner(
+					*,
+					client:clients(*)
+				),
+				appointment:appointments!inner(
+					*,
+					engineer:engineers(*)
+				)
+			`)
+			.in('stage', ['appointment_scheduled', 'assessment_in_progress'])
+			.order('updated_at', { ascending: false });
 
-		// Return only scheduled appointments
-		const appointments = allAppointments;
+		// Engineer filtering
+		if (isEngineer && engineer_id) {
+			query = query.eq('appointment.engineer_id', engineer_id);
+		}
 
-		// Create lookup maps for efficient access
-		const clientMap = Object.fromEntries(clients.map((c) => [c.id, c]));
-		const engineerMap = Object.fromEntries(engineers.map((e) => [e.id, e]));
+		const { data: assessments, error } = await query;
+
+		if (error) {
+			console.error('Error loading assessments with appointments:', error);
+			return {
+				assessments: [],
+				error: 'Failed to load appointments'
+			};
+		}
 
 		return {
-			appointments,
-			clientMap,
-			engineerMap
+			assessments: assessments || []
 		};
 	} catch (error) {
-		console.error('Error loading appointments:', error);
+		console.error('Error loading appointments page:', error);
 		return {
-			appointments: [],
-			clientMap: {},
-			engineerMap: {}
+			assessments: [],
+			error: 'Failed to load page'
 		};
 	}
 };
