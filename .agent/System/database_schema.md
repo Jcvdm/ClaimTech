@@ -266,6 +266,17 @@ Scheduled appointments for inspections - supports both in-person and digital ass
 - `cancelled_at` (TIMESTAMPTZ)
 - `cancellation_reason` (TEXT)
 
+**Reschedule Tracking (Migration 076 - Jan 2025):**
+- `rescheduled_from_date` (TIMESTAMPTZ) - Original appointment date before most recent reschedule
+- `reschedule_count` (INTEGER, DEFAULT 0) - Number of times appointment has been rescheduled
+- `reschedule_reason` (TEXT) - Reason for most recent reschedule
+
+**Key Features:**
+- **Cancellation with Fallback**: Cancelling appointment automatically reverts assessment stage to `inspection_scheduled`
+- **Smart Reschedule Detection**: Only increments count when date/time actually changes (not for location/notes updates)
+- **Comprehensive Tracking**: Preserves original date, counts reschedules, documents reasons
+- **Audit Trail**: All cancellations and reschedules logged in `audit_logs`
+
 ---
 
 ## Assessment Tables

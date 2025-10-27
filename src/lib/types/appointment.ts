@@ -50,6 +50,11 @@ export interface Appointment {
 	completed_at?: string | null;
 	cancelled_at?: string | null;
 	cancellation_reason?: string | null;
+
+	// Reschedule tracking (added in Migration 076)
+	rescheduled_from_date?: string | null;
+	reschedule_count?: number;
+	reschedule_reason?: string | null;
 }
 
 export interface CreateAppointmentInput {
@@ -78,5 +83,21 @@ export interface UpdateAppointmentInput extends Partial<CreateAppointmentInput> 
 	completed_at?: string;
 	cancelled_at?: string;
 	cancellation_reason?: string;
+	// Reschedule tracking
+	rescheduled_from_date?: string;
+	reschedule_count?: number;
+	reschedule_reason?: string;
+}
+
+export interface RescheduleAppointmentInput {
+	appointment_date: string;
+	appointment_time?: string | null;
+	duration_minutes?: number;
+	location_address?: string | null;
+	location_city?: string | null;
+	location_province?: Province | null;
+	location_notes?: string | null;
+	notes?: string | null;
+	special_instructions?: string | null;
 }
 

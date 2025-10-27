@@ -67,6 +67,189 @@ Assessments progress through 10 distinct stages:
 
 ---
 
+## Appointment Management (Jan 2025)
+
+### Appointment Lifecycle
+
+Appointments are linked to assessments via nullable `appointment_id` foreign key. They support cancellation with automatic stage fallback and comprehensive rescheduling tracking.
+
+**Appointment States:**
+- `scheduled` - Initial state when created
+- `confirmed` - Engineer confirmed attendance
+- `in_progress` - Appointment is happening now
+- `completed` - Appointment finished
+- `cancelled` - Appointment cancelled (fallback to inspection stage)
+- `rescheduled` - Appointment date/time changed
+
+### Pattern: Cancel Appointment with Stage Fallback
+
+**When:** Cancelling an appointment and reverting assessment to inspection scheduling
+
+**Why Fallback is Needed:**
+- When appointment cancelled, assessment can't stay at `appointment_scheduled` stage
+- System automatically reverts to `inspection_scheduled` to continue workflow
+- Enables admin to reschedule with new appointment
+
+```typescript
+import { appointmentService } from '$lib/services/appointment.service';
+
+// Cancel with automatic stage fallback (Jan 2025)
+const cancelledAppointment = await appointmentService.cancelAppointmentWithFallback(
+  appointmentId,
+  'Engineer unavailable due to emergency', // Optional reason
+  locals.supabase
+);
+
+// Result:
+// 1. Appointment status → 'cancelled'
+// 2. Appointment cancelled_at → timestamp
+// 3. Appointment cancellation_reason → reason
+// 4. Assessment stage → 'inspection_scheduled' (automatic fallback)
+// 5. Audit logs created for both operations
+```
+
+**What Happens Behind the Scenes:**
+1. Cancels appointment using existing `cancelAppointment()` method
+2. Finds related assessment via `inspection_id`
+3. Updates assessment stage to `inspection_scheduled`
+4. Creates comprehensive audit log for stage transition
+5. Returns cancelled appointment
+
+**Audit Trail Example:**
+```json
+{
+  "entity_type": "assessment",
+  "entity_id": "uuid",
+  "action": "stage_transition",
+  "field_name": "stage",
+  "old_value": "appointment_scheduled",
+  "new_value": "inspection_scheduled",
+  "metadata": {
+    "reason": "Appointment cancelled - fallback to inspection scheduling",
+    "related_appointment_id": "appointment-uuid",
+    "cancellation_reason": "Engineer unavailable due to emergency"
+  }
+}
+```
+
+**Error Handling:**
+- If assessment not found, appointment is still cancelled (graceful degradation)
+- If assessment update fails, appointment is still cancelled
+- Console logs errors but doesn't throw exceptions
+
+---
+
+### Pattern: Reschedule Appointment with Tracking
+
+**When:** Changing appointment date/time with proper tracking
+
+**Why Tracking is Important:**
+- Tracks how many times appointment rescheduled (reschedule_count)
+- Preserves original appointment date for history
+- Documents reason for rescheduling
+- Creates distinct audit log (not generic "update")
+
+```typescript
+import { appointmentService } from '$lib/services/appointment.service';
+import type { RescheduleAppointmentInput } from '$lib/types/appointment';
+
+// Reschedule with comprehensive tracking (Jan 2025)
+const input: RescheduleAppointmentInput = {
+  appointment_date: '2025-01-30', // New date
+  appointment_time: '14:00', // New time
+  duration_minutes: 60,
+  notes: 'Client requested afternoon slot',
+  special_instructions: 'Call before arrival',
+  // Location fields (for in-person appointments)
+  location_address: '123 Main St',
+  location_city: 'Cape Town',
+  location_province: 'Western Cape',
+  location_notes: 'Use back entrance'
+};
+
+const rescheduled = await appointmentService.rescheduleAppointment(
+  appointmentId,
+  input,
+  'Client requested different time due to work conflict', // Optional reason
+  locals.supabase
+);
+
+// Result:
+// 1. Appointment appointment_date → new date
+// 2. Appointment appointment_time → new time
+// 3. Appointment status → 'rescheduled'
+// 4. Appointment rescheduled_from_date → original date (preserved)
+// 5. Appointment reschedule_count → incremented by 1
+// 6. Appointment reschedule_reason → reason
+// 7. Assessment stage → UNCHANGED (appointment still active)
+// 8. Audit log created with before/after details
+```
+
+**Smart Reschedule Detection:**
+- Only increments `reschedule_count` if date OR time actually changes
+- If only location/notes change, uses `updateAppointment()` instead
+- Prevents false reschedule counts from minor updates
+
+```typescript
+// Example: Only location changed
+const dateChanged = input.appointment_date !== currentAppointment.appointment_date;
+const timeChanged = input.appointment_time !== currentAppointment.appointment_time;
+
+if (!dateChanged && !timeChanged) {
+  // No reschedule needed - just update other fields
+  return this.updateAppointment(id, input, client);
+}
+// Otherwise proceed with reschedule tracking
+```
+
+**Audit Trail Example:**
+```json
+{
+  "entity_type": "appointment",
+  "entity_id": "uuid",
+  "action": "rescheduled",
+  "field_name": "appointment_date",
+  "old_value": "2025-01-28T10:00:00Z",
+  "new_value": "2025-01-30T14:00:00Z",
+  "metadata": {
+    "appointment_number": "APT-2025-001",
+    "original_date": "2025-01-28T10:00:00Z",
+    "original_time": "10:00",
+    "new_date": "2025-01-30",
+    "new_time": "14:00",
+    "reschedule_count": 2,
+    "reason": "Client requested different time due to work conflict",
+    "changed_fields": ["appointment_date", "appointment_time", "notes"]
+  }
+}
+```
+
+**Reschedule Tracking Fields (Migration 076):**
+```sql
+-- Added January 27, 2025
+rescheduled_from_date TIMESTAMPTZ  -- Original date before most recent reschedule
+reschedule_count INTEGER DEFAULT 0  -- Number of times rescheduled
+reschedule_reason TEXT              -- Reason for most recent reschedule
+```
+
+**UI Integration:**
+```typescript
+// Display reschedule history on appointment detail page
+{#if appointment.reschedule_count > 0}
+  <div class="alert alert-warning">
+    <p>Appointment rescheduled {appointment.reschedule_count} time(s)</p>
+    {#if appointment.rescheduled_from_date}
+      <p>Original date: {formatDate(appointment.rescheduled_from_date)}</p>
+    {/if}
+    {#if appointment.reschedule_reason}
+      <p>Reason: {appointment.reschedule_reason}</p>
+    {/if}
+  </div>
+{/if}
+```
+
+---
+
 ## Common Patterns
 
 ### Pattern 1: Find or Create Assessment by Request

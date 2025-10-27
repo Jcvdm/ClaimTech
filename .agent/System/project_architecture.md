@@ -307,7 +307,113 @@ const { data: assessments } = await locals.supabase
   .order('updated_at', { ascending: false });
 ```
 
-### 3. Assessment Process (Multi-Tab Data Collection)
+### 3. Appointment Management Workflow (Implemented Jan 2025)
+
+**Core Capabilities:**
+ClaimTech provides comprehensive appointment management with cancellation fallback and rescheduling tracking.
+
+**Appointment Lifecycle States:**
+```
+scheduled → confirmed → in_progress → completed
+         ↓             ↓
+      cancelled    rescheduled
+```
+
+**1. Appointment Cancellation with Stage Fallback**
+
+When an appointment is cancelled, the system automatically reverts the assessment stage to enable rescheduling:
+
+```typescript
+// Cancel appointment with automatic stage fallback
+const cancelledAppointment = await appointmentService.cancelAppointmentWithFallback(
+  appointmentId,
+  'Engineer unavailable due to emergency', // Optional reason
+  locals.supabase
+);
+
+// Behind the scenes:
+// 1. Appointment status → 'cancelled'
+// 2. Appointment cancelled_at → timestamp
+// 3. Appointment cancellation_reason → reason stored
+// 4. Assessment stage → 'inspection_scheduled' (automatic fallback)
+// 5. Audit logs created for both operations
+```
+
+**Why Fallback is Critical:**
+- Cancelled appointments can't remain at `appointment_scheduled` stage
+- Automatic reversion to `inspection_scheduled` enables workflow continuation
+- Admin can reschedule with new appointment
+- Assessment never gets "stuck" in the pipeline
+
+**2. Appointment Rescheduling with Tracking (Migration 076)**
+
+Comprehensive rescheduling system tracks history, count, and reasons:
+
+```typescript
+// Reschedule appointment with full tracking
+const input: RescheduleAppointmentInput = {
+  appointment_date: '2025-01-30', // New date
+  appointment_time: '14:00',      // New time
+  duration_minutes: 60,
+  notes: 'Client requested afternoon slot',
+  location_address: '123 Main St',
+  location_city: 'Cape Town',
+  location_province: 'Western Cape'
+};
+
+const rescheduled = await appointmentService.rescheduleAppointment(
+  appointmentId,
+  input,
+  'Client requested different time due to work conflict', // Reason
+  locals.supabase
+);
+
+// Result:
+// 1. Appointment date/time updated
+// 2. Appointment status → 'rescheduled'
+// 3. Original date preserved in rescheduled_from_date
+// 4. reschedule_count incremented
+// 5. reschedule_reason stored
+// 6. Assessment stage unchanged (appointment still active)
+// 7. Comprehensive audit log created
+```
+
+**Smart Reschedule Detection:**
+- Only increments `reschedule_count` if date OR time changes
+- Updates to location/notes use `updateAppointment()` instead
+- Prevents false reschedule counts from minor updates
+
+**Reschedule Tracking Fields:**
+```sql
+-- Added in Migration 076 (Jan 2025)
+rescheduled_from_date TIMESTAMPTZ  -- Original date before most recent reschedule
+reschedule_count INTEGER DEFAULT 0  -- Number of times rescheduled
+reschedule_reason TEXT              -- Reason for most recent reschedule
+```
+
+**UI Support:**
+- **Detail Page**: Reschedule modal with date validation
+- **List Page**: Inline reschedule from appointments table
+- **History Display**: Shows reschedule count, original date, reason
+- **Date Validation**: Prevents past date selection
+
+**Audit Trail:**
+Both operations create comprehensive audit logs:
+```json
+{
+  "entity_type": "appointment",
+  "action": "rescheduled",
+  "metadata": {
+    "appointment_number": "APT-2025-001",
+    "original_date": "2025-01-28T10:00:00Z",
+    "new_date": "2025-01-30T14:00:00Z",
+    "reschedule_count": 2,
+    "reason": "Client work conflict"
+  }
+}
+```
+
+### 4. Assessment Process (Multi-Tab Data Collection)
 The assessment page (`/work/assessments/[appointment_id]`) contains multiple tabs:
 1. **Identification**: Vehicle details, photos (VIN, registration, license disc)
 2. **Exterior 360**: 8-position 360° photos + additional photos

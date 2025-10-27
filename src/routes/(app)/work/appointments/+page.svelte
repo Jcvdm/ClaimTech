@@ -253,8 +253,30 @@
 				updateData.location_notes = scheduleLocationNotes || null;
 			}
 
-			// Update using the appointment_id from the assessment
-			await appointmentService.updateAppointment(selectedAssessment.appointment_id, updateData);
+			// Detect if this is a reschedule (appointment already has a date/time set)
+			// Note: appointment_date is TIMESTAMPTZ (e.g., "2025-01-27T10:00:00.000Z")
+			// scheduleDate is YYYY-MM-DD format from date input
+			// Extract date portion for proper comparison
+			const currentDate = selectedAssessment.appointment_date?.split('T')[0];
+			const isReschedule = currentDate && currentDate !== scheduleDate;
+
+			if (isReschedule) {
+				// Use reschedule method for tracking
+				const reason = prompt('Reason for rescheduling (optional):');
+				if (reason === null) {
+					// User cancelled the reschedule
+					loading = false;
+					return;
+				}
+				await appointmentService.rescheduleAppointment(
+					selectedAssessment.appointment_id,
+					updateData,
+					reason || undefined
+				);
+			} else {
+				// Use update method for initial scheduling
+				await appointmentService.updateAppointment(selectedAssessment.appointment_id, updateData);
+			}
 
 			// Close modal
 			showScheduleModal = false;
