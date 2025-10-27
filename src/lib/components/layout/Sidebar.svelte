@@ -146,11 +146,11 @@
 		try {
 			let query = $page.data.supabase
 				.from('assessments')
-				.select('*, appointments!inner(engineer_id)', { count: 'exact', head: true })
+				.select('*, inspections!inner(assigned_engineer_id)', { count: 'exact', head: true })
 				.eq('stage', 'inspection_scheduled');
 
 			if (role === 'engineer' && engineer_id) {
-				query = query.eq('appointments.engineer_id', engineer_id);
+				query = query.eq('inspections.assigned_engineer_id', engineer_id);
 			}
 
 			const { count, error } = await query;
@@ -172,7 +172,7 @@
 			let query = $page.data.supabase
 				.from('assessments')
 				.select('*, appointments!inner(engineer_id)', { count: 'exact', head: true })
-				.in('stage', ['appointment_scheduled', 'assessment_in_progress']);
+				.eq('stage', 'appointment_scheduled');
 
 			if (role === 'engineer' && engineer_id) {
 				query = query.eq('appointments.engineer_id', engineer_id);

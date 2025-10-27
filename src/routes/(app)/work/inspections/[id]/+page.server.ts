@@ -1,4 +1,5 @@
 import { inspectionService } from '$lib/services/inspection.service';
+import { assessmentService } from '$lib/services/assessment.service';
 import { clientService } from '$lib/services/client.service';
 import { requestService } from '$lib/services/request.service';
 import { engineerService } from '$lib/services/engineer.service';
@@ -9,41 +10,60 @@ import type { PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async ({ params, locals }) => {
 	try {
-		const inspection = await inspectionService.getInspection(params.id, locals.supabase);
+		// ASSESSMENT-CENTRIC ARCHITECTURE: Load assessment by ID first
+		const assessment = await assessmentService.getAssessment(params.id, locals.supabase);
 
-		if (!inspection) {
-			throw error(404, 'Inspection not found');
+		if (!assessment) {
+			throw error(404, 'Assessment not found');
 		}
 
-		const [client, request, auditLogs] = await Promise.all([
-			clientService.getClient(inspection.client_id, locals.supabase),
-			requestService.getRequest(inspection.request_id, locals.supabase),
-			auditService.getEntityHistory('inspection', params.id, locals.supabase)
-		]);
+		// Load inspection via assessment.inspection_id foreign key (if populated)
+		let inspection = null;
+		if (assessment.inspection_id) {
+			inspection = await inspectionService.getInspection(assessment.inspection_id, locals.supabase);
+		}
 
-		// Load assigned engineer if exists
+		// Load request (always exists - assessment created WITH request)
+		const request = await requestService.getRequest(assessment.request_id, locals.supabase);
+		if (!request) {
+			throw error(404, 'Request not found for assessment');
+		}
+
+		// Load client via request
+		const client = await clientService.getClient(request.client_id, locals.supabase);
+
+		// Load audit logs for assessment (primary entity)
+		const auditLogs = await auditService.getEntityHistory('assessment', params.id, locals.supabase);
+
+		// Load assigned engineer (from inspection if exists, otherwise from request)
 		let assignedEngineer = null;
-		if (inspection.assigned_engineer_id) {
-			assignedEngineer = await engineerService.getEngineer(inspection.assigned_engineer_id, locals.supabase);
+		const engineerId = inspection?.assigned_engineer_id || request.assigned_engineer_id;
+		if (engineerId) {
+			assignedEngineer = await engineerService.getEngineer(engineerId, locals.supabase);
 		}
 
-		// Load available engineers filtered by province
+		// Load available engineers filtered by province (use inspection or request data)
 		let availableEngineers = [];
-		if (inspection.vehicle_province) {
+		const province = inspection?.vehicle_province || request.vehicle_province;
+		if (province) {
 			availableEngineers = await engineerService.listEngineersByProvince(
-				inspection.vehicle_province,
+				province,
 				true,
 				locals.supabase
 			);
 		}
 
-		// Load appointment for this inspection (if exists)
-		const appointments = await appointmentService.listAppointments({
-			inspection_id: params.id
-		}, locals.supabase);
-		const appointment = appointments.length > 0 ? appointments[0] : null;
+		// Load appointment via assessment.appointment_id (assessment-centric)
+		let appointment = null;
+		if (assessment.appointment_id) {
+			const appointments = await appointmentService.listAppointments({
+				inspection_id: assessment.inspection_id || undefined
+			}, locals.supabase);
+			appointment = appointments.find(a => a.id === assessment.appointment_id) || null;
+		}
 
 		return {
+			assessment,
 			inspection,
 			client,
 			request,

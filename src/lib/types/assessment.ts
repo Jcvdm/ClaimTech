@@ -8,13 +8,14 @@ export type AssessmentStatus = 'in_progress' | 'completed' | 'submitted' | 'arch
 // Replaces status field with more granular workflow stages
 export type AssessmentStage =
 	| 'request_submitted' // Initial request created, assessment created
-	| 'request_accepted' // Admin accepted request, ready for scheduling
-	| 'inspection_scheduled' // Appointment scheduled with engineer
+	| 'request_reviewed' // Admin reviewed request, ready for scheduling
+	| 'inspection_scheduled' // Inspection scheduled with engineer
+	| 'appointment_scheduled' // Appointment scheduled with engineer
 	| 'assessment_in_progress' // Engineer started assessment (collecting data)
-	| 'assessment_completed' // All assessment tabs completed
+	| 'estimate_review' // Estimate under review
+	| 'estimate_sent' // Estimate sent to client
 	| 'estimate_finalized' // Estimate finalized, rates frozen
 	| 'frc_in_progress' // Final Repair Costing started
-	| 'frc_completed' // FRC completed and signed off
 	| 'archived' // Assessment archived/completed
 	| 'cancelled'; // Cancelled at any stage
 

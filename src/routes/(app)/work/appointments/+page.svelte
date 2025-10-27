@@ -3,6 +3,11 @@
 	import { goto } from '$app/navigation';
 	import PageHeader from '$lib/components/layout/PageHeader.svelte';
 	import EmptyState from '$lib/components/data/EmptyState.svelte';
+	import ModernDataTable from '$lib/components/data/ModernDataTable.svelte';
+	import TableCell from '$lib/components/data/TableCell.svelte';
+	import GradientBadge from '$lib/components/data/GradientBadge.svelte';
+	import ActionButtonGroup from '$lib/components/data/ActionButtonGroup.svelte';
+	import ActionIconButton from '$lib/components/data/ActionIconButton.svelte';
 	import { Badge } from '$lib/components/ui/badge';
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
@@ -14,11 +19,22 @@
 		DialogHeader,
 		DialogTitle
 	} from '$lib/components/ui/dialog';
-	import { Calendar, Clock, MapPin, User, Car, AlertCircle, Play } from 'lucide-svelte';
+	import {
+		Calendar,
+		Clock,
+		MapPin,
+		User,
+		Car,
+		AlertCircle,
+		Play,
+		Eye,
+		Hash
+	} from 'lucide-svelte';
 	import type { Assessment } from '$lib/types/assessment';
 	import type { AppointmentType } from '$lib/types/appointment';
 	import type { Province } from '$lib/types/engineer';
 	import { formatDateWithWeekday } from '$lib/utils/formatters';
+	import { formatTimeDisplay, isAppointmentOverdue } from '$lib/utils/table-helpers';
 	import { appointmentService } from '$lib/services/appointment.service';
 
 	let { data }: { data: PageData } = $props();
@@ -42,25 +58,6 @@
 	let scheduleNotes = $state('');
 	let scheduleSpecialInstructions = $state('');
 	let scheduleError = $state<string | null>(null);
-
-	// Helper to check if appointment is overdue (appointment can be from nested structure)
-	function isOverdue(
-		appointment: NonNullable<Assessment['appointment']>
-	): boolean {
-		const now = new Date();
-		const appointmentDate = new Date(appointment.appointment_date);
-
-		// If appointment has a time, combine date and time
-		if (appointment.appointment_time) {
-			const [hours, minutes] = appointment.appointment_time.split(':').map(Number);
-			appointmentDate.setHours(hours, minutes, 0, 0);
-		} else {
-			// If no time, consider overdue if date has passed (end of day)
-			appointmentDate.setHours(23, 59, 59, 999);
-		}
-
-		return now > appointmentDate;
-	}
 
 	// Prepare assessment data with additional fields from nested appointment
 	const allAssessmentsWithDetails = $derived(
@@ -104,8 +101,10 @@
 						appointment.appointment_type === 'in_person'
 							? appointment.location_city || appointment.location_address || '-'
 							: 'Digital',
+					datetime_display: formatDateWithWeekday(appointment.appointment_date),
+					time_display: formatTimeDisplay(appointment.appointment_time, appointment.duration_minutes),
 					dateKey,
-					isOverdue: isOverdue(appointment),
+					isOverdue: isAppointmentOverdue(appointment.appointment_date, appointment.appointment_time),
 					// Parse time for sorting
 					timeValue: appointment.appointment_time
 						? parseInt(appointment.appointment_time.replace(':', ''))
@@ -124,39 +123,8 @@
 	);
 
 	// Separate overdue and upcoming assessments
-	const overdueAssessments = $derived(
-		filteredAssessments.filter((item) => item.isOverdue)
-	);
-
-	const upcomingAssessments = $derived(
-		filteredAssessments.filter((item) => !item.isOverdue)
-	);
-
-	// Group upcoming assessments by date
-	const groupedByDate = $derived(() => {
-		const groups = new Map<string, typeof upcomingAssessments>();
-
-		upcomingAssessments.forEach((item) => {
-			if (!groups.has(item.dateKey)) {
-				groups.set(item.dateKey, []);
-			}
-			groups.get(item.dateKey)!.push(item);
-		});
-
-		// Sort each group by time
-		groups.forEach((assessments) => {
-			assessments.sort((a, b) => a.timeValue - b.timeValue);
-		});
-
-		// Convert to array and sort by date
-		return Array.from(groups.entries())
-			.sort(([dateA], [dateB]) => dateA.localeCompare(dateB))
-			.map(([dateKey, assessments]) => ({
-				dateKey,
-				dateDisplay: formatDateWithWeekday(assessments[0].appointment_date),
-				assessments
-			}));
-	});
+	const overdueAssessments = $derived(filteredAssessments.filter((item) => item.isOverdue));
+	const upcomingAssessments = $derived(filteredAssessments.filter((item) => !item.isOverdue));
 
 	// Calculate type counts
 	const typeCounts = $derived({
@@ -165,26 +133,20 @@
 		digital: filteredAssessments.filter((a) => a.appointment_type === 'digital').length
 	});
 
-	// Format time display with duration
-	function formatTimeDisplay(assessment: typeof allAssessmentsWithDetails[0]): string {
-		if (!assessment.appointment_time) {
-			return 'No time set';
-		}
+	// Table columns
+	const columns = [
+		{ key: 'appointment_number', label: 'Appointment #', sortable: true, icon: Hash },
+		{ key: 'appointment_type', label: 'Type', sortable: true, icon: Calendar },
+		{ key: 'datetime_display', label: 'Date & Time', sortable: true, icon: Clock },
+		{ key: 'client_name', label: 'Client', sortable: true, icon: User },
+		{ key: 'vehicle_display', label: 'Vehicle', sortable: false, icon: Car },
+		{ key: 'engineer_name', label: 'Engineer', sortable: true, icon: User },
+		{ key: 'location_display', label: 'Location', sortable: false, icon: MapPin },
+		{ key: 'actions', label: 'Actions', sortable: false }
+	];
 
-		const [hours, minutes] = assessment.appointment_time.split(':');
-		const startTime = `${hours}:${minutes}`;
-
-		// Calculate end time
-		const startDate = new Date();
-		startDate.setHours(parseInt(hours), parseInt(minutes), 0, 0);
-		const endDate = new Date(startDate.getTime() + assessment.duration_minutes * 60000);
-		const endTime = `${String(endDate.getHours()).padStart(2, '0')}:${String(endDate.getMinutes()).padStart(2, '0')}`;
-
-		return `${startTime} - ${endTime}`;
-	}
-
-	function handleAppointmentClick(appointmentId: string) {
-		goto(`/work/appointments/${appointmentId}`);
+	function handleRowClick(row: (typeof allAssessmentsWithDetails)[0]) {
+		goto(`/work/appointments/${row.appointment_id}`);
 	}
 
 	async function handleStartAssessment(assessmentId: string, appointmentId: string) {
@@ -254,9 +216,6 @@
 			}
 
 			// Detect if this is a reschedule (appointment already has a date/time set)
-			// Note: appointment_date is TIMESTAMPTZ (e.g., "2025-01-27T10:00:00.000Z")
-			// scheduleDate is YYYY-MM-DD format from date input
-			// Extract date portion for proper comparison
 			const currentDate = selectedAssessment.appointment_date?.split('T')[0];
 			const isReschedule = currentDate && currentDate !== scheduleDate;
 
@@ -290,8 +249,6 @@
 			loading = false;
 		}
 	}
-
-
 </script>
 
 <div class="flex-1 space-y-6 p-8">
@@ -312,9 +269,7 @@
 				class="w-48"
 			/>
 			{#if dateFilter}
-				<Button variant="ghost" size="sm" onclick={() => (dateFilter = '')}>
-					Clear
-				</Button>
+				<Button variant="ghost" size="sm" onclick={() => (dateFilter = '')}>Clear</Button>
 			{/if}
 		</div>
 
@@ -363,193 +318,121 @@
 			<div class="space-y-4">
 				<div class="flex items-center gap-2">
 					<AlertCircle class="h-5 w-5 text-red-600" />
-					<h2 class="text-lg font-semibold text-red-600">
-						Overdue ({overdueAssessments.length})
-					</h2>
+					<h2 class="text-lg font-semibold text-red-600">Overdue ({overdueAssessments.length})</h2>
 				</div>
 
-				<div class="space-y-3">
-					{#each overdueAssessments as assessment}
-						<button
-							onclick={() => handleAppointmentClick(assessment.appointment_id)}
-							class="w-full rounded-lg border-2 border-red-200 bg-red-50 p-4 text-left transition-all hover:border-red-300 hover:bg-red-100 hover:shadow-md"
-						>
-							<div class="flex items-start justify-between">
-								<div class="flex-1 space-y-2">
-									<!-- Header Row -->
-									<div class="flex items-center gap-3">
-										<Badge
-											class={assessment.appointment_type === 'in_person'
-												? 'bg-blue-100 text-blue-700'
-												: 'bg-purple-100 text-purple-700'}
-										>
-											{assessment.type_display}
-										</Badge>
-										<span class="font-semibold text-gray-900">
-											{assessment.appointment_number}
-										</span>
-										<div class="flex items-center gap-1 text-sm text-red-600">
-											<Clock class="h-4 w-4" />
-											<span class="font-medium">
-												{formatTimeDisplay(assessment)}
-											</span>
-										</div>
-									</div>
-
-									<!-- Details Row -->
-									<div class="grid gap-2 text-sm text-gray-700 sm:grid-cols-2">
-										<div class="flex items-center gap-2">
-											<User class="h-4 w-4 text-gray-400" />
-											<span>{assessment.client_name}</span>
-										</div>
-										<div class="flex items-center gap-2">
-											<Car class="h-4 w-4 text-gray-400" />
-											<span>{assessment.vehicle_display}</span>
-										</div>
-										<div class="flex items-center gap-2">
-											<MapPin class="h-4 w-4 text-gray-400" />
-											<span>{assessment.location_display}</span>
-										</div>
-										<div class="flex items-center gap-2">
-											<User class="h-4 w-4 text-gray-400" />
-											<span class="text-gray-600">Engineer: {assessment.engineer_name}</span>
-										</div>
+				<div class="overflow-hidden rounded-xl border-2 border-red-200 bg-red-50/30 shadow-sm">
+					<ModernDataTable data={overdueAssessments} {columns} onRowClick={handleRowClick} striped>
+						{#snippet cellContent(column, row)}
+							{#if column.key === 'appointment_number'}
+								<TableCell variant="primary" bold class="text-red-900">
+									{row.appointment_number}
+								</TableCell>
+							{:else if column.key === 'appointment_type'}
+								<GradientBadge
+									variant={row.appointment_type === 'in_person' ? 'blue' : 'purple'}
+									label={row.type_display}
+								/>
+							{:else if column.key === 'datetime_display'}
+								<div class="space-y-1">
+									<div class="font-medium text-red-900">{row.datetime_display}</div>
+									<div class="flex items-center gap-1 text-sm text-red-600">
+										<Clock class="h-3 w-3" />
+										<span>{row.time_display}</span>
 									</div>
 								</div>
-
-								<!-- Action Buttons (vertical stack) -->
-								<div class="ml-4 flex flex-col gap-2">
-									<!-- Schedule/Reschedule Button -->
-									<Button
-										size="sm"
-										variant="outline"
-										onclick={(e) => {
-											e.stopPropagation();
-											handleOpenScheduleModal(assessment);
-										}}
+							{:else if column.key === 'actions'}
+								<ActionButtonGroup align="right">
+									<ActionIconButton
+										icon={Calendar}
+										label="Reschedule"
+										onclick={() => handleOpenScheduleModal(row)}
 										disabled={loading}
-									>
-										<Calendar class="mr-2 h-4 w-4" />
-										{assessment.appointment_time ? 'Reschedule' : 'Schedule'}
-									</Button>
-
-									<!-- Start Assessment Button -->
-									<Button
-										size="sm"
-										onclick={(e) => {
-											e.stopPropagation();
-											handleStartAssessment(assessment.assessment_id, assessment.appointment_id);
-										}}
-										disabled={startingAssessment === assessment.assessment_id}
-									>
-										<Play class="mr-2 h-4 w-4" />
-										{startingAssessment === assessment.assessment_id ? 'Starting...' : 'Start Assessment'}
-									</Button>
-								</div>
-							</div>
-						</button>
-					{/each}
+									/>
+									<ActionIconButton
+										icon={Play}
+										label="Start Assessment"
+										onclick={() => handleStartAssessment(row.assessment_id, row.appointment_id)}
+										loading={startingAssessment === row.assessment_id}
+										variant="primary"
+									/>
+									<ActionIconButton
+										icon={Eye}
+										label="View Details"
+										onclick={() => goto(`/work/appointments/${row.appointment_id}`)}
+									/>
+								</ActionButtonGroup>
+							{:else}
+								{row[column.key]}
+							{/if}
+						{/snippet}
+					</ModernDataTable>
 				</div>
 			</div>
 		{/if}
 
 		<!-- Upcoming Appointments Section -->
-		<div class="space-y-6">
-			{#each groupedByDate() as dateGroup}
-				<div class="space-y-3">
-					<!-- Date Header -->
-					<div class="flex items-center gap-2 border-b pb-2">
-						<Calendar class="h-5 w-5 text-blue-600" />
-						<h2 class="text-lg font-semibold text-gray-900">{dateGroup.dateDisplay}</h2>
-						<Badge variant="secondary">{dateGroup.assessments.length}</Badge>
-					</div>
-
-					<!-- Assessments for this date -->
-					<div class="space-y-3">
-						{#each dateGroup.assessments as assessment}
-							<button
-								onclick={() => handleAppointmentClick(assessment.appointment_id)}
-								class="w-full rounded-lg border bg-white p-4 text-left transition-all hover:border-blue-300 hover:shadow-md"
-							>
-								<div class="flex items-start justify-between">
-									<div class="flex-1 space-y-2">
-										<!-- Header Row -->
-										<div class="flex items-center gap-3">
-											<Badge
-												class={assessment.appointment_type === 'in_person'
-													? 'bg-blue-100 text-blue-700'
-													: 'bg-purple-100 text-purple-700'}
-											>
-												{assessment.type_display}
-											</Badge>
-											<span class="font-semibold text-gray-900">
-												{assessment.appointment_number}
-											</span>
-											<div class="flex items-center gap-1 text-sm text-gray-600">
-												<Clock class="h-4 w-4" />
-												<span class="font-medium">
-													{formatTimeDisplay(assessment)}
-												</span>
-											</div>
-										</div>
-
-										<!-- Details Row -->
-										<div class="grid gap-2 text-sm text-gray-700 sm:grid-cols-2">
-											<div class="flex items-center gap-2">
-												<User class="h-4 w-4 text-gray-400" />
-												<span>{assessment.client_name}</span>
-											</div>
-											<div class="flex items-center gap-2">
-												<Car class="h-4 w-4 text-gray-400" />
-												<span>{assessment.vehicle_display}</span>
-											</div>
-											<div class="flex items-center gap-2">
-												<MapPin class="h-4 w-4 text-gray-400" />
-												<span>{assessment.location_display}</span>
-											</div>
-											<div class="flex items-center gap-2">
-												<User class="h-4 w-4 text-gray-400" />
-												<span class="text-gray-600">Engineer: {assessment.engineer_name}</span>
-											</div>
-										</div>
-									</div>
-
-									<!-- Action Buttons (vertical stack) -->
-									<div class="ml-4 flex flex-col gap-2">
-										<!-- Schedule/Reschedule Button -->
-										<Button
-											size="sm"
-											variant="outline"
-											onclick={(e) => {
-												e.stopPropagation();
-												handleOpenScheduleModal(assessment);
-											}}
-											disabled={loading}
-										>
-											<Calendar class="mr-2 h-4 w-4" />
-											{assessment.appointment_time ? 'Reschedule' : 'Schedule'}
-										</Button>
-
-										<!-- Start Assessment Button -->
-										<Button
-											size="sm"
-											onclick={(e) => {
-												e.stopPropagation();
-												handleStartAssessment(assessment.assessment_id, assessment.appointment_id);
-											}}
-											disabled={startingAssessment === assessment.assessment_id}
-										>
-											<Play class="mr-2 h-4 w-4" />
-											{startingAssessment === assessment.assessment_id ? 'Starting...' : 'Start Assessment'}
-										</Button>
-									</div>
-								</div>
-							</button>
-						{/each}
-					</div>
+		{#if upcomingAssessments.length > 0}
+			<div class="space-y-4">
+				<div class="flex items-center gap-2">
+					<Calendar class="h-5 w-5 text-blue-600" />
+					<h2 class="text-lg font-semibold text-gray-900">Upcoming Appointments</h2>
+					<Badge variant="secondary">{upcomingAssessments.length}</Badge>
 				</div>
-			{/each}
-		</div>
+
+				<ModernDataTable
+					data={upcomingAssessments}
+					{columns}
+					onRowClick={handleRowClick}
+					striped
+					animated
+				>
+					{#snippet cellContent(column, row)}
+						{#if column.key === 'appointment_number'}
+							<TableCell variant="primary" bold>
+								{row.appointment_number}
+							</TableCell>
+						{:else if column.key === 'appointment_type'}
+							<GradientBadge
+								variant={row.appointment_type === 'in_person' ? 'blue' : 'purple'}
+								label={row.type_display}
+							/>
+						{:else if column.key === 'datetime_display'}
+							<div class="space-y-1">
+								<div class="font-medium text-gray-900">{row.datetime_display}</div>
+								<div class="flex items-center gap-1 text-sm text-gray-600">
+									<Clock class="h-3 w-3" />
+									<span>{row.time_display}</span>
+								</div>
+							</div>
+						{:else if column.key === 'actions'}
+							<ActionButtonGroup align="right">
+								<ActionIconButton
+									icon={Calendar}
+									label="Reschedule"
+									onclick={() => handleOpenScheduleModal(row)}
+									disabled={loading}
+								/>
+								<ActionIconButton
+									icon={Play}
+									label="Start Assessment"
+									onclick={() => handleStartAssessment(row.assessment_id, row.appointment_id)}
+									loading={startingAssessment === row.assessment_id}
+									variant="primary"
+								/>
+								<ActionIconButton
+									icon={Eye}
+									label="View Details"
+									onclick={() => goto(`/work/appointments/${row.appointment_id}`)}
+								/>
+							</ActionButtonGroup>
+						{:else}
+							{row[column.key]}
+						{/if}
+					{/snippet}
+				</ModernDataTable>
+			</div>
+		{/if}
 
 		<!-- Summary -->
 		<div class="flex items-center justify-between text-sm text-gray-500">
@@ -557,9 +440,7 @@
 				Showing <span class="font-medium text-gray-900">{filteredAssessments.length}</span>
 				{filteredAssessments.length === 1 ? 'appointment' : 'appointments'}
 				{#if overdueAssessments.length > 0}
-					<span class="text-red-600">
-						({overdueAssessments.length} overdue)
-					</span>
+					<span class="text-red-600">({overdueAssessments.length} overdue)</span>
 				{/if}
 			</p>
 		</div>
@@ -568,7 +449,7 @@
 
 <!-- Schedule/Reschedule Modal -->
 <Dialog bind:open={showScheduleModal}>
-	<DialogContent class="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
+	<DialogContent class="max-h-[90vh] overflow-y-auto sm:max-w-[600px]">
 		<DialogHeader>
 			<DialogTitle>
 				{selectedAssessment?.appointment_time ? 'Reschedule' : 'Schedule'} Appointment
@@ -588,7 +469,9 @@
 			<!-- Appointment Type (read-only) -->
 			<div class="space-y-2">
 				<label class="text-sm font-medium text-gray-900">Appointment Type</label>
-				<div class="flex h-10 w-full items-center rounded-md border border-gray-300 bg-gray-50 px-3 py-2 text-sm text-gray-700">
+				<div
+					class="flex h-10 w-full items-center rounded-md border border-gray-300 bg-gray-50 px-3 py-2 text-sm text-gray-700"
+				>
 					{selectedAssessment?.type_display}
 				</div>
 			</div>
@@ -706,9 +589,7 @@
 
 			<!-- Notes -->
 			<div class="space-y-2">
-				<label for="schedule_notes" class="text-sm font-medium text-gray-900">
-					Notes
-				</label>
+				<label for="schedule_notes" class="text-sm font-medium text-gray-900">Notes</label>
 				<textarea
 					id="schedule_notes"
 					bind:value={scheduleNotes}

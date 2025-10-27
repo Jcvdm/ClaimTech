@@ -65,6 +65,68 @@ Assessments progress through 10 distinct stages:
 4. **Nullable foreign keys** - `appointment_id` and `inspection_id` can be null initially
 5. **Idempotent operations** - All creation methods are safe to call multiple times
 
+### Design Rationale: Why Foreign Keys in "Assessment-Centric" Architecture?
+
+**Important**: This is NOT a pure assessment-centric architecture, but a **pragmatic hybrid** that combines the benefits of:
+- Assessment as canonical record (eliminates race conditions)
+- Foreign keys for referential integrity and performance
+
+**Why we keep `appointment_id` and `inspection_id` foreign keys:**
+
+1. **RLS Policy Efficiency** - Engineer access control via simple FK joins:
+   ```sql
+   -- Efficient: Direct FK join
+   WHERE appointment_id IN (
+     SELECT id FROM appointments WHERE engineer_id = current_engineer
+   )
+
+   -- vs Complex: Multi-table join without FK
+   WHERE request_id IN (
+     SELECT request_id FROM appointments WHERE engineer_id = current_engineer
+   )
+   ```
+
+2. **Database-Enforced Constraints** - Check constraint requires appointment_id for later stages:
+   ```sql
+   CHECK (
+     CASE
+       WHEN stage >= 'appointment_scheduled'
+       THEN appointment_id IS NOT NULL
+       ELSE TRUE
+     END
+   )
+   ```
+
+3. **Query Performance** - Indexed foreign keys enable fast queries:
+   ```typescript
+   // Direct query by appointment_id (indexed)
+   const assessment = await assessmentService.getAssessmentByAppointment(appointmentId);
+   ```
+
+4. **Backward Compatibility** - Existing code expects these relationships:
+   ```typescript
+   // Legacy code still queries by inspection_id
+   const assessment = await assessmentService.getAssessmentByInspectionId(inspectionId);
+   ```
+
+5. **Referential Integrity** - Database enforces valid relationships (cascades, prevents orphans)
+
+**Trade-offs accepted:**
+- ❌ Not "pure" assessment-centric (still has dependencies)
+- ✅ Eliminates race conditions (assessment created early)
+- ✅ Maintains performance (efficient RLS policies)
+- ✅ Preserves simplicity (straightforward queries)
+- ✅ Ensures data integrity (database-enforced)
+
+**Alternative considered and rejected:** Remove foreign keys, make appointments point to assessments
+- **Why rejected:** Introduces NEW race conditions (circular dependency), complex queries, breaking changes
+
+**Conclusion:** The nullable foreign key pattern is **intentional** and provides the best balance of:
+- Race condition elimination (original problem solved)
+- Query performance (direct FK joins)
+- Data integrity (database constraints)
+- Backward compatibility (non-breaking)
+
 ---
 
 ## Appointment Management (Jan 2025)
@@ -247,6 +309,128 @@ reschedule_reason TEXT              -- Reason for most recent reschedule
   </div>
 {/if}
 ```
+
+---
+
+## Common Sidebar Badge Mistakes
+
+### Mistake #1: Wrong Join Table for Stage (CRITICAL)
+
+**Symptoms:** Engineer has assigned work but sidebar badge shows 0
+
+**Root Cause:** Joining with table that has NULL foreign key at that stage
+
+**Example Bug (Jan 2025):**
+```typescript
+// BUG - inspection_scheduled stage joins with appointments
+.select('*, appointments!inner(engineer_id)', { count: 'exact', head: true })
+.eq('stage', 'inspection_scheduled');
+// At stage 3, appointment_id is NULL → INNER JOIN fails → returns 0
+```
+
+**Stage-Based FK Lifecycle:**
+| Stage | inspection_id | appointment_id | Correct Join |
+|-------|--------------|----------------|-------------|
+| 1-2 | NULL | NULL | N/A |
+| 3. inspection_scheduled | **SET** ✓ | NULL ❌ | **inspections** |
+| 4+ appointment_scheduled+ | SET | **SET** ✓ | **appointments** |
+
+**Fix:**
+```typescript
+// CORRECT - inspection_scheduled joins with inspections
+.select('*, inspections!inner(assigned_engineer_id)', { count: 'exact', head: true })
+.eq('stage', 'inspection_scheduled');
+```
+
+**Golden Rule:** Match JOIN TABLE to the foreign key that's SET at that stage:
+- Stage 3 → Join `inspections` (inspection_id is set)
+- Stage 4+ → Join `appointments` (appointment_id is set)
+
+### Mistake #2: Missing Stage Update in Workflow Actions
+
+**Symptoms:** Assessment doesn't appear in expected list after workflow action (e.g., "Start Assessment")
+
+**Root Cause:** Action updates related record (appointment) but forgets to update assessment stage
+
+**Example Bug (Jan 2025):**
+```typescript
+// BUG - Only updates appointment status, not assessment stage
+async function handleStartAssessment() {
+  await appointmentService.updateAppointmentStatus(id, 'in_progress');
+  goto(`/work/assessments/${id}`);
+  // Missing: Update assessment stage to 'assessment_in_progress'
+}
+```
+
+**Result:**
+- Assessment stays at `appointment_scheduled` stage
+- Still visible in Appointments list (queries stage='appointment_scheduled')
+- NOT visible in Open Assessments list (queries stage='assessment_in_progress')
+
+**Fix:**
+```typescript
+// CORRECT - Update both appointment AND assessment
+async function handleStartAssessment() {
+  // 1. Update appointment status
+  await appointmentService.updateAppointmentStatus(id, 'in_progress');
+
+  // 2. Find assessment by appointment_id
+  const assessment = await assessmentService.getAssessmentByAppointment(id);
+
+  // 3. Update assessment stage
+  if (assessment) {
+    await assessmentService.updateStage(assessment.id, 'assessment_in_progress');
+  }
+
+  // 4. Navigate
+  goto(`/work/assessments/${id}`);
+}
+```
+
+**Workflow Action Checklist:**
+- [ ] Update related record (appointment/inspection) if needed
+- [ ] **Update assessment stage** to match workflow transition
+- [ ] Verify assessment appears in correct list page
+- [ ] Log stage transition in audit_logs (automatic via service)
+
+### Debugging Badge Count Mismatches
+
+**Step 1: Check FK State in Database**
+```sql
+-- Verify which FKs are set at the stage
+SELECT
+  a.id,
+  a.stage,
+  a.inspection_id,   -- NULL or SET?
+  a.appointment_id   -- NULL or SET?
+FROM assessments a
+WHERE a.stage = 'YOUR_STAGE';
+```
+
+**Step 2: Test INNER JOIN Behavior**
+```sql
+-- Test with appointments join (will fail if appointment_id is NULL)
+SELECT COUNT(*)
+FROM assessments a
+INNER JOIN appointments ap ON a.appointment_id = ap.id
+WHERE a.stage = 'inspection_scheduled';
+-- Expected: 0 (appointment_id is NULL at this stage)
+
+-- Test with inspections join (will work if inspection_id is SET)
+SELECT COUNT(*)
+FROM assessments a
+INNER JOIN inspections i ON a.inspection_id = i.id
+WHERE a.stage = 'inspection_scheduled';
+-- Expected: 1+ (inspection_id is SET at this stage)
+```
+
+**Step 3: Fix the Badge Query**
+- Use join table that matches the SET foreign key for that stage
+- Refer to [Implementing Badge Counts SOP](./implementing_badge_counts.md) for patterns
+
+**References:**
+- [Fix Sidebar and Stage Update Bugs Task](../Tasks/active/fix_sidebar_and_stage_update_bugs.md) - Complete bug analysis
+- [Implementing Badge Counts SOP](./implementing_badge_counts.md) - Comprehensive badge count patterns
 
 ---
 
@@ -514,9 +698,11 @@ Replace status-based queries with stage-based queries across all list pages.
    .from('appointments')
    .eq('status', 'scheduled')
 
-   // NEW (assessment-centric - Phase 3, Jan 2025)
+   // NEW (assessment-centric - Updated Jan 27, 2025)
    .from('assessments')
-   .in('stage', ['appointment_scheduled', 'assessment_in_progress'])
+   .eq('stage', 'appointment_scheduled')
+   // Note: Only show scheduled appointments. Once "Start Assessment" is clicked,
+   // stage changes to 'assessment_in_progress' and assessment moves to Open Assessments page
    ```
 
 4. **Open Assessments Page** (`/work/assessments`)

@@ -21,7 +21,10 @@
       "Bash(grep:*)",
       "Bash(npm run check:*)",
       "Bash(npx svelte-kit:*)",
-      "Bash(cat:*)"
+      "Bash(cat:*)",
+      "Bash(npx supabase:*)",
+      "Bash(npx tsx:*)",
+      "Bash(wc:*)"
     ],
     "deny": [],
     "ask": []

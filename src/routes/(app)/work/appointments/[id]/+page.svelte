@@ -47,13 +47,31 @@
 	}
 
 	async function handleStartAssessment() {
-		// Update appointment status to in_progress and navigate to assessment
+		// Update appointment status and assessment stage, then navigate
 		loading = true;
 		error = null;
 
 		try {
+			// Step 1: Update appointment status to in_progress
 			await appointmentService.updateAppointmentStatus(data.appointment.id, 'in_progress');
-			// Navigate to assessment page
+
+			// Step 2: Find assessment by appointment_id
+			const assessment = await assessmentService.getAssessmentByAppointment(
+				data.appointment.id
+			);
+
+			// Step 3: Update assessment stage to assessment_in_progress
+			if (assessment) {
+				await assessmentService.updateStage(
+					assessment.id,
+					'assessment_in_progress'
+				);
+			} else {
+				console.error('No assessment found for appointment:', data.appointment.id);
+				throw new Error('Assessment not found for this appointment');
+			}
+
+			// Step 4: Navigate to assessment page
 			goto(`/work/assessments/${data.appointment.id}`);
 		} catch (err) {
 			console.error('Error starting assessment:', err);

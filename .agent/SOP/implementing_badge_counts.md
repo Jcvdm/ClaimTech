@@ -373,6 +373,70 @@ WHERE ap.engineer_id = 'YOUR_ENGINEER_ID'
 **Diagnosis:** Count query failed, not handling error properly
 **Fix:** Always wrap in try/catch and set to 0 on error (see pattern above)
 
+### REAL BUG EXAMPLE: Engineer Shows Zero Assigned Work (Jan 2025)
+
+**Symptoms:** Engineer has 6 inspections assigned but sidebar badge shows 0
+
+**Root Cause:** Sidebar joins with WRONG TABLE for the stage
+```typescript
+// BUG - Wrong join table for inspection_scheduled stage
+.select('*, appointments!inner(engineer_id)', { count: 'exact', head: true })
+.eq('stage', 'inspection_scheduled');
+// At stage 3 (inspection_scheduled), appointment_id is NULL
+// INNER JOIN with appointments fails → returns 0
+```
+
+**Stage-Based FK Lifecycle:**
+| Stage | inspection_id | appointment_id | Correct Join Table |
+|-------|--------------|----------------|-------------------|
+| 1-2. request_submitted/reviewed | NULL | NULL | N/A (no engineer yet) |
+| 3. inspection_scheduled | **SET** ✓ | NULL ❌ | **inspections** |
+| 4. appointment_scheduled | SET | **SET** ✓ | **appointments** |
+| 5+ assessment_in_progress+ | SET | SET | **appointments** |
+
+**Fix:**
+```typescript
+// CORRECT - Join with inspections table for stage 3
+.select('*, inspections!inner(assigned_engineer_id)', { count: 'exact', head: true })
+.eq('stage', 'inspection_scheduled');
+if (role === 'engineer' && engineer_id) {
+  query = query.eq('inspections.assigned_engineer_id', engineer_id);
+}
+```
+
+**Key Lesson:** Match your JOIN TABLE to the foreign key that's actually SET at that stage:
+- Stage 3 (`inspection_scheduled`) → Join `inspections` (inspection_id is set)
+- Stage 4+ (`appointment_scheduled`+) → Join `appointments` (appointment_id is set)
+
+**Database Verification:**
+```sql
+-- Verify FK state at inspection_scheduled stage
+SELECT
+  a.id,
+  a.stage,
+  a.inspection_id,  -- Should be SET
+  a.appointment_id  -- Should be NULL
+FROM assessments a
+WHERE a.stage = 'inspection_scheduled';
+
+-- Test INNER JOIN behavior with NULL FK
+SELECT COUNT(*)
+FROM assessments a
+INNER JOIN appointments ap ON a.appointment_id = ap.id  -- FAILS when NULL
+WHERE a.stage = 'inspection_scheduled';
+-- Returns: 0 (incorrect - should return count of inspections)
+
+SELECT COUNT(*)
+FROM assessments a
+INNER JOIN inspections i ON a.inspection_id = i.id  -- WORKS
+WHERE a.stage = 'inspection_scheduled';
+-- Returns: 1+ (correct - returns actual inspection count)
+```
+
+**References:**
+- [Fix Sidebar and Stage Update Bugs Task](../Tasks/active/fix_sidebar_and_stage_update_bugs.md)
+- [Working with Assessment-Centric Architecture](./working_with_assessment_centric_architecture.md#design-rationale)
+
 ---
 
 ## Related Changes

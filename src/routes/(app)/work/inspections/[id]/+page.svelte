@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
+	import { page } from '$app/stores';
 	import PageHeader from '$lib/components/layout/PageHeader.svelte';
 	import StatusBadge from '$lib/components/data/StatusBadge.svelte';
 	import ActivityTimeline from '$lib/components/data/ActivityTimeline.svelte';
@@ -34,11 +35,42 @@
 	import { inspectionService } from '$lib/services/inspection.service';
 	import { requestService } from '$lib/services/request.service';
 	import { appointmentService } from '$lib/services/appointment.service';
+	import { assessmentService } from '$lib/services/assessment.service';
 	import type { PageData } from './$types';
 	import { formatDateLong as formatDate } from '$lib/utils/formatters';
 	import type { AppointmentType } from '$lib/types/appointment';
 
 	let { data }: { data: PageData } = $props();
+
+	// ASSESSMENT-CENTRIC ARCHITECTURE: Create helper variables for backward compatibility
+	// The page now receives data.assessment and data.inspection (inspection may be null)
+	// We create a virtual "inspection" object that merges data from both sources
+	const inspection = $derived({
+		// Use inspection data if available, otherwise fall back to request/assessment data
+		id: data.inspection?.id || data.assessment.id,
+		inspection_number: data.inspection?.inspection_number || data.assessment.assessment_number,
+		request_number: data.request?.request_number || '',
+		request_id: data.assessment.request_id,
+		client_id: data.request?.client_id || '',
+		claim_number: data.request?.claim_number || null,
+		type: data.request?.type || 'private',
+		notes: data.inspection?.notes || data.request?.notes || null,
+		inspection_location: data.inspection?.inspection_location || null,
+		status: data.inspection?.status || data.assessment.status,
+		assigned_engineer_id: data.inspection?.assigned_engineer_id || data.request?.assigned_engineer_id || null,
+		vehicle_province: data.inspection?.vehicle_province || data.request?.vehicle_province || null,
+		vehicle_make: data.inspection?.vehicle_make || data.request?.vehicle_make || null,
+		vehicle_model: data.inspection?.vehicle_model || data.request?.vehicle_model || null,
+		vehicle_year: data.inspection?.vehicle_year || data.request?.vehicle_year || null,
+		vehicle_color: data.inspection?.vehicle_color || data.request?.vehicle_color || null,
+		vehicle_registration: data.inspection?.vehicle_registration || data.request?.vehicle_registration || null,
+		vehicle_mileage: data.inspection?.vehicle_mileage || data.request?.vehicle_mileage || null,
+		vehicle_vin: data.inspection?.vehicle_vin || data.request?.vehicle_vin || null,
+		created_at: data.assessment.created_at,
+		updated_at: data.assessment.updated_at,
+		accepted_at: data.inspection?.accepted_at || null,
+		scheduled_date: data.inspection?.scheduled_date || null
+	});
 
 	let showAppointmentModal = $state(false);
 	let selectedEngineerId = $state('');
@@ -76,15 +108,32 @@
 		error = null;
 
 		try {
-			// Cancel inspection
-			await inspectionService.updateInspectionStatus(data.inspection.id, 'cancelled');
+			// Cancel inspection (if exists)
+			if (data.inspection) {
+				await inspectionService.updateInspectionStatus(data.inspection.id, 'cancelled');
+			}
 
 			// Revert request status back to submitted
-			await requestService.updateRequest(data.inspection.request_id, {
+			await requestService.updateRequest(data.assessment.request_id, {
 				status: 'submitted',
 				current_step: 'request',
 				assigned_engineer_id: null
 			});
+
+			// CRITICAL: Clear foreign keys BEFORE stage transition (follows check constraint)
+			// Stage 1 (request_submitted) requires appointment_id and inspection_id to be NULL
+			await assessmentService.updateAssessment(
+				data.assessment.id,
+				{ appointment_id: null, inspection_id: null },
+				$page.data.supabase
+			);
+
+			// NOW safe to update assessment stage (constraint satisfied)
+			await assessmentService.updateStage(
+				data.assessment.id,
+				'request_submitted',
+				$page.data.supabase
+			);
 
 			// Navigate back to inspections list (data will be fresh on next page)
 			goto('/work/inspections');
@@ -105,14 +154,23 @@
 		error = null;
 
 		try {
-			// Reactivate inspection to pending status
-			await inspectionService.updateInspectionStatus(data.inspection.id, 'pending');
+			// Reactivate inspection to pending status (if exists)
+			if (data.inspection) {
+				await inspectionService.updateInspectionStatus(data.inspection.id, 'pending');
+			}
 
 			// Update request status back to in_progress
-			await requestService.updateRequest(data.inspection.request_id, {
+			await requestService.updateRequest(data.assessment.request_id, {
 				status: 'in_progress',
 				current_step: 'assessment'
 			});
+
+			// Update assessment stage
+			await assessmentService.updateStage(
+				data.assessment.id,
+				'inspection_scheduled',
+				$page.data.supabase
+			);
 
 			// Navigate back to inspections list (data will be fresh on next page)
 			goto('/work/inspections');
@@ -141,15 +199,17 @@
 		error = null;
 
 		try {
-			// Appoint engineer to inspection
-			await inspectionService.appointEngineer(
-				data.inspection.id,
-				selectedEngineerId,
-				scheduledDate || undefined
-			);
+			// Appoint engineer to inspection (if inspection exists)
+			if (data.inspection) {
+				await inspectionService.appointEngineer(
+					data.inspection.id,
+					selectedEngineerId,
+					scheduledDate || undefined
+				);
+			}
 
 			// Update request with assigned engineer and move to assessment step
-			await requestService.updateRequest(data.inspection.request_id, {
+			await requestService.updateRequest(data.assessment.request_id, {
 				assigned_engineer_id: selectedEngineerId,
 				current_step: 'assessment'
 			});
@@ -157,8 +217,8 @@
 			showAppointmentModal = false;
 
 			// ✅ Refresh page data to show updated engineer assignment
-			// Uses invalidateAll to refetch page data (best practice from REFRESH_FIX_IMPLEMENTATION_COMPLETE.md)
-			await goto(`/work/inspections/${data.inspection.id}`, { invalidateAll: true });
+			// Uses assessment ID (assessment-centric)
+			await goto(`/work/inspections/${data.assessment.id}`, { invalidateAll: true });
 		} catch (err) {
 			console.error('Error appointing engineer:', err);
 			error = err instanceof Error ? err.message : 'Failed to appoint engineer';
@@ -179,7 +239,7 @@
 		appointmentDuration = 60;
 		locationAddress = '';
 		locationCity = '';
-		locationProvince = data.inspection.vehicle_province || '';
+		locationProvince = inspection.vehicle_province || '';
 		locationNotes = '';
 		appointmentNotes = '';
 		specialInstructions = '';
@@ -192,15 +252,33 @@
 			return;
 		}
 
+		if (!inspection.assigned_engineer_id) {
+			error = 'No engineer assigned to this inspection';
+			return;
+		}
+
+		// VALIDATION: Ensure inspection exists (not an early-stage assessment)
+		if (!data.inspection) {
+			error = 'Cannot create appointment: No inspection assigned to this assessment';
+			return;
+		}
+
+		// VALIDATION: Ensure assessment has inspection_id populated
+		if (!data.assessment.inspection_id) {
+			error = 'Data integrity error: Assessment does not have inspection_id set';
+			return;
+		}
+
 		loading = true;
 		error = null;
 
 		try {
-			await appointmentService.createAppointment({
-				inspection_id: data.inspection.id,
-				request_id: data.inspection.request_id,
-				client_id: data.inspection.client_id,
-				engineer_id: data.inspection.assigned_engineer_id!,
+			// ASSESSMENT-CENTRIC: Create appointment with validated inspection_id
+			const appointment = await appointmentService.createAppointment({
+				inspection_id: data.assessment.inspection_id, // Use assessment's FK (validated above)
+				request_id: data.assessment.request_id,
+				client_id: data.request?.client_id || '',
+				engineer_id: inspection.assigned_engineer_id,
 				appointment_type: appointmentType,
 				appointment_date: appointmentDate,
 				appointment_time: appointmentTime || undefined,
@@ -211,11 +289,30 @@
 				location_notes: appointmentType === 'in_person' ? locationNotes : undefined,
 				notes: appointmentNotes || undefined,
 				special_instructions: specialInstructions || undefined,
-				vehicle_make: data.inspection.vehicle_make || undefined,
-				vehicle_model: data.inspection.vehicle_model || undefined,
-				vehicle_year: data.inspection.vehicle_year || undefined,
-				vehicle_registration: data.inspection.vehicle_registration || undefined
+				vehicle_make: inspection.vehicle_make || undefined,
+				vehicle_model: inspection.vehicle_model || undefined,
+				vehicle_year: inspection.vehicle_year || undefined,
+				vehicle_registration: inspection.vehicle_registration || undefined
 			});
+
+			// VALIDATION: Verify appointment's inspection_id matches before linking
+			if (appointment.inspection_id !== data.assessment.inspection_id) {
+				throw new Error('Data integrity error: Appointment inspection_id mismatch');
+			}
+
+			// ASSESSMENT-CENTRIC: Link appointment directly to assessment (validated)
+			await assessmentService.updateAssessment(
+				data.assessment.id,
+				{ appointment_id: appointment.id },
+				$page.data.supabase
+			);
+
+			// Update assessment stage to appointment_scheduled
+			await assessmentService.updateStage(
+				data.assessment.id,
+				'appointment_scheduled',
+				$page.data.supabase
+			);
 
 			showCreateAppointmentModal = false;
 			// Navigate to appointments list (data will be fresh on next page)
@@ -239,7 +336,7 @@
 
 <div class="flex-1 space-y-6 p-8">
 	<PageHeader
-		title={`Inspection ${data.inspection.inspection_number}`}
+		title={`Inspection ${inspection.inspection_number}`}
 		description={data.client?.name || 'Unknown Client'}
 	>
 		{#snippet actions()}
@@ -253,7 +350,7 @@
 			</Button>
 
 			<!-- Show Cancel button for non-cancelled/non-completed inspections -->
-			{#if data.inspection.status !== 'completed' && data.inspection.status !== 'cancelled'}
+			{#if inspection.status !== 'completed' && inspection.status !== 'cancelled'}
 				<Button variant="destructive" onclick={handleCancelInspection} disabled={loading}>
 					<XCircle class="mr-2 h-4 w-4" />
 					Cancel Inspection
@@ -261,7 +358,7 @@
 			{/if}
 
 			<!-- Show Reactivate button for cancelled inspections -->
-			{#if data.inspection.status === 'cancelled'}
+			{#if inspection.status === 'cancelled'}
 				<Button variant="default" onclick={handleReactivateInspection} disabled={loading}>
 					<RotateCcw class="mr-2 h-4 w-4" />
 					Reactivate Inspection
@@ -277,48 +374,48 @@
 			<Card class="p-6">
 				<div class="mb-4 flex items-center justify-between">
 					<h3 class="text-lg font-semibold text-gray-900">Inspection Details</h3>
-					<StatusBadge status={data.inspection.status} />
+					<StatusBadge status={inspection.status} />
 				</div>
 
 				<div class="grid gap-4">
 					<div class="grid gap-4 md:grid-cols-2">
 						<div>
 							<p class="text-sm font-medium text-gray-500">Inspection Number</p>
-							<p class="mt-1 text-sm text-gray-900">{data.inspection.inspection_number}</p>
+							<p class="mt-1 text-sm text-gray-900">{inspection.inspection_number}</p>
 						</div>
 						<div>
 							<p class="text-sm font-medium text-gray-500">Request Number</p>
-							<p class="mt-1 text-sm text-gray-900">{data.inspection.request_number}</p>
+							<p class="mt-1 text-sm text-gray-900">{inspection.request_number}</p>
 						</div>
 					</div>
 
-					{#if data.inspection.claim_number}
+					{#if inspection.claim_number}
 						<div>
 							<p class="text-sm font-medium text-gray-500">Claim Number</p>
-							<p class="mt-1 text-sm text-gray-900">{data.inspection.claim_number}</p>
+							<p class="mt-1 text-sm text-gray-900">{inspection.claim_number}</p>
 						</div>
 					{/if}
 
 					<div>
 						<p class="text-sm font-medium text-gray-500">Type</p>
 						<p class="mt-1">
-							<Badge variant={data.inspection.type === 'insurance' ? 'default' : 'secondary'}>
-								{data.inspection.type === 'insurance' ? 'Insurance' : 'Private'}
+							<Badge variant={inspection.type === 'insurance' ? 'default' : 'secondary'}>
+								{inspection.type === 'insurance' ? 'Insurance' : 'Private'}
 							</Badge>
 						</p>
 					</div>
 
-					{#if data.inspection.notes}
+					{#if inspection.notes}
 						<div>
 							<p class="text-sm font-medium text-gray-500">Notes</p>
-							<p class="mt-1 text-sm text-gray-900">{data.inspection.notes}</p>
+							<p class="mt-1 text-sm text-gray-900">{inspection.notes}</p>
 						</div>
 					{/if}
 
-					{#if data.inspection.inspection_location}
+					{#if inspection.inspection_location}
 						<div>
 							<p class="text-sm font-medium text-gray-500">Inspection Location</p>
-							<p class="mt-1 text-sm text-gray-900">{data.inspection.inspection_location}</p>
+							<p class="mt-1 text-sm text-gray-900">{inspection.inspection_location}</p>
 						</div>
 					{/if}
 				</div>
@@ -388,18 +485,18 @@
 							{/if}
 						</div>
 
-						{#if data.inspection.scheduled_date}
+						{#if inspection.scheduled_date}
 							<div>
 								<p class="text-sm font-medium text-gray-500">Scheduled Date</p>
 								<p class="mt-1 text-sm text-gray-900">
-									{formatDate(data.inspection.scheduled_date)}
+									{formatDate(inspection.scheduled_date)}
 								</p>
 							</div>
 						{/if}
 					</div>
 
 					<!-- Schedule Appointment Button -->
-					{#if data.inspection.status === 'scheduled' || data.inspection.status === 'in_progress'}
+					{#if inspection.status === 'scheduled' || inspection.status === 'in_progress'}
 						<div class="mt-4 border-t pt-4 space-y-2">
 							<Button class="w-full" onclick={handleOpenCreateAppointmentModal}>
 								<Calendar class="mr-2 h-4 w-4" />
@@ -420,15 +517,15 @@
 						</div>
 					{/if}
 				</Card>
-			{:else if data.inspection.status === 'pending'}
+			{:else if inspection.status === 'pending'}
 				<!-- Appoint Engineer Card -->
 				<Card class="border-dashed border-2 border-blue-300 bg-blue-50 p-6">
 					<div class="text-center">
 						<UserPlus class="mx-auto h-12 w-12 text-blue-600" />
 						<h3 class="mt-4 text-lg font-semibold text-gray-900">Appoint an Engineer</h3>
 						<p class="mt-2 text-sm text-gray-600">
-							{#if data.inspection.vehicle_province}
-								Select an engineer from {data.inspection.vehicle_province} to conduct this inspection.
+							{#if inspection.vehicle_province}
+								Select an engineer from {inspection.vehicle_province} to conduct this inspection.
 							{:else}
 								Select an engineer to conduct this inspection.
 							{/if}
@@ -441,8 +538,8 @@
 						{:else}
 							<p class="mt-4 text-sm text-red-600">
 								No engineers available
-								{#if data.inspection.vehicle_province}
-									in {data.inspection.vehicle_province}
+								{#if inspection.vehicle_province}
+									in {inspection.vehicle_province}
 								{/if}
 							</p>
 							<Button variant="outline" class="mt-2" href="/engineers/new">
@@ -466,41 +563,41 @@
 						<div>
 							<p class="text-sm font-medium text-gray-500">Make & Model</p>
 							<p class="mt-1 text-sm text-gray-900">
-								{data.inspection.vehicle_make || '-'}
-								{data.inspection.vehicle_model || ''}
+								{inspection.vehicle_make || '-'}
+								{inspection.vehicle_model || ''}
 							</p>
 						</div>
 						<div>
 							<p class="text-sm font-medium text-gray-500">Year</p>
-							<p class="mt-1 text-sm text-gray-900">{data.inspection.vehicle_year || '-'}</p>
+							<p class="mt-1 text-sm text-gray-900">{inspection.vehicle_year || '-'}</p>
 						</div>
 					</div>
 
 					<div class="grid gap-4 md:grid-cols-3">
 						<div>
 							<p class="text-sm font-medium text-gray-500">Color</p>
-							<p class="mt-1 text-sm text-gray-900">{data.inspection.vehicle_color || '-'}</p>
+							<p class="mt-1 text-sm text-gray-900">{inspection.vehicle_color || '-'}</p>
 						</div>
 						<div>
 							<p class="text-sm font-medium text-gray-500">Registration</p>
 							<p class="mt-1 text-sm text-gray-900">
-								{data.inspection.vehicle_registration || '-'}
+								{inspection.vehicle_registration || '-'}
 							</p>
 						</div>
 						<div>
 							<p class="text-sm font-medium text-gray-500">Mileage</p>
 							<p class="mt-1 text-sm text-gray-900">
-								{data.inspection.vehicle_mileage
-									? `${data.inspection.vehicle_mileage.toLocaleString()} km`
+								{inspection.vehicle_mileage
+									? `${inspection.vehicle_mileage.toLocaleString()} km`
 									: '-'}
 							</p>
 						</div>
 					</div>
 
-					{#if data.inspection.vehicle_vin}
+					{#if inspection.vehicle_vin}
 						<div>
 							<p class="text-sm font-medium text-gray-500">VIN</p>
-							<p class="mt-1 font-mono text-xs text-gray-900">{data.inspection.vehicle_vin}</p>
+							<p class="mt-1 font-mono text-xs text-gray-900">{inspection.vehicle_vin}</p>
 						</div>
 					{/if}
 				</div>
@@ -605,25 +702,25 @@
 				<div class="space-y-3 text-sm">
 					<div>
 						<p class="font-medium text-gray-500">Created</p>
-						<p class="mt-1 text-gray-900">{formatDate(data.inspection.created_at)}</p>
+						<p class="mt-1 text-gray-900">{formatDate(inspection.created_at)}</p>
 					</div>
 
 					<div>
 						<p class="font-medium text-gray-500">Last Updated</p>
-						<p class="mt-1 text-gray-900">{formatDate(data.inspection.updated_at)}</p>
+						<p class="mt-1 text-gray-900">{formatDate(inspection.updated_at)}</p>
 					</div>
 
-					{#if data.inspection.accepted_at}
+					{#if inspection.accepted_at}
 						<div>
 							<p class="font-medium text-gray-500">Accepted</p>
-							<p class="mt-1 text-gray-900">{formatDate(data.inspection.accepted_at)}</p>
+							<p class="mt-1 text-gray-900">{formatDate(inspection.accepted_at)}</p>
 						</div>
 					{/if}
 
-					{#if data.inspection.scheduled_date}
+					{#if inspection.scheduled_date}
 						<div>
 							<p class="font-medium text-gray-500">Scheduled Date</p>
-							<p class="mt-1 text-gray-900">{formatDate(data.inspection.scheduled_date)}</p>
+							<p class="mt-1 text-gray-900">{formatDate(inspection.scheduled_date)}</p>
 						</div>
 					{/if}
 				</div>
@@ -645,8 +742,8 @@
 			<DialogTitle>Appoint Engineer</DialogTitle>
 			<DialogDescription>
 				Select an engineer to conduct this inspection
-				{#if data.inspection.vehicle_province}
-					in {data.inspection.vehicle_province}
+				{#if inspection.vehicle_province}
+					in {inspection.vehicle_province}
 				{/if}.
 			</DialogDescription>
 		</DialogHeader>

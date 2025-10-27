@@ -82,6 +82,10 @@ Setup and configuration guides for ongoing work:
   - **[Fix RLS Policies](./Tasks/active/fix_assessment_centric_rls_policies.md)** - ✅ **COMPLETED:** Fix engineer RLS policies for assessment-centric pattern (Jan 2025)
   - **[Enforce Admin-Only Creation](./Tasks/active/enforce_admin_only_assessment_creation.md)** - ✅ **COMPLETED:** Architectural enforcement - only admins create assessments (Jan 2025)
 - **[Fix Badge Count Mismatches](./Tasks/active/fix_badge_count_mismatches.md)** - ✅ **COMPLETED:** Fixed sidebar badge counts to use assessment-centric architecture (Jan 27, 2025)
+- **[Fix Sidebar and Stage Update Bugs](./Tasks/active/fix_sidebar_and_stage_update_bugs.md)** - ✅ **COMPLETED:** Fixed two critical bugs: sidebar inspection badge query and handleStartAssessment missing stage update (Jan 27, 2025)
+- **[Fix Inspection Detail & Engineer Visibility](./Tasks/active/fix_inspection_detail_and_engineer_visibility.md)** - ✅ **COMPLETED:** Fixed 500 error on inspection detail page, engineer visibility via RLS Path 4, and engineer filtering (Jan 27, 2025)
+  - **[Implementation Complete Summary](./Tasks/active/IMPLEMENTATION_COMPLETE_Jan27_2025.md)** - Complete implementation details with all 6 fixes and testing checklist
+  - **[Fix Navigation 500 Error](./Tasks/active/fix_navigation_500_error.md)** - Navigation bug fix when clicking inspections from list page
 - **[Auth Setup](./Tasks/active/AUTH_SETUP.md)** - Authentication system setup and implementation
 - **[Fix Service Client Injection](./Tasks/active/fix_service_client_injection.md)** - 🔴 **IN PROGRESS:** Fix RLS authentication by adding ServiceClient parameter to all services (Jan 2025)
 - **[Fix Assessment Race Condition](./Tasks/active/fix_assessment_race_condition.md)** - ⚠️ **INCOMPLETE:** Server-side retry logic only (see fix_assessment_disappearing_race_condition.md for complete fix)
@@ -194,6 +198,55 @@ Before implementing any feature:
 
 ## 🔍 Recent Updates
 
+### Inspection Visibility & Navigation Fix - COMPLETE (January 27, 2025)
+
+Fixed **critical visibility and navigation issues** preventing engineers and admins from accessing inspections:
+
+**What was fixed:**
+- ✅ **500 ERROR FIX**: Inspection detail page converted to assessment-centric architecture
+- ✅ **ENGINEER VISIBILITY**: Added RLS policy Path 4 for inspection-based assessment access
+- ✅ **ENGINEER FILTERING**: Fixed PostgREST INNER JOIN for correct engineer assignment filtering
+- ✅ **NAVIGATION BUG**: Fixed click handler to route correctly based on appointment_id existence
+- ✅ **SECURITY**: Fixed cross-engineer access vulnerability in RLS policy
+- ✅ **VALIDATION**: Added comprehensive appointment creation validation
+
+**Root problems solved:**
+1. **Table-Centric Bug**: Inspection detail page loaded inspection first, failed when no inspection exists
+2. **RLS Gap**: Engineers couldn't see assessments at stage 3 (inspection_scheduled) via inspection assignment
+3. **Wrong Join**: List page used LEFT JOIN with appointments table, returned 0 results for engineers
+4. **Navigation Bug**: Click handler routed to wrong page when appointment_id was NULL
+5. **Security Hole**: Initial RLS policy allowed cross-engineer access
+
+**Files modified:**
+- **Server**: [src/routes/(app)/work/inspections/[id]/+page.server.ts](../../src/routes/(app)/work/inspections/[id]/+page.server.ts) - Assessment-centric load
+- **Client**: [src/routes/(app)/work/inspections/[id]/+page.svelte](../../src/routes/(app)/work/inspections/[id]/+page.svelte) - $derived helper + validation
+- **List Server**: [src/routes/(app)/work/inspections/+page.server.ts](../../src/routes/(app)/work/inspections/+page.server.ts) - INNER JOIN fix
+- **List Client**: [src/routes/(app)/work/inspections/+page.svelte](../../src/routes/(app)/work/inspections/+page.svelte) - Navigation fix (lines 102-114)
+- **Migration**: `supabase/migrations/20251027180316_add_inspection_based_assessment_access.sql` - RLS Path 4 + security fix
+
+**Impact:**
+- ✅ Admin can click ASM-2025-016 without 500 error
+- ✅ Engineer (Jakes) can see and access ASM-2025-016
+- ✅ Appointment scheduling workflow functional
+- ✅ No cross-engineer data leaks
+- ✅ Clean separation of inspection vs assessment stage navigation
+
+**Documentation:**
+- [Fix Inspection Detail & Engineer Visibility PRD](./Tasks/active/fix_inspection_detail_and_engineer_visibility.md) - Complete problem analysis
+- [Fix Navigation 500 Error Task](./Tasks/active/fix_navigation_500_error.md) - Navigation bug fix
+- [Implementation Complete Summary](./Tasks/active/IMPLEMENTATION_COMPLETE_Jan27_2025.md) - All changes and testing
+- [Working with Assessment-Centric Architecture SOP](./SOP/working_with_assessment_centric_architecture.md) - Updated patterns
+
+**Key learnings:**
+1. **Always load assessment first** - Assessment is the canonical record at all stages
+2. **Handle nullable FKs gracefully** - inspection_id and appointment_id can be NULL initially
+3. **Use $derived for backward compatibility** - Merge assessment + child record data seamlessly
+4. **RLS security requires composite checks** - Prevent cross-engineer access with conditional logic
+5. **INNER JOIN vs LEFT JOIN matters** - PostgREST `.eq('table.field')` only works with INNER JOIN
+6. **Navigation logic must check FK existence** - Route based on data state, not assumptions
+
+---
+
 ### Appointment Management Enhancement - COMPLETE (January 27, 2025)
 
 Implemented **comprehensive appointment cancellation and rescheduling** with automatic stage fallback and tracking:
@@ -256,6 +309,60 @@ await appointmentService.rescheduleAppointment(
 - ✅ Code review completed (4 issues fixed: critical date comparison, null safety, date validation, type safety)
 - ✅ Quality score: 9.5/10 (excellent)
 - ⏳ Ready for manual testing
+
+---
+
+### Sidebar Badge & Stage Update Bugs Fix - COMPLETE (January 27, 2025)
+
+Fixed **TWO CRITICAL BUGS** preventing engineers from seeing assigned work and assessments not transitioning correctly:
+
+**What was fixed:**
+- ✅ **SIDEBAR BUG**: Inspection badge query joins with wrong table (`appointments` instead of `inspections`)
+- ✅ **STAGE UPDATE BUG**: handleStartAssessment doesn't update assessment stage to `assessment_in_progress`
+- ✅ **ROOT CAUSE**: Sidebar queries not aligned with assessment-centric architecture's stage-based FK lifecycle
+- ✅ **DOCUMENTATION**: Added troubleshooting section to badge counts SOP with these specific bug examples
+
+**Bug #1: Sidebar Inspection Badge Query**
+- **Problem**: At `inspection_scheduled` stage (stage 3), `appointment_id` is NULL
+- **Error**: INNER JOIN with appointments table returns 0 count (engineer shows no assigned work)
+- **Fix**: Changed join from `appointments` to `inspections` table
+- **File**: `src/lib/components/layout/Sidebar.svelte` line 149
+
+**Bug #2: handleStartAssessment Missing Stage Update**
+- **Problem**: Updates appointment status but doesn't update assessment stage
+- **Error**: Assessment stays at `appointment_scheduled`, doesn't appear in Open Assessments list
+- **Fix**: Added assessment lookup and stage update to `assessment_in_progress`
+- **File**: `src/routes/(app)/work/appointments/[id]/+page.svelte` lines 49-81
+
+**Stage-based FK lifecycle documented:**
+| Stage | inspection_id | appointment_id | Sidebar Should Join |
+|-------|--------------|----------------|-------------------|
+| inspection_scheduled | SET ✓ | NULL ❌ | **inspections** |
+| appointment_scheduled+ | SET | SET ✓ | **appointments** |
+
+**Impact:**
+- ✅ Engineers can now see their assigned inspections in sidebar
+- ✅ Assessments properly transition from Appointments to Open Assessments after "Start Assessment"
+- ✅ Sidebar badge queries now align with assessment-centric architecture
+- ✅ Knowledge captured in SOP for future reference
+
+**Files modified:**
+- `src/lib/components/layout/Sidebar.svelte` - Fixed inspection badge join table (1 line)
+- `src/routes/(app)/work/appointments/[id]/+page.svelte` - Added assessment stage update (33 lines)
+- `.agent/SOP/implementing_badge_counts.md` - Added troubleshooting section with bug examples
+- `.agent/SOP/working_with_assessment_centric_architecture.md` - Added common sidebar badge mistakes section
+- `.agent/System/database_schema.md` - Verified FK lifecycle documentation
+
+**Documentation:**
+- [Fix Sidebar and Stage Update Bugs Task](./Tasks/active/fix_sidebar_and_stage_update_bugs.md) - Complete problem analysis and implementation
+- [Implementing Badge Counts SOP](./SOP/implementing_badge_counts.md) - Updated with troubleshooting section
+- [Working with Assessment-Centric Architecture SOP](./SOP/working_with_assessment_centric_architecture.md) - Updated with common mistakes
+
+**Testing:**
+- ✅ Database verification confirmed mismatch (INNER JOIN with NULL FK returns 0)
+- ✅ SQL query verified fix works (returns 1 inspection for engineer)
+- ✅ Type check passed (no new errors introduced)
+- ⏳ Ready for manual testing (engineer login should show correct badge count and assessment transitions)
 
 ---
 
@@ -1229,9 +1336,9 @@ This documentation aims to:
 
 ## 📊 Project Stats
 
-**As of Appointment Management Enhancement Complete (January 27, 2025):**
+**As of Inspection Visibility & Navigation Fix Complete (January 27, 2025):**
 - **28 database tables** (verified & secured against live Supabase DB)
-- **76 database migrations** (includes appointment reschedule tracking - migration 076)
+- **77 database migrations** (includes inspection-based assessment access RLS - migration 077)
 - **27+ service files** (all using ServiceClient injection pattern)
 - **40+ page routes**
 - **10+ API endpoints** (with secure JWT validation)
@@ -1242,6 +1349,7 @@ This documentation aims to:
 - **✅ Fixed RLS INSERT policies** for assessments and vehicle values (fixed Jan 2025)
 - **✅ Admin-only assessment creation** enforced (Migration 072 - Jan 2025)
 - **✅ Assessment-centric badge counts** - All 7 sidebar badges use stage-based queries (Jan 27, 2025)
+- **✅ Inspection-based RLS access** - Engineers see stage 3 assessments via inspection assignment (Migration 077 - Jan 27, 2025)
 - **40+ RLS policies** protecting all data access
 - **Private storage** with secure proxy endpoints (2 buckets: documents, SVA Photos)
 - **AI-powered development** with Claude Code Skills (3 specialized skills)
@@ -1327,8 +1435,8 @@ Official documentation for technologies used in ClaimTech:
 
 ---
 
-**Version**: 1.8.0
-**Last Updated**: January 27, 2025 (Appointment Management Enhancement - Cancellation with Fallback + Rescheduling with Tracking)
+**Version**: 1.8.1
+**Last Updated**: January 27, 2025 (Inspection Visibility & Navigation Fix - Assessment-Centric Detail Page + RLS Path 4 + Navigation Logic)
 **Maintained By**: ClaimTech Development Team
 
 ---

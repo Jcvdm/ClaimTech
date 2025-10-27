@@ -288,14 +288,45 @@ Main assessment records for vehicle inspections. **Assessment-centric architectu
 - `id` (UUID, PK)
 - `assessment_number` (TEXT, UNIQUE, NOT NULL) - Format: ASM-YYYY-NNN
 - `request_id` (UUID, FK → requests, NOT NULL, UNIQUE) - One assessment per request
-- `appointment_id` (UUID, FK → appointments, **NULL initially**) - Linked when appointment created
-- `inspection_id` (UUID, FK → inspections, **NULL initially**) - Legacy field, nullable
+- `appointment_id` (UUID, FK → appointments, **NULL initially**) - Linked when appointment created (stage 4+)
+- `inspection_id` (UUID, FK → inspections, **NULL initially**) - Linked when inspection scheduled (stage 3+)
+
+**Stage-Based Foreign Key Lifecycle:**
+
+Nullable foreign keys populate at different stages. **CRITICAL for sidebar badge queries**:
+
+| Stage | inspection_id | appointment_id | Sidebar/Query Should Join |
+|-------|--------------|----------------|--------------------------|
+| 1. request_submitted | NULL ❌ | NULL ❌ | `requests` (if engineer filtering) |
+| 2. request_reviewed | NULL ❌ | NULL ❌ | `requests` (if engineer filtering) |
+| 3. inspection_scheduled | **SET** ✓ | NULL ❌ | **`inspections`** |
+| 4. appointment_scheduled | SET ✓ | **SET** ✓ | **`appointments`** |
+| 5+ assessment_in_progress+ | SET ✓ | SET ✓ | **`appointments`** |
+
+**Common Bug:** Joining with appointments table at `inspection_scheduled` stage (stage 3) causes INNER JOIN to fail because `appointment_id` is NULL. Must join with `inspections` table instead.
+
+**Example:**
+```typescript
+// ❌ WRONG - Returns 0 at inspection_scheduled stage
+.select('*, appointments!inner(engineer_id)', { count: 'exact', head: true })
+.eq('stage', 'inspection_scheduled');
+// appointment_id is NULL → INNER JOIN fails
+
+// ✅ CORRECT - Returns actual count at inspection_scheduled stage
+.select('*, inspections!inner(assigned_engineer_id)', { count: 'exact', head: true })
+.eq('stage', 'inspection_scheduled');
+// inspection_id is SET → INNER JOIN works
+```
+
+**References:**
+- [Implementing Badge Counts SOP](../SOP/implementing_badge_counts.md) - Complete badge query patterns
+- [Working with Assessment-Centric Architecture](../SOP/working_with_assessment_centric_architecture.md#common-sidebar-badge-mistakes)
 
 **Stage-Based Pipeline (10 stages):**
 - `stage` (assessment_stage ENUM, NOT NULL, DEFAULT 'request_submitted') - Current pipeline stage
   - `request_submitted` → Initial request created (assessment created here)
   - `request_reviewed` → Admin reviewed request
-  - `inspection_scheduled` → Inspection scheduled
+  - `inspection_scheduled` → Inspection scheduled (inspection_id linked)
   - `appointment_scheduled` → Appointment created (appointment_id linked)
   - `assessment_in_progress` → Engineer started assessment
   - `estimate_review` → Estimate under review

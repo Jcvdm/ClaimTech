@@ -1,9 +1,13 @@
 # Unified Table UI Modernization
 
-**Status**: Active
+**Status**: In Progress - Critical Fixes Complete
 **Priority**: High
 **Started**: January 27, 2025
+**Last Updated**: January 27, 2025
 **Estimated Duration**: 15-22 hours
+**Time Spent**: ~6 hours
+**Completed Phases**: 0, 1, 2, 3 (partial), Critical Fixes
+**Remaining Phases**: 3 (continuation), 4, 5, 6, 7
 
 ---
 
@@ -888,11 +892,51 @@ function handleRowClick(row) {
 
 ---
 
+## Implementation Progress
+
+### Completed (January 27, 2025)
+
+#### ✅ Phase 0: Git Commit
+- Committed previous appointment enhancement work
+- Migration 076 (reschedule tracking) committed
+- Clean git state before starting UI modernization
+
+#### ✅ Phase 1: Reusable Action Components
+**Files Created**:
+- [ActionIconButton.svelte](src/lib/components/data/ActionIconButton.svelte) - Icon button with tooltips, loading states, variants
+- [ActionButtonGroup.svelte](src/lib/components/data/ActionButtonGroup.svelte) - Flex container for action icons
+- [table-helpers.ts](src/lib/utils/table-helpers.ts) - Stage variants, formatting utilities
+
+#### ✅ Phase 2: Fix Stale Data Issue
+**Files Modified**:
+- [appointments/+page.server.ts](src/routes/(app)/work/appointments/+page.server.ts) - Changed query from `.in('stage', [...])` to `.eq('stage', 'appointment_scheduled')`
+- [working_with_assessment_centric_architecture.md](../.agent/SOP/working_with_assessment_centric_architecture.md) - Updated appointments query documentation
+
+#### ✅ Phase 3: Convert Appointments Page (Partial)
+**Files Modified**:
+- [appointments/+page.svelte](src/routes/(app)/work/appointments/+page.svelte) - Converted from 746-line card layout to 627-line ModernDataTable (-119 lines)
+- Replaced large buttons with ActionIconButton components
+- Preserved overdue section, filters, reschedule modal
+
+#### ✅ Critical Fixes: Assessment Stage Flow
+**Problem**: Previously created requests/inspections missing from lists due to incorrect assessment stages
+
+**Files Modified**:
+- [assessment.ts](src/lib/types/assessment.ts) - Updated AssessmentStage type to match 10-stage pipeline
+- [requests/[id]/+page.svelte](src/routes/(app)/requests/[id]/+page.svelte) - Added stage update to `inspection_scheduled` on request accept
+- [inspections/[id]/+page.svelte](src/routes/(app)/work/inspections/[id]/+page.svelte) - Added stage update to `appointment_scheduled` on appointment creation
+- [Sidebar.svelte](src/lib/components/layout/Sidebar.svelte) - Fixed badge query to match page filter
+
+**Database Fixes**:
+- Fixed INS-2025-013 (ASM-2025-016) - Linked inspection and updated stage to `inspection_scheduled`
+
+### Remaining Work
+
 ## Implementation Order
 
-1. ✅ **Phase 0**: Git commit (15 min)
-2. **Phase 1**: ActionIconButton components (2-3 hours)
-3. **Phase 2**: Fix stale data issue (1-2 hours)
+1. ✅ **Phase 0**: Git commit (15 min) - COMPLETE
+2. ✅ **Phase 1**: ActionIconButton components (2-3 hours) - COMPLETE
+3. ✅ **Phase 2**: Fix stale data issue (1-2 hours) - COMPLETE
 4. **Phase 3**: Convert appointments page (3-4 hours)
 5. **Phase 4**: Standardize other pages (4-6 hours)
 6. **Phase 5**: Remove redundant code (2-3 hours)

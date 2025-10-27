@@ -5,9 +5,9 @@ export const load: PageServerLoad = async ({ locals, parent }) => {
 	const isEngineer = role === 'engineer';
 
 	try {
-		// Query assessments at appointment-related stages
-		// In assessment-centric model, appointments are scheduled when stage = 'appointment_scheduled'
-		// and may be in progress when stage = 'assessment_in_progress'
+		// Query assessments at appointment_scheduled stage only
+		// Once assessment starts (stage = 'assessment_in_progress'), it moves to Open Assessments page
+		// This prevents appointments from staying visible after "Start Assessment" is clicked
 		let query = locals.supabase
 			.from('assessments')
 			.select(`
@@ -21,7 +21,7 @@ export const load: PageServerLoad = async ({ locals, parent }) => {
 					engineer:engineers(*)
 				)
 			`)
-			.in('stage', ['appointment_scheduled', 'assessment_in_progress'])
+			.eq('stage', 'appointment_scheduled')
 			.order('updated_at', { ascending: false });
 
 		// Engineer filtering

@@ -101,8 +101,15 @@
 
 	function handleOpenReport() {
 		if (selectedAssessment) {
-			// Navigate to assessment detail page using appointment_id if available
-			goto(`/work/assessments/${selectedAssessment.appointment_id || selectedAssessment.id}`);
+			// Route based on appointment existence
+			// Assessments at inspection_scheduled stage don't have appointments yet
+			if (!selectedAssessment.appointment_id) {
+				// No appointment - use inspection detail page (assessment-centric)
+				goto(`/work/inspections/${selectedAssessment.id}`);
+			} else {
+				// Has appointment - use assessment detail page
+				goto(`/work/assessments/${selectedAssessment.appointment_id}`);
+			}
 		}
 	}
 
