@@ -5,6 +5,7 @@ import type {
 	UpdateVehicleValuesInput,
 	VehicleValueExtra
 } from '$lib/types/assessment';
+import type { ServiceClient } from '$lib/types/service';
 import { auditService } from './audit.service';
 import { calculateVehicleValues, type WriteOffPercentages } from '$lib/utils/vehicleValuesCalculations';
 
@@ -12,8 +13,9 @@ export class VehicleValuesService {
 	/**
 	 * Get vehicle values by assessment ID (single record per assessment)
 	 */
-	async getByAssessment(assessmentId: string): Promise<VehicleValues | null> {
-		const { data, error } = await supabase
+	async getByAssessment(assessmentId: string, client?: ServiceClient): Promise<VehicleValues | null> {
+		const db = client ?? supabase;
+		const { data, error } = await db
 			.from('assessment_vehicle_values')
 			.select('*')
 			.eq('assessment_id', assessmentId)
@@ -29,18 +31,27 @@ export class VehicleValuesService {
 
 	/**
 	 * Create default vehicle values for a new assessment
+	 * IDEMPOTENT: Checks if exists first, returns existing record if found
 	 */
-	async createDefault(assessmentId: string): Promise<VehicleValues> {
+	async createDefault(assessmentId: string, client?: ServiceClient): Promise<VehicleValues> {
+		// Check if already exists
+		const existing = await this.getByAssessment(assessmentId, client);
+		if (existing) {
+			return existing;
+		}
+
+		// Create new
 		return this.create({
 			assessment_id: assessmentId,
 			extras: []
-		});
+		}, client);
 	}
 
 	/**
 	 * Create vehicle values record with calculations
 	 */
-	async create(input: CreateVehicleValuesInput): Promise<VehicleValues> {
+	async create(input: CreateVehicleValuesInput, client?: ServiceClient): Promise<VehicleValues> {
+		const db = client ?? supabase;
 		const extras = input.extras || [];
 
 		// Initialize with zeros if no values provided
@@ -48,7 +59,7 @@ export class VehicleValuesService {
 		const market_value = input.market_value || 0;
 		const retail_value = input.retail_value || 0;
 
-		const { data, error } = await supabase
+		const { data, error } = await db
 			.from('assessment_vehicle_values')
 			.insert({
 				assessment_id: input.assessment_id,
@@ -115,10 +126,12 @@ export class VehicleValuesService {
 	async update(
 		id: string,
 		input: UpdateVehicleValuesInput,
-		writeOffPercentages: WriteOffPercentages
+		writeOffPercentages: WriteOffPercentages,
+		client?: ServiceClient
 	): Promise<VehicleValues> {
+		const db = client ?? supabase;
 		// Get current data
-		const { data: current, error: fetchError } = await supabase
+		const { data: current, error: fetchError } = await db
 			.from('assessment_vehicle_values')
 			.select('*')
 			.eq('id', id)
@@ -150,7 +163,7 @@ export class VehicleValuesService {
 		});
 
 		// Update database
-		const { data, error } = await supabase
+		const { data, error } = await db
 			.from('assessment_vehicle_values')
 			.update({
 				...input,
@@ -187,15 +200,16 @@ export class VehicleValuesService {
 	async addExtra(
 		id: string,
 		extra: VehicleValueExtra,
-		writeOffPercentages: WriteOffPercentages
+		writeOffPercentages: WriteOffPercentages,
+		client?: ServiceClient
 	): Promise<VehicleValues> {
-		const current = await this.getById(id);
+		const current = await this.getById(id, client);
 		if (!current) {
 			throw new Error('Vehicle values record not found');
 		}
 
 		const extras = [...(current.extras || []), extra];
-		return this.update(id, { extras }, writeOffPercentages);
+		return this.update(id, { extras }, writeOffPercentages, client);
 	}
 
 	/**
@@ -205,9 +219,10 @@ export class VehicleValuesService {
 		id: string,
 		extraId: string,
 		updatedExtra: Partial<VehicleValueExtra>,
-		writeOffPercentages: WriteOffPercentages
+		writeOffPercentages: WriteOffPercentages,
+		client?: ServiceClient
 	): Promise<VehicleValues> {
-		const current = await this.getById(id);
+		const current = await this.getById(id, client);
 		if (!current) {
 			throw new Error('Vehicle values record not found');
 		}
@@ -216,7 +231,7 @@ export class VehicleValuesService {
 			e.id === extraId ? { ...e, ...updatedExtra } : e
 		);
 
-		return this.update(id, { extras }, writeOffPercentages);
+		return this.update(id, { extras }, writeOffPercentages, client);
 	}
 
 	/**
@@ -225,22 +240,24 @@ export class VehicleValuesService {
 	async deleteExtra(
 		id: string,
 		extraId: string,
-		writeOffPercentages: WriteOffPercentages
+		writeOffPercentages: WriteOffPercentages,
+		client?: ServiceClient
 	): Promise<VehicleValues> {
-		const current = await this.getById(id);
+		const current = await this.getById(id, client);
 		if (!current) {
 			throw new Error('Vehicle values record not found');
 		}
 
 		const extras = (current.extras || []).filter((e) => e.id !== extraId);
-		return this.update(id, { extras }, writeOffPercentages);
+		return this.update(id, { extras }, writeOffPercentages, client);
 	}
 
 	/**
 	 * Get vehicle values by ID
 	 */
-	private async getById(id: string): Promise<VehicleValues | null> {
-		const { data, error } = await supabase
+	private async getById(id: string, client?: ServiceClient): Promise<VehicleValues | null> {
+		const db = client ?? supabase;
+		const { data, error } = await db
 			.from('assessment_vehicle_values')
 			.select('*')
 			.eq('id', id)
@@ -257,8 +274,8 @@ export class VehicleValuesService {
 	/**
 	 * Recalculate all values (useful when client write-off percentages change)
 	 */
-	async recalculate(id: string, writeOffPercentages: WriteOffPercentages): Promise<VehicleValues> {
-		return this.update(id, {}, writeOffPercentages);
+	async recalculate(id: string, writeOffPercentages: WriteOffPercentages, client?: ServiceClient): Promise<VehicleValues> {
+		return this.update(id, {}, writeOffPercentages, client);
 	}
 }
 

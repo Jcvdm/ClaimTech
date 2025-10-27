@@ -2,11 +2,11 @@ import { requestService } from '$lib/services/request.service';
 import { clientService } from '$lib/services/client.service';
 import type { PageServerLoad } from './$types';
 
-export const load: PageServerLoad = async () => {
+export const load: PageServerLoad = async ({ locals }) => {
 	try {
 		const [requests, clients] = await Promise.all([
-			requestService.listRequests(),
-			clientService.listClients(true)
+			requestService.listRequests(undefined, locals.supabase),
+			clientService.listClients(true, locals.supabase)
 		]);
 
 		// Create a map of client IDs to client names for display

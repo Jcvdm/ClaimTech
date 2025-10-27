@@ -1,11 +1,13 @@
 import type { PageServerLoad } from './$types';
-import { supabase } from '$lib/supabase';
 
-export const load: PageServerLoad = async () => {
-	// Fetch finalized assessments (status = 'submitted')
+export const load: PageServerLoad = async ({ locals, parent }) => {
+	const { role, engineer_id } = await parent();
+	const isEngineer = role === 'engineer';
+
+	// Fetch finalized assessments (stage = 'estimate_finalized')
 	// Pull vehicle data from assessment_vehicle_identification (updated during assessment)
 	// instead of requests table (original data from client submission)
-	const { data: assessments, error: assessmentsError } = await supabase
+	let query = locals.supabase
 		.from('assessments')
 		.select(
 			`
@@ -17,11 +19,12 @@ export const load: PageServerLoad = async () => {
 				registration_number,
 				vin_number
 			),
-			appointment:appointments(
+			appointment:appointments!inner(
 				id,
 				appointment_number,
 				appointment_date,
 				appointment_time,
+				engineer_id,
 				inspection:inspections(
 					id,
 					inspection_number,
@@ -38,8 +41,16 @@ export const load: PageServerLoad = async () => {
 			)
 		`
 		)
-		.eq('status', 'submitted')
-		.order('estimate_finalized_at', { ascending: false });
+		.eq('stage', 'estimate_finalized');
+
+	// Engineers only see their own finalized assessments
+	if (isEngineer && engineer_id) {
+		query = query.eq('appointment.engineer_id', engineer_id);
+	}
+
+	query = query.order('estimate_finalized_at', { ascending: false });
+
+	const { data: assessments, error: assessmentsError } = await query;
 
 	if (assessmentsError) {
 		console.error('Error fetching finalized assessments:', assessmentsError);

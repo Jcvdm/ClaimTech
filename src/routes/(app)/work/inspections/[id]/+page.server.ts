@@ -7,24 +7,24 @@ import { appointmentService } from '$lib/services/appointment.service';
 import { error } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 
-export const load: PageServerLoad = async ({ params }) => {
+export const load: PageServerLoad = async ({ params, locals }) => {
 	try {
-		const inspection = await inspectionService.getInspection(params.id);
+		const inspection = await inspectionService.getInspection(params.id, locals.supabase);
 
 		if (!inspection) {
 			throw error(404, 'Inspection not found');
 		}
 
 		const [client, request, auditLogs] = await Promise.all([
-			clientService.getClient(inspection.client_id),
-			requestService.getRequest(inspection.request_id),
-			auditService.getEntityHistory('inspection', params.id)
+			clientService.getClient(inspection.client_id, locals.supabase),
+			requestService.getRequest(inspection.request_id, locals.supabase),
+			auditService.getEntityHistory('inspection', params.id, locals.supabase)
 		]);
 
 		// Load assigned engineer if exists
 		let assignedEngineer = null;
 		if (inspection.assigned_engineer_id) {
-			assignedEngineer = await engineerService.getEngineer(inspection.assigned_engineer_id);
+			assignedEngineer = await engineerService.getEngineer(inspection.assigned_engineer_id, locals.supabase);
 		}
 
 		// Load available engineers filtered by province
@@ -32,14 +32,15 @@ export const load: PageServerLoad = async ({ params }) => {
 		if (inspection.vehicle_province) {
 			availableEngineers = await engineerService.listEngineersByProvince(
 				inspection.vehicle_province,
-				true
+				true,
+				locals.supabase
 			);
 		}
 
 		// Load appointment for this inspection (if exists)
 		const appointments = await appointmentService.listAppointments({
 			inspection_id: params.id
-		});
+		}, locals.supabase);
 		const appointment = appointments.length > 0 ? appointments[0] : null;
 
 		return {

@@ -1,9 +1,16 @@
 import type { PageServerLoad } from './$types';
 import { frcService } from '$lib/services/frc.service';
 
-export const load: PageServerLoad = async () => {
+export const load: PageServerLoad = async ({ locals, parent }) => {
+	const { role, engineer_id } = await parent();
+	const isEngineer = role === 'engineer';
+
 	try {
-		const frcRecords = await frcService.listFRC();
+		// Engineers only see their own FRC records
+		const frcRecords = await frcService.listFRC(
+			isEngineer && engineer_id ? { engineer_id } : undefined,
+			locals.supabase
+		);
 
 		return {
 			frcRecords

@@ -6,13 +6,13 @@ import { auditService } from '$lib/services/audit.service';
 import { error } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 
-export const load: PageServerLoad = async ({ params }) => {
+export const load: PageServerLoad = async ({ params, locals }) => {
 	try {
 		const [request, tasks, engineers, auditLogs] = await Promise.all([
-			requestService.getRequest(params.id),
-			taskService.listTasksForRequest(params.id),
-			engineerService.listEngineers(true),
-			auditService.getEntityHistory('request', params.id)
+			requestService.getRequest(params.id, locals.supabase),
+			taskService.listTasksForRequest(params.id, locals.supabase),
+			engineerService.listEngineers(true, locals.supabase),
+			auditService.getEntityHistory('request', params.id, locals.supabase)
 		]);
 
 		if (!request) {
@@ -20,7 +20,7 @@ export const load: PageServerLoad = async ({ params }) => {
 		}
 
 		// Get client details
-		const client = await clientService.getClient(request.client_id);
+		const client = await clientService.getClient(request.client_id, locals.supabase);
 
 		return {
 			request,

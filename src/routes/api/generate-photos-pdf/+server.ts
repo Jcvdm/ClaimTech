@@ -1,11 +1,48 @@
 import { error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { supabase } from '$lib/supabase';
 import { generatePDF } from '$lib/utils/pdf-generator';
 import { generatePhotosHTML } from '$lib/templates/photos-template';
 import { createStreamingResponse } from '$lib/utils/streaming-response';
 
-export const POST: RequestHandler = async ({ request }) => {
+/**
+ * Helper function to convert proxy URL to data URL for Puppeteer
+ * Puppeteer running on server cannot access browser-relative URLs like /api/photo/...
+ * So we fetch directly from Supabase and convert to base64 data URL
+ */
+async function convertProxyUrlToDataUrl(proxyUrl: string | null, locals: any): Promise<string> {
+	if (!proxyUrl) return '';
+
+	try {
+		// Extract path from proxy URL
+		// "/api/photo/assessments/..." → "assessments/..."
+		const path = proxyUrl.replace('/api/photo/', '');
+
+		// Fetch from Supabase storage
+		const { data: photoBlob, error: downloadError } = await locals.supabase.storage
+			.from('SVA Photos')
+			.download(path);
+
+		if (downloadError || !photoBlob) {
+			console.warn(`Failed to fetch photo: ${path}`, downloadError);
+			return '';
+		}
+
+		// Convert blob to data URL
+		const arrayBuffer = await photoBlob.arrayBuffer();
+		const base64 = Buffer.from(arrayBuffer).toString('base64');
+
+		// Determine content type from file extension
+		const extension = path.split('.').pop()?.toLowerCase() || 'jpg';
+		const contentType = extension === 'png' ? 'image/png' : 'image/jpeg';
+
+		return `data:${contentType};base64,${base64}`;
+	} catch (err) {
+		console.error('Error converting proxy URL to data URL:', err);
+		return '';
+	}
+}
+
+export const POST: RequestHandler = async ({ request, locals }) => {
 	const body = await request.json();
 	const assessmentId = body.assessmentId;
 
@@ -18,7 +55,7 @@ export const POST: RequestHandler = async ({ request }) => {
 			yield { status: 'processing', progress: 5, message: 'Fetching assessment data...' };
 
 			// Fetch assessment data
-			const { data: assessment, error: assessmentError } = await supabase
+			const { data: assessment, error: assessmentError } = await locals.supabase
 				.from('assessments')
 				.select('*')
 				.eq('id', assessmentId)
@@ -37,8 +74,8 @@ export const POST: RequestHandler = async ({ request }) => {
 
 			// First get the estimates to get their IDs
 			const [{ data: estimate }, { data: preIncidentEstimate }] = await Promise.all([
-				supabase.from('assessment_estimates').select('id').eq('assessment_id', assessmentId).single(),
-				supabase.from('pre_incident_estimates').select('id').eq('assessment_id', assessmentId).single()
+				locals.supabase.from('assessment_estimates').select('id').eq('assessment_id', assessmentId).single(),
+				locals.supabase.from('pre_incident_estimates').select('id').eq('assessment_id', assessmentId).single()
 			]);
 
 			yield { status: 'processing', progress: 25, message: 'Collecting all photos...' };
@@ -53,33 +90,33 @@ export const POST: RequestHandler = async ({ request }) => {
 			{ data: companySettings },
 			{ data: tyres }
 		] = await Promise.all([
-			supabase
+			locals.supabase
 				.from('assessment_vehicle_identification')
 				.select('*')
 				.eq('assessment_id', assessmentId)
 				.single(),
-			supabase.from('assessment_360_exterior').select('*').eq('assessment_id', assessmentId).single(),
-			supabase
+			locals.supabase.from('assessment_360_exterior').select('*').eq('assessment_id', assessmentId).single(),
+			locals.supabase
 				.from('assessment_interior_mechanical')
 				.select('*')
 				.eq('assessment_id', assessmentId)
 				.single(),
 			estimate?.id
-				? supabase
+				? locals.supabase
 						.from('estimate_photos')
 						.select('*')
 						.eq('estimate_id', estimate.id)
 						.order('created_at', { ascending: true })
 				: Promise.resolve({ data: [] }),
 			preIncidentEstimate?.id
-				? supabase
+				? locals.supabase
 						.from('pre_incident_estimate_photos')
 						.select('*')
 						.eq('estimate_id', preIncidentEstimate.id)
 						.order('created_at', { ascending: true })
 				: Promise.resolve({ data: [] }),
-			supabase.from('company_settings').select('*').single(),
-			supabase
+			locals.supabase.from('company_settings').select('*').single(),
+			locals.supabase
 				.from('assessment_tyres')
 				.select('*')
 				.eq('assessment_id', assessmentId)
@@ -89,25 +126,36 @@ export const POST: RequestHandler = async ({ request }) => {
 		// Organize photos into sections
 		const sections = [];
 
+		yield { status: 'processing', progress: 30, message: 'Converting photos to embeddable format...' };
+
 		// Vehicle Identification Photos
 		const identificationPhotos = [];
 		if (vehicleIdentification?.vin_photo_url) {
-			identificationPhotos.push({
-				url: vehicleIdentification.vin_photo_url,
-				caption: 'VIN Number'
-			});
+			const dataUrl = await convertProxyUrlToDataUrl(vehicleIdentification.vin_photo_url, locals);
+			if (dataUrl) {
+				identificationPhotos.push({
+					url: dataUrl,
+					caption: 'VIN Number'
+				});
+			}
 		}
 		if (vehicleIdentification?.registration_photo_url) {
-			identificationPhotos.push({
-				url: vehicleIdentification.registration_photo_url,
-				caption: 'Registration Document'
-			});
+			const dataUrl = await convertProxyUrlToDataUrl(vehicleIdentification.registration_photo_url, locals);
+			if (dataUrl) {
+				identificationPhotos.push({
+					url: dataUrl,
+					caption: 'Registration Document'
+				});
+			}
 		}
 		if (vehicleIdentification?.odometer_photo_url) {
-			identificationPhotos.push({
-				url: vehicleIdentification.odometer_photo_url,
-				caption: 'Odometer Reading'
-			});
+			const dataUrl = await convertProxyUrlToDataUrl(vehicleIdentification.odometer_photo_url, locals);
+			if (dataUrl) {
+				identificationPhotos.push({
+					url: dataUrl,
+					caption: 'Odometer Reading'
+				});
+			}
 		}
 		if (identificationPhotos.length > 0) {
 			sections.push({
@@ -119,37 +167,51 @@ export const POST: RequestHandler = async ({ request }) => {
 		// Exterior 360 Photos
 		const exteriorPhotos = [];
 		if (exterior360?.front_photo_url) {
-			exteriorPhotos.push({ url: exterior360.front_photo_url, caption: 'Front View' });
+			const dataUrl = await convertProxyUrlToDataUrl(exterior360.front_photo_url, locals);
+			if (dataUrl) exteriorPhotos.push({ url: dataUrl, caption: 'Front View' });
 		}
 		if (exterior360?.rear_photo_url) {
-			exteriorPhotos.push({ url: exterior360.rear_photo_url, caption: 'Rear View' });
+			const dataUrl = await convertProxyUrlToDataUrl(exterior360.rear_photo_url, locals);
+			if (dataUrl) exteriorPhotos.push({ url: dataUrl, caption: 'Rear View' });
 		}
 		if (exterior360?.left_side_photo_url) {
-			exteriorPhotos.push({ url: exterior360.left_side_photo_url, caption: 'Left Side View' });
+			const dataUrl = await convertProxyUrlToDataUrl(exterior360.left_side_photo_url, locals);
+			if (dataUrl) exteriorPhotos.push({ url: dataUrl, caption: 'Left Side View' });
 		}
 		if (exterior360?.right_side_photo_url) {
-			exteriorPhotos.push({ url: exterior360.right_side_photo_url, caption: 'Right Side View' });
+			const dataUrl = await convertProxyUrlToDataUrl(exterior360.right_side_photo_url, locals);
+			if (dataUrl) exteriorPhotos.push({ url: dataUrl, caption: 'Right Side View' });
 		}
 		if (exterior360?.front_left_photo_url) {
-			exteriorPhotos.push({
-				url: exterior360.front_left_photo_url,
-				caption: 'Front Left Corner'
-			});
+			const dataUrl = await convertProxyUrlToDataUrl(exterior360.front_left_photo_url, locals);
+			if (dataUrl) {
+				exteriorPhotos.push({
+					url: dataUrl,
+					caption: 'Front Left Corner'
+				});
+			}
 		}
 		if (exterior360?.front_right_photo_url) {
-			exteriorPhotos.push({
-				url: exterior360.front_right_photo_url,
-				caption: 'Front Right Corner'
-			});
+			const dataUrl = await convertProxyUrlToDataUrl(exterior360.front_right_photo_url, locals);
+			if (dataUrl) {
+				exteriorPhotos.push({
+					url: dataUrl,
+					caption: 'Front Right Corner'
+				});
+			}
 		}
 		if (exterior360?.rear_left_photo_url) {
-			exteriorPhotos.push({ url: exterior360.rear_left_photo_url, caption: 'Rear Left Corner' });
+			const dataUrl = await convertProxyUrlToDataUrl(exterior360.rear_left_photo_url, locals);
+			if (dataUrl) exteriorPhotos.push({ url: dataUrl, caption: 'Rear Left Corner' });
 		}
 		if (exterior360?.rear_right_photo_url) {
-			exteriorPhotos.push({
-				url: exterior360.rear_right_photo_url,
-				caption: 'Rear Right Corner'
-			});
+			const dataUrl = await convertProxyUrlToDataUrl(exterior360.rear_right_photo_url, locals);
+			if (dataUrl) {
+				exteriorPhotos.push({
+					url: dataUrl,
+					caption: 'Rear Right Corner'
+				});
+			}
 		}
 		if (exteriorPhotos.length > 0) {
 			sections.push({
@@ -161,34 +223,49 @@ export const POST: RequestHandler = async ({ request }) => {
 		// Interior & Mechanical Photos
 		const interiorPhotos = [];
 		if (interiorMechanical?.dashboard_photo_url) {
-			interiorPhotos.push({
-				url: interiorMechanical.dashboard_photo_url,
-				caption: 'Dashboard'
-			});
+			const dataUrl = await convertProxyUrlToDataUrl(interiorMechanical.dashboard_photo_url, locals);
+			if (dataUrl) {
+				interiorPhotos.push({
+					url: dataUrl,
+					caption: 'Dashboard'
+				});
+			}
 		}
 		if (interiorMechanical?.front_seats_photo_url) {
-			interiorPhotos.push({
-				url: interiorMechanical.front_seats_photo_url,
-				caption: 'Front Seats'
-			});
+			const dataUrl = await convertProxyUrlToDataUrl(interiorMechanical.front_seats_photo_url, locals);
+			if (dataUrl) {
+				interiorPhotos.push({
+					url: dataUrl,
+					caption: 'Front Seats'
+				});
+			}
 		}
 		if (interiorMechanical?.rear_seats_photo_url) {
-			interiorPhotos.push({
-				url: interiorMechanical.rear_seats_photo_url,
-				caption: 'Rear Seats'
-			});
+			const dataUrl = await convertProxyUrlToDataUrl(interiorMechanical.rear_seats_photo_url, locals);
+			if (dataUrl) {
+				interiorPhotos.push({
+					url: dataUrl,
+					caption: 'Rear Seats'
+				});
+			}
 		}
 		if (interiorMechanical?.gear_lever_photo_url) {
-			interiorPhotos.push({
-				url: interiorMechanical.gear_lever_photo_url,
-				caption: 'Gear Lever'
-			});
+			const dataUrl = await convertProxyUrlToDataUrl(interiorMechanical.gear_lever_photo_url, locals);
+			if (dataUrl) {
+				interiorPhotos.push({
+					url: dataUrl,
+					caption: 'Gear Lever'
+				});
+			}
 		}
 		if (interiorMechanical?.engine_bay_photo_url) {
-			interiorPhotos.push({
-				url: interiorMechanical.engine_bay_photo_url,
-				caption: 'Engine Bay'
-			});
+			const dataUrl = await convertProxyUrlToDataUrl(interiorMechanical.engine_bay_photo_url, locals);
+			if (dataUrl) {
+				interiorPhotos.push({
+					url: dataUrl,
+					caption: 'Engine Bay'
+				});
+			}
 		}
 		if (interiorPhotos.length > 0) {
 			sections.push({
@@ -200,7 +277,8 @@ export const POST: RequestHandler = async ({ request }) => {
 		// Tire & Rim Photos
 		if (tyres && tyres.length > 0) {
 			const tyrePhotos = [];
-			tyres.forEach((tyre: any) => {
+
+			for (const tyre of tyres) {
 				console.log('Processing tyre:', {
 					position: tyre.position,
 					position_label: tyre.position_label,
@@ -217,24 +295,33 @@ export const POST: RequestHandler = async ({ request }) => {
 				const treadDepth = tyre.tread_depth_mm ? `${tyre.tread_depth_mm}mm` : '';
 
 				if (tyre.face_photo_url) {
-					tyrePhotos.push({
-						url: tyre.face_photo_url,
-						caption: `${positionLabel} - Face View - ${tyreInfo} - ${condition} ${treadDepth}`.trim()
-					});
+					const dataUrl = await convertProxyUrlToDataUrl(tyre.face_photo_url, locals);
+					if (dataUrl) {
+						tyrePhotos.push({
+							url: dataUrl,
+							caption: `${positionLabel} - Face View - ${tyreInfo} - ${condition} ${treadDepth}`.trim()
+						});
+					}
 				}
 				if (tyre.tread_photo_url) {
-					tyrePhotos.push({
-						url: tyre.tread_photo_url,
-						caption: `${positionLabel} - Tread View - ${tyreInfo} - ${condition} ${treadDepth}`.trim()
-					});
+					const dataUrl = await convertProxyUrlToDataUrl(tyre.tread_photo_url, locals);
+					if (dataUrl) {
+						tyrePhotos.push({
+							url: dataUrl,
+							caption: `${positionLabel} - Tread View - ${tyreInfo} - ${condition} ${treadDepth}`.trim()
+						});
+					}
 				}
 				if (tyre.measurement_photo_url) {
-					tyrePhotos.push({
-						url: tyre.measurement_photo_url,
-						caption: `${positionLabel} - Measurement - ${tyreInfo} - ${condition} ${treadDepth}`.trim()
-					});
+					const dataUrl = await convertProxyUrlToDataUrl(tyre.measurement_photo_url, locals);
+					if (dataUrl) {
+						tyrePhotos.push({
+							url: dataUrl,
+							caption: `${positionLabel} - Measurement - ${tyreInfo} - ${condition} ${treadDepth}`.trim()
+						});
+					}
 				}
-			});
+			}
 
 			console.log('Total tyre photos collected:', tyrePhotos.length);
 
@@ -254,24 +341,42 @@ export const POST: RequestHandler = async ({ request }) => {
 
 		// Damage Photos (from estimate)
 		if (estimatePhotos && estimatePhotos.length > 0) {
-			sections.push({
-				title: 'Damage Documentation',
-				photos: estimatePhotos.map((photo: any) => ({
-					url: photo.photo_url,
-					caption: photo.description || 'Damage Photo'
-				}))
-			});
+			const damagePhotos = [];
+			for (const photo of estimatePhotos) {
+				const dataUrl = await convertProxyUrlToDataUrl(photo.photo_url, locals);
+				if (dataUrl) {
+					damagePhotos.push({
+						url: dataUrl,
+						caption: photo.description || 'Damage Photo'
+					});
+				}
+			}
+			if (damagePhotos.length > 0) {
+				sections.push({
+					title: 'Damage Documentation',
+					photos: damagePhotos
+				});
+			}
 		}
 
 		// Pre-Incident Photos
 		if (preIncidentPhotos && preIncidentPhotos.length > 0) {
-			sections.push({
-				title: 'Pre-Incident Condition',
-				photos: preIncidentPhotos.map((photo: any) => ({
-					url: photo.photo_url,
-					caption: photo.description || 'Pre-Incident Photo'
-				}))
-			});
+			const preIncidentPhotosList = [];
+			for (const photo of preIncidentPhotos) {
+				const dataUrl = await convertProxyUrlToDataUrl(photo.photo_url, locals);
+				if (dataUrl) {
+					preIncidentPhotosList.push({
+						url: dataUrl,
+						caption: photo.description || 'Pre-Incident Photo'
+					});
+				}
+			}
+			if (preIncidentPhotosList.length > 0) {
+				sections.push({
+					title: 'Pre-Incident Condition',
+					photos: preIncidentPhotosList
+				});
+			}
 		}
 
 		// Generate HTML
@@ -310,7 +415,7 @@ export const POST: RequestHandler = async ({ request }) => {
 			// Delete previous file if it exists to avoid orphaned files
 			if (assessment.photos_pdf_path) {
 				console.log('Deleting previous photos PDF:', assessment.photos_pdf_path);
-				const { error: removeError } = await supabase.storage
+				const { error: removeError } = await locals.supabase.storage
 					.from('documents')
 					.remove([assessment.photos_pdf_path]);
 
@@ -327,7 +432,7 @@ export const POST: RequestHandler = async ({ request }) => {
 			const fileName = `${assessment.assessment_number}_Photos_${timestamp}.pdf`;
 			const filePath = `assessments/${assessmentId}/photos/${fileName}`;
 
-			const { error: uploadError } = await supabase.storage
+			const { error: uploadError } = await locals.supabase.storage
 				.from('documents')
 				.upload(filePath, pdfBuffer, {
 					contentType: 'application/pdf',
@@ -346,16 +451,14 @@ export const POST: RequestHandler = async ({ request }) => {
 
 			yield { status: 'processing', progress: 95, message: 'Finalizing...' };
 
-			// Get public URL
-			const {
-				data: { publicUrl }
-			} = supabase.storage.from('documents').getPublicUrl(filePath);
+			// Use proxy URL instead of signed URL to avoid CORS/ORB issues with private bucket
+			const proxyUrl = `/api/document/${filePath}`;
 
-			// Update assessment with PDF URL
-			const { error: updateError } = await supabase
+			// Update assessment with proxy URL
+			const { error: updateError } = await locals.supabase
 				.from('assessments')
 				.update({
-					photos_pdf_url: publicUrl,
+					photos_pdf_url: proxyUrl, // Store proxy URL (doesn't expire)
 					photos_pdf_path: filePath,
 					documents_generated_at: new Date().toISOString()
 				})
@@ -375,7 +478,7 @@ export const POST: RequestHandler = async ({ request }) => {
 				status: 'complete',
 				progress: 100,
 				message: 'Photos PDF generated successfully!',
-				url: publicUrl
+				url: proxyUrl
 			};
 
 		} catch (err) {

@@ -101,7 +101,7 @@
 									class="flex items-center gap-2 font-semibold text-gray-700 hover:text-gray-900 transition-colors"
 								>
 									{#if column.icon}
-										<svelte:component this={column.icon} class="h-4 w-4 text-blue-600" />
+										<column.icon class="h-4 w-4 text-blue-600" />
 									{/if}
 									{column.label}
 									{#if Icon}
@@ -111,7 +111,7 @@
 							{:else}
 								<div class="flex items-center gap-2">
 									{#if column.icon}
-										<svelte:component this={column.icon} class="h-4 w-4 text-blue-600" />
+										<column.icon class="h-4 w-4 text-blue-600" />
 									{/if}
 									<span class="font-semibold text-gray-700">{column.label}</span>
 								</div>

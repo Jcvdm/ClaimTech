@@ -51,7 +51,14 @@
 	});
 
 	// Use displayUrl if available (optimistic), otherwise use prop value
-	const currentPhotoUrl = $derived(displayUrl ?? value);
+	// Convert to proxy URL format for display
+	// Use $derived.by() to create a derived VALUE (not a function)
+	const currentPhotoUrl = $derived.by(() => {
+		const url = displayUrl ?? value;
+		if (!url) return null;
+		// Convert any URL format to proxy URL
+		return storageService.toPhotoProxyUrl(url);
+	});
 
 	// Modal state
 	let showModal = $state(false);
@@ -91,19 +98,36 @@
 	function handleDragEnter(event: DragEvent) {
 		event.preventDefault();
 		event.stopPropagation();
+		// Set dropEffect to 'copy' to show the correct cursor
+		if (event.dataTransfer) {
+			event.dataTransfer.dropEffect = 'copy';
+		}
 		isDragging = true;
 	}
 
 	function handleDragOver(event: DragEvent) {
 		event.preventDefault();
 		event.stopPropagation();
+		// Set dropEffect to 'copy' to show the correct cursor
+		if (event.dataTransfer) {
+			event.dataTransfer.dropEffect = 'copy';
+		}
 		isDragging = true;
 	}
 
 	function handleDragLeave(event: DragEvent) {
 		event.preventDefault();
 		event.stopPropagation();
-		isDragging = false;
+
+		// Only set isDragging to false if we're actually leaving the drop zone
+		// Check if the related target (where we're going) is NOT a child of the current target
+		const target = event.currentTarget as HTMLElement;
+		const relatedTarget = event.relatedTarget as HTMLElement | null;
+
+		// If relatedTarget is null or not contained within the drop zone, we're leaving
+		if (!relatedTarget || !target.contains(relatedTarget)) {
+			isDragging = false;
+		}
 	}
 
 	async function handleDrop(event: DragEvent) {
@@ -260,6 +284,8 @@
 		<!-- Upload Area with Drag & Drop -->
 		<div
 			class="flex gap-2"
+			role="button"
+			tabindex="0"
 			ondragenter={handleDragEnter}
 			ondragover={handleDragOver}
 			ondragleave={handleDragLeave}
@@ -271,9 +297,13 @@
 					? 'border-blue-500 bg-blue-50'
 					: 'border-gray-300 bg-gray-50 hover:bg-gray-100'} disabled:cursor-not-allowed disabled:opacity-50"
 				onclick={triggerCameraInput}
+				ondragenter={handleDragEnter}
+				ondragover={handleDragOver}
+				ondragleave={handleDragLeave}
+				ondrop={handleDrop}
 				disabled={disabled || uploading}
 			>
-				<div class="text-center">
+				<div class="text-center pointer-events-none">
 					{#if uploading}
 						<div class="space-y-2">
 							<Loader2 class="mx-auto h-8 w-8 animate-spin text-blue-500" />
@@ -304,9 +334,13 @@
 					? 'border-blue-500 bg-blue-50'
 					: 'border-gray-300 bg-gray-50 hover:bg-gray-100'} disabled:cursor-not-allowed disabled:opacity-50"
 				onclick={triggerFileInput}
+				ondragenter={handleDragEnter}
+				ondragover={handleDragOver}
+				ondragleave={handleDragLeave}
+				ondrop={handleDrop}
 				disabled={disabled || uploading}
 			>
-				<div class="text-center">
+				<div class="text-center pointer-events-none">
 					{#if uploading}
 						<div class="space-y-2">
 							<Loader2 class="mx-auto h-8 w-8 animate-spin text-blue-500" />

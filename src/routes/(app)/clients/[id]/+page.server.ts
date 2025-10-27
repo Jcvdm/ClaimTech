@@ -2,9 +2,9 @@ import { clientService } from '$lib/services/client.service';
 import { error } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 
-export const load: PageServerLoad = async ({ params }) => {
+export const load: PageServerLoad = async ({ params, locals }) => {
 	try {
-		const client = await clientService.getClient(params.id);
+		const client = await clientService.getClient(params.id, locals.supabase);
 
 		if (!client) {
 			throw error(404, 'Client not found');

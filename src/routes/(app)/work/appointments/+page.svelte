@@ -15,7 +15,8 @@
 		DialogTitle
 	} from '$lib/components/ui/dialog';
 	import { Calendar, Clock, MapPin, User, Car, AlertCircle, Play } from 'lucide-svelte';
-	import type { Appointment, AppointmentType } from '$lib/types/appointment';
+	import type { Assessment } from '$lib/types/assessment';
+	import type { AppointmentType } from '$lib/types/appointment';
 	import type { Province } from '$lib/types/engineer';
 	import { formatDateWithWeekday } from '$lib/utils/formatters';
 	import { appointmentService } from '$lib/services/appointment.service';
@@ -26,10 +27,11 @@
 	let selectedType = $state<AppointmentType | 'all'>('all');
 	let dateFilter = $state<string>(''); // Date picker value
 	let loading = $state(false);
+	let startingAssessment = $state<string | null>(null); // Track which assessment is being started
 
 	// Schedule/Reschedule modal state
 	let showScheduleModal = $state(false);
-	let selectedAppointment = $state<(typeof allAppointmentsWithDetails)[0] | null>(null);
+	let selectedAssessment = $state<(typeof allAssessmentsWithDetails)[0] | null>(null);
 	let scheduleDate = $state('');
 	let scheduleTime = $state('');
 	let scheduleDuration = $state(60);
@@ -41,8 +43,10 @@
 	let scheduleSpecialInstructions = $state('');
 	let scheduleError = $state<string | null>(null);
 
-	// Helper to check if appointment is overdue
-	function isOverdue(appointment: Appointment): boolean {
+	// Helper to check if appointment is overdue (appointment can be from nested structure)
+	function isOverdue(
+		appointment: NonNullable<Assessment['appointment']>
+	): boolean {
 		const now = new Date();
 		const appointmentDate = new Date(appointment.appointment_date);
 
@@ -58,97 +62,122 @@
 		return now > appointmentDate;
 	}
 
-	// Prepare appointment data with additional fields
-	const allAppointmentsWithDetails = $derived(
-		data.appointments.map((appointment) => {
-			const appointmentDate = new Date(appointment.appointment_date);
-			const dateKey = appointmentDate.toISOString().split('T')[0]; // YYYY-MM-DD
+	// Prepare assessment data with additional fields from nested appointment
+	const allAssessmentsWithDetails = $derived(
+		data.assessments
+			.filter((assessment) => assessment.appointment !== null) // Guard against null appointments
+			.map((assessment) => {
+				const appointment = assessment.appointment!; // Safe after filter
+				const appointmentDate = new Date(appointment.appointment_date);
+				const dateKey = appointmentDate.toISOString().split('T')[0]; // YYYY-MM-DD
 
-			return {
-				...appointment,
-				client_name: data.clientMap[appointment.client_id]?.name || 'Unknown Client',
-				engineer_name: data.engineerMap[appointment.engineer_id]?.name || 'Unknown Engineer',
-				vehicle_display:
-					`${appointment.vehicle_make || ''} ${appointment.vehicle_model || ''}`.trim() || '-',
-				type_display: appointment.appointment_type === 'in_person' ? 'In-Person' : 'Digital',
-				location_display:
-					appointment.appointment_type === 'in_person'
-						? appointment.location_city || appointment.location_address || '-'
-						: 'Digital',
-				dateKey,
-				isOverdue: isOverdue(appointment),
-				// Parse time for sorting
-				timeValue: appointment.appointment_time
-					? parseInt(appointment.appointment_time.replace(':', ''))
-					: 9999 // Put appointments without time at the end
-			};
-		})
+				return {
+					// Assessment data
+					id: assessment.id,
+					assessment_id: assessment.id,
+					assessment_number: assessment.assessment_number,
+					stage: assessment.stage,
+
+					// Appointment data
+					appointment_id: appointment.id,
+					appointment_number: appointment.appointment_number,
+					appointment_type: appointment.appointment_type,
+					appointment_date: appointment.appointment_date,
+					appointment_time: appointment.appointment_time,
+					duration_minutes: appointment.duration_minutes,
+					status: appointment.status,
+					location_address: appointment.location_address,
+					location_city: appointment.location_city,
+					location_province: appointment.location_province,
+					location_notes: appointment.location_notes,
+					notes: appointment.notes,
+					special_instructions: appointment.special_instructions,
+
+					// Derived display fields
+					client_name: assessment.request?.client?.name || 'Unknown Client',
+					engineer_name: appointment.engineer?.name || 'Unknown Engineer',
+					vehicle_display:
+						`${assessment.request?.vehicle_make || ''} ${assessment.request?.vehicle_model || ''}`.trim() ||
+						'-',
+					type_display: appointment.appointment_type === 'in_person' ? 'In-Person' : 'Digital',
+					location_display:
+						appointment.appointment_type === 'in_person'
+							? appointment.location_city || appointment.location_address || '-'
+							: 'Digital',
+					dateKey,
+					isOverdue: isOverdue(appointment),
+					// Parse time for sorting
+					timeValue: appointment.appointment_time
+						? parseInt(appointment.appointment_time.replace(':', ''))
+						: 9999 // Put appointments without time at the end
+				};
+			})
 	);
 
-	// Filter appointments by type and date
-	const filteredAppointments = $derived(
-		allAppointmentsWithDetails.filter((apt) => {
-			const typeMatch = selectedType === 'all' || apt.appointment_type === selectedType;
-			const dateMatch = !dateFilter || apt.dateKey === dateFilter;
+	// Filter assessments by type and date
+	const filteredAssessments = $derived(
+		allAssessmentsWithDetails.filter((item) => {
+			const typeMatch = selectedType === 'all' || item.appointment_type === selectedType;
+			const dateMatch = !dateFilter || item.dateKey === dateFilter;
 			return typeMatch && dateMatch;
 		})
 	);
 
-	// Separate overdue and upcoming appointments
-	const overdueAppointments = $derived(
-		filteredAppointments.filter((apt) => apt.isOverdue)
+	// Separate overdue and upcoming assessments
+	const overdueAssessments = $derived(
+		filteredAssessments.filter((item) => item.isOverdue)
 	);
 
-	const upcomingAppointments = $derived(
-		filteredAppointments.filter((apt) => !apt.isOverdue)
+	const upcomingAssessments = $derived(
+		filteredAssessments.filter((item) => !item.isOverdue)
 	);
 
-	// Group upcoming appointments by date
+	// Group upcoming assessments by date
 	const groupedByDate = $derived(() => {
-		const groups = new Map<string, typeof upcomingAppointments>();
+		const groups = new Map<string, typeof upcomingAssessments>();
 
-		upcomingAppointments.forEach((apt) => {
-			if (!groups.has(apt.dateKey)) {
-				groups.set(apt.dateKey, []);
+		upcomingAssessments.forEach((item) => {
+			if (!groups.has(item.dateKey)) {
+				groups.set(item.dateKey, []);
 			}
-			groups.get(apt.dateKey)!.push(apt);
+			groups.get(item.dateKey)!.push(item);
 		});
 
 		// Sort each group by time
-		groups.forEach((appointments) => {
-			appointments.sort((a, b) => a.timeValue - b.timeValue);
+		groups.forEach((assessments) => {
+			assessments.sort((a, b) => a.timeValue - b.timeValue);
 		});
 
 		// Convert to array and sort by date
 		return Array.from(groups.entries())
 			.sort(([dateA], [dateB]) => dateA.localeCompare(dateB))
-			.map(([dateKey, appointments]) => ({
+			.map(([dateKey, assessments]) => ({
 				dateKey,
-				dateDisplay: formatDateWithWeekday(appointments[0].appointment_date),
-				appointments
+				dateDisplay: formatDateWithWeekday(assessments[0].appointment_date),
+				assessments
 			}));
 	});
 
 	// Calculate type counts
 	const typeCounts = $derived({
-		all: filteredAppointments.length,
-		in_person: filteredAppointments.filter((a) => a.appointment_type === 'in_person').length,
-		digital: filteredAppointments.filter((a) => a.appointment_type === 'digital').length
+		all: filteredAssessments.length,
+		in_person: filteredAssessments.filter((a) => a.appointment_type === 'in_person').length,
+		digital: filteredAssessments.filter((a) => a.appointment_type === 'digital').length
 	});
 
 	// Format time display with duration
-	function formatTimeDisplay(appointment: typeof allAppointmentsWithDetails[0]): string {
-		if (!appointment.appointment_time) {
+	function formatTimeDisplay(assessment: typeof allAssessmentsWithDetails[0]): string {
+		if (!assessment.appointment_time) {
 			return 'No time set';
 		}
 
-		const [hours, minutes] = appointment.appointment_time.split(':');
+		const [hours, minutes] = assessment.appointment_time.split(':');
 		const startTime = `${hours}:${minutes}`;
 
 		// Calculate end time
 		const startDate = new Date();
 		startDate.setHours(parseInt(hours), parseInt(minutes), 0, 0);
-		const endDate = new Date(startDate.getTime() + appointment.duration_minutes * 60000);
+		const endDate = new Date(startDate.getTime() + assessment.duration_minutes * 60000);
 		const endTime = `${String(endDate.getHours()).padStart(2, '0')}:${String(endDate.getMinutes()).padStart(2, '0')}`;
 
 		return `${startTime} - ${endTime}`;
@@ -158,37 +187,46 @@
 		goto(`/work/appointments/${appointmentId}`);
 	}
 
-	async function handleStartAssessment(appointmentId: string) {
-		loading = true;
+	async function handleStartAssessment(assessmentId: string, appointmentId: string) {
+		// Prevent double-click: if already starting this assessment, ignore
+		if (startingAssessment === assessmentId) {
+			console.log('Assessment already being started, ignoring duplicate click');
+			return;
+		}
+
+		startingAssessment = assessmentId;
 		try {
-			// Update appointment status to in_progress
-			await appointmentService.updateAppointmentStatus(appointmentId, 'in_progress');
-			// Navigate to assessment page (will auto-create assessment)
+			// Navigate to assessment page using appointment_id for routing
+			// The assessment already exists, we're just starting the workflow
 			goto(`/work/assessments/${appointmentId}`);
 		} catch (error) {
 			console.error('Error starting assessment:', error);
 			alert('Failed to start assessment. Please try again.');
-			loading = false;
+		} finally {
+			// Reset after navigation delay to allow button to be clicked again if needed
+			setTimeout(() => {
+				startingAssessment = null;
+			}, 1000);
 		}
 	}
 
-	function handleOpenScheduleModal(appointment: (typeof allAppointmentsWithDetails)[0]) {
-		selectedAppointment = appointment;
-		scheduleDate = appointment.appointment_date.split('T')[0]; // Extract YYYY-MM-DD
-		scheduleTime = appointment.appointment_time || '';
-		scheduleDuration = appointment.duration_minutes;
-		scheduleLocationAddress = appointment.location_address || '';
-		scheduleLocationCity = appointment.location_city || '';
-		scheduleLocationProvince = (appointment.location_province as Province) || '';
-		scheduleLocationNotes = appointment.location_notes || '';
-		scheduleNotes = appointment.notes || '';
-		scheduleSpecialInstructions = appointment.special_instructions || '';
+	function handleOpenScheduleModal(assessment: (typeof allAssessmentsWithDetails)[0]) {
+		selectedAssessment = assessment;
+		scheduleDate = assessment.appointment_date.split('T')[0]; // Extract YYYY-MM-DD
+		scheduleTime = assessment.appointment_time || '';
+		scheduleDuration = assessment.duration_minutes;
+		scheduleLocationAddress = assessment.location_address || '';
+		scheduleLocationCity = assessment.location_city || '';
+		scheduleLocationProvince = (assessment.location_province as Province) || '';
+		scheduleLocationNotes = assessment.location_notes || '';
+		scheduleNotes = assessment.notes || '';
+		scheduleSpecialInstructions = assessment.special_instructions || '';
 		scheduleError = null;
 		showScheduleModal = true;
 	}
 
 	async function handleSaveSchedule() {
-		if (!selectedAppointment) return;
+		if (!selectedAssessment) return;
 		if (!scheduleDate) {
 			scheduleError = 'Please select an appointment date';
 			return;
@@ -208,15 +246,15 @@
 			};
 
 			// Add location fields for in-person appointments
-			if (selectedAppointment.appointment_type === 'in_person') {
+			if (selectedAssessment.appointment_type === 'in_person') {
 				updateData.location_address = scheduleLocationAddress || null;
 				updateData.location_city = scheduleLocationCity || null;
 				updateData.location_province = scheduleLocationProvince || null;
 				updateData.location_notes = scheduleLocationNotes || null;
 			}
 
-			// Update appointment
-			await appointmentService.updateAppointment(selectedAppointment.id, updateData);
+			// Update using the appointment_id from the assessment
+			await appointmentService.updateAppointment(selectedAssessment.appointment_id, updateData);
 
 			// Close modal
 			showScheduleModal = false;
@@ -289,29 +327,29 @@
 		</div>
 	</div>
 
-	{#if filteredAppointments.length === 0}
+	{#if filteredAssessments.length === 0}
 		<EmptyState
 			icon={Calendar}
 			title="No appointments found"
-			description="Appointments will appear here when scheduled from inspections"
+			description="Assessments with appointments will appear here when scheduled"
 			actionLabel="View Inspections"
 			onAction={() => goto('/work/inspections')}
 		/>
 	{:else}
 		<!-- Overdue Appointments Section -->
-		{#if overdueAppointments.length > 0}
+		{#if overdueAssessments.length > 0}
 			<div class="space-y-4">
 				<div class="flex items-center gap-2">
 					<AlertCircle class="h-5 w-5 text-red-600" />
 					<h2 class="text-lg font-semibold text-red-600">
-						Overdue ({overdueAppointments.length})
+						Overdue ({overdueAssessments.length})
 					</h2>
 				</div>
 
 				<div class="space-y-3">
-					{#each overdueAppointments as appointment}
+					{#each overdueAssessments as assessment}
 						<button
-							onclick={() => handleAppointmentClick(appointment.id)}
+							onclick={() => handleAppointmentClick(assessment.appointment_id)}
 							class="w-full rounded-lg border-2 border-red-200 bg-red-50 p-4 text-left transition-all hover:border-red-300 hover:bg-red-100 hover:shadow-md"
 						>
 							<div class="flex items-start justify-between">
@@ -319,19 +357,19 @@
 									<!-- Header Row -->
 									<div class="flex items-center gap-3">
 										<Badge
-											class={appointment.appointment_type === 'in_person'
+											class={assessment.appointment_type === 'in_person'
 												? 'bg-blue-100 text-blue-700'
 												: 'bg-purple-100 text-purple-700'}
 										>
-											{appointment.type_display}
+											{assessment.type_display}
 										</Badge>
 										<span class="font-semibold text-gray-900">
-											{appointment.appointment_number}
+											{assessment.appointment_number}
 										</span>
 										<div class="flex items-center gap-1 text-sm text-red-600">
 											<Clock class="h-4 w-4" />
 											<span class="font-medium">
-												{formatTimeDisplay(appointment)}
+												{formatTimeDisplay(assessment)}
 											</span>
 										</div>
 									</div>
@@ -340,19 +378,19 @@
 									<div class="grid gap-2 text-sm text-gray-700 sm:grid-cols-2">
 										<div class="flex items-center gap-2">
 											<User class="h-4 w-4 text-gray-400" />
-											<span>{appointment.client_name}</span>
+											<span>{assessment.client_name}</span>
 										</div>
 										<div class="flex items-center gap-2">
 											<Car class="h-4 w-4 text-gray-400" />
-											<span>{appointment.vehicle_display}</span>
+											<span>{assessment.vehicle_display}</span>
 										</div>
 										<div class="flex items-center gap-2">
 											<MapPin class="h-4 w-4 text-gray-400" />
-											<span>{appointment.location_display}</span>
+											<span>{assessment.location_display}</span>
 										</div>
 										<div class="flex items-center gap-2">
 											<User class="h-4 w-4 text-gray-400" />
-											<span class="text-gray-600">Engineer: {appointment.engineer_name}</span>
+											<span class="text-gray-600">Engineer: {assessment.engineer_name}</span>
 										</div>
 									</div>
 								</div>
@@ -365,12 +403,12 @@
 										variant="outline"
 										onclick={(e) => {
 											e.stopPropagation();
-											handleOpenScheduleModal(appointment);
+											handleOpenScheduleModal(assessment);
 										}}
 										disabled={loading}
 									>
 										<Calendar class="mr-2 h-4 w-4" />
-										{appointment.appointment_time ? 'Reschedule' : 'Schedule'}
+										{assessment.appointment_time ? 'Reschedule' : 'Schedule'}
 									</Button>
 
 									<!-- Start Assessment Button -->
@@ -378,12 +416,12 @@
 										size="sm"
 										onclick={(e) => {
 											e.stopPropagation();
-											handleStartAssessment(appointment.id);
+											handleStartAssessment(assessment.assessment_id, assessment.appointment_id);
 										}}
-										disabled={loading}
+										disabled={startingAssessment === assessment.assessment_id}
 									>
 										<Play class="mr-2 h-4 w-4" />
-										Start Assessment
+										{startingAssessment === assessment.assessment_id ? 'Starting...' : 'Start Assessment'}
 									</Button>
 								</div>
 							</div>
@@ -401,14 +439,14 @@
 					<div class="flex items-center gap-2 border-b pb-2">
 						<Calendar class="h-5 w-5 text-blue-600" />
 						<h2 class="text-lg font-semibold text-gray-900">{dateGroup.dateDisplay}</h2>
-						<Badge variant="secondary">{dateGroup.appointments.length}</Badge>
+						<Badge variant="secondary">{dateGroup.assessments.length}</Badge>
 					</div>
 
-					<!-- Appointments for this date -->
+					<!-- Assessments for this date -->
 					<div class="space-y-3">
-						{#each dateGroup.appointments as appointment}
+						{#each dateGroup.assessments as assessment}
 							<button
-								onclick={() => handleAppointmentClick(appointment.id)}
+								onclick={() => handleAppointmentClick(assessment.appointment_id)}
 								class="w-full rounded-lg border bg-white p-4 text-left transition-all hover:border-blue-300 hover:shadow-md"
 							>
 								<div class="flex items-start justify-between">
@@ -416,19 +454,19 @@
 										<!-- Header Row -->
 										<div class="flex items-center gap-3">
 											<Badge
-												class={appointment.appointment_type === 'in_person'
+												class={assessment.appointment_type === 'in_person'
 													? 'bg-blue-100 text-blue-700'
 													: 'bg-purple-100 text-purple-700'}
 											>
-												{appointment.type_display}
+												{assessment.type_display}
 											</Badge>
 											<span class="font-semibold text-gray-900">
-												{appointment.appointment_number}
+												{assessment.appointment_number}
 											</span>
 											<div class="flex items-center gap-1 text-sm text-gray-600">
 												<Clock class="h-4 w-4" />
 												<span class="font-medium">
-													{formatTimeDisplay(appointment)}
+													{formatTimeDisplay(assessment)}
 												</span>
 											</div>
 										</div>
@@ -437,19 +475,19 @@
 										<div class="grid gap-2 text-sm text-gray-700 sm:grid-cols-2">
 											<div class="flex items-center gap-2">
 												<User class="h-4 w-4 text-gray-400" />
-												<span>{appointment.client_name}</span>
+												<span>{assessment.client_name}</span>
 											</div>
 											<div class="flex items-center gap-2">
 												<Car class="h-4 w-4 text-gray-400" />
-												<span>{appointment.vehicle_display}</span>
+												<span>{assessment.vehicle_display}</span>
 											</div>
 											<div class="flex items-center gap-2">
 												<MapPin class="h-4 w-4 text-gray-400" />
-												<span>{appointment.location_display}</span>
+												<span>{assessment.location_display}</span>
 											</div>
 											<div class="flex items-center gap-2">
 												<User class="h-4 w-4 text-gray-400" />
-												<span class="text-gray-600">Engineer: {appointment.engineer_name}</span>
+												<span class="text-gray-600">Engineer: {assessment.engineer_name}</span>
 											</div>
 										</div>
 									</div>
@@ -462,12 +500,12 @@
 											variant="outline"
 											onclick={(e) => {
 												e.stopPropagation();
-												handleOpenScheduleModal(appointment);
+												handleOpenScheduleModal(assessment);
 											}}
 											disabled={loading}
 										>
 											<Calendar class="mr-2 h-4 w-4" />
-											{appointment.appointment_time ? 'Reschedule' : 'Schedule'}
+											{assessment.appointment_time ? 'Reschedule' : 'Schedule'}
 										</Button>
 
 										<!-- Start Assessment Button -->
@@ -475,12 +513,12 @@
 											size="sm"
 											onclick={(e) => {
 												e.stopPropagation();
-												handleStartAssessment(appointment.id);
+												handleStartAssessment(assessment.assessment_id, assessment.appointment_id);
 											}}
-											disabled={loading}
+											disabled={startingAssessment === assessment.assessment_id}
 										>
 											<Play class="mr-2 h-4 w-4" />
-											Start Assessment
+											{startingAssessment === assessment.assessment_id ? 'Starting...' : 'Start Assessment'}
 										</Button>
 									</div>
 								</div>
@@ -494,11 +532,11 @@
 		<!-- Summary -->
 		<div class="flex items-center justify-between text-sm text-gray-500">
 			<p>
-				Showing <span class="font-medium text-gray-900">{filteredAppointments.length}</span>
-				{filteredAppointments.length === 1 ? 'appointment' : 'appointments'}
-				{#if overdueAppointments.length > 0}
+				Showing <span class="font-medium text-gray-900">{filteredAssessments.length}</span>
+				{filteredAssessments.length === 1 ? 'appointment' : 'appointments'}
+				{#if overdueAssessments.length > 0}
 					<span class="text-red-600">
-						({overdueAppointments.length} overdue)
+						({overdueAssessments.length} overdue)
 					</span>
 				{/if}
 			</p>
@@ -511,10 +549,10 @@
 	<DialogContent class="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
 		<DialogHeader>
 			<DialogTitle>
-				{selectedAppointment?.appointment_time ? 'Reschedule' : 'Schedule'} Appointment
+				{selectedAssessment?.appointment_time ? 'Reschedule' : 'Schedule'} Appointment
 			</DialogTitle>
 			<DialogDescription>
-				Update appointment details for {selectedAppointment?.appointment_number}
+				Update appointment details for {selectedAssessment?.appointment_number}
 			</DialogDescription>
 		</DialogHeader>
 
@@ -529,7 +567,7 @@
 			<div class="space-y-2">
 				<label class="text-sm font-medium text-gray-900">Appointment Type</label>
 				<div class="flex h-10 w-full items-center rounded-md border border-gray-300 bg-gray-50 px-3 py-2 text-sm text-gray-700">
-					{selectedAppointment?.type_display}
+					{selectedAssessment?.type_display}
 				</div>
 			</div>
 
@@ -576,7 +614,7 @@
 			</div>
 
 			<!-- Location Fields (only for in-person appointments) -->
-			{#if selectedAppointment?.appointment_type === 'in_person'}
+			{#if selectedAssessment?.appointment_type === 'in_person'}
 				<div class="space-y-4 rounded-lg border border-gray-200 p-4">
 					<h4 class="text-sm font-semibold text-gray-900">Location Details</h4>
 

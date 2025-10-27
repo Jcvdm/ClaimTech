@@ -1,6 +1,5 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { supabase } from '$lib/supabase';
 import { auditService } from '$lib/services/audit.service';
 
 /**
@@ -8,7 +7,7 @@ import { auditService } from '$lib/services/audit.service';
  * Reopens a completed FRC record, resetting it to in_progress status
  * and moving the assessment back to 'submitted' status (Finalized Assessments)
  */
-export const POST: RequestHandler = async ({ params }) => {
+export const POST: RequestHandler = async ({ params, locals }) => {
 	const frcId = params.id;
 
 	if (!frcId) {
@@ -17,7 +16,7 @@ export const POST: RequestHandler = async ({ params }) => {
 
 	try {
 		// 1. Fetch the FRC record to validate it exists and is completed
-		const { data: frc, error: fetchError } = await supabase
+		const { data: frc, error: fetchError } = await locals.supabase
 			.from('assessment_frc')
 			.select('id, assessment_id, status, signed_off_by_name')
 			.eq('id', frcId)
@@ -39,7 +38,7 @@ export const POST: RequestHandler = async ({ params }) => {
 		const now = new Date().toISOString();
 
 		// 3. Update FRC status to in_progress and clear sign-off fields
-		const { error: updateFrcError } = await supabase
+		const { error: updateFrcError } = await locals.supabase
 			.from('assessment_frc')
 			.update({
 				status: 'in_progress',
@@ -59,7 +58,7 @@ export const POST: RequestHandler = async ({ params }) => {
 		}
 
 		// 4. Update assessment status from 'archived' back to 'submitted'
-		const { error: updateAssessmentError } = await supabase
+		const { error: updateAssessmentError } = await locals.supabase
 			.from('assessments')
 			.update({
 				status: 'submitted',
@@ -85,7 +84,7 @@ export const POST: RequestHandler = async ({ params }) => {
 				reason: 'FRC reopened for corrections',
 				previous_sign_off_by: frc.signed_off_by_name
 			}
-		});
+		}, locals.supabase);
 
 		// 6. Log audit trail for assessment status change
 		if (!updateAssessmentError) {
@@ -100,7 +99,7 @@ export const POST: RequestHandler = async ({ params }) => {
 					reason: 'FRC reopened',
 					frc_id: frcId
 				}
-			});
+			}, locals.supabase);
 		}
 
 		return json({

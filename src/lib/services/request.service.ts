@@ -1,5 +1,7 @@
 import { supabase } from '$lib/supabase';
 import { auditService } from './audit.service';
+import { AssessmentService } from './assessment.service';
+import type { ServiceClient } from '$lib/types/service';
 import type {
 	Request,
 	CreateRequestInput,
@@ -7,17 +9,21 @@ import type {
 	RequestStatus,
 	RequestStep
 } from '$lib/types/request';
+import type { Assessment } from '$lib/types/assessment';
 
 export class RequestService {
+	private assessmentService = new AssessmentService();
+
 	/**
 	 * Generate a unique request number
 	 */
-	private async generateRequestNumber(type: 'insurance' | 'private'): Promise<string> {
+	private async generateRequestNumber(type: 'insurance' | 'private', client?: ServiceClient): Promise<string> {
+		const db = client ?? supabase;
 		const prefix = type === 'insurance' ? 'CLM' : 'REQ';
 		const year = new Date().getFullYear();
 
 		// Get the count of requests for this year
-		const { count, error } = await supabase
+		const { count, error } = await db
 			.from('requests')
 			.select('*', { count: 'exact', head: true })
 			.like('request_number', `${prefix}-${year}-%`);
@@ -40,8 +46,9 @@ export class RequestService {
 		client_id?: string;
 		step?: RequestStep;
 		assigned_engineer_id?: string;
-	}): Promise<Request[]> {
-		let query = supabase.from('requests').select('*').order('created_at', { ascending: false });
+	}, client?: ServiceClient): Promise<Request[]> {
+		const db = client ?? supabase;
+		let query = db.from('requests').select('*').order('created_at', { ascending: false });
 
 		if (filters?.status) {
 			query = query.eq('status', filters.status);
@@ -69,8 +76,9 @@ export class RequestService {
 	/**
 	 * Get a single request by ID
 	 */
-	async getRequest(id: string): Promise<Request | null> {
-		const { data, error } = await supabase.from('requests').select('*').eq('id', id).single();
+	async getRequest(id: string, client?: ServiceClient): Promise<Request | null> {
+		const db = client ?? supabase;
+		const { data, error } = await db.from('requests').select('*').eq('id', id).single();
 
 		if (error) {
 			if (error.code === 'PGRST116') {
@@ -86,8 +94,9 @@ export class RequestService {
 	/**
 	 * Get request by request number
 	 */
-	async getRequestByNumber(requestNumber: string): Promise<Request | null> {
-		const { data, error } = await supabase
+	async getRequestByNumber(requestNumber: string, client?: ServiceClient): Promise<Request | null> {
+		const db = client ?? supabase;
+		const { data, error } = await db
 			.from('requests')
 			.select('*')
 			.eq('request_number', requestNumber)
@@ -105,50 +114,99 @@ export class RequestService {
 	}
 
 	/**
-	 * Create a new request
+	 * Create a new request with automatic assessment creation
+	 * This eliminates the race condition at "Start Assessment" by creating the assessment upfront
+	 * @param input - Request creation input
+	 * @param client - Optional Supabase client
+	 * @param maxRetries - Maximum number of retry attempts (default: 3)
+	 * @returns Object containing both the created request and assessment
 	 */
-	async createRequest(input: CreateRequestInput): Promise<Request> {
-		const requestNumber = await this.generateRequestNumber(input.type);
+	async createRequest(
+		input: CreateRequestInput,
+		client?: ServiceClient,
+		maxRetries: number = 3
+	): Promise<{ request: Request; assessment: Assessment }> {
+		const db = client ?? supabase;
 
-		const { data, error } = await supabase
-			.from('requests')
-			.insert({
-				...input,
-				request_number: requestNumber,
-				status: 'draft',
-				current_step: 'request'
-			})
-			.select()
-			.single();
+		let request: Request | null = null;
 
-		if (error) {
-			console.error('Error creating request:', error);
-			throw new Error(`Failed to create request: ${error.message}`);
+		// Step 1: Create request (with retry for duplicate request number)
+		for (let attempt = 0; attempt < maxRetries; attempt++) {
+			try {
+				const requestNumber = await this.generateRequestNumber(input.type, client);
+
+				const { data, error: requestError } = await db
+					.from('requests')
+					.insert({
+						...input,
+						request_number: requestNumber,
+						status: 'draft',
+						current_step: 'request'
+					})
+					.select()
+					.single();
+
+				if (requestError) {
+					// Check if this is a duplicate key error (race condition in number generation)
+					if (requestError.code === '23505' && attempt < maxRetries - 1) {
+						console.log(
+							`Duplicate request number detected (attempt ${attempt + 1}/${maxRetries}), retrying...`
+						);
+						await new Promise((resolve) => setTimeout(resolve, 100 * Math.pow(2, attempt)));
+						continue; // Retry with new number
+					}
+
+					console.error('Error creating request:', requestError);
+					throw new Error(`Failed to create request: ${requestError.message}`);
+				}
+
+				// Success - request created
+				request = data;
+				break; // Exit retry loop
+			} catch (error) {
+				if (attempt === maxRetries - 1) {
+					console.error('Failed to create request after maximum retries:', error);
+					throw error;
+				}
+				// Retry
+				await new Promise((resolve) => setTimeout(resolve, 100 * Math.pow(2, attempt)));
+			}
 		}
 
-		// Log creation
+		if (!request) {
+			throw new Error('Failed to create request after maximum retries');
+		}
+
+		// Step 2: Create assessment (using idempotent findOrCreate)
+		// This ensures we don't create duplicate assessments if this method is called twice
+		const assessment = await this.assessmentService.findOrCreateByRequest(request.id, client);
+
+		// Step 3: Log creation
 		await auditService.logChange({
 			entity_type: 'request',
-			entity_id: data.id,
+			entity_id: request.id,
 			action: 'created',
-			new_value: requestNumber,
+			new_value: request.request_number,
 			metadata: {
 				type: input.type,
-				client_id: input.client_id
+				client_id: input.client_id,
+				assessment_id: assessment.id,
+				assessment_number: assessment.assessment_number
 			}
 		});
 
-		return data;
+		return { request, assessment };
 	}
 
 	/**
 	 * Update an existing request
 	 */
-	async updateRequest(id: string, input: UpdateRequestInput): Promise<Request | null> {
+	async updateRequest(id: string, input: UpdateRequestInput, client?: ServiceClient): Promise<Request | null> {
+		const db = client ?? supabase;
 		// Get old request for audit logging
-		const oldRequest = await this.getRequest(id);
+		const oldRequest = await this.getRequest(id, client);
 
-		const { data, error } = await supabase
+		const { data, error } = await db
 			.from('requests')
 			.update(input)
 			.eq('id', id)
@@ -218,29 +276,29 @@ export class RequestService {
 	/**
 	 * Update request status
 	 */
-	async updateRequestStatus(id: string, status: RequestStatus): Promise<Request | null> {
-		return this.updateRequest(id, { status });
+	async updateRequestStatus(id: string, status: RequestStatus, client?: ServiceClient): Promise<Request | null> {
+		return this.updateRequest(id, { status }, client);
 	}
 
 	/**
 	 * Assign an engineer to a request
 	 */
-	async assignEngineer(id: string, engineerId: string): Promise<Request | null> {
-		return this.updateRequest(id, { assigned_engineer_id: engineerId });
+	async assignEngineer(id: string, engineerId: string, client?: ServiceClient): Promise<Request | null> {
+		return this.updateRequest(id, { assigned_engineer_id: engineerId }, client);
 	}
 
 	/**
 	 * Move request to next step in workflow
 	 */
-	async moveToNextStep(id: string): Promise<Request | null> {
-		const request = await this.getRequest(id);
+	async moveToNextStep(id: string, client?: ServiceClient): Promise<Request | null> {
+		const request = await this.getRequest(id, client);
 		if (!request) return null;
 
 		const steps: RequestStep[] = ['request', 'assessment', 'quote', 'approval'];
 		const currentIndex = steps.indexOf(request.current_step);
 
 		if (currentIndex < steps.length - 1) {
-			return this.updateRequest(id, { current_step: steps[currentIndex + 1] });
+			return this.updateRequest(id, { current_step: steps[currentIndex + 1] }, client);
 		}
 
 		return request;
@@ -249,8 +307,9 @@ export class RequestService {
 	/**
 	 * Get requests by client
 	 */
-	async getRequestsByClient(clientId: string): Promise<Request[]> {
-		const { data, error } = await supabase
+	async getRequestsByClient(clientId: string, client?: ServiceClient): Promise<Request[]> {
+		const db = client ?? supabase;
+		const { data, error } = await db
 			.from('requests')
 			.select('*')
 			.eq('client_id', clientId)
@@ -267,8 +326,9 @@ export class RequestService {
 	/**
 	 * Get requests by engineer
 	 */
-	async getRequestsByEngineer(engineerId: string): Promise<Request[]> {
-		const { data, error } = await supabase
+	async getRequestsByEngineer(engineerId: string, client?: ServiceClient): Promise<Request[]> {
+		const db = client ?? supabase;
+		const { data, error } = await db
 			.from('requests')
 			.select('*')
 			.eq('assigned_engineer_id', engineerId)
@@ -285,8 +345,9 @@ export class RequestService {
 	/**
 	 * Search requests
 	 */
-	async searchRequests(searchTerm: string): Promise<Request[]> {
-		const { data, error } = await supabase
+	async searchRequests(searchTerm: string, client?: ServiceClient): Promise<Request[]> {
+		const db = client ?? supabase;
+		const { data, error } = await db
 			.from('requests')
 			.select('*')
 			.or(
@@ -305,8 +366,9 @@ export class RequestService {
 	/**
 	 * Get request count with optional filters
 	 */
-	async getRequestCount(filters?: { status?: RequestStatus }): Promise<number> {
-		let query = supabase.from('requests').select('*', { count: 'exact', head: true });
+	async getRequestCount(filters?: { status?: RequestStatus }, client?: ServiceClient): Promise<number> {
+		const db = client ?? supabase;
+		let query = db.from('requests').select('*', { count: 'exact', head: true });
 
 		if (filters?.status) {
 			query = query.eq('status', filters.status);
@@ -325,8 +387,9 @@ export class RequestService {
 	/**
 	 * List cancelled requests with client data for archive
 	 */
-	async listCancelledRequests(): Promise<any[]> {
-		const { data, error } = await supabase
+	async listCancelledRequests(client?: ServiceClient): Promise<any[]> {
+		const db = client ?? supabase;
+		const { data, error } = await db
 			.from('requests')
 			.select(`
 				*,

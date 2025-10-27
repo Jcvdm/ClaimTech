@@ -2,8 +2,8 @@ import { companySettingsService } from '$lib/services/company-settings.service';
 import type { PageServerLoad, Actions } from './$types';
 import { fail } from '@sveltejs/kit';
 
-export const load: PageServerLoad = async () => {
-	const settings = await companySettingsService.getSettings();
+export const load: PageServerLoad = async ({ locals }) => {
+	const settings = await companySettingsService.getSettings(locals.supabase);
 
 	return {
 		settings
@@ -11,7 +11,7 @@ export const load: PageServerLoad = async () => {
 };
 
 export const actions: Actions = {
-	update: async ({ request }) => {
+	update: async ({ request, locals }) => {
 		const formData = await request.formData();
 
 		const input = {
@@ -27,7 +27,7 @@ export const actions: Actions = {
 		};
 
 		try {
-			await companySettingsService.updateSettings(input);
+			await companySettingsService.updateSettings(input, locals.supabase);
 			return { success: true };
 		} catch (error) {
 			console.error('Error updating settings:', error);

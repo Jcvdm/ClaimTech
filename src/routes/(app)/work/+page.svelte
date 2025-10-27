@@ -102,7 +102,7 @@
 					<div class="flex items-start justify-between">
 						<div class="flex items-center gap-3">
 							<div class="rounded-lg {colors.bg} p-3">
-								<svelte:component this={phase.icon} class="h-6 w-6 {colors.text}" />
+								<phase.icon class="h-6 w-6 {colors.text}" />
 							</div>
 							<div>
 								<h3 class="text-lg font-semibold text-gray-900">{phase.title}</h3>

@@ -1,4 +1,6 @@
 import { supabase } from '$lib/supabase';
+import type { SupabaseClient } from '@supabase/supabase-js';
+import type { Database } from '$lib/types/database';
 
 export interface UploadPhotoResult {
 	url: string;
@@ -10,11 +12,14 @@ export interface UploadPhotoOptions {
 	folder?: string;
 	fileName?: string;
 	maxSizeMB?: number;
+	supabaseClient?: SupabaseClient<Database>;
 }
 
 class StorageService {
-	private readonly DEFAULT_BUCKET = 'SVA Photos';
+	private readonly DEFAULT_BUCKET = 'SVA Photos'; // Changed from 'documents' - photos go to SVA Photos bucket
+	private readonly DOCUMENTS_BUCKET = 'documents'; // For PDFs and generated documents
 	private readonly MAX_FILE_SIZE_MB = 50;
+	private readonly SIGNED_URL_EXPIRY_SECONDS = 3600; // 1 hour
 
 	/**
 	 * Initialize storage buckets (call this once during app setup)
@@ -43,6 +48,9 @@ class StorageService {
 
 	/**
 	 * Upload a photo file to Supabase Storage
+	 *
+	 * For SVA Photos bucket: Returns proxy URL (/api/photo/{path})
+	 * For documents bucket: Returns signed URL (for PDFs)
 	 */
 	async uploadPhoto(
 		file: File,
@@ -52,7 +60,8 @@ class StorageService {
 			bucket = this.DEFAULT_BUCKET,
 			folder = 'general',
 			fileName,
-			maxSizeMB = this.MAX_FILE_SIZE_MB
+			maxSizeMB = this.MAX_FILE_SIZE_MB,
+			supabaseClient = supabase
 		} = options;
 
 		// Validate file size
@@ -74,7 +83,7 @@ class StorageService {
 		const filePath = `${folder}/${uniqueFileName}`;
 
 		// Upload file
-		const { data, error } = await supabase.storage.from(bucket).upload(filePath, file, {
+		const { data, error } = await supabaseClient.storage.from(bucket).upload(filePath, file, {
 			cacheControl: '3600',
 			upsert: false
 		});
@@ -84,29 +93,45 @@ class StorageService {
 			throw new Error(`Failed to upload photo: ${error.message}`);
 		}
 
-		// Get public URL
-		const {
-			data: { publicUrl }
-		} = supabase.storage.from(bucket).getPublicUrl(filePath);
+		// For SVA Photos bucket: Return proxy URL
+		// For documents bucket: Return signed URL
+		if (bucket === 'SVA Photos') {
+			return {
+				url: this.getPhotoProxyUrl(filePath),
+				path: filePath
+			};
+		} else {
+			// Get signed URL for documents bucket (PDFs)
+			const { data: signedUrlData, error: urlError } = await supabaseClient.storage
+				.from(bucket)
+				.createSignedUrl(filePath, this.SIGNED_URL_EXPIRY_SECONDS);
 
-		return {
-			url: publicUrl,
-			path: filePath
-		};
+			if (urlError || !signedUrlData) {
+				console.error('Signed URL error:', urlError);
+				throw new Error(`Failed to generate signed URL: ${urlError?.message}`);
+			}
+
+			return {
+				url: signedUrlData.signedUrl,
+				path: filePath
+			};
+		}
 	}
 
 	/**
 	 * Upload a PDF file to Supabase Storage
+	 * Always uses documents bucket and returns signed URL
 	 */
 	async uploadPdf(
 		file: File,
 		options: UploadPhotoOptions = {}
 	): Promise<UploadPhotoResult> {
 		const {
-			bucket = this.DEFAULT_BUCKET,
+			bucket = this.DOCUMENTS_BUCKET, // PDFs always go to documents bucket
 			folder = 'documents',
 			fileName,
-			maxSizeMB = this.MAX_FILE_SIZE_MB
+			maxSizeMB = this.MAX_FILE_SIZE_MB,
+			supabaseClient = supabase
 		} = options;
 
 		// Validate file size
@@ -127,7 +152,7 @@ class StorageService {
 		const filePath = `${folder}/${uniqueFileName}`;
 
 		// Upload file
-		const { data, error } = await supabase.storage.from(bucket).upload(filePath, file, {
+		const { data, error } = await supabaseClient.storage.from(bucket).upload(filePath, file, {
 			cacheControl: '3600',
 			upsert: false,
 			contentType: 'application/pdf'
@@ -138,13 +163,18 @@ class StorageService {
 			throw new Error(`Failed to upload PDF: ${error.message}`);
 		}
 
-		// Get public URL
-		const {
-			data: { publicUrl }
-		} = supabase.storage.from(bucket).getPublicUrl(filePath);
+		// Get signed URL (1 hour expiry)
+		const { data: signedUrlData, error: urlError } = await supabaseClient.storage
+			.from(bucket)
+			.createSignedUrl(filePath, this.SIGNED_URL_EXPIRY_SECONDS);
+
+		if (urlError || !signedUrlData) {
+			console.error('Signed URL error:', urlError);
+			throw new Error(`Failed to generate signed URL: ${urlError?.message}`);
+		}
 
 		return {
-			url: publicUrl,
+			url: signedUrlData.signedUrl,
 			path: filePath
 		};
 	}
@@ -192,13 +222,37 @@ class StorageService {
 	}
 
 	/**
-	 * Get public URL for a photo
+	 * Get signed URL for a photo (1 hour expiry)
 	 */
-	getPublicUrl(path: string, bucket: string = this.DEFAULT_BUCKET): string {
-		const {
-			data: { publicUrl }
-		} = supabase.storage.from(bucket).getPublicUrl(path);
-		return publicUrl;
+	async getSignedUrl(
+		path: string,
+		bucket: string = this.DEFAULT_BUCKET,
+		supabaseClient: SupabaseClient<Database> = supabase
+	): Promise<string> {
+		const { data, error } = await supabaseClient.storage
+			.from(bucket)
+			.createSignedUrl(path, this.SIGNED_URL_EXPIRY_SECONDS);
+
+		if (error || !data) {
+			console.error('Signed URL error:', error);
+			throw new Error(`Failed to generate signed URL: ${error?.message}`);
+		}
+
+		return data.signedUrl;
+	}
+
+	/**
+	 * Get signed URLs for multiple photos
+	 */
+	async getSignedUrls(
+		paths: string[],
+		bucket: string = this.DEFAULT_BUCKET,
+		supabaseClient: SupabaseClient<Database> = supabase
+	): Promise<string[]> {
+		const urls = await Promise.all(
+			paths.map((path) => this.getSignedUrl(path, bucket, supabaseClient))
+		);
+		return urls;
 	}
 
 	/**
@@ -243,6 +297,53 @@ class StorageService {
 	): Promise<UploadPhotoResult> {
 		const folder = `assessments/${assessmentId}/${category}`;
 		return this.uploadPdf(file, { folder });
+	}
+
+	/**
+	 * Get proxy URL for a photo path
+	 * Converts storage path to /api/photo/{path} format
+	 */
+	getPhotoProxyUrl(path: string): string {
+		return `/api/photo/${path}`;
+	}
+
+	/**
+	 * Extract storage path from any URL format
+	 * Handles: signed URLs, public URLs, proxy URLs, or raw paths
+	 */
+	extractStoragePath(urlOrPath: string): string {
+		if (!urlOrPath) return '';
+
+		// Already a path (no protocol)
+		if (!urlOrPath.includes('://') && !urlOrPath.startsWith('/api/')) {
+			return urlOrPath;
+		}
+
+		// Proxy URL format: /api/photo/{path}
+		if (urlOrPath.startsWith('/api/photo/')) {
+			return urlOrPath.replace('/api/photo/', '');
+		}
+
+		// Signed or public URL format
+		const match = urlOrPath.match(/\/storage\/v1\/object\/(?:sign|public)\/[^/]+\/(.+?)(?:\?|$)/);
+		if (match) {
+			return match[1];
+		}
+
+		// Fallback: return as-is
+		return urlOrPath;
+	}
+
+	/**
+	 * Convert any photo URL/path to proxy URL format
+	 * Use this when displaying photos in components
+	 */
+	toPhotoProxyUrl(urlOrPath: string): string {
+		if (!urlOrPath) return '';
+		if (urlOrPath.startsWith('/api/photo/')) return urlOrPath;
+
+		const path = this.extractStoragePath(urlOrPath);
+		return this.getPhotoProxyUrl(path);
 	}
 }
 

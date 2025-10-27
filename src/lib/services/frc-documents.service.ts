@@ -2,13 +2,16 @@ import { supabase } from '$lib/supabase';
 import type { FRCDocument, CreateFRCDocumentInput } from '$lib/types/assessment';
 import { storageService } from './storage.service';
 import { auditService } from './audit.service';
+import type { ServiceClient } from '$lib/types/service';
 
 class FRCDocumentsService {
 	/**
 	 * Get all documents for an FRC
 	 */
-	async getDocumentsByFRC(frcId: string): Promise<FRCDocument[]> {
-		const { data, error } = await supabase
+	async getDocumentsByFRC(frcId: string, client?: ServiceClient): Promise<FRCDocument[]> {
+		const db = client ?? supabase;
+
+		const { data, error } = await db
 			.from('assessment_frc_documents')
 			.select('*')
 			.eq('frc_id', frcId)
@@ -25,8 +28,10 @@ class FRCDocumentsService {
 	/**
 	 * Create a document record
 	 */
-	async createDocument(input: CreateFRCDocumentInput): Promise<FRCDocument> {
-		const { data, error } = await supabase
+	async createDocument(input: CreateFRCDocumentInput, client?: ServiceClient): Promise<FRCDocument> {
+		const db = client ?? supabase;
+
+		const { data, error } = await db
 			.from('assessment_frc_documents')
 			.insert({
 				frc_id: input.frc_id,
@@ -67,7 +72,8 @@ class FRCDocumentsService {
 		frcId: string,
 		assessmentId: string,
 		label?: string,
-		documentType: 'invoice' | 'attachment' = 'invoice'
+		documentType: 'invoice' | 'attachment' = 'invoice',
+		client?: ServiceClient
 	): Promise<FRCDocument> {
 		// Upload to storage
 		const folder = `assessments/${assessmentId}/documents/frc`;
@@ -81,15 +87,17 @@ class FRCDocumentsService {
 			label: label || file.name,
 			document_type: documentType,
 			file_size_bytes: file.size
-		});
+		}, client);
 	}
 
 	/**
 	 * Delete a document (removes from storage and database)
 	 */
-	async deleteDocument(documentId: string): Promise<void> {
+	async deleteDocument(documentId: string, client?: ServiceClient): Promise<void> {
+		const db = client ?? supabase;
+
 		// Get document to retrieve path
-		const { data: document, error: fetchError } = await supabase
+		const { data: document, error: fetchError } = await db
 			.from('assessment_frc_documents')
 			.select('*')
 			.eq('id', documentId)
@@ -109,7 +117,7 @@ class FRCDocumentsService {
 		}
 
 		// Delete from database
-		const { error: deleteError } = await supabase
+		const { error: deleteError } = await db
 			.from('assessment_frc_documents')
 			.delete()
 			.eq('id', documentId);
@@ -136,8 +144,10 @@ class FRCDocumentsService {
 	/**
 	 * Update document label
 	 */
-	async updateDocumentLabel(documentId: string, label: string): Promise<FRCDocument> {
-		const { data, error } = await supabase
+	async updateDocumentLabel(documentId: string, label: string, client?: ServiceClient): Promise<FRCDocument> {
+		const db = client ?? supabase;
+
+		const { data, error } = await db
 			.from('assessment_frc_documents')
 			.update({
 				label,

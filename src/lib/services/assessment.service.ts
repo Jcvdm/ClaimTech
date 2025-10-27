@@ -1,19 +1,22 @@
 import { supabase } from '$lib/supabase';
 import type {
 	Assessment,
+	AssessmentStage,
 	CreateAssessmentInput,
 	UpdateAssessmentInput
 } from '$lib/types/assessment';
+import type { ServiceClient } from '$lib/types/service';
 import { auditService } from './audit.service';
 
 export class AssessmentService {
 	/**
 	 * Generate unique assessment number (ASM-2025-001)
 	 */
-	private async generateAssessmentNumber(): Promise<string> {
+	private async generateAssessmentNumber(client?: ServiceClient): Promise<string> {
+		const db = client ?? supabase;
 		const year = new Date().getFullYear();
 
-		const { count, error } = await supabase
+		const { count, error } = await db
 			.from('assessments')
 			.select('*', { count: 'exact', head: true })
 			.like('assessment_number', `ASM-${year}-%`);
@@ -28,35 +31,280 @@ export class AssessmentService {
 	}
 
 	/**
-	 * Create new assessment from appointment
+	 * Create new assessment from appointment with retry logic to handle race conditions
+	 * @param input - Assessment creation input
+	 * @param client - Optional Supabase client (uses authenticated client if provided)
+	 * @param maxRetries - Maximum number of retry attempts (default: 3)
 	 */
-	async createAssessment(input: CreateAssessmentInput): Promise<Assessment> {
-		const assessmentNumber = await this.generateAssessmentNumber();
+	async createAssessment(
+		input: CreateAssessmentInput,
+		client?: ServiceClient,
+		maxRetries: number = 3
+	): Promise<Assessment> {
+		const db = client ?? supabase;
 
-		const { data, error } = await supabase
+		// Retry loop to handle race conditions in assessment number generation
+		for (let attempt = 0; attempt < maxRetries; attempt++) {
+			try {
+				// Generate unique assessment number
+				const assessmentNumber = await this.generateAssessmentNumber(client);
+
+				const { data, error } = await db
+					.from('assessments')
+					.insert({
+						...input,
+						assessment_number: assessmentNumber,
+						status: 'in_progress',
+						stage: input.stage || 'request_submitted', // Default stage
+						current_tab: 'identification',
+						tabs_completed: []
+					})
+					.select()
+					.single();
+
+				if (error) {
+					// Check if this is a duplicate key error (race condition)
+					if (error.code === '23505' && attempt < maxRetries - 1) {
+						console.log(`Duplicate assessment number detected (attempt ${attempt + 1}/${maxRetries}), retrying...`);
+						// Exponential backoff: 100ms, 200ms, 400ms
+						await new Promise(resolve => setTimeout(resolve, 100 * Math.pow(2, attempt)));
+						continue; // Retry with new number
+					}
+
+					// Not a duplicate or max retries reached
+					console.error('Error creating assessment:', error);
+					throw new Error(`Failed to create assessment: ${error.message}`);
+				}
+
+				// Success! Log audit trail
+				try {
+					await auditService.logChange({
+						entity_type: 'assessment',
+						entity_id: data.id,
+						action: 'created',
+						new_value: assessmentNumber
+					});
+				} catch (auditError) {
+					console.error('Error logging audit change:', auditError);
+				}
+
+				return data;
+
+			} catch (error) {
+				// If this is the last attempt, throw the error
+				if (attempt === maxRetries - 1) {
+					console.error('Failed to create assessment after maximum retries:', error);
+					throw error;
+				}
+				// Otherwise, continue to next retry
+			}
+		}
+
+		// Should never reach here, but TypeScript needs this
+		throw new Error('Failed to create assessment after maximum retries');
+	}
+
+	/**
+	 * Create assessment for a request (called during request creation)
+	 * This is the new pattern - assessment created upfront, not at "Start Assessment"
+	 * @param requestId - Request ID
+	 * @param client - Optional Supabase client
+	 * @param maxRetries - Maximum number of retry attempts (default: 3)
+	 */
+	async createAssessmentForRequest(
+		requestId: string,
+		client?: ServiceClient,
+		maxRetries: number = 3,
+		appointmentId?: string
+	): Promise<Assessment> {
+		const db = client ?? supabase;
+
+		// Retry loop to handle race conditions in assessment number generation
+		for (let attempt = 0; attempt < maxRetries; attempt++) {
+			try {
+				const assessmentNumber = await this.generateAssessmentNumber(client);
+
+				const { data, error } = await db
+					.from('assessments')
+					.insert({
+						request_id: requestId,
+						assessment_number: assessmentNumber,
+						stage: 'request_submitted', // Initial stage
+						status: 'in_progress', // Keep for backward compatibility
+						appointment_id: appointmentId ?? null, // Will be set when appointment is scheduled or provided
+						inspection_id: null, // Keep for backward compatibility
+						current_tab: 'identification',
+						tabs_completed: [],
+						started_at: new Date().toISOString()
+					})
+					.select()
+					.single();
+
+				if (error) {
+					// Check if this is a duplicate key error (race condition)
+					if (error.code === '23505' && attempt < maxRetries - 1) {
+						console.log(
+							`Duplicate assessment number detected (attempt ${attempt + 1}/${maxRetries}), retrying...`
+						);
+						await new Promise((resolve) => setTimeout(resolve, 100 * Math.pow(2, attempt)));
+						continue;
+					}
+
+					console.error('Error creating assessment:', error);
+					throw new Error(`Failed to create assessment: ${error.message}`);
+				}
+
+				// Log creation
+				try {
+					await auditService.logChange({
+						entity_type: 'assessment',
+						entity_id: data.id,
+						action: 'created',
+						new_value: assessmentNumber,
+						metadata: {
+							request_id: requestId,
+							stage: 'request_submitted',
+							created_with_request: true
+						}
+					});
+				} catch (auditError) {
+					console.error('Error logging audit change:', auditError);
+				}
+
+				return data;
+			} catch (error) {
+				if (attempt === maxRetries - 1) {
+					throw error;
+				}
+				await new Promise((resolve) => setTimeout(resolve, 100 * Math.pow(2, attempt)));
+			}
+		}
+
+		throw new Error('Failed to create assessment after maximum retries');
+	}
+
+	/**
+	 * Find or create assessment by request ID
+	 * Idempotent operation - safe to call multiple times
+	 *
+	 * WARNING: This method should ONLY be called by admins when creating requests.
+	 * For engineer access, use findByRequest() which throws an error if assessment doesn't exist.
+	 *
+	 * @param requestId - Request ID
+	 * @param client - Optional Supabase client (should be admin/service role client)
+	 * @param appointmentId - Optional appointment ID for RLS context
+	 */
+	async findOrCreateByRequest(requestId: string, client?: ServiceClient, appointmentId?: string): Promise<Assessment> {
+		const db = client ?? supabase;
+
+		// Try to find existing assessment
+		const { data: existing, error: findError } = await db
 			.from('assessments')
-			.insert({
-				...input,
-				assessment_number: assessmentNumber,
-				status: 'in_progress',
-				current_tab: 'identification',
-				tabs_completed: []
-			})
+			.select('*')
+			.eq('request_id', requestId)
+			.maybeSingle();
+
+		// If error occurred (other than not found), throw it
+		if (findError) {
+			console.error('Error finding assessment:', findError);
+			throw new Error(`Failed to find assessment: ${findError.message}`);
+		}
+
+		// If found, return it
+		if (existing) {
+			return existing;
+		}
+
+		// Not found - create new assessment
+		// This will fail for engineers due to RLS policy (which is correct)
+		return this.createAssessmentForRequest(requestId, client, 3, appointmentId);
+	}
+
+	/**
+	 * Find assessment by request ID (read-only, for engineer use)
+	 * Throws error if assessment doesn't exist
+	 *
+	 * IMPORTANT: This method is for engineers accessing existing assessments.
+	 * Assessments should ONLY be created by admins when requests are created.
+	 * If this method doesn't find an assessment, it indicates a data integrity error.
+	 *
+	 * @param requestId - Request ID
+	 * @param client - Optional Supabase client
+	 * @throws Error if assessment not found (data integrity error)
+	 */
+	async findByRequest(requestId: string, client?: ServiceClient): Promise<Assessment> {
+		const db = client ?? supabase;
+
+		// Try to find existing assessment
+		const { data: existing, error: findError } = await db
+			.from('assessments')
+			.select('*')
+			.eq('request_id', requestId)
+			.maybeSingle();
+
+		// If error occurred, throw it
+		if (findError) {
+			console.error('Error finding assessment:', findError);
+			throw new Error(`Failed to find assessment: ${findError.message}`);
+		}
+
+		// If not found, this is a DATA INTEGRITY ERROR
+		// Assessments must be created by admins when requests are created
+		if (!existing) {
+			const errorMessage =
+				`Data integrity error: No assessment found for request ${requestId}. ` +
+				`Assessments must be created by admins when requests are created. ` +
+				`Engineers cannot create assessments.`;
+			console.error(errorMessage);
+			throw new Error(errorMessage);
+		}
+
+		return existing;
+	}
+
+	/**
+	 * Update assessment stage with audit logging
+	 * @param id - Assessment ID
+	 * @param newStage - New stage
+	 * @param client - Optional Supabase client
+	 */
+	async updateStage(
+		id: string,
+		newStage: AssessmentStage,
+		client?: ServiceClient
+	): Promise<Assessment> {
+		const db = client ?? supabase;
+
+		// Get current assessment
+		const current = await this.getAssessment(id, client);
+		if (!current) {
+			throw new Error('Assessment not found');
+		}
+
+		// Update stage
+		const { data, error } = await db
+			.from('assessments')
+			.update({ stage: newStage })
+			.eq('id', id)
 			.select()
 			.single();
 
 		if (error) {
-			console.error('Error creating assessment:', error);
-			throw new Error(`Failed to create assessment: ${error.message}`);
+			console.error('Error updating assessment stage:', error);
+			throw new Error(`Failed to update assessment stage: ${error.message}`);
 		}
 
-		// Log audit trail
+		// Log stage transition
 		try {
 			await auditService.logChange({
 				entity_type: 'assessment',
-				entity_id: data.id,
-				action: 'created',
-				new_value: assessmentNumber
+				entity_id: id,
+				action: 'stage_transition',
+				old_value: current.stage,
+				new_value: newStage,
+				metadata: {
+					assessment_number: current.assessment_number
+				}
 			});
 		} catch (auditError) {
 			console.error('Error logging audit change:', auditError);
@@ -68,8 +316,9 @@ export class AssessmentService {
 	/**
 	 * Get assessment by ID
 	 */
-	async getAssessment(id: string): Promise<Assessment | null> {
-		const { data, error } = await supabase
+	async getAssessment(id: string, client?: ServiceClient): Promise<Assessment | null> {
+		const db = client ?? supabase;
+		const { data, error } = await db
 			.from('assessments')
 			.select('*')
 			.eq('id', id)
@@ -86,8 +335,9 @@ export class AssessmentService {
 	/**
 	 * Get assessment by appointment ID
 	 */
-	async getAssessmentByAppointment(appointmentId: string): Promise<Assessment | null> {
-		const { data, error } = await supabase
+	async getAssessmentByAppointment(appointmentId: string, client?: ServiceClient): Promise<Assessment | null> {
+		const db = client ?? supabase;
+		const { data, error } = await db
 			.from('assessments')
 			.select('*')
 			.eq('appointment_id', appointmentId)
@@ -104,8 +354,9 @@ export class AssessmentService {
 	/**
 	 * Get assessment by inspection ID
 	 */
-	async getAssessmentByInspection(inspectionId: string): Promise<Assessment | null> {
-		const { data, error } = await supabase
+	async getAssessmentByInspection(inspectionId: string, client?: ServiceClient): Promise<Assessment | null> {
+		const db = client ?? supabase;
+		const { data, error} = await db
 			.from('assessments')
 			.select('*')
 			.eq('inspection_id', inspectionId)
@@ -123,8 +374,10 @@ export class AssessmentService {
 	 * Get all in-progress assessments with related data (for Open Assessments list)
 	 * Pulls vehicle data from assessment_vehicle_identification (updated during assessment)
 	 */
-	async getInProgressAssessments(): Promise<any[]> {
-		const { data, error } = await supabase
+	async getInProgressAssessments(client?: ServiceClient, engineer_id?: string | null): Promise<any[]> {
+		const db = client ?? supabase;
+
+		let query = db
 			.from('assessments')
 			.select(
 				`
@@ -155,8 +408,16 @@ export class AssessmentService {
 				)
 			`
 			)
-			.eq('status', 'in_progress')
-			.order('updated_at', { ascending: false });
+			.in('stage', ['assessment_in_progress', 'estimate_review', 'estimate_sent']);
+
+		// Filter by engineer if provided
+		if (engineer_id) {
+			query = query.eq('appointments.engineer_id', engineer_id);
+		}
+
+		query = query.order('updated_at', { ascending: false });
+
+		const { data, error } = await query;
 
 		if (error) {
 			console.error('Error fetching in-progress assessments:', error);
@@ -169,11 +430,20 @@ export class AssessmentService {
 	/**
 	 * Get count of in-progress assessments
 	 */
-	async getInProgressCount(): Promise<number> {
-		const { count, error } = await supabase
+	async getInProgressCount(client?: ServiceClient, engineer_id?: string | null): Promise<number> {
+		const db = client ?? supabase;
+
+		let query = db
 			.from('assessments')
-			.select('*', { count: 'exact', head: true })
-			.eq('status', 'in_progress');
+			.select('*, appointments!inner(engineer_id)', { count: 'exact', head: true })
+			.in('stage', ['assessment_in_progress', 'estimate_review', 'estimate_sent']);
+
+		// Filter by engineer if provided
+		if (engineer_id) {
+			query = query.eq('appointments.engineer_id', engineer_id);
+		}
+
+		const { count, error } = await query;
 
 		if (error) {
 			console.error('Error counting in-progress assessments:', error);
@@ -186,11 +456,20 @@ export class AssessmentService {
 	/**
 	 * Get count of finalized assessments (submitted status)
 	 */
-	async getFinalizedCount(): Promise<number> {
-		const { count, error } = await supabase
+	async getFinalizedCount(client?: ServiceClient, engineer_id?: string | null): Promise<number> {
+		const db = client ?? supabase;
+
+		let query = db
 			.from('assessments')
-			.select('*', { count: 'exact', head: true })
-			.eq('status', 'submitted');
+			.select('*, appointments!inner(engineer_id)', { count: 'exact', head: true })
+			.eq('stage', 'estimate_finalized');
+
+		// Filter by engineer if provided
+		if (engineer_id) {
+			query = query.eq('appointments.engineer_id', engineer_id);
+		}
+
+		const { count, error } = await query;
 
 		if (error) {
 			console.error('Error counting finalized assessments:', error);
@@ -201,13 +480,93 @@ export class AssessmentService {
 	}
 
 	/**
+	 * Get count of assessments by single stage
+	 * Reusable method for badge counts and other stage-based queries
+	 *
+	 * @param client - Supabase client (optional)
+	 * @param stage - Single assessment stage to count
+	 * @param engineer_id - Optional engineer ID for filtering (for engineer role)
+	 * @param joinTable - Table to join for engineer filtering ('appointments' or 'requests')
+	 * @returns Count of assessments at specified stage
+	 */
+	async getCountByStage(
+		client: ServiceClient | undefined,
+		stage: AssessmentStage,
+		engineer_id?: string | null,
+		joinTable: 'appointments' | 'requests' = 'appointments'
+	): Promise<number> {
+		const db = client ?? supabase;
+
+		let query = db
+			.from('assessments')
+			.select(`*, ${joinTable}!inner(${joinTable === 'appointments' ? 'engineer_id' : 'assigned_engineer_id'})`, { count: 'exact', head: true })
+			.eq('stage', stage);
+
+		// Filter by engineer if provided
+		if (engineer_id) {
+			const engineerField = joinTable === 'appointments' ? 'engineer_id' : 'assigned_engineer_id';
+			query = query.eq(`${joinTable}.${engineerField}`, engineer_id);
+		}
+
+		const { count, error } = await query;
+
+		if (error) {
+			console.error(`Error counting assessments at stage ${stage}:`, error);
+			return 0;
+		}
+
+		return count || 0;
+	}
+
+	/**
+	 * Get count of assessments by multiple stages
+	 * Reusable method for badge counts that span multiple stages
+	 *
+	 * @param client - Supabase client (optional)
+	 * @param stages - Array of assessment stages to count
+	 * @param engineer_id - Optional engineer ID for filtering (for engineer role)
+	 * @param joinTable - Table to join for engineer filtering ('appointments' or 'requests')
+	 * @returns Count of assessments at specified stages
+	 */
+	async getCountByStages(
+		client: ServiceClient | undefined,
+		stages: AssessmentStage[],
+		engineer_id?: string | null,
+		joinTable: 'appointments' | 'requests' = 'appointments'
+	): Promise<number> {
+		const db = client ?? supabase;
+
+		let query = db
+			.from('assessments')
+			.select(`*, ${joinTable}!inner(${joinTable === 'appointments' ? 'engineer_id' : 'assigned_engineer_id'})`, { count: 'exact', head: true })
+			.in('stage', stages);
+
+		// Filter by engineer if provided
+		if (engineer_id) {
+			const engineerField = joinTable === 'appointments' ? 'engineer_id' : 'assigned_engineer_id';
+			query = query.eq(`${joinTable}.${engineerField}`, engineer_id);
+		}
+
+		const { count, error } = await query;
+
+		if (error) {
+			console.error(`Error counting assessments at stages ${stages.join(', ')}:`, error);
+			return 0;
+		}
+
+		return count || 0;
+	}
+
+	/**
 	 * Update assessment
 	 */
-	async updateAssessment(id: string, input: UpdateAssessmentInput): Promise<Assessment> {
-		// Get current assessment for audit trail
-		const current = await this.getAssessment(id);
+	async updateAssessment(id: string, input: UpdateAssessmentInput, client?: ServiceClient): Promise<Assessment> {
+		const db = client ?? supabase;
 
-		const { data, error } = await supabase
+		// Get current assessment for audit trail
+		const current = await this.getAssessment(id, client);
+
+		const { data, error } = await db
 			.from('assessments')
 			.update(input)
 			.eq('id', id)
@@ -395,11 +754,12 @@ export class AssessmentService {
 	/**
 	 * Get assessment count by status
 	 */
-	async getAssessmentCount(status?: 'in_progress' | 'completed' | 'submitted'): Promise<number> {
-		let query = supabase.from('assessments').select('*', { count: 'exact', head: true });
+	async getAssessmentCount(filters?: { status?: 'in_progress' | 'completed' | 'submitted' | 'archived' }, client?: ServiceClient): Promise<number> {
+		const db = client ?? supabase;
+		let query = db.from('assessments').select('*', { count: 'exact', head: true });
 
-		if (status) {
-			query = query.eq('status', status);
+		if (filters?.status) {
+			query = query.eq('status', filters.status);
 		}
 
 		const { count, error } = await query;
@@ -440,9 +800,12 @@ export class AssessmentService {
 	 * Joins with appointments, inspections, requests, and clients
 	 * Pulls vehicle data from assessment_vehicle_identification (updated during assessment)
 	 * Only returns assessments with 'archived' status (FRC completed)
+	 * @param client - Supabase client
+	 * @param engineer_id - Optional engineer ID to filter by assigned engineer
 	 */
-	async listArchivedAssessments(): Promise<any[]> {
-		const { data, error } = await supabase
+	async listArchivedAssessments(client?: ServiceClient, engineer_id?: string | null): Promise<any[]> {
+		const db = client ?? supabase;
+		let query = db
 			.from('assessments')
 			.select(`
 				*,
@@ -455,6 +818,7 @@ export class AssessmentService {
 				),
 				appointment:appointments!inner(
 					id,
+					engineer_id,
 					inspection:inspections!inner(
 						id,
 						request:requests!inner(
@@ -473,8 +837,15 @@ export class AssessmentService {
 					)
 				)
 			`)
-			.eq('status', 'archived')
+			.eq('stage', 'archived')
 			.order('updated_at', { ascending: false });
+
+		// Filter by engineer if engineer_id provided
+		if (engineer_id) {
+			query = query.eq('appointment.engineer_id', engineer_id);
+		}
+
+		const { data, error } = await query;
 
 		if (error) {
 			console.error('Error listing archived assessments:', error);
@@ -488,8 +859,8 @@ export class AssessmentService {
 	 * @deprecated Use listArchivedAssessments instead
 	 * List completed assessments for archive
 	 */
-	async listCompletedAssessments(): Promise<any[]> {
-		return this.listArchivedAssessments();
+	async listCompletedAssessments(client?: ServiceClient): Promise<any[]> {
+		return this.listArchivedAssessments(client);
 	}
 
 	/**
@@ -497,9 +868,12 @@ export class AssessmentService {
 	 * Joins with appointments, inspections, requests, and clients
 	 * Pulls vehicle data from assessment_vehicle_identification (updated during assessment)
 	 * Only returns assessments with 'cancelled' status
+	 * @param client - Supabase client
+	 * @param engineer_id - Optional engineer ID to filter by assigned engineer
 	 */
-	async listCancelledAssessments(): Promise<any[]> {
-		const { data, error } = await supabase
+	async listCancelledAssessments(client?: ServiceClient, engineer_id?: string | null): Promise<any[]> {
+		const db = client ?? supabase;
+		let query = db
 			.from('assessments')
 			.select(`
 				*,
@@ -512,6 +886,7 @@ export class AssessmentService {
 				),
 				appointment:appointments!inner(
 					id,
+					engineer_id,
 					inspection:inspections!inner(
 						id,
 						request:requests!inner(
@@ -530,8 +905,15 @@ export class AssessmentService {
 					)
 				)
 			`)
-			.eq('status', 'cancelled')
+			.eq('stage', 'cancelled')
 			.order('cancelled_at', { ascending: false });
+
+		// Filter by engineer if engineer_id provided
+		if (engineer_id) {
+			query = query.eq('appointment.engineer_id', engineer_id);
+		}
+
+		const { data, error } = await query;
 
 		if (error) {
 			console.error('Error listing cancelled assessments:', error);

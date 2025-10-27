@@ -1,10 +1,9 @@
 import { error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { supabase } from '$lib/supabase';
 import JSZip from 'jszip';
 import { createStreamingResponse } from '$lib/utils/streaming-response';
 
-export const POST: RequestHandler = async ({ request }) => {
+export const POST: RequestHandler = async ({ request, locals }) => {
 	const body = await request.json();
 	const assessmentId = body.assessmentId;
 
@@ -28,7 +27,7 @@ export const POST: RequestHandler = async ({ request }) => {
 			yield { status: 'processing', progress: 5, message: 'Validating assessment...' };
 
 			// Fetch assessment data
-			const { data: assessment, error: assessmentError } = await supabase
+			const { data: assessment, error: assessmentError } = await locals.supabase
 				.from('assessments')
 				.select('*')
 				.eq('id', assessmentId)
@@ -48,8 +47,8 @@ export const POST: RequestHandler = async ({ request }) => {
 
 			// First get the estimates to get their IDs
 			const [{ data: estimate }, { data: preIncidentEstimate }] = await Promise.all([
-				supabase.from('assessment_estimates').select('id').eq('assessment_id', assessmentId).single(),
-				supabase.from('pre_incident_estimates').select('id').eq('assessment_id', assessmentId).single()
+				locals.supabase.from('assessment_estimates').select('id').eq('assessment_id', assessmentId).single(),
+				locals.supabase.from('pre_incident_estimates').select('id').eq('assessment_id', assessmentId).single()
 			]);
 
 			// Fetch related data with photos
@@ -61,32 +60,32 @@ export const POST: RequestHandler = async ({ request }) => {
 				{ data: preIncidentPhotos },
 				{ data: tyres }
 			] = await Promise.all([
-				supabase
+				locals.supabase
 					.from('assessment_vehicle_identification')
 					.select('*')
 					.eq('assessment_id', assessmentId)
 					.single(),
-				supabase.from('assessment_360_exterior').select('*').eq('assessment_id', assessmentId).single(),
-				supabase
+				locals.supabase.from('assessment_360_exterior').select('*').eq('assessment_id', assessmentId).single(),
+				locals.supabase
 					.from('assessment_interior_mechanical')
 					.select('*')
 					.eq('assessment_id', assessmentId)
 					.single(),
 				estimate?.id
-					? supabase
+					? locals.supabase
 							.from('estimate_photos')
 							.select('*')
 							.eq('estimate_id', estimate.id)
 							.order('created_at', { ascending: true })
 					: Promise.resolve({ data: [] }),
 				preIncidentEstimate?.id
-					? supabase
+					? locals.supabase
 							.from('pre_incident_estimate_photos')
 							.select('*')
 							.eq('estimate_id', preIncidentEstimate.id)
 							.order('created_at', { ascending: true })
 					: Promise.resolve({ data: [] }),
-				supabase
+				locals.supabase
 					.from('assessment_tyres')
 					.select('*')
 					.eq('assessment_id', assessmentId)
@@ -106,29 +105,32 @@ export const POST: RequestHandler = async ({ request }) => {
 			// Create ZIP file
 			const zip = new JSZip();
 
-			// Helper function to download a photo with timeout
-			const downloadPhoto = async (url: string, timeoutMs: number = 20000): Promise<ArrayBuffer | null> => {
-				const controller = new AbortController();
-				const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+			/**
+			 * Helper function to download a photo from Supabase storage
+			 * Converts proxy URL to storage path and downloads directly from private bucket
+			 */
+			const downloadPhoto = async (proxyUrl: string | null): Promise<ArrayBuffer | null> => {
+				if (!proxyUrl) return null;
 
 				try {
-					const response = await fetch(url, { signal: controller.signal });
-					clearTimeout(timeoutId);
+					// Extract path from proxy URL
+					// "/api/photo/assessments/..." → "assessments/..."
+					const path = proxyUrl.replace('/api/photo/', '');
 
-					if (!response.ok) {
-						console.warn(`[${new Date().toISOString()}] [Request ${requestId}] Failed to fetch photo (${response.status}): ${url}`);
+					// Download from Supabase storage using authenticated client
+					const { data: photoBlob, error: downloadError } = await locals.supabase.storage
+						.from('SVA Photos')
+						.download(path);
+
+					if (downloadError || !photoBlob) {
+						console.warn(`[${new Date().toISOString()}] [Request ${requestId}] Failed to download photo: ${path}`, downloadError);
 						return null;
 					}
 
-					const blob = await response.blob();
-					return await blob.arrayBuffer();
+					// Convert blob to array buffer
+					return await photoBlob.arrayBuffer();
 				} catch (err) {
-					clearTimeout(timeoutId);
-					if (err instanceof Error && err.name === 'AbortError') {
-						console.warn(`[${new Date().toISOString()}] [Request ${requestId}] Photo download timeout (${timeoutMs}ms): ${url}`);
-					} else {
-						console.warn(`[${new Date().toISOString()}] [Request ${requestId}] Error downloading photo: ${url}`, err);
-					}
+					console.warn(`[${new Date().toISOString()}] [Request ${requestId}] Error downloading photo: ${proxyUrl}`, err);
 					return null;
 				}
 			};
@@ -429,7 +431,7 @@ export const POST: RequestHandler = async ({ request }) => {
 			// Delete previous file if it exists to avoid orphaned files
 			if (assessment.photos_zip_path) {
 				console.log(`[${new Date().toISOString()}] [Request ${requestId}] Deleting previous photos ZIP: ${assessment.photos_zip_path}`);
-				const { error: removeError } = await supabase.storage
+				const { error: removeError } = await locals.supabase.storage
 					.from('documents')
 					.remove([assessment.photos_zip_path]);
 
@@ -447,7 +449,7 @@ export const POST: RequestHandler = async ({ request }) => {
 			const filePath = `assessments/${assessmentId}/photos/${fileName}`;
 
 			try {
-				const { error: uploadError } = await supabase.storage
+				const { error: uploadError } = await locals.supabase.storage
 					.from('documents')
 					.upload(filePath, zipBuffer, {
 						contentType: 'application/zip',
@@ -475,17 +477,15 @@ export const POST: RequestHandler = async ({ request }) => {
 
 			yield { status: 'processing', progress: 95, message: 'Updating database...' };
 
-			// Get public URL
-			const {
-				data: { publicUrl }
-			} = supabase.storage.from('documents').getPublicUrl(filePath);
+			// Use proxy URL instead of signed URL to avoid CORS/ORB issues with private bucket
+			const proxyUrl = `/api/document/${filePath}`;
 
 			// Update assessment with ZIP URL
 			try {
-				const { error: updateError } = await supabase
+				const { error: updateError } = await locals.supabase
 					.from('assessments')
 					.update({
-						photos_zip_url: publicUrl,
+						photos_zip_url: proxyUrl, // Store proxy URL (doesn't expire)
 						photos_zip_path: filePath,
 						documents_generated_at: new Date().toISOString()
 					})
@@ -512,13 +512,13 @@ export const POST: RequestHandler = async ({ request }) => {
 
 			console.log(`[${new Date().toISOString()}] [Request ${requestId}] ✅ Photos ZIP generated successfully`);
 			console.log(`[${new Date().toISOString()}] [Request ${requestId}] File: ${fileName}`);
-			console.log(`[${new Date().toISOString()}] [Request ${requestId}] URL: ${publicUrl}`);
+			console.log(`[${new Date().toISOString()}] [Request ${requestId}] URL: ${proxyUrl}`);
 
 			yield {
 				status: 'complete',
 				progress: 100,
 				message: 'Photos ZIP generated successfully!',
-				url: publicUrl
+				url: proxyUrl
 			};
 
 		} catch (err) {

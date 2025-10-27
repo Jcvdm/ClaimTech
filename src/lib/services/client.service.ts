@@ -1,12 +1,15 @@
 import { supabase } from '$lib/supabase';
 import type { Client, CreateClientInput, UpdateClientInput } from '$lib/types/client';
+import type { ServiceClient } from '$lib/types/service';
 
 export class ClientService {
 	/**
 	 * List all clients
 	 */
-	async listClients(activeOnly = true): Promise<Client[]> {
-		let query = supabase.from('clients').select('*').order('name', { ascending: true });
+	async listClients(activeOnly = true, client?: ServiceClient): Promise<Client[]> {
+		const db = client ?? supabase;
+
+		let query = db.from('clients').select('*').order('name', { ascending: true });
 
 		if (activeOnly) {
 			query = query.eq('is_active', true);
@@ -25,8 +28,10 @@ export class ClientService {
 	/**
 	 * Get a single client by ID
 	 */
-	async getClient(id: string): Promise<Client | null> {
-		const { data, error } = await supabase
+	async getClient(id: string, client?: ServiceClient): Promise<Client | null> {
+		const db = client ?? supabase;
+
+		const { data, error } = await db
 			.from('clients')
 			.select('*')
 			.eq('id', id)
@@ -46,8 +51,10 @@ export class ClientService {
 	/**
 	 * Create a new client
 	 */
-	async createClient(input: CreateClientInput): Promise<Client> {
-		const { data, error } = await supabase
+	async createClient(input: CreateClientInput, client?: ServiceClient): Promise<Client> {
+		const db = client ?? supabase;
+
+		const { data, error } = await db
 			.from('clients')
 			.insert({
 				...input,
@@ -67,8 +74,10 @@ export class ClientService {
 	/**
 	 * Update an existing client
 	 */
-	async updateClient(id: string, input: UpdateClientInput): Promise<Client | null> {
-		const { data, error } = await supabase
+	async updateClient(id: string, input: UpdateClientInput, client?: ServiceClient): Promise<Client | null> {
+		const db = client ?? supabase;
+
+		const { data, error } = await db
 			.from('clients')
 			.update(input)
 			.eq('id', id)
@@ -89,8 +98,10 @@ export class ClientService {
 	/**
 	 * Soft delete a client (set is_active to false)
 	 */
-	async deleteClient(id: string): Promise<boolean> {
-		const { error } = await supabase
+	async deleteClient(id: string, client?: ServiceClient): Promise<boolean> {
+		const db = client ?? supabase;
+
+		const { error } = await db
 			.from('clients')
 			.update({ is_active: false })
 			.eq('id', id);
@@ -106,8 +117,10 @@ export class ClientService {
 	/**
 	 * Search clients by name
 	 */
-	async searchClients(searchTerm: string, activeOnly = true): Promise<Client[]> {
-		let query = supabase
+	async searchClients(searchTerm: string, activeOnly = true, client?: ServiceClient): Promise<Client[]> {
+		const db = client ?? supabase;
+
+		let query = db
 			.from('clients')
 			.select('*')
 			.ilike('name', `%${searchTerm}%`)
@@ -130,8 +143,10 @@ export class ClientService {
 	/**
 	 * Get clients by type
 	 */
-	async getClientsByType(type: 'insurance' | 'private', activeOnly = true): Promise<Client[]> {
-		let query = supabase
+	async getClientsByType(type: 'insurance' | 'private', activeOnly = true, client?: ServiceClient): Promise<Client[]> {
+		const db = client ?? supabase;
+
+		let query = db
 			.from('clients')
 			.select('*')
 			.eq('type', type)

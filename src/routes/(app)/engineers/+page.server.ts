@@ -1,9 +1,9 @@
 import { engineerService } from '$lib/services/engineer.service';
 import type { PageServerLoad } from './$types';
 
-export const load: PageServerLoad = async () => {
+export const load: PageServerLoad = async ({ locals }) => {
 	try {
-		const engineers = await engineerService.listEngineers(false); // Get all engineers including inactive
+		const engineers = await engineerService.listEngineers(false, locals.supabase); // Get all engineers including inactive
 
 		return {
 			engineers

@@ -137,7 +137,8 @@
 				third_party_insurance: third_party_insurance || undefined
 			};
 
-			const newRequest = await requestService.createRequest(requestData);
+			const { request: newRequest, assessment } = await requestService.createRequest(requestData);
+			console.log('Request and assessment created successfully:', { request: newRequest.id, assessment: assessment.id });
 			goto(`/requests/${newRequest.id}`);
 		} catch (err) {
 			console.error('Error creating request:', err);

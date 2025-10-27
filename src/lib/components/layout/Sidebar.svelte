@@ -22,8 +22,14 @@
 		Calendar,
 		ClipboardList,
 		Wrench,
-		Archive
+		Archive,
+		LogOut
 	} from 'lucide-svelte';
+	import { enhance } from '$app/forms';
+	import { invalidate, invalidateAll } from '$app/navigation';
+
+	// Props
+	let { role = 'engineer', engineer_id = null }: { role?: string; engineer_id?: string | null } = $props();
 
 	type NavItem = {
 		label: string;
@@ -46,50 +52,66 @@
 	let additionalsCount = $state(0);
 	let pollingInterval: ReturnType<typeof setInterval> | null = null;
 
-	// Reactive navigation with badge counts
-	const navigation = $derived([
+	// All navigation items
+	const allNavigation = [
 		{
 			label: 'General',
-			items: [{ label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard }]
+			items: [{ label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard }],
+			adminOnly: false
 		},
 		{
 			label: 'Clients',
-			items: [{ label: 'All Clients', href: '/clients', icon: Users }]
+			items: [{ label: 'All Clients', href: '/clients', icon: Users }],
+			adminOnly: true
 		},
 		{
 			label: 'Requests',
 			items: [
-				{ label: 'New Requests', href: '/requests', icon: FileText, badge: newRequestCount }
-			]
+				{ label: 'New Requests', href: '/requests', icon: FileText }
+			],
+			adminOnly: true
 		},
 		{
 			label: 'Work',
 			items: [
-				{ label: 'Inspections', href: '/work/inspections', icon: ClipboardCheck, badge: inspectionCount },
-				{ label: 'Appointments', href: '/work/appointments', icon: Calendar, badge: appointmentCount },
-				{ label: 'Open Assessments', href: '/work/assessments', icon: ClipboardList, badge: assessmentCount },
-				{ label: 'Finalized Assessments', href: '/work/finalized-assessments', icon: FileCheck, badge: finalizedAssessmentCount },
-				{ label: 'FRC', href: '/work/frc', icon: FileCheck, badge: frcCount },
-				{ label: 'Additionals', href: '/work/additionals', icon: Plus, badge: additionalsCount },
+				// Note: Badge counts are rendered directly in the template using state variables
+				// The reactive state refs are used in conditional rendering below (lines 257-290)
+				{ label: role === 'engineer' ? 'Assigned Work' : 'Inspections', href: '/work/inspections', icon: ClipboardCheck },
+				{ label: 'Appointments', href: '/work/appointments', icon: Calendar },
+				{ label: 'Open Assessments', href: '/work/assessments', icon: ClipboardList },
+				{ label: 'Finalized Assessments', href: '/work/finalized-assessments', icon: FileCheck },
+				{ label: 'FRC', href: '/work/frc', icon: FileCheck },
+				{ label: 'Additionals', href: '/work/additionals', icon: Plus },
 				{ label: 'Archive', href: '/work/archive', icon: Archive }
-			]
+			],
+			adminOnly: false
 		},
 		{
 			label: 'Engineers',
 			items: [
 				{ label: 'All Engineers', href: '/engineers', icon: Users },
 				{ label: 'New Engineer', href: '/engineers/new', icon: UserPlus }
-			]
+			],
+			adminOnly: true
 		},
 		{
 			label: 'Repairers',
-			items: [{ label: 'All Repairers', href: '/repairers', icon: Wrench }]
+			items: [{ label: 'All Repairers', href: '/repairers', icon: Wrench }],
+			adminOnly: true
 		},
 		{
 			label: 'Settings',
-			items: [{ label: 'Company Settings', href: '/settings', icon: Settings }]
+			items: [{ label: 'Company Settings', href: '/settings', icon: Settings }],
+			adminOnly: true
 		}
-	]);
+	];
+
+	// Filter navigation based on role
+	const navigation = $derived(
+		role === 'admin'
+			? allNavigation
+			: allNavigation.filter(group => !group.adminOnly)
+	);
 
 	function isActive(href: string): boolean {
 		return $page.url.pathname === href || $page.url.pathname.startsWith(href + '/');
@@ -97,31 +119,83 @@
 
 	async function loadNewRequestCount() {
 		try {
-			newRequestCount = await requestService.getRequestCount({ status: 'submitted' });
+			let query = $page.data.supabase
+				.from('assessments')
+				.select('*, requests!inner(assigned_engineer_id)', { count: 'exact', head: true })
+				.eq('stage', 'request_submitted');
+
+			if (role === 'engineer' && engineer_id) {
+				query = query.eq('requests.assigned_engineer_id', engineer_id);
+			}
+
+			const { count, error } = await query;
+
+			if (error) {
+				console.error('Error loading new request count:', error);
+				newRequestCount = 0;
+			} else {
+				newRequestCount = count || 0;
+			}
 		} catch (error) {
 			console.error('Error loading new request count:', error);
+			newRequestCount = 0;
 		}
 	}
 
 	async function loadInspectionCount() {
 		try {
-			inspectionCount = await inspectionService.getInspectionCount({ status: 'pending' });
+			let query = $page.data.supabase
+				.from('assessments')
+				.select('*, appointments!inner(engineer_id)', { count: 'exact', head: true })
+				.eq('stage', 'inspection_scheduled');
+
+			if (role === 'engineer' && engineer_id) {
+				query = query.eq('appointments.engineer_id', engineer_id);
+			}
+
+			const { count, error } = await query;
+
+			if (error) {
+				console.error('Error loading inspection count:', error);
+				inspectionCount = 0;
+			} else {
+				inspectionCount = count || 0;
+			}
 		} catch (error) {
 			console.error('Error loading inspection count:', error);
+			inspectionCount = 0;
 		}
 	}
 
 	async function loadAppointmentCount() {
 		try {
-			appointmentCount = await appointmentService.getAppointmentCount({ status: 'scheduled' });
+			let query = $page.data.supabase
+				.from('assessments')
+				.select('*, appointments!inner(engineer_id)', { count: 'exact', head: true })
+				.in('stage', ['appointment_scheduled', 'assessment_in_progress']);
+
+			if (role === 'engineer' && engineer_id) {
+				query = query.eq('appointments.engineer_id', engineer_id);
+			}
+
+			const { count, error } = await query;
+
+			if (error) {
+				console.error('Error loading appointment count:', error);
+				appointmentCount = 0;
+			} else {
+				appointmentCount = count || 0;
+			}
 		} catch (error) {
 			console.error('Error loading appointment count:', error);
+			appointmentCount = 0;
 		}
 	}
 
 	async function loadAssessmentCount() {
 		try {
-			assessmentCount = await assessmentService.getInProgressCount();
+			const engineerIdFilter = role === 'engineer' ? engineer_id : undefined;
+			assessmentCount = await assessmentService.getInProgressCount($page.data.supabase, engineerIdFilter);
 		} catch (error) {
 			console.error('Error loading assessment count:', error);
 		}
@@ -129,7 +203,8 @@
 
 	async function loadFinalizedAssessmentCount() {
 		try {
-			finalizedAssessmentCount = await assessmentService.getFinalizedCount();
+			const engineerIdFilter = role === 'engineer' ? engineer_id : undefined;
+			finalizedAssessmentCount = await assessmentService.getFinalizedCount($page.data.supabase, engineerIdFilter);
 		} catch (error) {
 			console.error('Error loading finalized assessment count:', error);
 		}
@@ -137,7 +212,8 @@
 
 	async function loadFRCCount() {
 		try {
-			frcCount = await frcService.getCountByStatus('in_progress');
+			const engineerIdFilter = role === 'engineer' ? engineer_id : undefined;
+			frcCount = await frcService.getCountByStatus('in_progress', $page.data.supabase, engineerIdFilter);
 		} catch (error) {
 			console.error('Error loading FRC count:', error);
 		}
@@ -145,7 +221,8 @@
 
 	async function loadAdditionalsCount() {
 		try {
-			additionalsCount = await additionalsService.getPendingCount();
+			const engineerIdFilter = role === 'engineer' ? engineer_id : undefined;
+			additionalsCount = await additionalsService.getPendingCount($page.data.supabase, engineerIdFilter);
 		} catch (error) {
 			console.error('Error loading additionals count:', error);
 		}
@@ -209,8 +286,8 @@
 	});
 </script>
 
-<aside class="hidden lg:block w-60 border-r bg-white">
-	<nav class="space-y-6 p-4">
+<aside class="hidden lg:block w-60 border-r bg-white flex flex-col">
+	<nav class="space-y-6 p-4 flex-1">
 		{#each navigation as group}
 			<div class="space-y-1">
 				<h3 class="mb-2 px-3 text-xs font-semibold uppercase tracking-wider text-gray-500">
@@ -229,7 +306,7 @@
 						>
 							<span class="flex items-center gap-3">
 								{#if item.icon}
-									<svelte:component this={item.icon} class="h-4 w-4" />
+									<item.icon class="h-4 w-4" />
 								{/if}
 								{item.label}
 							</span>
@@ -275,5 +352,37 @@
 			</div>
 		{/each}
 	</nav>
+
+	<!-- Logout Button at Bottom -->
+	<div class="border-t border-gray-200 p-4">
+		<form
+			method="POST"
+			action="/auth/logout"
+			use:enhance={() => {
+				// Clear polling interval before logout
+				if (pollingInterval) {
+					clearInterval(pollingInterval);
+					pollingInterval = null;
+				}
+				return async ({ update }) => {
+					// Invalidate all auth-dependent data across the app
+					// This ensures session state is cleared from client memory
+					await invalidateAll();
+					await invalidate('supabase:auth');
+
+					// Apply form action result (redirect to login)
+					await update();
+				};
+			}}
+		>
+			<button
+				type="submit"
+				class="flex items-center gap-3 w-full rounded-md px-3 py-2 text-sm font-medium text-red-600 hover:bg-red-50 transition-colors"
+			>
+				<LogOut class="h-4 w-4" />
+				Sign Out
+			</button>
+		</form>
+	</div>
 </aside>
 

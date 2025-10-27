@@ -30,7 +30,6 @@
 	import { vehicleValuesService } from '$lib/services/vehicle-values.service';
 	import { documentGenerationService } from '$lib/services/document-generation.service';
 	import { assessmentNotesService } from '$lib/services/assessment-notes.service';
-	import { supabase } from '$lib/supabase';
 	import type {
 		VehicleIdentification,
 		Exterior360,
@@ -574,7 +573,8 @@
 				window.open(url, '_blank');
 
 				// Refresh assessment data to get the updated PDF URL
-				const { data: updatedAssessment, error } = await supabase
+				// Use data.supabase (authenticated client) instead of browser client
+				const { data: updatedAssessment, error } = await data.supabase
 					.from('assessments')
 					.select('*')
 					.eq('id', data.assessment.id)
@@ -649,7 +649,8 @@
 			await documentGenerationService.generateAllDocuments(data.assessment.id);
 
 			// Refresh assessment data to get the updated PDF URLs
-			const { data: updatedAssessment, error } = await supabase
+			// Use data.supabase (authenticated client) instead of browser client
+			const { data: updatedAssessment, error } = await data.supabase
 				.from('assessments')
 				.select('*')
 				.eq('id', data.assessment.id)

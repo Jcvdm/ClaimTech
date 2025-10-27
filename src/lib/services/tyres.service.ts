@@ -1,13 +1,15 @@
 import { supabase } from '$lib/supabase';
 import type { Tyre, CreateTyreInput, UpdateTyreInput } from '$lib/types/assessment';
+import type { ServiceClient } from '$lib/types/service';
 import { auditService } from './audit.service';
 
 export class TyresService {
 	/**
 	 * Create tyre record
 	 */
-	async create(input: CreateTyreInput): Promise<Tyre> {
-		const { data, error } = await supabase
+	async create(input: CreateTyreInput, client?: ServiceClient): Promise<Tyre> {
+		const db = client ?? supabase;
+		const { data, error } = await db
 			.from('assessment_tyres')
 			.insert(input)
 			.select()
@@ -36,8 +38,9 @@ export class TyresService {
 	/**
 	 * Get tyre by ID
 	 */
-	async get(id: string): Promise<Tyre | null> {
-		const { data, error } = await supabase
+	async get(id: string, client?: ServiceClient): Promise<Tyre | null> {
+		const db = client ?? supabase;
+		const { data, error } = await db
 			.from('assessment_tyres')
 			.select('*')
 			.eq('id', id)
@@ -54,8 +57,9 @@ export class TyresService {
 	/**
 	 * List tyres by assessment ID
 	 */
-	async listByAssessment(assessmentId: string): Promise<Tyre[]> {
-		const { data, error } = await supabase
+	async listByAssessment(assessmentId: string, client?: ServiceClient): Promise<Tyre[]> {
+		const db = client ?? supabase;
+		const { data, error } = await db
 			.from('assessment_tyres')
 			.select('*')
 			.eq('assessment_id', assessmentId)
@@ -72,14 +76,15 @@ export class TyresService {
 	/**
 	 * Update tyre
 	 */
-	async update(id: string, input: UpdateTyreInput): Promise<Tyre> {
+	async update(id: string, input: UpdateTyreInput, client?: ServiceClient): Promise<Tyre> {
+		const db = client ?? supabase;
 		// Convert undefined to null for Supabase (defensive programming)
 		// Supabase strips undefined values, which can cause empty updates
 		const cleanedInput = Object.fromEntries(
 			Object.entries(input).map(([key, value]) => [key, value === undefined ? null : value])
 		) as UpdateTyreInput;
 
-		const { data, error } = await supabase
+		const { data, error } = await db
 			.from('assessment_tyres')
 			.update(cleanedInput)
 			.eq('id', id)
@@ -108,8 +113,9 @@ export class TyresService {
 	/**
 	 * Delete tyre
 	 */
-	async delete(id: string): Promise<void> {
-		const { error } = await supabase.from('assessment_tyres').delete().eq('id', id);
+	async delete(id: string, client?: ServiceClient): Promise<void> {
+		const db = client ?? supabase;
+		const { error } = await db.from('assessment_tyres').delete().eq('id', id);
 
 		if (error) {
 			console.error('Error deleting tyre:', error);
@@ -130,8 +136,10 @@ export class TyresService {
 
 	/**
 	 * Create default tyres for assessment (5 standard positions)
+	 * IDEMPOTENT: Uses upsert to safely re-create tyres on page refresh/retry
 	 */
-	async createDefaultTyres(assessmentId: string): Promise<Tyre[]> {
+	async createDefaultTyres(assessmentId: string, client?: ServiceClient): Promise<Tyre[]> {
+		const db = client ?? supabase;
 		const defaultPositions = [
 			{ position: 'front_right', position_label: 'Front Right' },
 			{ position: 'front_left', position_label: 'Front Left' },
@@ -143,12 +151,28 @@ export class TyresService {
 		const tyres: Tyre[] = [];
 
 		for (const pos of defaultPositions) {
-			const tyre = await this.create({
-				assessment_id: assessmentId,
-				position: pos.position,
-				position_label: pos.position_label
-			});
-			tyres.push(tyre);
+			const { data, error } = await db
+				.from('assessment_tyres')
+				.upsert(
+					{
+						assessment_id: assessmentId,
+						position: pos.position,
+						position_label: pos.position_label
+					},
+					{
+						onConflict: 'assessment_id,position', // Use unique constraint
+						ignoreDuplicates: false // Update if exists
+					}
+				)
+				.select()
+				.single();
+
+			if (error) {
+				console.error(`Error creating/updating tyre ${pos.position}:`, error);
+				throw new Error(`Failed to create tyre: ${error.message}`);
+			}
+
+			tyres.push(data);
 		}
 
 		return tyres;

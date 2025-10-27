@@ -1,9 +1,16 @@
 import type { PageServerLoad } from './$types';
 import { additionalsService } from '$lib/services/additionals.service';
 
-export const load: PageServerLoad = async () => {
+export const load: PageServerLoad = async ({ locals, parent }) => {
+	const { role, engineer_id } = await parent();
+	const isEngineer = role === 'engineer';
+
 	try {
-		const additionalsRecords = await additionalsService.listAdditionals();
+		// Engineers only see their own additionals records
+		const additionalsRecords = await additionalsService.listAdditionals(
+			locals.supabase,
+			isEngineer ? engineer_id : undefined
+		);
 
 		return {
 			additionalsRecords

@@ -177,7 +177,9 @@
 								: percentage >= 30
 									? 'yellow'
 									: 'gray'}
-					<GradientBadge {variant} label="{row.progress_display} ({percentage}%)" />
+					<GradientBadge {variant}>
+						{row.progress_display} ({percentage}%)
+					</GradientBadge>
 				{:else if column.key === 'engineer_name'}
 					<TableCell variant={row.engineer_name === 'Unassigned' ? 'muted' : 'default'}>
 						{row.engineer_name}

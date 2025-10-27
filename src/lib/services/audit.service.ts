@@ -1,13 +1,16 @@
 import { supabase } from '$lib/supabase';
 import type { AuditLog, CreateAuditLogInput, EntityType } from '$lib/types/audit';
+import type { ServiceClient } from '$lib/types/service';
 
 export class AuditService {
 	/**
 	 * Log a change to an entity
 	 */
-	async logChange(input: CreateAuditLogInput): Promise<AuditLog | null> {
+	async logChange(input: CreateAuditLogInput, client?: ServiceClient): Promise<AuditLog | null> {
+		const db = client ?? supabase;
+
 		try {
-			const { data, error } = await supabase
+			const { data, error } = await db
 				.from('audit_logs')
 				.insert({
 					entity_type: input.entity_type,
@@ -38,9 +41,11 @@ export class AuditService {
 	/**
 	 * Get audit history for a specific entity
 	 */
-	async getEntityHistory(entityType: EntityType, entityId: string): Promise<AuditLog[]> {
+	async getEntityHistory(entityType: EntityType, entityId: string, client?: ServiceClient): Promise<AuditLog[]> {
+		const db = client ?? supabase;
+
 		try {
-			const { data, error } = await supabase
+			const { data, error } = await db
 				.from('audit_logs')
 				.select('*')
 				.eq('entity_type', entityType)
@@ -62,9 +67,11 @@ export class AuditService {
 	/**
 	 * Get recent audit logs across all entities
 	 */
-	async getRecentLogs(limit: number = 50): Promise<AuditLog[]> {
+	async getRecentLogs(limit: number = 50, client?: ServiceClient): Promise<AuditLog[]> {
+		const db = client ?? supabase;
+
 		try {
-			const { data, error } = await supabase
+			const { data, error } = await db
 				.from('audit_logs')
 				.select('*')
 				.order('created_at', { ascending: false })
@@ -85,9 +92,11 @@ export class AuditService {
 	/**
 	 * Get audit logs by action type
 	 */
-	async getLogsByAction(action: string, limit: number = 50): Promise<AuditLog[]> {
+	async getLogsByAction(action: string, limit: number = 50, client?: ServiceClient): Promise<AuditLog[]> {
+		const db = client ?? supabase;
+
 		try {
-			const { data, error } = await supabase
+			const { data, error } = await db
 				.from('audit_logs')
 				.select('*')
 				.eq('action', action)

@@ -1,11 +1,10 @@
 import { error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { supabase } from '$lib/supabase';
 import { generatePDF } from '$lib/utils/pdf-generator';
 import { generateFRCReportHTML } from '$lib/templates/frc-report-template';
 import { createStreamingResponse } from '$lib/utils/streaming-response';
 
-export const POST: RequestHandler = async ({ request }) => {
+export const POST: RequestHandler = async ({ request, locals }) => {
 	const body = await request.json();
 	const assessmentId = body.assessmentId;
 	const requestId = Math.random().toString(36).substring(7);
@@ -29,7 +28,7 @@ export const POST: RequestHandler = async ({ request }) => {
 
 			// Fetch assessment data
 			console.log(`[${new Date().toISOString()}] [Request ${requestId}] Fetching assessment from database...`);
-			const { data: assessment, error: assessmentError } = await supabase
+			const { data: assessment, error: assessmentError } = await locals.supabase
 				.from('assessments')
 				.select('*')
 				.eq('id', assessmentId)
@@ -52,7 +51,7 @@ export const POST: RequestHandler = async ({ request }) => {
 			console.log(`[${new Date().toISOString()}] [Request ${requestId}] Progress 15% yielded successfully`);
 
 			// Fetch FRC data
-			const { data: frc, error: frcError } = await supabase
+			const { data: frc, error: frcError } = await locals.supabase
 				.from('assessment_frc')
 				.select('*')
 				.eq('assessment_id', assessmentId)
@@ -84,9 +83,9 @@ export const POST: RequestHandler = async ({ request }) => {
 					.select('*')
 					.eq('assessment_id', assessmentId)
 					.single(),
-				supabase.from('assessment_estimates').select('*').eq('assessment_id', assessmentId).single(),
-				supabase.from('assessment_additionals').select('*').eq('assessment_id', assessmentId).single(),
-				supabase.from('company_settings').select('*').single()
+				locals.supabase.from('assessment_estimates').select('*').eq('assessment_id', assessmentId).single(),
+				locals.supabase.from('assessment_additionals').select('*').eq('assessment_id', assessmentId).single(),
+				locals.supabase.from('company_settings').select('*').single()
 			]);
 
 			console.log(`[${new Date().toISOString()}] [Request ${requestId}] Yielding progress: 40%`);
@@ -95,11 +94,11 @@ export const POST: RequestHandler = async ({ request }) => {
 
 			// Fetch repairer using estimate data
 			const { data: repairer } = estimate?.repairer_id
-				? await supabase.from('repairers').select('*').eq('id', estimate.repairer_id).single()
+				? await locals.locals.supabase.from('repairers').select('*').eq('id', estimate.repairer_id).single()
 				: { data: null };
 
 			// Fetch FRC documents
-			const { data: frcDocuments } = await supabase
+			const { data: frcDocuments } = await locals.supabase
 				.from('assessment_frc_documents')
 				.select('*')
 				.eq('frc_id', frc.id)
@@ -191,7 +190,7 @@ export const POST: RequestHandler = async ({ request }) => {
 				if (urlParts.length > 1) {
 					const previousPath = urlParts[1];
 					console.log(`[${new Date().toISOString()}] [Request ${requestId}] Deleting previous FRC report: ${previousPath}`);
-					const { error: removeError } = await supabase.storage
+					const { error: removeError } = await locals.locals.supabase.storage
 						.from('documents')
 						.remove([previousPath]);
 
@@ -210,7 +209,7 @@ export const POST: RequestHandler = async ({ request }) => {
 			const filePath = `assessments/${assessmentId}/frc/${fileName}`;
 
 			console.log(`[${new Date().toISOString()}] [Request ${requestId}] Uploading PDF to Supabase storage: ${filePath}`);
-			const { error: uploadError } = await supabase.storage
+			const { error: uploadError } = await locals.locals.supabase.storage
 				.from('documents')
 				.upload(filePath, pdfBuffer, {
 					contentType: 'application/pdf',
@@ -233,19 +232,32 @@ export const POST: RequestHandler = async ({ request }) => {
 			yield { status: 'processing', progress: 95, message: 'Finalizing...' };
 			console.log(`[${new Date().toISOString()}] [Request ${requestId}] Progress 95% yielded successfully`);
 
-			// Get public URL
-			console.log(`[${new Date().toISOString()}] [Request ${requestId}] Getting public URL for PDF...`);
-			const {
-				data: { publicUrl }
-			} = supabase.storage.from('documents').getPublicUrl(filePath);
-			console.log(`[${new Date().toISOString()}] [Request ${requestId}] Public URL: ${publicUrl}`);
+			// Generate signed URL (1 hour expiry) for immediate download
+			console.log(`[${new Date().toISOString()}] [Request ${requestId}] Generating signed URL for PDF...`);
+			const { data: signedUrlData, error: signedUrlError } = await locals.supabase.storage
+				.from('documents')
+				.createSignedUrl(filePath, 3600);
+
+			if (signedUrlError || !signedUrlData) {
+				console.error(`[${new Date().toISOString()}] [Request ${requestId}] Signed URL error:`, signedUrlError);
+				yield {
+					status: 'error',
+					progress: 0,
+					error: 'Failed to generate signed URL'
+				};
+				console.log(`[${new Date().toISOString()}] [Request ${requestId}] Error yielded, returning from generator`);
+				return;
+			}
+
+			const signedUrl = signedUrlData.signedUrl;
+			console.log(`[${new Date().toISOString()}] [Request ${requestId}] Signed URL: ${signedUrl}`);
 
 			// Update FRC record with PDF URL
 			console.log(`[${new Date().toISOString()}] [Request ${requestId}] Updating FRC record with PDF URL...`);
-			const { error: updateError } = await supabase
+			const { error: updateError } = await locals.supabase
 				.from('assessment_frc')
 				.update({
-					frc_report_url: publicUrl
+					frc_report_url: signedUrl // Store signed URL for immediate use
 				})
 				.eq('id', frc.id);
 
@@ -266,7 +278,7 @@ export const POST: RequestHandler = async ({ request }) => {
 				status: 'complete',
 				progress: 100,
 				message: 'FRC report generated successfully!',
-				url: publicUrl
+				url: signedUrl
 			};
 			console.log(`[${new Date().toISOString()}] [Request ${requestId}] ✅ COMPLETE status yielded successfully - generator will now exit`);
 

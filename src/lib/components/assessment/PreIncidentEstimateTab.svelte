@@ -156,6 +156,28 @@
 		markDirty();
 	}
 
+	/**
+	 * Add a line item with values (used by QuickAddLineItem component)
+	 * Similar to EstimateTab's addLocalLine() function
+	 */
+	function addLocalLine(item: Partial<EstimateLineItem>) {
+		if (!localEstimate) return;
+
+		// Ensure every new item has a unique id (generate if missing)
+		const id = item.id ?? crypto.randomUUID();
+		const li = { ...item, id } as EstimateLineItem;
+
+		// Ensure total is present/consistent with current rates
+		li.total = calculateLineItemTotal(
+			li,
+			localEstimate.labour_rate,
+			localEstimate.paint_rate
+		);
+
+		localEstimate.line_items = [...localEstimate.line_items, li];
+		markDirty();
+	}
+
 	function handleUpdateLineItem(itemId: string, field: keyof EstimateLineItem, value: any) {
 		if (!localEstimate) return;
 		const idx = localEstimate.line_items.findIndex((item) => item.id === itemId);
@@ -414,7 +436,7 @@
 			altMarkup={localEstimate.alt_markup_percentage}
 			secondHandMarkup={localEstimate.second_hand_markup_percentage}
 			outworkMarkup={localEstimate.outwork_markup_percentage}
-			onAddLineItem={handleAddEmptyLineItem}
+			onAddLineItem={(item) => { addLocalLine(item); }}
 		/>
 
 		<!-- Line Items Table -->

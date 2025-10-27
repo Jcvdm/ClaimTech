@@ -14,13 +14,16 @@ import {
 	calculateTotal,
 	validateFRCLineItem
 } from '$lib/utils/frcCalculations';
+import type { ServiceClient } from '$lib/types/service';
 
 class FRCService {
 	/**
 	 * Get FRC by assessment ID
 	 */
-	async getByAssessment(assessmentId: string): Promise<FinalRepairCosting | null> {
-		const { data, error } = await supabase
+	async getByAssessment(assessmentId: string, client?: ServiceClient): Promise<FinalRepairCosting | null> {
+		const db = client ?? supabase;
+
+		const { data, error } = await db
 			.from('assessment_frc')
 			.select('*')
 			.eq('assessment_id', assessmentId)
@@ -41,15 +44,18 @@ class FRCService {
 	async startFRC(
 		assessmentId: string,
 		estimate: Estimate,
-		additionals: AssessmentAdditionals | null
+		additionals: AssessmentAdditionals | null,
+		client?: ServiceClient
 	): Promise<FinalRepairCosting> {
+		const db = client ?? supabase;
+
 		// Check if FRC already exists
-		const existing = await this.getByAssessment(assessmentId);
+		const existing = await this.getByAssessment(assessmentId, client);
 
 		if (existing) {
 			// If FRC exists with 'not_started' status, delete it to start fresh
 			if (existing.status === 'not_started') {
-				const { error: deleteError } = await supabase
+				const { error: deleteError } = await db
 					.from('assessment_frc')
 					.delete()
 					.eq('id', existing.id);
@@ -76,7 +82,7 @@ class FRCService {
 		}
 
 		// Fetch assessment to get frozen rates and markups from finalization
-		const { data: assessment, error: assessmentError } = await supabase
+		const { data: assessment, error: assessmentError } = await db
 			.from('assessments')
 			.select('finalized_labour_rate, finalized_paint_rate, finalized_oem_markup, finalized_alt_markup, finalized_second_hand_markup, finalized_outwork_markup')
 			.eq('id', assessmentId)
@@ -112,7 +118,7 @@ class FRCService {
 		);
 
 		// Create FRC record
-		const { data, error } = await supabase
+		const { data, error } = await db
 			.from('assessment_frc')
 			.insert({
 				assessment_id: assessmentId,
@@ -209,9 +215,12 @@ class FRCService {
 			actual_paint_panels?: number | null;
 			actual_paint_cost?: number | null;
 			actual_outwork_charge?: number | null;
-		}
+		},
+		client?: ServiceClient
 	): Promise<FinalRepairCosting> {
-		const frc = await this.getById(frcId);
+		const db = client ?? supabase;
+
+		const frc = await this.getById(frcId, client);
 		if (!frc) {
 			throw new Error('FRC not found');
 		}
@@ -280,7 +289,7 @@ class FRCService {
 		updatedLineItems[lineIndex] = line;
 
 		// Fetch assessment to get frozen markups
-		const { data: assessment, error: assessmentError } = await supabase
+		const { data: assessment, error: assessmentError } = await db
 			.from('assessments')
 			.select('finalized_oem_markup, finalized_outwork_markup')
 			.eq('id', frc.assessment_id)
@@ -297,7 +306,7 @@ class FRCService {
 
 		if (!partsMarkup || !outworkMarkup) {
 			// Fallback: fetch from estimate
-			const { data: estimate } = await supabase
+			const { data: estimate } = await db
 				.from('assessment_estimates')
 				.select('oem_markup_percentage, outwork_markup_percentage')
 				.eq('assessment_id', frc.assessment_id)
@@ -316,7 +325,7 @@ class FRCService {
 		);
 
 		// Update FRC
-		const { data, error } = await supabase
+		const { data, error } = await db
 			.from('assessment_frc')
 			.update({
 				line_items: updatedLineItems,
@@ -382,9 +391,12 @@ class FRCService {
 			email: string;
 			role: string;
 			notes?: string;
-		}
+		},
+		client?: ServiceClient
 	): Promise<FinalRepairCosting> {
-		const frc = await this.getById(frcId);
+		const db = client ?? supabase;
+
+		const frc = await this.getById(frcId, client);
 		if (!frc) {
 			throw new Error('FRC not found');
 		}
@@ -407,7 +419,7 @@ class FRCService {
 
 		const now = new Date().toISOString();
 
-		const { data, error } = await supabase
+		const { data, error } = await db
 			.from('assessment_frc')
 			.update({
 				status: 'completed',
@@ -431,7 +443,7 @@ class FRCService {
 		// Update assessment status to 'archived' when FRC is completed
 		// This moves the assessment from Finalized Assessments to Archive
 		try {
-			const { error: assessmentError } = await supabase
+			const { error: assessmentError } = await db
 				.from('assessments')
 				.update({ status: 'archived', updated_at: now })
 				.eq('id', frc.assessment_id);
@@ -503,8 +515,10 @@ class FRCService {
 	/**
 	 * Get FRC by ID
 	 */
-	async getById(id: string): Promise<FinalRepairCosting | null> {
-		const { data, error } = await supabase
+	async getById(id: string, client?: ServiceClient): Promise<FinalRepairCosting | null> {
+		const db = client ?? supabase;
+
+		const { data, error } = await db
 			.from('assessment_frc')
 			.select('*')
 			.eq('id', id)
@@ -524,8 +538,11 @@ class FRCService {
 	 */
 	async listFRC(filters?: {
 		status?: 'not_started' | 'in_progress' | 'completed';
-	}): Promise<any[]> {
-		let query = supabase
+		engineer_id?: string;
+	}, client?: ServiceClient): Promise<any[]> {
+		const db = client ?? supabase;
+
+		let query = db
 			.from('assessment_frc')
 			.select(`
 				*,
@@ -534,6 +551,7 @@ class FRCService {
 					assessment_number,
 					appointment:appointments!inner(
 						id,
+						engineer_id,
 						inspection:inspections!inner(
 							id,
 							request:requests!inner(
@@ -555,8 +573,14 @@ class FRCService {
 			`)
 			.order('started_at', { ascending: false });
 
+		// Filter by assessment stage (frc_in_progress)
+		query = query.eq('assessment.stage', 'frc_in_progress');
+
 		if (filters?.status) {
 			query = query.eq('status', filters.status);
+		}
+		if (filters?.engineer_id) {
+			query = query.eq('assessment.appointment.engineer_id', filters.engineer_id);
 		}
 
 		const { data, error } = await query;
@@ -572,11 +596,21 @@ class FRCService {
 	/**
 	 * Get count of FRC records by status
 	 */
-	async getCountByStatus(status: 'not_started' | 'in_progress' | 'completed'): Promise<number> {
-		const { count, error } = await supabase
+	async getCountByStatus(status: 'not_started' | 'in_progress' | 'completed', client?: ServiceClient, engineer_id?: string | null): Promise<number> {
+		const db = client ?? supabase;
+
+		let query = db
 			.from('assessment_frc')
-			.select('*', { count: 'exact', head: true })
-			.eq('status', status);
+			.select('*, assessments!inner(appointment_id, appointments!inner(engineer_id))', { count: 'exact', head: true })
+			.eq('status', status)
+			.eq('assessments.stage', 'frc_in_progress');
+
+		// Filter by engineer if provided
+		if (engineer_id) {
+			query = query.eq('assessments.appointments.engineer_id', engineer_id);
+		}
+
+		const { count, error } = await query;
 
 		if (error) {
 			console.error('Error counting FRC records:', error);
@@ -589,8 +623,10 @@ class FRCService {
 	/**
 	 * Get count of all FRC records
 	 */
-	async getTotalCount(): Promise<number> {
-		const { count, error } = await supabase
+	async getTotalCount(client?: ServiceClient): Promise<number> {
+		const db = client ?? supabase;
+
+		const { count, error } = await db
 			.from('assessment_frc')
 			.select('*', { count: 'exact', head: true });
 

@@ -1,12 +1,15 @@
 import { supabase } from '$lib/supabase';
 import type { Repairer, CreateRepairerInput, UpdateRepairerInput } from '$lib/types/repairer';
+import type { ServiceClient } from '$lib/types/service';
 
 export class RepairerService {
 	/**
 	 * List all repairers
 	 */
-	async listRepairers(activeOnly = true): Promise<Repairer[]> {
-		let query = supabase.from('repairers').select('*').order('name', { ascending: true });
+	async listRepairers(activeOnly = true, client?: ServiceClient): Promise<Repairer[]> {
+		const db = client ?? supabase;
+
+		let query = db.from('repairers').select('*').order('name', { ascending: true });
 
 		if (activeOnly) {
 			query = query.eq('is_active', true);
@@ -25,8 +28,10 @@ export class RepairerService {
 	/**
 	 * Get a single repairer by ID
 	 */
-	async getRepairer(id: string): Promise<Repairer | null> {
-		const { data, error } = await supabase
+	async getRepairer(id: string, client?: ServiceClient): Promise<Repairer | null> {
+		const db = client ?? supabase;
+
+		const { data, error } = await db
 			.from('repairers')
 			.select('*')
 			.eq('id', id)
@@ -46,8 +51,10 @@ export class RepairerService {
 	/**
 	 * Create a new repairer
 	 */
-	async createRepairer(input: CreateRepairerInput): Promise<Repairer> {
-		const { data, error } = await supabase
+	async createRepairer(input: CreateRepairerInput, client?: ServiceClient): Promise<Repairer> {
+		const db = client ?? supabase;
+
+		const { data, error } = await db
 			.from('repairers')
 			.insert({
 				...input,
@@ -67,8 +74,10 @@ export class RepairerService {
 	/**
 	 * Update an existing repairer
 	 */
-	async updateRepairer(id: string, input: UpdateRepairerInput): Promise<Repairer | null> {
-		const { data, error } = await supabase
+	async updateRepairer(id: string, input: UpdateRepairerInput, client?: ServiceClient): Promise<Repairer | null> {
+		const db = client ?? supabase;
+
+		const { data, error } = await db
 			.from('repairers')
 			.update(input)
 			.eq('id', id)
@@ -89,8 +98,10 @@ export class RepairerService {
 	/**
 	 * Soft delete a repairer (set is_active to false)
 	 */
-	async deleteRepairer(id: string): Promise<boolean> {
-		const { error } = await supabase
+	async deleteRepairer(id: string, client?: ServiceClient): Promise<boolean> {
+		const db = client ?? supabase;
+
+		const { error } = await db
 			.from('repairers')
 			.update({ is_active: false })
 			.eq('id', id);
@@ -106,8 +117,10 @@ export class RepairerService {
 	/**
 	 * Search repairers by name
 	 */
-	async searchRepairers(searchTerm: string, activeOnly = true): Promise<Repairer[]> {
-		let query = supabase
+	async searchRepairers(searchTerm: string, activeOnly = true, client?: ServiceClient): Promise<Repairer[]> {
+		const db = client ?? supabase;
+
+		let query = db
 			.from('repairers')
 			.select('*')
 			.ilike('name', `%${searchTerm}%`)

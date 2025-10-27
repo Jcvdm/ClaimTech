@@ -346,7 +346,7 @@
 							<!-- Photo Image -->
 							<div class="absolute inset-0">
 								<img
-									src={photo.photo_url}
+									src={storageService.toPhotoProxyUrl(photo.photo_url)}
 									alt={photo.label || 'Pre-incident damage photo'}
 									class="w-full h-full object-cover cursor-pointer"
 								/>
@@ -446,7 +446,7 @@
 			<!-- Large Photo with Zoom -->
 			<div class="bg-gray-100 rounded-lg flex items-center justify-center p-4 overflow-auto">
 				<img
-					src={photos.value[selectedPhotoIndex].photo_url}
+					src={storageService.toPhotoProxyUrl(photos.value[selectedPhotoIndex].photo_url)}
 					alt={photos.value[selectedPhotoIndex].label || 'Pre-incident damage photo'}
 					class="w-full h-auto max-h-[60vh] object-contain transition-transform duration-200"
 					style="transform: scale({photoZoom})"
