@@ -41,7 +41,7 @@ export class InspectionService {
 			.from('inspections')
 			.select('id')
 			.eq('request_id', request.id)
-			.single();
+			.maybeSingle();
 
 		if (existing) {
 			throw new Error('An inspection already exists for this request');

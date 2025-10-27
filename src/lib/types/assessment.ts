@@ -4,6 +4,20 @@
 // 'cancelled' status is used when assessment is cancelled at any stage
 export type AssessmentStatus = 'in_progress' | 'completed' | 'submitted' | 'archived' | 'cancelled';
 
+// Assessment stage types - NEW: Stage-based pipeline tracking
+// Replaces status field with more granular workflow stages
+export type AssessmentStage =
+	| 'request_submitted' // Initial request created, assessment created
+	| 'request_accepted' // Admin accepted request, ready for scheduling
+	| 'inspection_scheduled' // Appointment scheduled with engineer
+	| 'assessment_in_progress' // Engineer started assessment (collecting data)
+	| 'assessment_completed' // All assessment tabs completed
+	| 'estimate_finalized' // Estimate finalized, rates frozen
+	| 'frc_in_progress' // Final Repair Costing started
+	| 'frc_completed' // FRC completed and signed off
+	| 'archived' // Assessment archived/completed
+	| 'cancelled'; // Cancelled at any stage
+
 // Vehicle condition types
 export type VehicleCondition = 'excellent' | 'very_good' | 'good' | 'fair' | 'poor' | 'very_poor';
 
@@ -67,10 +81,11 @@ export type AccessoryType =
 export interface Assessment {
 	id: string;
 	assessment_number: string;
-	appointment_id: string;
-	inspection_id: string;
+	appointment_id: string | null; // Now nullable - assessments can exist before appointments
+	inspection_id: string | null; // Now nullable - assessments can exist before inspections
 	request_id: string;
-	status: AssessmentStatus;
+	status: AssessmentStatus; // Keep for backward compatibility
+	stage: AssessmentStage; // NEW: Stage-based pipeline tracking
 	current_tab: string;
 	tabs_completed: string[];
 	started_at: string;
@@ -247,17 +262,20 @@ export interface AssessmentNote {
 
 // Input types for creating/updating records
 export interface CreateAssessmentInput {
-	appointment_id: string;
-	inspection_id: string;
+	appointment_id?: string | null; // Now optional - can be set later
+	inspection_id?: string | null; // Now optional - can be set later
 	request_id: string;
+	stage?: AssessmentStage; // Optional - defaults to 'request_submitted'
 }
 
 export interface UpdateAssessmentInput {
 	status?: AssessmentStatus;
+	stage?: AssessmentStage; // NEW: Allow stage updates
 	current_tab?: string;
 	tabs_completed?: string[];
 	completed_at?: string;
 	submitted_at?: string;
+	appointment_id?: string | null; // Allow updating appointment_id
 }
 
 export interface CreateVehicleIdentificationInput {

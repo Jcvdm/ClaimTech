@@ -9,10 +9,12 @@ Welcome to the ClaimTech documentation. This folder contains comprehensive docum
 Understanding the current state of the system
 
 - **[Project Architecture](./System/project_architecture.md)** - Complete system overview: tech stack, structure, workflows, integration points, and security
+- **[Session Management & Security](./System/session_management_security.md)** - 🔐 **NEW:** Complete session security architecture, cookie management, JWT validation, and compliance (Jan 27, 2025)
 - **[Database Schema](./System/database_schema.md)** - Complete database documentation: all 28 tables, relationships, RLS policies, storage buckets, and data flow (verified & secured Oct 2025)
 - **[Security Recommendations](./System/security_recommendations.md)** - ✅ **NEW:** Security posture, RLS policies, testing procedures, monitoring guidelines, and best practices (100% RLS coverage achieved)
 - **[Database Verification Report](./System/database_verification_report.md)** - Pre-hardening security findings and database verification against live Supabase (historical reference)
 - **[Early-Stage Assessment RLS Fix](./System/early_stage_assessment_rls_fix_jan_26_2025.md)** - ✅ **NEW:** Dual-check RLS pattern for nullable foreign keys (Migrations 073-074, Jan 2025)
+- **[Phase 3 Frontend + Enum Fix](./System/phase_3_frontend_and_enum_fix_jan_26_2025.md)** - ✅ **NEW:** Frontend UI completion and Migration 075 enum fix (Jan 26, 2025)
 - **[Supabase Email Templates](./System/supabase_email_templates.md)** - ⭐ **NEW:** Email templates for PKCE flow (required for password reset, signup, magic link)
 - **[Development Guide](./System/development_guide.md)** - Quick reference for commands, environment setup, and development patterns
 - **[Tech Stack](./System/tech-stack.md)** - Detailed technology stack reference with versions and usage
@@ -188,6 +190,54 @@ Before implementing any feature:
 
 ## 🔍 Recent Updates
 
+### Session Persistence Fix - COMPLETE (January 27, 2025)
+
+Fixed **critical security issue** where sessions persisted 24+ hours after logout, even across browser restarts:
+
+**What was fixed:**
+- ✅ **SESSION-ONLY COOKIES**: Cookies now cleared when browser closes (no 24-hour persistence)
+- ✅ **EXPLICIT COOKIE DELETION**: All `sb-*` cookies explicitly deleted on logout
+- ✅ **CLIENT-SIDE INVALIDATION**: Session state cleared from client memory on logout
+- ✅ **AUTH STATE LISTENER**: Real-time monitoring of session changes across tabs
+
+**Root causes identified:**
+1. **Primary**: Supabase refresh token cookies had long expiration dates (days/weeks)
+2. No explicit cookie deletion on logout (relied only on `signOut()`)
+3. No client-side session invalidation after logout
+4. No auth state listener to detect session changes in real-time
+
+**Files modified:**
+- `src/hooks.server.ts` - Session-only cookie configuration (override `maxAge`/`expires`)
+- `src/routes/auth/logout/+page.server.ts` - Explicit cookie deletion loop + global sign-out
+- `src/lib/components/layout/Sidebar.svelte` - Client-side invalidation in logout form
+- `src/routes/+layout.svelte` - Auth state listener (`onAuthStateChange`)
+
+**Security improvements:**
+- ✅ Sessions require re-authentication after browser closes
+- ✅ No persistent sessions across browser restarts
+- ✅ Complete cookie cleanup on logout
+- ✅ Real-time session synchronization across tabs
+- ✅ Compliance-ready for insurance/healthcare data handling
+
+**Testing procedures:**
+1. **Cookie cleanup test**: Verify all `sb-*` cookies deleted on logout
+2. **Browser restart test**: Session doesn't persist after browser close
+3. **Normal flow test**: Sessions work within JWT expiration window
+4. **Immediate logout test**: Protected routes inaccessible after logout
+5. **LocalStorage test**: Session data cleared from localStorage
+
+**Documentation:**
+- [Fix Session Persistence Task](./Tasks/active/fix_session_persistence.md) - Complete PRD with research findings
+- [Implementing Form Actions & Auth SOP](./SOP/implementing_form_actions_auth.md) - Updated with 4 new patterns
+
+**Recommended for:**
+- Insurance claims platforms (like ClaimTech)
+- Healthcare applications with sensitive data
+- PCI-DSS or HIPAA compliance requirements
+- Any app requiring secure session management
+
+---
+
 ### Assessment-Centric Architecture Refactor - COMPLETE (January 26, 2025)
 
 Completed **comprehensive architectural refactor** eliminating race conditions and enforcing admin-only assessment creation:
@@ -224,6 +274,7 @@ Completed **comprehensive architectural refactor** eliminating race conditions a
 - Migration 072: Enforce admin-only assessment creation
 - Migration 073: Fix engineer assessment SELECT policy for early-stage access
 - Migration 074: Fix engineer assessment UPDATE policy for initial linking
+- Migration 075: Fix assessment stage enum values (align with Phase 3 documentation)
 
 **Key Achievements:**
 - ✅ Zero race conditions
@@ -249,9 +300,9 @@ Completed **comprehensive architectural refactor** eliminating race conditions a
 
 ### Phase 3: Stage-Based List Pages - COMPLETE (January 26, 2025)
 
-Completed **Phase 3 of assessment-centric refactor** by updating all list pages to use stage-based queries:
+Completed **Phase 3 of assessment-centric refactor** by updating all list pages (backend + frontend) to use stage-based queries:
 
-**What was completed:**
+**Backend (completed AM - January 26, 2025):**
 - ✅ **FINALIZED PAGE**: Updated to query by `stage='estimate_finalized'` instead of `status='submitted'`
 - ✅ **ARCHIVE PAGE**: Updated 2 service methods to query by `stage` (archived, cancelled)
 - ✅ **OPEN ASSESSMENTS**: Updated to query by `stage IN ['assessment_in_progress', 'estimate_review', 'estimate_sent']`
@@ -259,6 +310,18 @@ Completed **Phase 3 of assessment-centric refactor** by updating all list pages 
 - ✅ **DASHBOARD**: Updated all time tracking and badge count queries to use `stage`
 - ✅ **INSPECTIONS PAGE**: Complete rewrite - now queries assessments at `stage='inspection_scheduled'`
 - ✅ **APPOINTMENTS PAGE**: Complete rewrite - now queries assessments at `stage IN ['appointment_scheduled', 'assessment_in_progress']`
+
+**Frontend (completed PM - January 26, 2025):**
+- ✅ **SUMMARY COMPONENT**: Made assessment-centric with backward compatibility (uses $derived() for nested data)
+- ✅ **INSPECTIONS PAGE**: Complete Svelte rewrite - receives assessments instead of inspections
+- ✅ **APPOINTMENTS PAGE**: Complete Svelte rewrite - receives assessments instead of appointments, added null guards
+
+**Migration 075: Assessment Stage Enum Fix (January 26, 2025):**
+- ✅ **CRITICAL FIX**: Corrected enum values to match Phase 3 documentation
+- ✅ **RENAMED VALUES**: `request_accepted` → `request_reviewed`, `assessment_completed` → `estimate_review`, `frc_completed` → `archived`
+- ✅ **ADDED VALUES**: `appointment_scheduled` (stage 4), `estimate_sent` (stage 7)
+- ✅ **DATA MIGRATION**: All existing assessments automatically migrated to new stage names
+- ✅ **ERROR FIXED**: Resolved runtime error `invalid input value for enum assessment_stage: "estimate_review"`
 
 **Implementation approach:**
 - **Simple changes** (3 pages): 1-line or 2-method updates to existing queries
@@ -282,10 +345,13 @@ Completed **Phase 3 of assessment-centric refactor** by updating all list pages 
 
 **Files modified:**
 - **Backend**: 7 pages + 3 services (12 files total)
-- **Note**: Frontend Svelte components for Inspections/Appointments need updating (separate UI task)
+- **Frontend**: 3 Svelte components (SummaryComponent, Inspections page, Appointments page)
+- **Database**: 1 migration (075_fix_assessment_stage_enum.sql)
+- **Total**: 16 files modified
 
 **Documentation:**
-- [Phase 3 Implementation Task](./Tasks/active/implement_phase_3_stage_based_list_pages.md) - Complete implementation plan and results
+- [Phase 3 Implementation Task](./Tasks/active/implement_phase_3_stage_based_list_pages.md) - Complete backend implementation plan and results
+- [Phase 3 Frontend + Enum Fix](./System/phase_3_frontend_and_enum_fix_jan_26_2025.md) - Frontend UI updates and Migration 075 details
 - [Assessment-Centric Architecture PRD](./Tasks/active/assessment_centric_architecture_refactor.md) - Updated with Phase 3 completion
 - [Assessment-Centric Specialist Skill](../.claude/skills/assessment-centric-specialist/SKILL.md) - Stage-based list page patterns
 
@@ -839,10 +905,11 @@ Completed comprehensive verification and security hardening of database:
 
 **Use the Authentication Workflow** (auto-invokes when you mention "auth", "login", "logout", or "protect"):
 1. Read [Project Architecture - Security & Authentication](./System/project_architecture.md#security--authentication)
-2. **Skill provides**: [Authentication Workflow](../.claude/skills/claimtech-development/SKILL.md#workflow-3-authentication-flow) with step-by-step instructions
-3. **Skill provides**: [Auth Patterns](../.claude/skills/claimtech-development/resources/auth-patterns.md) - Form actions, RLS policies, session management
-4. Review [Database Schema - Authentication & User Tables](./System/database_schema.md#authentication--user-tables)
-5. Check `src/hooks.server.ts` for implementation
+2. Read [Session Management & Security](./System/session_management_security.md) - Complete session architecture and security patterns
+3. **Skill provides**: [Authentication Workflow](../.claude/skills/claimtech-development/SKILL.md#workflow-3-authentication-flow) with step-by-step instructions
+4. **Skill provides**: [Auth Patterns](../.claude/skills/claimtech-development/resources/auth-patterns.md) - Form actions, RLS policies, session management
+5. Review [Database Schema - Authentication & User Tables](./System/database_schema.md#authentication--user-tables)
+6. Check `src/hooks.server.ts` for implementation
 
 **Manual alternative**: Follow [Implementing Form Actions & Auth SOP](./SOP/implementing_form_actions_auth.md)
 
@@ -1038,7 +1105,7 @@ This documentation aims to:
 
 **As of Assessment-Centric Refactor Complete (January 26, 2025):**
 - **28 database tables** (verified & secured against live Supabase DB)
-- **74 database migrations** (includes assessment-centric refactor - migrations 068-074)
+- **75 database migrations** (includes assessment-centric refactor - migrations 068-075)
 - **27+ service files** (all using ServiceClient injection pattern)
 - **40+ page routes**
 - **10+ API endpoints** (with secure JWT validation)
@@ -1133,8 +1200,8 @@ Official documentation for technologies used in ClaimTech:
 
 ---
 
-**Version**: 1.7.0
-**Last Updated**: January 26, 2025 (Assessment-Centric Refactor Complete - Phase 3: Stage-Based List Pages)
+**Version**: 1.7.1
+**Last Updated**: January 26, 2025 (Assessment-Centric Refactor Complete - Phase 3: Frontend UI + Migration 075 Enum Fix)
 **Maintained By**: ClaimTech Development Team
 
 ---

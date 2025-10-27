@@ -26,6 +26,7 @@
 		LogOut
 	} from 'lucide-svelte';
 	import { enhance } from '$app/forms';
+	import { invalidate, invalidateAll } from '$app/navigation';
 
 	// Props
 	let { role = 'engineer', engineer_id = null }: { role?: string; engineer_id?: string | null } = $props();
@@ -321,6 +322,12 @@
 					pollingInterval = null;
 				}
 				return async ({ update }) => {
+					// Invalidate all auth-dependent data across the app
+					// This ensures session state is cleared from client memory
+					await invalidateAll();
+					await invalidate('supabase:auth');
+
+					// Apply form action result (redirect to login)
 					await update();
 				};
 			}}

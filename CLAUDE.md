@@ -159,6 +159,57 @@ This project uses Claude Code skills to provide systematic workflows and best pr
 
 ---
 
+### Assessment-Centric Specialist Skill
+
+**Location:** `.claude/skills/assessment-centric-specialist/`
+
+**When to use:** Working with ClaimTech's assessment-centric architecture
+
+**Triggers automatically on keywords:**
+- "assessment stage", "stage transition", "assessment-centric"
+- "idempotent", "constraint violation", "duplicate assessment"
+- "findOrCreateByRequest", "updateStage"
+
+**Provides expertise for:**
+1. **Stage-Based List Page** (15-30 min) - Convert status to stage queries
+2. **Add New Assessment Stage** (60-90 min) - Complete stage implementation
+3. **Fix Assessment Bugs** (30-120 min) - Constraint violations, duplicates, RLS
+4. **Migrate Status to Stage** (20-40 min) - Systematic status → stage conversion
+5. **Idempotent Child Records** (30-45 min) - Check-then-create, upsert patterns
+6. **Safe Stage Updates** (10-15 min) - Foreign keys → stage → child records
+7. **Efficient Assessment Queries** (10-20 min) - Optimized stage-based queries
+
+**Core Principles:**
+- Assessment created WITH request (not at "Start Assessment")
+- One assessment per request (unique constraint enforced)
+- 10 pipeline stages (request_submitted → archived/cancelled)
+- Nullable foreign keys (appointment_id can be null initially)
+- Check constraint requires appointment_id for later stages
+- All operations idempotent (safe to call multiple times)
+- Stage transitions logged in audit trail
+
+**Key Workflows:**
+1. **Implement Phase 3** - Stage-based list pages (6-8 hours)
+2. **Add Quality Review Stage** - Example new stage implementation (60-90 min)
+
+**Resources:**
+- `SKILL.md` - Complete skill documentation with patterns and examples
+- `README.md` - Quick reference and key principles
+
+**Integration:**
+- Works with Supabase Specialist for RLS policies and migrations
+- Works with ClaimTech Development for general patterns
+- Specialized for assessment-centric architecture patterns
+
+**When to use explicitly:**
+- Implementing Phase 3 (stage-based list pages)
+- Adding new workflow stages to pipeline
+- Debugging constraint violations related to appointments
+- Ensuring backward compatibility with old requests
+- Fixing race conditions in assessment creation
+
+---
+
 ## DEVELOPMENT WORKFLOW
 
 ### Starting Work

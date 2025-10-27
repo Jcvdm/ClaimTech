@@ -39,8 +39,16 @@ export class PreIncidentEstimateService {
 
 	/**
 	 * Create default pre-incident estimate for a new assessment
+	 * IDEMPOTENT: Checks if exists first, returns existing record if found
 	 */
 	async createDefault(assessmentId: string, client?: ServiceClient): Promise<PreIncidentEstimate> {
+		// Check if already exists
+		const existing = await this.getByAssessment(assessmentId, client);
+		if (existing) {
+			return existing;
+		}
+
+		// Create new
 		return this.create({
 			assessment_id: assessmentId,
 			labour_rate: 500.0,

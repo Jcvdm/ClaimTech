@@ -749,27 +749,29 @@
 
 			<!-- Appointment Type -->
 			<div class="space-y-2">
-				<label class="text-sm font-medium text-gray-900">Appointment Type</label>
-				<div class="flex gap-4">
-					<label class="flex items-center gap-2 cursor-pointer">
-						<input
-							type="radio"
-							bind:group={appointmentType}
-							value="in_person"
-							class="h-4 w-4 border-gray-300 text-blue-600 focus:ring-blue-500"
-						/>
-						<span class="text-sm text-gray-700">In-Person Inspection</span>
-					</label>
-					<label class="flex items-center gap-2 cursor-pointer">
-						<input
-							type="radio"
-							bind:group={appointmentType}
-							value="digital"
-							class="h-4 w-4 border-gray-300 text-blue-600 focus:ring-blue-500"
-						/>
-						<span class="text-sm text-gray-700">Digital Assessment</span>
-					</label>
-				</div>
+				<fieldset>
+					<legend class="text-sm font-medium text-gray-900">Appointment Type</legend>
+					<div class="flex gap-4 mt-1">
+						<label class="flex items-center gap-2 cursor-pointer">
+							<input
+								type="radio"
+								bind:group={appointmentType}
+								value="in_person"
+								class="h-4 w-4 border-gray-300 text-blue-600 focus:ring-blue-500"
+							/>
+							<span class="text-sm text-gray-700">In-Person Inspection</span>
+						</label>
+						<label class="flex items-center gap-2 cursor-pointer">
+							<input
+								type="radio"
+								bind:group={appointmentType}
+								value="digital"
+								class="h-4 w-4 border-gray-300 text-blue-600 focus:ring-blue-500"
+							/>
+							<span class="text-sm text-gray-700">Digital Assessment</span>
+						</label>
+					</div>
+				</fieldset>
 			</div>
 
 			<!-- Date and Time -->

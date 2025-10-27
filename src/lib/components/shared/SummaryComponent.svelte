@@ -20,13 +20,15 @@
 	import { formatCurrency } from '$lib/utils/formatters';
 
 	interface Props {
-		// Core data (always shown when available)
+		// Primary: Assessment-centric (preferred)
+		assessment?: Assessment | null;
+
+		// Backward compatibility: Old inspection-centric props (deprecated)
 		inspection?: Inspection | null;
 		request?: Request | null;
 		client?: Client | null;
 
-		// Assessment data (shown when available)
-		assessment?: Assessment | null;
+		// Assessment detail data (when showing full assessment)
 		vehicleValues?: VehicleValues | null;
 		estimate?: Estimate | null;
 		preIncidentEstimate?: Estimate | null;
@@ -36,15 +38,23 @@
 	}
 
 	let {
+		assessment = null,
 		inspection = null,
 		request = null,
 		client = null,
-		assessment = null,
 		vehicleValues = null,
 		estimate = null,
 		preIncidentEstimate = null,
 		showAssessmentData = false
 	}: Props = $props();
+
+	// Derive request and client from assessment when available (preferred)
+	// Fall back to explicit props for backward compatibility
+	const derivedRequest = $derived(assessment?.request || request);
+	const derivedClient = $derived(assessment?.request?.client || client);
+
+	// Use inspection for backward compatibility (when assessment not provided)
+	const derivedInspection = $derived(inspection);
 
 	// Calculate threshold for estimate
 	const estimateThreshold = $derived(() => {
@@ -73,37 +83,49 @@
 	<Card class="p-4">
 		<h3 class="mb-3 text-sm font-semibold text-gray-900">Claim Information</h3>
 		<dl class="grid gap-3 text-sm">
-			{#if inspection}
+			{#if assessment}
+				<div class="grid grid-cols-3 gap-2">
+					<dt class="font-medium text-gray-500">Assessment #:</dt>
+					<dd class="col-span-2 text-gray-900">{assessment.assessment_number}</dd>
+				</div>
+			{:else if derivedInspection}
 				<div class="grid grid-cols-3 gap-2">
 					<dt class="font-medium text-gray-500">Inspection #:</dt>
-					<dd class="col-span-2 text-gray-900">{inspection.inspection_number}</dd>
+					<dd class="col-span-2 text-gray-900">{derivedInspection.inspection_number}</dd>
 				</div>
 			{/if}
-			{#if request}
+			{#if derivedRequest}
 				<div class="grid grid-cols-3 gap-2">
 					<dt class="font-medium text-gray-500">Request #:</dt>
-					<dd class="col-span-2 text-gray-900">{request.request_number}</dd>
+					<dd class="col-span-2 text-gray-900">{derivedRequest.request_number}</dd>
 				</div>
-				{#if request.claim_number}
+				{#if derivedRequest.claim_number}
 					<div class="grid grid-cols-3 gap-2">
 						<dt class="font-medium text-gray-500">Claim #:</dt>
-						<dd class="col-span-2 text-gray-900">{request.claim_number}</dd>
+						<dd class="col-span-2 text-gray-900">{derivedRequest.claim_number}</dd>
 					</div>
 				{/if}
 				<div class="grid grid-cols-3 gap-2">
 					<dt class="font-medium text-gray-500">Type:</dt>
 					<dd class="col-span-2">
-						<Badge variant={request.type === 'insurance' ? 'default' : 'secondary'}>
-							{request.type === 'insurance' ? 'Insurance' : 'Private'}
+						<Badge variant={derivedRequest.type === 'insurance' ? 'default' : 'secondary'}>
+							{derivedRequest.type === 'insurance' ? 'Insurance' : 'Private'}
 						</Badge>
 					</dd>
 				</div>
 			{/if}
-			{#if inspection}
+			{#if assessment}
+				<div class="grid grid-cols-3 gap-2">
+					<dt class="font-medium text-gray-500">Stage:</dt>
+					<dd class="col-span-2">
+						<StatusBadge status={assessment.stage} />
+					</dd>
+				</div>
+			{:else if derivedInspection}
 				<div class="grid grid-cols-3 gap-2">
 					<dt class="font-medium text-gray-500">Status:</dt>
 					<dd class="col-span-2">
-						<StatusBadge status={inspection.status} />
+						<StatusBadge status={derivedInspection.status} />
 					</dd>
 				</div>
 			{/if}
@@ -113,34 +135,34 @@
 	<!-- Client Contact Details -->
 	<Card class="p-4">
 		<h3 class="mb-3 text-sm font-semibold text-gray-900">Client Contact Details</h3>
-		{#if client}
+		{#if derivedClient}
 			<dl class="grid gap-3 text-sm">
 				<div class="grid grid-cols-3 gap-2">
 					<dt class="font-medium text-gray-500">Name:</dt>
-					<dd class="col-span-2 text-gray-900">{client.name}</dd>
+					<dd class="col-span-2 text-gray-900">{derivedClient.name}</dd>
 				</div>
-				{#if client.contact_name}
+				{#if derivedClient.contact_name}
 					<div class="grid grid-cols-3 gap-2">
 						<dt class="font-medium text-gray-500">Contact:</dt>
-						<dd class="col-span-2 text-gray-900">{client.contact_name}</dd>
+						<dd class="col-span-2 text-gray-900">{derivedClient.contact_name}</dd>
 					</div>
 				{/if}
-				{#if client.email}
+				{#if derivedClient.email}
 					<div class="grid grid-cols-3 gap-2">
 						<dt class="font-medium text-gray-500">Email:</dt>
 						<dd class="col-span-2">
-							<a href="mailto:{client.email}" class="text-blue-600 hover:underline">
-								{client.email}
+							<a href="mailto:{derivedClient.email}" class="text-blue-600 hover:underline">
+								{derivedClient.email}
 							</a>
 						</dd>
 					</div>
 				{/if}
-				{#if client.phone}
+				{#if derivedClient.phone}
 					<div class="grid grid-cols-3 gap-2">
 						<dt class="font-medium text-gray-500">Phone:</dt>
 						<dd class="col-span-2">
-							<a href="tel:{client.phone}" class="text-blue-600 hover:underline">
-								{client.phone}
+							<a href="tel:{derivedClient.phone}" class="text-blue-600 hover:underline">
+								{derivedClient.phone}
 							</a>
 						</dd>
 					</div>
@@ -155,12 +177,12 @@
 	<Card class="p-4">
 		<h3 class="mb-3 text-sm font-semibold text-gray-900">Vehicle Information</h3>
 		<dl class="grid gap-3 text-sm">
-			{#if inspection || request}
-				{@const vehicleMake = inspection?.vehicle_make || request?.vehicle_make}
-				{@const vehicleModel = inspection?.vehicle_model || request?.vehicle_model}
-				{@const vehicleYear = inspection?.vehicle_year || request?.vehicle_year}
-				{@const vehicleReg = inspection?.vehicle_registration || request?.vehicle_registration}
-				{@const vehicleVin = inspection?.vehicle_vin || request?.vehicle_vin}
+			{#if derivedRequest || derivedInspection}
+				{@const vehicleMake = derivedRequest?.vehicle_make || derivedInspection?.vehicle_make}
+				{@const vehicleModel = derivedRequest?.vehicle_model || derivedInspection?.vehicle_model}
+				{@const vehicleYear = derivedRequest?.vehicle_year || derivedInspection?.vehicle_year}
+				{@const vehicleReg = derivedRequest?.vehicle_registration || derivedInspection?.vehicle_registration}
+				{@const vehicleVin = derivedRequest?.vehicle_vin || derivedInspection?.vehicle_vin}
 
 				<div class="grid grid-cols-3 gap-2">
 					<dt class="font-medium text-gray-500">Vehicle:</dt>

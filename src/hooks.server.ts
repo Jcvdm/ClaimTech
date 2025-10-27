@@ -20,10 +20,22 @@ const supabase: Handle = async ({ event, resolve }) => {
 				 * SvelteKit's cookies API requires `path` to be explicitly set in
 				 * the cookie options. Setting `path` to `/` replicates previous/
 				 * standard behavior.
+				 *
+				 * SECURITY: Override Supabase cookie options to make cookies session-only.
+				 * This ensures cookies are cleared when the browser closes, requiring
+				 * re-authentication for better security on sensitive data (insurance claims).
+				 *
+				 * By removing maxAge and expires, cookies become session-only (not persistent).
+				 * Users must log in again after closing the browser.
 				 */
 				setAll: (cookiesToSet) => {
 					cookiesToSet.forEach(({ name, value, options }) => {
-						event.cookies.set(name, value, { ...options, path: '/' })
+						event.cookies.set(name, value, {
+							...options,
+							path: '/',
+							maxAge: undefined,   // Remove long expiration (no persistent cookies)
+							expires: undefined,  // Make session-only (cleared on browser close)
+						})
 					})
 				},
 			},

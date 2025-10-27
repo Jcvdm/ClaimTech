@@ -1,5 +1,6 @@
 import { supabase } from '$lib/supabase';
 import { auditService } from './audit.service';
+import { AssessmentService } from './assessment.service';
 import type { ServiceClient } from '$lib/types/service';
 import type {
 	Request,
@@ -8,8 +9,11 @@ import type {
 	RequestStatus,
 	RequestStep
 } from '$lib/types/request';
+import type { Assessment } from '$lib/types/assessment';
 
 export class RequestService {
+	private assessmentService = new AssessmentService();
+
 	/**
 	 * Generate a unique request number
 	 */
@@ -110,17 +114,28 @@ export class RequestService {
 	}
 
 	/**
-	 * Create a new request with retry logic to handle race conditions
+	 * Create a new request with automatic assessment creation
+	 * This eliminates the race condition at "Start Assessment" by creating the assessment upfront
+	 * @param input - Request creation input
+	 * @param client - Optional Supabase client
+	 * @param maxRetries - Maximum number of retry attempts (default: 3)
+	 * @returns Object containing both the created request and assessment
 	 */
-	async createRequest(input: CreateRequestInput, client?: ServiceClient, maxRetries: number = 3): Promise<Request> {
+	async createRequest(
+		input: CreateRequestInput,
+		client?: ServiceClient,
+		maxRetries: number = 3
+	): Promise<{ request: Request; assessment: Assessment }> {
 		const db = client ?? supabase;
 
-		// Retry loop to handle race conditions in request number generation
+		let request: Request | null = null;
+
+		// Step 1: Create request (with retry for duplicate request number)
 		for (let attempt = 0; attempt < maxRetries; attempt++) {
 			try {
 				const requestNumber = await this.generateRequestNumber(input.type, client);
 
-				const { data, error } = await db
+				const { data, error: requestError } = await db
 					.from('requests')
 					.insert({
 						...input,
@@ -131,41 +146,56 @@ export class RequestService {
 					.select()
 					.single();
 
-				if (error) {
-					// Check if this is a duplicate key error (race condition)
-					if (error.code === '23505' && attempt < maxRetries - 1) {
-						console.log(`Duplicate request number detected (attempt ${attempt + 1}/${maxRetries}), retrying...`);
-						await new Promise(resolve => setTimeout(resolve, 100 * Math.pow(2, attempt)));
-						continue;
+				if (requestError) {
+					// Check if this is a duplicate key error (race condition in number generation)
+					if (requestError.code === '23505' && attempt < maxRetries - 1) {
+						console.log(
+							`Duplicate request number detected (attempt ${attempt + 1}/${maxRetries}), retrying...`
+						);
+						await new Promise((resolve) => setTimeout(resolve, 100 * Math.pow(2, attempt)));
+						continue; // Retry with new number
 					}
 
-					console.error('Error creating request:', error);
-					throw new Error(`Failed to create request: ${error.message}`);
+					console.error('Error creating request:', requestError);
+					throw new Error(`Failed to create request: ${requestError.message}`);
 				}
 
-				// Success! Log creation
-				await auditService.logChange({
-					entity_type: 'request',
-					entity_id: data.id,
-					action: 'created',
-					new_value: requestNumber,
-					metadata: {
-						type: input.type,
-						client_id: input.client_id
-					}
-				});
-
-				return data;
-
+				// Success - request created
+				request = data;
+				break; // Exit retry loop
 			} catch (error) {
 				if (attempt === maxRetries - 1) {
 					console.error('Failed to create request after maximum retries:', error);
 					throw error;
 				}
+				// Retry
+				await new Promise((resolve) => setTimeout(resolve, 100 * Math.pow(2, attempt)));
 			}
 		}
 
-		throw new Error('Failed to create request after maximum retries');
+		if (!request) {
+			throw new Error('Failed to create request after maximum retries');
+		}
+
+		// Step 2: Create assessment (using idempotent findOrCreate)
+		// This ensures we don't create duplicate assessments if this method is called twice
+		const assessment = await this.assessmentService.findOrCreateByRequest(request.id, client);
+
+		// Step 3: Log creation
+		await auditService.logChange({
+			entity_type: 'request',
+			entity_id: request.id,
+			action: 'created',
+			new_value: request.request_number,
+			metadata: {
+				type: input.type,
+				client_id: input.client_id,
+				assessment_id: assessment.id,
+				assessment_number: assessment.assessment_number
+			}
+		});
+
+		return { request, assessment };
 	}
 
 	/**

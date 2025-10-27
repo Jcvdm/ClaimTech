@@ -14,7 +14,13 @@
       "Skill(supabase-development)",
       "mcp__supabase__apply_migration",
       "Bash(git commit:*)",
-      "mcp__supabase__search_docs"
+      "mcp__supabase__search_docs",
+      "Skill(claimtech-development)",
+      "mcp__supabase__list_migrations",
+      "mcp__supabase__get_logs",
+      "Bash(grep:*)",
+      "Bash(npm run check:*)",
+      "Bash(npx svelte-kit:*)"
     ],
     "deny": [],
     "ask": []

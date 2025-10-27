@@ -663,6 +663,165 @@ export const load: PageServerLoad = async ({ locals }) => {
 }
 ```
 
+### 6. Session-Only Cookie Configuration (Security-Sensitive Apps)
+
+For applications handling sensitive data (insurance, healthcare) requiring re-authentication after browser closes:
+
+**Pattern: Override Supabase Cookie Options**
+
+**Location:** `src/hooks.server.ts`
+
+```typescript
+event.locals.supabase = createServerClient<Database>(
+  PUBLIC_SUPABASE_URL,
+  PUBLIC_SUPABASE_ANON_KEY,
+  {
+    cookies: {
+      getAll: () => event.cookies.getAll(),
+      setAll: (cookiesToSet) => {
+        cookiesToSet.forEach(({ name, value, options }) => {
+          event.cookies.set(name, value, {
+            ...options,
+            path: '/',
+            maxAge: undefined,   // Remove long expiration
+            expires: undefined,  // Make session-only (cleared on browser close)
+          })
+        })
+      },
+    },
+  }
+)
+```
+
+**When to use:**
+- Insurance/healthcare apps with sensitive data
+- Apps requiring session termination on browser close
+- Compliance requirements for session management
+- When PCI-DSS or HIPAA compliance needed
+
+**Trade-offs:**
+- ✅ Better security (no persistent sessions)
+- ✅ Compliance with data protection regulations
+- ✅ Prevents unauthorized access after browser left open
+- ❌ Users must log in again after closing browser
+- ❌ No persistent "remember me" functionality (unless explicitly added)
+- ❌ Slight UX friction for frequent users
+
+**Verification Steps:**
+1. Log in → Check cookies in DevTools (Application → Cookies)
+2. Note `sb-` cookies present with session scope
+3. Close browser completely → Reopen
+4. Navigate to protected route → Expect redirect to login
+
+### 7. Explicit Cookie Cleanup on Logout
+
+Always explicitly delete cookies on logout to prevent session persistence:
+
+**Location:** `src/routes/auth/logout/+page.server.ts`
+
+```typescript
+export const actions: Actions = {
+  default: async ({ locals: { supabase }, cookies }) => {
+    // Sign out with global scope - terminates all sessions
+    await supabase.auth.signOut({ scope: 'global' })
+
+    // Explicitly delete all Supabase cookies
+    const allCookies = cookies.getAll()
+    allCookies.forEach(cookie => {
+      if (cookie.name.startsWith('sb-')) {
+        cookies.delete(cookie.name, { path: '/' })
+      }
+    })
+
+    redirect(303, '/auth/login')
+  }
+}
+```
+
+**Why explicit deletion:**
+- `signOut()` invalidates session server-side but may not delete all cookies
+- Old cookies can persist and be reused for authentication
+- Explicit deletion ensures complete cleanup
+- Critical for security on shared/public computers
+
+### 8. Client-Side Session Invalidation
+
+Invalidate session state on logout to clear client memory:
+
+**Pattern: Use `invalidate()` in form enhancement**
+
+```svelte
+<script lang="ts">
+  import { enhance } from '$app/forms'
+  import { invalidate, invalidateAll } from '$app/navigation'
+</script>
+
+<form
+  method="POST"
+  action="/auth/logout"
+  use:enhance={() => {
+    return async ({ update }) => {
+      // Invalidate all auth-dependent data
+      await invalidateAll()
+      await invalidate('supabase:auth')
+
+      // Apply form action result (redirect)
+      await update()
+    }
+  }}
+>
+  <button type="submit">Sign Out</button>
+</form>
+```
+
+**Why:**
+- Clears cached session data from client memory
+- Forces re-fetch of all auth-dependent data
+- Prevents stale data after logout
+- Ensures clean state transition
+
+### 9. Auth State Listener (Real-Time Session Monitoring)
+
+Implement auth state listener in root layout to detect session changes:
+
+**Location:** `src/routes/+layout.svelte`
+
+```svelte
+<script lang="ts">
+  import { onMount } from 'svelte'
+  import { invalidate } from '$app/navigation'
+
+  let { data } = $props()
+
+  onMount(() => {
+    // Listen for auth state changes (login, logout, token refresh)
+    const { data: { subscription } } = data.supabase.auth.onAuthStateChange(
+      (event, _session) => {
+        // If session changed, reload auth-dependent data
+        if (_session?.expires_at !== data.session?.expires_at) {
+          invalidate('supabase:auth')
+        }
+      }
+    )
+
+    // Cleanup on unmount
+    return () => subscription.unsubscribe()
+  })
+</script>
+```
+
+**When sessions change:**
+- User logs out in another tab → Current tab detects and reacts
+- JWT expires → App automatically refreshes
+- Session revoked server-side → App redirects to login
+- Token refresh occurs → App updates with new token
+
+**Benefits:**
+- Real-time session synchronization across tabs
+- Automatic handling of session expiration
+- Better UX during token refresh
+- Follows Supabase recommended pattern
+
 ---
 
 ## Common Pitfalls

@@ -136,8 +136,10 @@ export class TyresService {
 
 	/**
 	 * Create default tyres for assessment (5 standard positions)
+	 * IDEMPOTENT: Uses upsert to safely re-create tyres on page refresh/retry
 	 */
 	async createDefaultTyres(assessmentId: string, client?: ServiceClient): Promise<Tyre[]> {
+		const db = client ?? supabase;
 		const defaultPositions = [
 			{ position: 'front_right', position_label: 'Front Right' },
 			{ position: 'front_left', position_label: 'Front Left' },
@@ -149,12 +151,28 @@ export class TyresService {
 		const tyres: Tyre[] = [];
 
 		for (const pos of defaultPositions) {
-			const tyre = await this.create({
-				assessment_id: assessmentId,
-				position: pos.position,
-				position_label: pos.position_label
-			}, client);
-			tyres.push(tyre);
+			const { data, error } = await db
+				.from('assessment_tyres')
+				.upsert(
+					{
+						assessment_id: assessmentId,
+						position: pos.position,
+						position_label: pos.position_label
+					},
+					{
+						onConflict: 'assessment_id,position', // Use unique constraint
+						ignoreDuplicates: false // Update if exists
+					}
+				)
+				.select()
+				.single();
+
+			if (error) {
+				console.error(`Error creating/updating tyre ${pos.position}:`, error);
+				throw new Error(`Failed to create tyre: ${error.message}`);
+			}
+
+			tyres.push(data);
 		}
 
 		return tyres;

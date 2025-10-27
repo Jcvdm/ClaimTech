@@ -1,5 +1,6 @@
 import { error } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
+import type { Assessment } from '$lib/types/assessment';
 import { assessmentService } from '$lib/services/assessment.service';
 import { vehicleIdentificationService } from '$lib/services/vehicle-identification.service';
 import { exterior360Service } from '$lib/services/exterior-360.service';
@@ -33,76 +34,61 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 			throw error(404, 'Appointment not found');
 		}
 
-		// Get or create assessment
-		let assessment = await assessmentService.getAssessmentByAppointment(appointmentId, locals.supabase);
-		let assessmentWasCreated = false; // Track if we created a new assessment
+		// Find existing assessment (created by admin when request was created)
+		// Engineers cannot create assessments - this will throw error if assessment doesn't exist
+		let assessment: Assessment;
+		try {
+			assessment = await assessmentService.findByRequest(
+				appointment.request_id,
+				locals.supabase
+			);
+		} catch (findError) {
+			console.error('Data integrity error: Assessment not found for request', {
+				request_id: appointment.request_id,
+				appointment_id: appointmentId,
+				error: findError
+			});
+			throw error(500, {
+				message: 'Assessment not found for this request. Please contact support.',
+			});
+		}
 
-		if (!assessment) {
-			try {
-				// Create new assessment
-				assessment = await assessmentService.createAssessment({
-					appointment_id: appointmentId,
-					inspection_id: appointment.inspection_id,
-					request_id: appointment.request_id
-				}, locals.supabase);
-				assessmentWasCreated = true;
+		// CRITICAL: Link appointment to assessment FIRST (before updating stage)
+		// The check constraint requires appointment_id for stage='assessment_in_progress'
+		if (!assessment.appointment_id || assessment.appointment_id !== appointmentId) {
+			assessment = await assessmentService.updateAssessment(
+				assessment.id,
+				{ appointment_id: appointmentId },
+				locals.supabase
+			);
+			console.log('Assessment linked to appointment');
+		}
 
-				// Create default tyres (5 standard positions)
-				await tyresService.createDefaultTyres(assessment.id, locals.supabase);
+		// THEN transition stage to in_progress (after appointment_id is set)
+		if (['request_submitted', 'request_accepted', 'inspection_scheduled'].includes(assessment.stage)) {
+			const oldStage = assessment.stage;
+			assessment = await assessmentService.updateStage(
+				assessment.id,
+				'assessment_in_progress',
+				locals.supabase
+			);
+			console.log(`Assessment stage updated from ${oldStage} to assessment_in_progress`);
+		}
 
-				// Create default damage record (one per assessment)
-				await damageService.createDefault(assessment.id, locals.supabase);
+		// Create default child records (idempotent - only if they don't exist)
+		// These methods will check if records exist before creating
+		await Promise.all([
+			tyresService.createDefaultTyres(assessment.id, locals.supabase),
+			damageService.createDefault(assessment.id, locals.supabase),
+			vehicleValuesService.createDefault(assessment.id, locals.supabase),
+			preIncidentEstimateService.createDefault(assessment.id, locals.supabase),
+			estimateService.createDefault(assessment.id, locals.supabase)
+		]);
 
-				// Create default vehicle values (one per assessment)
-				await vehicleValuesService.createDefault(assessment.id, locals.supabase);
-
-				// Create default pre-incident estimate (one per assessment)
-				await preIncidentEstimateService.createDefault(assessment.id, locals.supabase);
-
-				// Create default estimate (one per assessment)
-				await estimateService.createDefault(assessment.id, locals.supabase);
-
-				// ✅ FIX: Update appointment status AFTER successful assessment creation
-				// This prevents appointments from disappearing if assessment creation fails
-				await appointmentService.updateAppointmentStatus(appointmentId, 'in_progress', locals.supabase);
-				console.log('Assessment created successfully, appointment status updated to in_progress');
-
-			} catch (createError: any) {
-				// Handle race condition: duplicate key error when user double-clicks or multiple requests run simultaneously
-				if (createError.message && createError.message.includes('duplicate key')) {
-					console.log('Race condition detected: assessment already exists, fetching existing assessment...');
-
-					// Wait longer for the other request to complete (increased from 500ms to 1000ms)
-					await new Promise(resolve => setTimeout(resolve, 1000));
-
-					// Fetch the existing assessment created by the other request
-					assessment = await assessmentService.getAssessmentByAppointment(appointmentId, locals.supabase);
-
-					if (!assessment) {
-						// Retry fetch with polling (3 attempts, 500ms apart)
-						console.log('Assessment not found on first fetch, retrying with polling...');
-						for (let i = 0; i < 3; i++) {
-							await new Promise(resolve => setTimeout(resolve, 500));
-							assessment = await assessmentService.getAssessmentByAppointment(appointmentId, locals.supabase);
-							if (assessment) {
-								console.log(`Assessment found on retry attempt ${i + 1}`);
-								break;
-							}
-						}
-					}
-
-					if (!assessment) {
-						console.error('Failed to fetch assessment after duplicate key error and retries');
-						throw error(500, 'Failed to create or fetch assessment. Please try again.');
-					}
-
-					console.log('Successfully recovered from race condition, using existing assessment:', assessment.id);
-				} else {
-					// Re-throw other errors
-					console.error('Error creating assessment:', createError);
-					throw error(500, `Failed to create assessment: ${createError.message}`);
-				}
-			}
+		// Update appointment status to in_progress (idempotent)
+		if (appointment.status !== 'in_progress') {
+			await appointmentService.updateAppointmentStatus(appointmentId, 'in_progress', locals.supabase);
+			console.log('Appointment status updated to in_progress');
 		}
 
 		// Load all assessment data
