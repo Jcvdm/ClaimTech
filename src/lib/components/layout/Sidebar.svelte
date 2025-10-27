@@ -119,33 +119,76 @@
 
 	async function loadNewRequestCount() {
 		try {
-			newRequestCount = await requestService.getRequestCount({ status: 'submitted' }, $page.data.supabase);
+			let query = $page.data.supabase
+				.from('assessments')
+				.select('*, requests!inner(assigned_engineer_id)', { count: 'exact', head: true })
+				.eq('stage', 'request_submitted');
+
+			if (role === 'engineer' && engineer_id) {
+				query = query.eq('requests.assigned_engineer_id', engineer_id);
+			}
+
+			const { count, error } = await query;
+
+			if (error) {
+				console.error('Error loading new request count:', error);
+				newRequestCount = 0;
+			} else {
+				newRequestCount = count || 0;
+			}
 		} catch (error) {
 			console.error('Error loading new request count:', error);
+			newRequestCount = 0;
 		}
 	}
 
 	async function loadInspectionCount() {
 		try {
-			const filters: any = { status: 'pending' };
+			let query = $page.data.supabase
+				.from('assessments')
+				.select('*, appointments!inner(engineer_id)', { count: 'exact', head: true })
+				.eq('stage', 'inspection_scheduled');
+
 			if (role === 'engineer' && engineer_id) {
-				filters.engineer_id = engineer_id;
+				query = query.eq('appointments.engineer_id', engineer_id);
 			}
-			inspectionCount = await inspectionService.getInspectionCount(filters, $page.data.supabase);
+
+			const { count, error } = await query;
+
+			if (error) {
+				console.error('Error loading inspection count:', error);
+				inspectionCount = 0;
+			} else {
+				inspectionCount = count || 0;
+			}
 		} catch (error) {
 			console.error('Error loading inspection count:', error);
+			inspectionCount = 0;
 		}
 	}
 
 	async function loadAppointmentCount() {
 		try {
-			const filters: any = { status: 'scheduled' };
+			let query = $page.data.supabase
+				.from('assessments')
+				.select('*, appointments!inner(engineer_id)', { count: 'exact', head: true })
+				.in('stage', ['appointment_scheduled', 'assessment_in_progress']);
+
 			if (role === 'engineer' && engineer_id) {
-				filters.engineer_id = engineer_id;
+				query = query.eq('appointments.engineer_id', engineer_id);
 			}
-			appointmentCount = await appointmentService.getAppointmentCount(filters, $page.data.supabase);
+
+			const { count, error } = await query;
+
+			if (error) {
+				console.error('Error loading appointment count:', error);
+				appointmentCount = 0;
+			} else {
+				appointmentCount = count || 0;
+			}
 		} catch (error) {
 			console.error('Error loading appointment count:', error);
+			appointmentCount = 0;
 		}
 	}
 

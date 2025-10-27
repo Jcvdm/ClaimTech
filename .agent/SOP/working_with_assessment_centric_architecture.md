@@ -374,18 +374,28 @@ Replace status-based queries with stage-based queries across all list pages.
 
 ### Sidebar Badge Updates
 
+**IMPORTANT:** Badge counts MUST use assessment-centric queries.
+
+❌ **INCORRECT** - Old table-centric approach:
 ```typescript
-// src/routes/(app)/+layout.server.ts
-
-// OLD
-const openCount = await assessmentService.getInProgressCount(locals.supabase);
-
-// NEW
-const { count: openCount } = await locals.supabase
-  .from('assessments')
+// DON'T query appointments/inspections tables directly
+const { count } = await supabase
+  .from('appointments')
   .select('*', { count: 'exact', head: true })
-  .eq('stage', 'assessment_in_progress');
+  .eq('status', 'scheduled');
 ```
+
+✅ **CORRECT** - Assessment-centric approach:
+```typescript
+// DO query assessments table with stage filters
+const { count } = await supabase
+  .from('assessments')
+  .select('*, appointments!inner(engineer_id)', { count: 'exact', head: true })
+  .in('stage', ['appointment_scheduled', 'assessment_in_progress']);
+```
+
+**For complete badge implementation guide, see:**
+- [SOP: Implementing Badge Counts](./implementing_badge_counts.md) - Comprehensive badge patterns, examples, and troubleshooting
 
 ---
 

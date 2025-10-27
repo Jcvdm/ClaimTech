@@ -480,6 +480,84 @@ export class AssessmentService {
 	}
 
 	/**
+	 * Get count of assessments by single stage
+	 * Reusable method for badge counts and other stage-based queries
+	 *
+	 * @param client - Supabase client (optional)
+	 * @param stage - Single assessment stage to count
+	 * @param engineer_id - Optional engineer ID for filtering (for engineer role)
+	 * @param joinTable - Table to join for engineer filtering ('appointments' or 'requests')
+	 * @returns Count of assessments at specified stage
+	 */
+	async getCountByStage(
+		client: ServiceClient | undefined,
+		stage: AssessmentStage,
+		engineer_id?: string | null,
+		joinTable: 'appointments' | 'requests' = 'appointments'
+	): Promise<number> {
+		const db = client ?? supabase;
+
+		let query = db
+			.from('assessments')
+			.select(`*, ${joinTable}!inner(${joinTable === 'appointments' ? 'engineer_id' : 'assigned_engineer_id'})`, { count: 'exact', head: true })
+			.eq('stage', stage);
+
+		// Filter by engineer if provided
+		if (engineer_id) {
+			const engineerField = joinTable === 'appointments' ? 'engineer_id' : 'assigned_engineer_id';
+			query = query.eq(`${joinTable}.${engineerField}`, engineer_id);
+		}
+
+		const { count, error } = await query;
+
+		if (error) {
+			console.error(`Error counting assessments at stage ${stage}:`, error);
+			return 0;
+		}
+
+		return count || 0;
+	}
+
+	/**
+	 * Get count of assessments by multiple stages
+	 * Reusable method for badge counts that span multiple stages
+	 *
+	 * @param client - Supabase client (optional)
+	 * @param stages - Array of assessment stages to count
+	 * @param engineer_id - Optional engineer ID for filtering (for engineer role)
+	 * @param joinTable - Table to join for engineer filtering ('appointments' or 'requests')
+	 * @returns Count of assessments at specified stages
+	 */
+	async getCountByStages(
+		client: ServiceClient | undefined,
+		stages: AssessmentStage[],
+		engineer_id?: string | null,
+		joinTable: 'appointments' | 'requests' = 'appointments'
+	): Promise<number> {
+		const db = client ?? supabase;
+
+		let query = db
+			.from('assessments')
+			.select(`*, ${joinTable}!inner(${joinTable === 'appointments' ? 'engineer_id' : 'assigned_engineer_id'})`, { count: 'exact', head: true })
+			.in('stage', stages);
+
+		// Filter by engineer if provided
+		if (engineer_id) {
+			const engineerField = joinTable === 'appointments' ? 'engineer_id' : 'assigned_engineer_id';
+			query = query.eq(`${joinTable}.${engineerField}`, engineer_id);
+		}
+
+		const { count, error } = await query;
+
+		if (error) {
+			console.error(`Error counting assessments at stages ${stages.join(', ')}:`, error);
+			return 0;
+		}
+
+		return count || 0;
+	}
+
+	/**
 	 * Update assessment
 	 */
 	async updateAssessment(id: string, input: UpdateAssessmentInput, client?: ServiceClient): Promise<Assessment> {

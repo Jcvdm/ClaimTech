@@ -27,6 +27,7 @@ Best practices for common development tasks
 - **[Adding Page Routes](./SOP/adding_page_route.md)** - Creating new pages, API endpoints, and dynamic routes in SvelteKit
 - **[Working with Services](./SOP/working_with_services.md)** - Service layer pattern, data access best practices, and examples
 - **[Working with Assessment-Centric Architecture](./SOP/working_with_assessment_centric_architecture.md)** - ⭐ **NEW:** Assessment-centric patterns, stage-based workflows, and best practices (Jan 2025)
+- **[Implementing Badge Counts](./SOP/implementing_badge_counts.md)** - ⭐ **NEW:** Complete guide for assessment-centric badge counts with patterns, examples, and troubleshooting (Jan 27, 2025)
 - **[Service Client Authentication](./SOP/service_client_authentication.md)** - 🔴 **CRITICAL:** ServiceClient parameter pattern for RLS authentication (Jan 2025)
 - **[Implementing Role-Based Filtering](./SOP/implementing_role_based_filtering.md)** - Complete guide for implementing engineer vs admin filtering in pages, services, and sidebar badges
 - **[Creating Components](./SOP/creating-components.md)** - Creating reusable Svelte 5 components with runes and TypeScript
@@ -78,6 +79,7 @@ Setup and configuration guides for ongoing work:
   - **[All Fixes Complete](./Tasks/active/assessment_centric_fixes_complete.md)** - ✅ **NEW:** Complete implementation summary with all 9 fixes (Jan 2025)
   - **[Fix RLS Policies](./Tasks/active/fix_assessment_centric_rls_policies.md)** - ✅ **COMPLETED:** Fix engineer RLS policies for assessment-centric pattern (Jan 2025)
   - **[Enforce Admin-Only Creation](./Tasks/active/enforce_admin_only_assessment_creation.md)** - ✅ **COMPLETED:** Architectural enforcement - only admins create assessments (Jan 2025)
+- **[Fix Badge Count Mismatches](./Tasks/active/fix_badge_count_mismatches.md)** - ✅ **COMPLETED:** Fixed sidebar badge counts to use assessment-centric architecture (Jan 27, 2025)
 - **[Auth Setup](./Tasks/active/AUTH_SETUP.md)** - Authentication system setup and implementation
 - **[Fix Service Client Injection](./Tasks/active/fix_service_client_injection.md)** - 🔴 **IN PROGRESS:** Fix RLS authentication by adding ServiceClient parameter to all services (Jan 2025)
 - **[Fix Assessment Race Condition](./Tasks/active/fix_assessment_race_condition.md)** - ⚠️ **INCOMPLETE:** Server-side retry logic only (see fix_assessment_disappearing_race_condition.md for complete fix)
@@ -189,6 +191,63 @@ Before implementing any feature:
 ---
 
 ## 🔍 Recent Updates
+
+### Badge Count Architectural Mismatch Fix - COMPLETE (January 27, 2025)
+
+Fixed **critical architectural mismatch** causing incorrect sidebar badge counts:
+
+**What was fixed:**
+- ✅ **3 BADGE QUERIES**: Requests, Inspections, and Appointments badges now use assessment-centric architecture
+- ✅ **DIRECT QUERIES**: Badges query `assessments` table with `stage` filters (not old `appointments`/`inspections` tables)
+- ✅ **SERVICE METHODS**: Added reusable `getCountByStage()` and `getCountByStages()` methods to assessment service
+- ✅ **DOCUMENTATION**: Created comprehensive badge counts SOP with patterns, examples, and troubleshooting
+
+**Root cause:**
+- Phase 3 refactor updated list pages to use assessment-centric queries (✅ completed Jan 26)
+- Badge counts were missed - still used old table-centric queries
+- **Result**: Badge showed 4 appointments (from `appointments` table), page showed 1 (from `assessments` table)
+
+**Files modified:**
+- `src/lib/components/layout/Sidebar.svelte` - Fixed 3 badge query functions (lines 120-193)
+- `src/lib/services/assessment.service.ts` - Added 2 reusable count methods (lines 482-558)
+- `.agent/SOP/implementing_badge_counts.md` - Created comprehensive SOP (new file)
+- `.agent/SOP/working_with_assessment_centric_architecture.md` - Added badge section with examples
+
+**Badge audit results:**
+| Badge | Status | Fix Applied |
+|-------|--------|-------------|
+| Requests | ✅ Fixed | `stage='request_submitted'` |
+| Inspections | ✅ Fixed | `stage='inspection_scheduled'` |
+| Appointments | ✅ Fixed | `stage IN ['appointment_scheduled', 'assessment_in_progress']` |
+| Open Assessments | ✅ Correct | Already assessment-centric |
+| Finalized | ✅ Correct | Already assessment-centric |
+| FRC | ✅ Correct | Uses FRC service |
+| Additionals | ✅ Correct | Uses Additionals service |
+
+**Pattern established:**
+```typescript
+// ✅ CORRECT - Assessment-centric badge query
+let query = supabase
+    .from('assessments')
+    .select('*, appointments!inner(engineer_id)', { count: 'exact', head: true })
+    .in('stage', ['appointment_scheduled', 'assessment_in_progress']);
+
+if (role === 'engineer' && engineer_id) {
+    query = query.eq('appointments.engineer_id', engineer_id);
+}
+```
+
+**Documentation:**
+- [Fix Badge Count Mismatches Task](./Tasks/active/fix_badge_count_mismatches.md) - Complete problem analysis and implementation
+- [Implementing Badge Counts SOP](./SOP/implementing_badge_counts.md) - Comprehensive guide with patterns and troubleshooting
+- [Working with Assessment-Centric Architecture SOP](./SOP/working_with_assessment_centric_architecture.md) - Updated with badge section
+
+**Testing:**
+- ✅ Database verification confirmed mismatch (4 appointments in old table, 1 in assessments table)
+- ✅ Type check passed (pre-existing type errors unrelated to badge changes)
+- ⏳ Ready for manual testing (engineer login should show correct badge count)
+
+---
 
 ### Session Persistence Fix - COMPLETE (January 27, 2025)
 
@@ -1103,7 +1162,7 @@ This documentation aims to:
 
 ## 📊 Project Stats
 
-**As of Assessment-Centric Refactor Complete (January 26, 2025):**
+**As of Badge Count Architectural Fix Complete (January 27, 2025):**
 - **28 database tables** (verified & secured against live Supabase DB)
 - **75 database migrations** (includes assessment-centric refactor - migrations 068-075)
 - **27+ service files** (all using ServiceClient injection pattern)
@@ -1115,6 +1174,7 @@ This documentation aims to:
 - **✅ JWT-based RLS policies** on `user_profiles` (no recursion - fixed Oct 2025)
 - **✅ Fixed RLS INSERT policies** for assessments and vehicle values (fixed Jan 2025)
 - **✅ Admin-only assessment creation** enforced (Migration 072 - Jan 2025)
+- **✅ Assessment-centric badge counts** - All 7 sidebar badges use stage-based queries (Jan 27, 2025)
 - **40+ RLS policies** protecting all data access
 - **Private storage** with secure proxy endpoints (2 buckets: documents, SVA Photos)
 - **AI-powered development** with Claude Code Skills (3 specialized skills)
@@ -1200,8 +1260,8 @@ Official documentation for technologies used in ClaimTech:
 
 ---
 
-**Version**: 1.7.1
-**Last Updated**: January 26, 2025 (Assessment-Centric Refactor Complete - Phase 3: Frontend UI + Migration 075 Enum Fix)
+**Version**: 1.7.2
+**Last Updated**: January 27, 2025 (Badge Count Architectural Mismatch Fix - Assessment-Centric Badge Queries)
 **Maintained By**: ClaimTech Development Team
 
 ---
