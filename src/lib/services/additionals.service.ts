@@ -832,7 +832,8 @@ class AdditionalsService {
 	 * List all additionals records
 	 * Joins with assessments, appointments, inspections, requests, and clients
 	 * Pulls vehicle data from assessment_vehicle_identification (updated during assessment)
-	 * Shows all additionals regardless of FRC status (subprocess pattern)
+	 * Only shows additionals for active assessments (stage = 'estimate_finalized')
+	 * Archived/cancelled assessments are excluded (moved to archive page)
 	 */
 	async listAdditionals(client?: ServiceClient, engineer_id?: string | null): Promise<any[]> {
 		const db = client ?? supabase;
@@ -844,6 +845,7 @@ class AdditionalsService {
 				assessment:assessments!inner(
 					id,
 					assessment_number,
+					stage,
 					vehicle_identification:assessment_vehicle_identification(
 						vehicle_make,
 						vehicle_model,
@@ -873,6 +875,7 @@ class AdditionalsService {
 					)
 				)
 			`)
+			.eq('assessment.stage', 'estimate_finalized')  // Only active assessments
 			.order('created_at', { ascending: false });
 
 		// RLS policies automatically filter by engineer for non-admin users
@@ -885,10 +888,9 @@ class AdditionalsService {
 			return [];
 		}
 
-		// Return all additionals records - don't filter by FRC status
-		// Additionals should be visible even when FRC is active (subprocess pattern)
-		// This matches FRC page behavior and user requirement:
-		// "finalized assessment even with FRC open and additional should still show"
+		// Return additionals for active assessments only
+		// Archived/cancelled assessments are filtered out by stage
+		// This ensures only current work is shown in the Additionals page
 		return data || [];
 	}
 
@@ -975,12 +977,14 @@ class AdditionalsService {
 
 		// Query from assessments table for simpler, more reliable filtering
 		// This avoids PostgREST deep filter path issues
+		// Only count additionals for active assessments (stage = 'estimate_finalized')
 		if (engineer_id) {
-			// Engineer view - only their assigned assessments with additionals
+			// Engineer view - only their assigned active assessments with additionals
 			const { count, error } = await db
 				.from('assessments')
 				.select('id, appointments!inner(engineer_id), assessment_additionals!inner(id)',
 						{ count: 'exact', head: true })
+				.eq('stage', 'estimate_finalized')  // Only active assessments
 				.eq('appointments.engineer_id', engineer_id);
 
 			if (error) {
@@ -990,11 +994,12 @@ class AdditionalsService {
 			return count || 0;
 		}
 
-		// Admin view - all assessments with additionals
+		// Admin view - all active assessments with additionals
 		const { count, error } = await db
 			.from('assessments')
 			.select('id, assessment_additionals!inner(id)',
-					{ count: 'exact', head: true });
+					{ count: 'exact', head: true })
+			.eq('stage', 'estimate_finalized');  // Only active assessments
 
 		if (error) {
 			console.error('Error counting all additionals:', error);

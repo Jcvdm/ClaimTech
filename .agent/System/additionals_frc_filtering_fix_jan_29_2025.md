@@ -208,11 +208,63 @@ To prevent similar issues in future subprocess implementations:
 - [Bug Postmortem: Badge RLS & PostgREST Filter Fixes](./bug_postmortem_badge_rls_filter_fixes_jan_29_2025.md) - Badge count fixes
 - [Working with Assessment-Centric Architecture SOP](../SOP/working_with_assessment_centric_architecture.md) - Assessment-centric patterns
 
+## Stage Filtering Update - January 29, 2025
+
+### Additional Fix: Stage-Based Filtering
+
+After fixing the FRC filtering issue, a follow-up requirement was identified:
+
+> "When an assessment or report is finalized 'archived' - after FRC is done or assessment is cancelled, the additionals and FRC should not be listed - only active reports details should be listed here"
+
+**Solution**: Added stage filtering to show only active assessments (`stage = 'estimate_finalized'`).
+
+### Updated Implementation
+
+**Additionals Service** (`src/lib/services/additionals.service.ts`):
+
+1. **listAdditionals()** - Added stage filter:
+```typescript
+.eq('assessment.stage', 'estimate_finalized')  // Only active assessments
+```
+
+2. **getAssessmentsAtStageCount()** - Added stage filter to badge count:
+```typescript
+.eq('stage', 'estimate_finalized')  // Only active assessments
+```
+
+**FRC Service** (`src/lib/services/frc.service.ts`):
+
+1. **listFRC()** - Added stage filter:
+```typescript
+.eq('assessment.stage', 'estimate_finalized')  // Only active assessments
+```
+
+2. **getCountByStatus()** - Added stage filter to badge count:
+```typescript
+.eq('stage', 'estimate_finalized')  // Only active assessments
+```
+
+### Stage-Based Visibility
+
+| Assessment Stage | Additionals Page | FRC Page | Archive Page |
+|-----------------|------------------|----------|--------------|
+| `estimate_finalized` | ✅ Shows | ✅ Shows | ❌ Hidden |
+| `archived` | ❌ Hidden | ❌ Hidden | ✅ Shows (Completed) |
+| `cancelled` | ❌ Hidden | ❌ Hidden | ✅ Shows (Cancelled) |
+
+### Benefits
+
+1. **Clean Active Lists**: Only current work shown in Additionals/FRC pages
+2. **Clear Separation**: Completed work moved to Archive page
+3. **Consistent Pattern**: Same stage filtering for both subprocess pages
+4. **Badge Alignment**: Badge counts match table counts with same filtering
+
 ## Key Learnings
 
 1. **Subprocesses are independent** - Don't filter one subprocess by another
 2. **Badge logic must match list logic** - Use same filtering rules for both
-3. **Subprocess pattern is simple** - Query subprocess table, return all records
-4. **User requirements drive design** - "should still show" means no filtering
-5. **Test badge/table alignment** - Mismatches indicate filtering bugs
+3. **Stage-based filtering** - Use assessment stage to control visibility across pages
+4. **Active vs Terminal stages** - Only `estimate_finalized` is active for subprocess work
+5. **User requirements drive design** - "only active reports" means stage filtering
+6. **Test badge/table alignment** - Mismatches indicate filtering bugs
 

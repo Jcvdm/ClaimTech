@@ -19,6 +19,7 @@ Understanding the current state of the system
 - **[Bug Postmortem: Finalization & FRC Stage Transitions](./System/bug_postmortem_finalization_frc_stage_transitions.md)** - ⭐ **NEW:** Analysis of three critical bugs in finalization and FRC workflows (Jan 29, 2025)
 - **[Bug Postmortem: Appointment Stage Transition](./System/bug_postmortem_appointment_stage_transition.md)** - ⭐ **NEW:** Analysis of missing stage in transition eligibility (Jan 29, 2025)
 - **[Navigation appointment_id Fix](./System/navigation_appointment_id_fix_jan_29_2025.md)** - ⭐ **NEW:** Fixed nested object navigation in Additionals/FRC pages (Jan 29, 2025)
+- **[Subprocess Stage Filtering](./System/subprocess_stage_filtering_jan_29_2025.md)** - ⭐ **NEW:** Stage-based filtering for Additionals/FRC pages - only show active assessments, hide archived/cancelled (Jan 29, 2025)
 - **[Additionals FRC Filtering Fix](./System/additionals_frc_filtering_fix_jan_29_2025.md)** - ⭐ **NEW:** Fixed badge/table mismatch by removing FRC filtering from Additionals list (Jan 29, 2025)
 - **[Early-Stage Assessment RLS Fix](./System/early_stage_assessment_rls_fix_jan_26_2025.md)** - ✅ Dual-check RLS pattern for nullable foreign keys (Migrations 073-074, Jan 2025)
 - **[Phase 3 Frontend + Enum Fix](./System/phase_3_frontend_and_enum_fix_jan_26_2025.md)** - ✅ Frontend UI completion and Migration 075 enum fix (Jan 26, 2025)

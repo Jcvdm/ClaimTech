@@ -544,6 +544,8 @@ class FRCService {
 	/**
 	 * List all FRC records with optional status filter
 	 * Joins with assessments, appointments, inspections, requests, and clients
+	 * Only shows FRC for active assessments (stage = 'estimate_finalized')
+	 * Archived/cancelled assessments are excluded (moved to archive page)
 	 */
 	async listFRC(filters?: {
 		status?: 'not_started' | 'in_progress' | 'completed';
@@ -558,6 +560,7 @@ class FRCService {
 				assessment:assessments!inner(
 					id,
 					assessment_number,
+					stage,
 					appointment:appointments!inner(
 						id,
 						engineer_id,
@@ -580,11 +583,10 @@ class FRCService {
 					)
 				)
 			`)
+			.eq('assessment.stage', 'estimate_finalized')  // Only active assessments
 			.order('started_at', { ascending: false });
 
-		// Don't filter by stage - assessments remain at 'estimate_finalized' during FRC
-		// FRC records are retrieved regardless of assessment stage
-
+		// Filter by FRC status if provided
 		if (filters?.status) {
 			query = query.eq('status', filters.status);
 		}
@@ -598,23 +600,29 @@ class FRCService {
 			return [];
 		}
 
+		// Return FRC records for active assessments only
+		// Archived/cancelled assessments are filtered out by stage
+		// This ensures only current work is shown in the FRC page
 		return data || [];
 	}
 
 	/**
 	 * Get count of FRC records by status
+	 * Only counts FRC for active assessments (stage = 'estimate_finalized')
 	 */
 	async getCountByStatus(status: 'not_started' | 'in_progress' | 'completed', client?: ServiceClient, engineer_id?: string | null): Promise<number> {
 		const db = client ?? supabase;
 
 		// Query from assessments table for simpler, more reliable filtering
 		// This avoids PostgREST deep filter path issues
+		// Only count FRC for active assessments (stage = 'estimate_finalized')
 		if (engineer_id) {
-			// Engineer view - only their assigned assessments with FRC at this status
+			// Engineer view - only their assigned active assessments with FRC at this status
 			const { count, error } = await db
 				.from('assessments')
 				.select('id, appointments!inner(engineer_id), assessment_frc!inner(status)',
 						{ count: 'exact', head: true })
+				.eq('stage', 'estimate_finalized')  // Only active assessments
 				.eq('appointments.engineer_id', engineer_id)
 				.eq('assessment_frc.status', status);
 
@@ -625,11 +633,12 @@ class FRCService {
 			return count || 0;
 		}
 
-		// Admin view - all assessments with FRC at this status
+		// Admin view - all active assessments with FRC at this status
 		const { count, error } = await db
 			.from('assessments')
 			.select('id, assessment_frc!inner(status)',
 					{ count: 'exact', head: true })
+			.eq('stage', 'estimate_finalized')  // Only active assessments
 			.eq('assessment_frc.status', status);
 
 		if (error) {
