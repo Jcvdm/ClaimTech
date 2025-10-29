@@ -7,28 +7,20 @@
 	import GradientBadge from '$lib/components/data/GradientBadge.svelte';
 	import TableCell from '$lib/components/data/TableCell.svelte';
 	import EmptyState from '$lib/components/data/EmptyState.svelte';
-	import SummaryComponent from '$lib/components/shared/SummaryComponent.svelte';
-	import { Button } from '$lib/components/ui/button';
-	import * as Dialog from '$lib/components/ui/dialog';
 	import { formatDate, formatVehicle } from '$lib/utils/formatters';
 	import {
 		ClipboardCheck,
-		ExternalLink,
 		Hash,
 		FileText,
 		User,
 		Car,
 		Calendar,
-		Activity,
-		Eye
+		Activity
 	} from 'lucide-svelte';
 	import type { Assessment } from '$lib/types/assessment';
 	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();
-
-	let selectedAssessment = $state<Assessment | null>(null);
-	let showSummary = $state(false);
 
 	// Derive display data from assessments with nested request/client
 	const assessmentsWithDetails = $derived(
@@ -102,27 +94,8 @@
 	];
 
 	function handleRowClick(row: (typeof assessmentsWithDetails)[0]) {
-		selectedAssessment = data.assessments.find((a) => a.id === row.id) || null;
-		showSummary = true;
-	}
-
-	function handleOpenReport() {
-		if (selectedAssessment) {
-			// Route based on appointment existence
-			// Assessments at inspection_scheduled stage don't have appointments yet
-			if (!selectedAssessment.appointment_id) {
-				// No appointment - use inspection detail page (assessment-centric)
-				goto(`/work/inspections/${selectedAssessment.id}`);
-			} else {
-				// Has appointment - use assessment detail page
-				goto(`/work/assessments/${selectedAssessment.appointment_id}`);
-			}
-		}
-	}
-
-	function closeSummary() {
-		showSummary = false;
-		selectedAssessment = null;
+		// Navigate directly to inspection detail page
+		goto(`/work/inspections/${row.id}`);
 	}
 </script>
 
@@ -170,11 +143,6 @@
 							label="Schedule Appointment"
 							onclick={() => goto(`/work/inspections/${row.id}`)}
 						/>
-						<ActionIconButton
-							icon={Eye}
-							label="View Details"
-							onclick={() => handleRowClick(row)}
-						/>
 					</ActionButtonGroup>
 				{:else}
 					{row[column.key]}
@@ -190,26 +158,3 @@
 		</div>
 	{/if}
 </div>
-
-<!-- Summary Modal -->
-<Dialog.Root open={showSummary} onOpenChange={(open) => !open && closeSummary()}>
-	<Dialog.Content class="max-w-2xl">
-		<Dialog.Header>
-			<Dialog.Title>Assessment Summary</Dialog.Title>
-		</Dialog.Header>
-
-		{#if selectedAssessment}
-			<SummaryComponent assessment={selectedAssessment} showAssessmentData={false} />
-
-			<!-- Action Buttons -->
-			<Dialog.Footer>
-				<Button variant="outline" onclick={closeSummary}>Close</Button>
-				<Button onclick={handleOpenReport}>
-					<ExternalLink class="mr-2 h-4 w-4" />
-					Open Report
-				</Button>
-			</Dialog.Footer>
-		{/if}
-	</Dialog.Content>
-</Dialog.Root>
-

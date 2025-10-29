@@ -8,10 +8,7 @@
 	import GradientBadge from '$lib/components/data/GradientBadge.svelte';
 	import TableCell from '$lib/components/data/TableCell.svelte';
 	import EmptyState from '$lib/components/data/EmptyState.svelte';
-	import SummaryComponent from '$lib/components/shared/SummaryComponent.svelte';
 	import { Badge } from '$lib/components/ui/badge';
-	import { Button } from '$lib/components/ui/button';
-	import * as Dialog from '$lib/components/ui/dialog';
 	import { formatDate } from '$lib/utils/formatters';
 	import {
 		FileCheck,
@@ -24,9 +21,7 @@
 		Activity,
 		Calendar,
 		CheckCircle2,
-		Edit,
-		Eye,
-		ExternalLink
+		Edit
 	} from 'lucide-svelte';
 
 	let { data }: { data: PageData } = $props();
@@ -34,8 +29,6 @@
 	// Status filter state - default to 'in_progress' for better UX
 	type FRCStatus = 'not_started' | 'in_progress' | 'completed';
 	let selectedStatus = $state<FRCStatus | 'all'>('in_progress');
-	let selectedAssessment = $state<any | null>(null);
-	let showSummary = $state(false);
 
 	// Prepare data for table - filter out malformed records
 	const allFRCWithDetails = data.frcRecords
@@ -172,12 +165,12 @@
 	];
 
 	function handleRowClick(frc: (typeof frcWithDetails)[0]) {
-		// Find the full assessment data for the summary modal
-		const frcRecord = data.frcRecords.find((f: any) => f.id === frc.id);
-		if (frcRecord?.assessment) {
-			selectedAssessment = frcRecord.assessment;
-			showSummary = true;
+		// Navigate directly to FRC tab on assessment page
+		if (!frc.appointmentId) {
+			console.error('Cannot navigate to assessment: FRC record missing appointment_id', frc);
+			return;
 		}
+		goto(`/work/assessments/${frc.appointmentId}?tab=frc`);
 	}
 
 	function handleViewReport(frc: (typeof frcWithDetails)[0]) {
@@ -200,31 +193,6 @@
 		}
 		// Navigate to FRC edit page (if exists) or assessment FRC tab
 		goto(`/work/assessments/${frc.appointmentId}?tab=frc&edit=true`);
-	}
-
-	function handleOpenReport() {
-		// Defensive check: Ensure assessment and appointment_id exist
-		if (!selectedAssessment) {
-			console.error('Cannot navigate: No assessment selected');
-			return;
-		}
-
-		// Use nested appointment.id since selectedAssessment comes from the nested query structure
-		// Fallback to appointment_id for backward compatibility
-		const appointmentId = selectedAssessment.appointment?.id ?? selectedAssessment.appointment_id;
-
-		if (!appointmentId) {
-			console.error('[snapshot] Cannot navigate to assessment: Missing appointment_id', $state.snapshot(selectedAssessment));
-			// TODO: Show toast notification to user
-			return;
-		}
-
-		goto(`/work/assessments/${appointmentId}?tab=frc`);
-	}
-
-	function closeSummary() {
-		showSummary = false;
-		selectedAssessment = null;
 	}
 </script>
 
@@ -319,11 +287,6 @@
 							label="Edit FRC"
 							onclick={() => handleEditFRC(row)}
 						/>
-						<ActionIconButton
-							icon={Eye}
-							label="View Details"
-							onclick={() => handleRowClick(row)}
-						/>
 					</ActionButtonGroup>
 				{:else}
 					{row[column.key]}
@@ -339,26 +302,3 @@
 		</div>
 	{/if}
 </div>
-
-<!-- Summary Modal -->
-<Dialog.Root open={showSummary} onOpenChange={(open) => !open && closeSummary()}>
-	<Dialog.Content class="max-w-2xl">
-		<Dialog.Header>
-			<Dialog.Title>Assessment Summary</Dialog.Title>
-		</Dialog.Header>
-
-		{#if selectedAssessment}
-			<SummaryComponent assessment={selectedAssessment} showAssessmentData={true} />
-
-			<!-- Action Buttons -->
-			<Dialog.Footer>
-				<Button variant="outline" onclick={closeSummary}>Close</Button>
-				<Button onclick={handleOpenReport}>
-					<ExternalLink class="mr-2 h-4 w-4" />
-					View FRC Report
-				</Button>
-			</Dialog.Footer>
-		{/if}
-	</Dialog.Content>
-</Dialog.Root>
-

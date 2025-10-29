@@ -22,8 +22,7 @@
 		CheckCircle2,
 		XCircle,
 		Clock,
-		Download,
-		Eye
+		Download
 	} from 'lucide-svelte';
 
 	let { data }: { data: PageData } = $props();
@@ -384,11 +383,6 @@
 					/>
 				{:else if column.key === 'actions'}
 					<ActionButtonGroup align="right">
-						<ActionIconButton
-							icon={Eye}
-							label="View Details"
-							onclick={() => handleRowClick(row)}
-						/>
 						<ActionIconButton
 							icon={Download}
 							label="Download Documents"

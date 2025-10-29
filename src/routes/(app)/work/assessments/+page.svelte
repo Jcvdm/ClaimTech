@@ -10,9 +10,7 @@
 	import GradientBadge from '$lib/components/data/GradientBadge.svelte';
 	import TableCell from '$lib/components/data/TableCell.svelte';
 	import EmptyState from '$lib/components/data/EmptyState.svelte';
-	import SummaryComponent from '$lib/components/shared/SummaryComponent.svelte';
 	import { Button } from '$lib/components/ui/button';
-	import * as Dialog from '$lib/components/ui/dialog';
 	import { formatDateTime, formatVehicle } from '$lib/utils/formatters';
 	import {
 		ClipboardList,
@@ -24,15 +22,11 @@
 		User,
 		TrendingUp,
 		Clock,
-		Play,
-		Eye,
-		ExternalLink
+		Play
 	} from 'lucide-svelte';
 
 	let { data }: { data: PageData } = $props();
 	let refreshing = $state(false);
-	let selectedAssessment = $state<any | null>(null);
-	let showSummary = $state(false);
 
 	// Manual refresh function
 	async function handleRefresh() {
@@ -147,24 +141,13 @@
 	];
 
 	function handleRowClick(assessment: (typeof assessmentsWithDetails)[0]) {
-		selectedAssessment = data.assessments.find((a) => a.id === assessment.id) || null;
-		showSummary = true;
+		// Navigate directly to assessment detail page
+		goto(`/work/assessments/${assessment.appointment_id}`);
 	}
 
 	function handleContinueAssessment(assessment: (typeof assessmentsWithDetails)[0]) {
 		// Navigate to assessment page using appointment_id
 		goto(`/work/assessments/${assessment.appointment_id}`);
-	}
-
-	function handleOpenReport() {
-		if (selectedAssessment) {
-			goto(`/work/assessments/${selectedAssessment.appointment_id}`);
-		}
-	}
-
-	function closeSummary() {
-		showSummary = false;
-		selectedAssessment = null;
 	}
 </script>
 
@@ -221,11 +204,6 @@
 							onclick={() => handleContinueAssessment(row)}
 							variant="primary"
 						/>
-						<ActionIconButton
-							icon={Eye}
-							label="View Summary"
-							onclick={() => handleRowClick(row)}
-						/>
 					</ActionButtonGroup>
 				{:else}
 					{row[column.key]}
@@ -241,26 +219,3 @@
 		</div>
 	{/if}
 </div>
-
-<!-- Summary Modal -->
-<Dialog.Root open={showSummary} onOpenChange={(open) => !open && closeSummary()}>
-	<Dialog.Content class="max-w-2xl">
-		<Dialog.Header>
-			<Dialog.Title>Assessment Summary</Dialog.Title>
-		</Dialog.Header>
-
-		{#if selectedAssessment}
-			<SummaryComponent assessment={selectedAssessment} showAssessmentData={true} />
-
-			<!-- Action Buttons -->
-			<Dialog.Footer>
-				<Button variant="outline" onclick={closeSummary}>Close</Button>
-				<Button onclick={handleOpenReport}>
-					<ExternalLink class="mr-2 h-4 w-4" />
-					Continue Assessment
-				</Button>
-			</Dialog.Footer>
-		{/if}
-	</Dialog.Content>
-</Dialog.Root>
-

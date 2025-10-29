@@ -1075,13 +1075,44 @@ function handleRowClick(row) {
 - ✅ Better mobile experience with compact action icons
 - ✅ Improved accessibility with descriptive tooltips
 
+### Critical Fix: Remove Redundant Modal Popups (January 29, 2025)
+
+**Problem**: Several list pages had redundant modal popups that appeared when:
+1. Clicking table row → Opens summary modal
+2. Clicking Eye icon → Opens same summary modal
+3. Modal has button to navigate to detail page
+
+This created unnecessary extra clicks (2 clicks instead of 1 direct navigation).
+
+**Solution**: Remove all redundant modals and make row clicks navigate directly to detail pages
+
+**Pages Fixed**:
+- ✅ Inspections (`/work/inspections/+page.svelte`)
+- ✅ Open Assessments (`/work/assessments/+page.svelte`)
+- ✅ FRC (`/work/frc/+page.svelte`)
+- ✅ Additionals (`/work/additionals/+page.svelte`)
+- ✅ Archive (`/work/archive/+page.svelte`) - Eye icon removed only (no modal existed)
+
+**Changes Per Page**:
+1. Removed state variables: `selectedAssessment`, `showSummary`
+2. Removed modal-related functions: `closeSummary()`, `handleOpenReport()`
+3. Updated `handleRowClick()` to navigate directly using `goto()`
+4. Removed Eye icon from actions column (redundant with row click)
+5. Removed Dialog.Root modal component entirely
+6. Removed unused imports: `SummaryComponent`, `Button`, `* as Dialog`, `ExternalLink`, `Eye`
+
+**Result**:
+- Users now click row → Direct navigation to detail page (1 click instead of 2)
+- Cleaner UI with no unnecessary modal overlays
+- ~50-80 lines removed per page
+- Consistent navigation pattern across all list pages
+
 ### Next Steps
 
-1. **Complete Phase 6.5** - Create `table_utilities.md` documenting table-helpers.ts
-2. **Execute Phase 7** - Comprehensive testing across all pages
-3. **Address any bugs** - Fix issues found during testing
-4. **Final review** - Ensure all success criteria met
-5. **Move to historical** - Archive task documentation once complete
+1. **Execute Phase 7** - Comprehensive testing across all pages
+2. **Address any bugs** - Fix issues found during testing
+3. **Final review** - Ensure all success criteria met
+4. **Move to historical** - Archive task documentation once complete
 
 ---
 
@@ -1094,6 +1125,6 @@ function handleRowClick(row) {
 
 ---
 
-**Last Updated**: January 27, 2025
-**Author**: Claude Code (Sonnet 4.5)
-**Status**: Active - Ready for implementation
+**Last Updated**: January 29, 2025
+**Author**: Claude Code (Haiku 4.5)
+**Status**: Active - Modal Removal Complete, Testing Pending
