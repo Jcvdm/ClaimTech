@@ -3,10 +3,16 @@
 	import { goto } from '$app/navigation';
 	import PageHeader from '$lib/components/layout/PageHeader.svelte';
 	import ModernDataTable from '$lib/components/data/ModernDataTable.svelte';
+	import ActionButtonGroup from '$lib/components/data/ActionButtonGroup.svelte';
+	import ActionIconButton from '$lib/components/data/ActionIconButton.svelte';
 	import GradientBadge from '$lib/components/data/GradientBadge.svelte';
 	import TableCell from '$lib/components/data/TableCell.svelte';
 	import EmptyState from '$lib/components/data/EmptyState.svelte';
+	import SummaryComponent from '$lib/components/shared/SummaryComponent.svelte';
 	import { Badge } from '$lib/components/ui/badge';
+	import { Button } from '$lib/components/ui/button';
+	import * as Dialog from '$lib/components/ui/dialog';
+	import { formatDate } from '$lib/utils/formatters';
 	import {
 		FileCheck,
 		ClipboardList,
@@ -17,7 +23,10 @@
 		CreditCard,
 		Activity,
 		Calendar,
-		CheckCircle2
+		CheckCircle2,
+		Edit,
+		Eye,
+		ExternalLink
 	} from 'lucide-svelte';
 
 	let { data }: { data: PageData } = $props();
@@ -25,6 +34,8 @@
 	// Status filter state - default to 'in_progress' for better UX
 	type FRCStatus = 'not_started' | 'in_progress' | 'completed';
 	let selectedStatus = $state<FRCStatus | 'all'>('in_progress');
+	let selectedAssessment = $state<any | null>(null);
+	let showSummary = $state(false);
 
 	// Prepare data for table - filter out malformed records
 	const allFRCWithDetails = data.frcRecords
@@ -58,20 +69,8 @@
 				startedAt: frc.started_at,
 				completedAt: frc.completed_at,
 				lineItemCount: frc.line_items?.length || 0,
-				formattedStarted: frc.started_at
-					? new Date(frc.started_at).toLocaleDateString('en-ZA', {
-							year: 'numeric',
-							month: 'short',
-							day: 'numeric'
-						})
-					: 'N/A',
-				formattedCompleted: frc.completed_at
-					? new Date(frc.completed_at).toLocaleDateString('en-ZA', {
-							year: 'numeric',
-							month: 'short',
-							day: 'numeric'
-						})
-					: '-'
+				formattedStarted: frc.started_at ? formatDate(frc.started_at) : 'N/A',
+				formattedCompleted: frc.completed_at ? formatDate(frc.completed_at) : '-'
 			};
 		});
 
@@ -164,12 +163,68 @@
 			label: 'Completed',
 			sortable: true,
 			icon: CheckCircle2
+		},
+		{
+			key: 'actions',
+			label: 'Actions',
+			sortable: false
 		}
 	];
 
 	function handleRowClick(frc: (typeof frcWithDetails)[0]) {
+		// Find the full assessment data for the summary modal
+		const frcRecord = data.frcRecords.find((f: any) => f.id === frc.id);
+		if (frcRecord?.assessment) {
+			selectedAssessment = frcRecord.assessment;
+			showSummary = true;
+		}
+	}
+
+	function handleViewReport(frc: (typeof frcWithDetails)[0]) {
+		// Defensive check: Ensure appointment_id exists before navigation
+		if (!frc.appointmentId) {
+			console.error('Cannot navigate to assessment: FRC record missing appointment_id', frc);
+			// TODO: Show toast notification to user
+			return;
+		}
 		// Navigate to assessment page with FRC tab
 		goto(`/work/assessments/${frc.appointmentId}?tab=frc`);
+	}
+
+	function handleEditFRC(frc: (typeof frcWithDetails)[0]) {
+		// Defensive check: Ensure appointment_id exists before navigation
+		if (!frc.appointmentId) {
+			console.error('Cannot navigate to assessment: FRC record missing appointment_id', frc);
+			// TODO: Show toast notification to user
+			return;
+		}
+		// Navigate to FRC edit page (if exists) or assessment FRC tab
+		goto(`/work/assessments/${frc.appointmentId}?tab=frc&edit=true`);
+	}
+
+	function handleOpenReport() {
+		// Defensive check: Ensure assessment and appointment_id exist
+		if (!selectedAssessment) {
+			console.error('Cannot navigate: No assessment selected');
+			return;
+		}
+
+		// Use nested appointment.id since selectedAssessment comes from the nested query structure
+		// Fallback to appointment_id for backward compatibility
+		const appointmentId = selectedAssessment.appointment?.id ?? selectedAssessment.appointment_id;
+
+		if (!appointmentId) {
+			console.error('[snapshot] Cannot navigate to assessment: Missing appointment_id', $state.snapshot(selectedAssessment));
+			// TODO: Show toast notification to user
+			return;
+		}
+
+		goto(`/work/assessments/${appointmentId}?tab=frc`);
+	}
+
+	function closeSummary() {
+		showSummary = false;
+		selectedAssessment = null;
 	}
 </script>
 
@@ -252,6 +307,24 @@
 					<TableCell variant={row.lineItemCount > 0 ? 'default' : 'muted'}>
 						{row.lineItemCount}
 					</TableCell>
+				{:else if column.key === 'actions'}
+					<ActionButtonGroup align="right">
+						<ActionIconButton
+							icon={FileText}
+							label="View FRC Report"
+							onclick={() => handleViewReport(row)}
+						/>
+						<ActionIconButton
+							icon={Edit}
+							label="Edit FRC"
+							onclick={() => handleEditFRC(row)}
+						/>
+						<ActionIconButton
+							icon={Eye}
+							label="View Details"
+							onclick={() => handleRowClick(row)}
+						/>
+					</ActionButtonGroup>
 				{:else}
 					{row[column.key]}
 				{/if}
@@ -266,4 +339,26 @@
 		</div>
 	{/if}
 </div>
+
+<!-- Summary Modal -->
+<Dialog.Root open={showSummary} onOpenChange={(open) => !open && closeSummary()}>
+	<Dialog.Content class="max-w-2xl">
+		<Dialog.Header>
+			<Dialog.Title>Assessment Summary</Dialog.Title>
+		</Dialog.Header>
+
+		{#if selectedAssessment}
+			<SummaryComponent assessment={selectedAssessment} showAssessmentData={true} />
+
+			<!-- Action Buttons -->
+			<Dialog.Footer>
+				<Button variant="outline" onclick={closeSummary}>Close</Button>
+				<Button onclick={handleOpenReport}>
+					<ExternalLink class="mr-2 h-4 w-4" />
+					View FRC Report
+				</Button>
+			</Dialog.Footer>
+		{/if}
+	</Dialog.Content>
+</Dialog.Root>
 

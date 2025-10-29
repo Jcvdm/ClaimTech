@@ -9,10 +9,13 @@ import type {
 
 /**
  * Compose the final estimate lines from original estimate + approved additionals
- * Excludes:
- * - Removed lines (action='removed' from additionals)
+ * Includes ALL lines with metadata markers for:
+ * - Removed lines (marked with removed_via_additionals=true)
+ * - Declined lines (marked with declined_via_additionals=true + reason)
+ *
+ * Excludes only:
  * - Reversed lines (lines that have been reversed by a reversal action)
- * - Declined additional lines (status='declined')
+ * - Reversal lines themselves (action='reversal')
  *
  * @param frozenRates - Optional frozen rates from assessment finalization (for consistency)
  */
@@ -54,9 +57,10 @@ export function composeFinalEstimateLines(
 			});
 	}
 
-	// Add original estimate lines (excluding removed ones)
+	// Add original estimate lines (including removed ones with markers)
 	estimate.line_items.forEach((line) => {
-		if (line.id && !removedOriginalIds.has(line.id)) {
+		if (line.id) {
+			const isRemoved = removedOriginalIds.has(line.id);
 			const quoted_total_nett =
 				(line.part_price_nett ?? 0) +
 				(line.strip_assemble ?? 0) +
@@ -73,6 +77,8 @@ export function composeFinalEstimateLines(
 				actual_total: null,
 				decision: 'pending',
 				adjust_reason: null,
+				// Mark removed lines
+				removed_via_additionals: isRemoved || undefined,
 				// Snapshot quoted component breakdown
 				quoted_part_price_nett: line.part_price_nett ?? null,
 				quoted_part_price: line.part_price ?? null,
@@ -149,6 +155,57 @@ export function composeFinalEstimateLines(
 					actual_outwork_charge: null
 				});
 			});
+
+		// Add declined additional lines with markers (excluding reversed)
+		additionals.line_items
+			.filter(
+				(item) =>
+					item.status === 'declined' &&
+					item.action !== 'removed' &&
+					item.action !== 'reversal' &&
+					item.id &&
+					!reversedTargets.has(item.id)
+			)
+			.forEach((line) => {
+				finalLines.push({
+					id: crypto.randomUUID(),
+					source: 'additional',
+					source_line_id: line.id!,
+					process_type: line.process_type,
+					description: line.description,
+					quoted_total: line.total || 0,
+					actual_total: null,
+					decision: 'pending',
+					adjust_reason: null,
+					// Mark declined lines
+					declined_via_additionals: true,
+					decline_reason: line.decline_reason || 'No reason provided',
+					// Snapshot quoted component breakdown
+					quoted_part_price_nett: line.part_price_nett ?? null,
+					quoted_part_price: line.part_price ?? null,
+					quoted_strip_assemble: line.strip_assemble ?? null,
+					quoted_labour_cost: line.labour_cost ?? null,
+					quoted_paint_cost: line.paint_cost ?? null,
+					quoted_outwork_charge_nett: line.outwork_charge_nett ?? null,
+					quoted_outwork_charge: line.outwork_charge ?? null,
+					// Snapshot quantities and rates
+					part_type: line.part_type ?? null,
+					strip_assemble_hours: line.strip_assemble_hours ?? null,
+					labour_hours: line.labour_hours ?? null,
+					paint_panels: line.paint_panels ?? null,
+					labour_rate_snapshot: frozenRates?.labour_rate ?? additionals.labour_rate,
+					paint_rate_snapshot: frozenRates?.paint_rate ?? additionals.paint_rate,
+					// Actuals initially null
+					actual_part_price_nett: null,
+					actual_strip_assemble: null,
+					actual_strip_assemble_hours: null,
+					actual_labour_cost: null,
+					actual_labour_hours: null,
+					actual_paint_cost: null,
+					actual_paint_panels: null,
+					actual_outwork_charge: null
+				});
+			});
 	}
 
 	return finalLines;
@@ -158,6 +215,7 @@ export function composeFinalEstimateLines(
  * Calculate breakdown totals from line items (NETT-BASED)
  * Sums nett component values (parts nett, labour, paint, outwork nett)
  * Markup should be applied at aggregate level, not here
+ * Excludes removed/declined lines from calculations
  */
 export function calculateBreakdownTotals(
 	lineItems: FRCLineItem[],
@@ -175,6 +233,11 @@ export function calculateBreakdownTotals(
 	let outwork_nett_total = 0;
 
 	lineItems.forEach((line) => {
+		// Skip removed/declined lines from totals calculation
+		if (line.removed_via_additionals || line.declined_via_additionals) {
+			return;
+		}
+
 		// Sum nett components (no markup)
 		if (useActual) {
 			// Actual values

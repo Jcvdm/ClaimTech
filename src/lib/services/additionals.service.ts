@@ -832,7 +832,8 @@ class AdditionalsService {
 	 * List all additionals records
 	 * Joins with assessments, appointments, inspections, requests, and clients
 	 * Pulls vehicle data from assessment_vehicle_identification (updated during assessment)
-	 * Excludes assessments where FRC has been started
+	 * Only shows additionals for active assessments (stage = 'estimate_finalized')
+	 * Archived/cancelled assessments are excluded (moved to archive page)
 	 */
 	async listAdditionals(client?: ServiceClient, engineer_id?: string | null): Promise<any[]> {
 		const db = client ?? supabase;
@@ -844,6 +845,7 @@ class AdditionalsService {
 				assessment:assessments!inner(
 					id,
 					assessment_number,
+					stage,
 					vehicle_identification:assessment_vehicle_identification(
 						vehicle_make,
 						vehicle_model,
@@ -873,12 +875,11 @@ class AdditionalsService {
 					)
 				)
 			`)
+			.eq('assessment.stage', 'estimate_finalized')  // Only active assessments
 			.order('created_at', { ascending: false });
 
-		// Filter by engineer if provided
-		if (engineer_id) {
-			query = query.eq('assessment.appointment.engineer_id', engineer_id);
-		}
+		// RLS policies automatically filter by engineer for non-admin users
+		// No need for manual engineer filtering - let RLS handle it
 
 		const { data, error } = await query;
 
@@ -887,17 +888,10 @@ class AdditionalsService {
 			return [];
 		}
 
-		// Get assessment IDs that have FRC started
-		const { data: frcData } = await db.from('assessment_frc').select('assessment_id');
-
-		const assessmentsWithFRC = new Set((frcData || []).map((f) => f.assessment_id));
-
-		// Filter out additionals where FRC has been started
-		const filteredData = (data || []).filter(
-			(record) => !assessmentsWithFRC.has(record.assessment_id)
-		);
-
-		return filteredData;
+		// Return additionals for active assessments only
+		// Archived/cancelled assessments are filtered out by stage
+		// This ensures only current work is shown in the Additionals page
+		return data || [];
 	}
 
 	/**
@@ -907,39 +901,50 @@ class AdditionalsService {
 	async getPendingCount(client?: ServiceClient, engineer_id?: string | null): Promise<number> {
 		const db = client ?? supabase;
 
-		// Get all additionals with pending items, joined with assessments/appointments
+		// Query from assessments for simpler filtering (avoids PostgREST deep filter 400 errors)
 		let query = db
-			.from('assessment_additionals')
-			.select('assessment_id, line_items, assessments!inner(appointment_id, appointments!inner(engineer_id))');
+			.from('assessments')
+			.select('id, assessment_additionals!inner(id, line_items)');
 
-		// Filter by engineer if provided
 		if (engineer_id) {
-			query = query.eq('assessments.appointments.engineer_id', engineer_id);
+			// Add appointments join and filter for engineer
+			query = db
+				.from('assessments')
+				.select('id, appointments!inner(engineer_id), assessment_additionals!inner(id, line_items)')
+				.eq('appointments.engineer_id', engineer_id);
 		}
 
-		const { data: additionalsData, error } = await query;
+		const { data, error } = await query;
 
 		if (error) {
-			console.error('Error counting pending additionals:', error);
+			console.error('Error fetching additionals for pending count:', error);
 			return 0;
 		}
 
+		if (!data) return 0;
+
 		// Filter to only those with pending items
-		const withPending = (additionalsData || []).filter((record) => {
-			const lineItems = record.line_items as AdditionalLineItem[];
+		const withPending = data.filter((record) => {
+			const additionals = record.assessment_additionals;
+			if (!additionals) return false;
+
+			const lineItems = additionals.line_items as AdditionalLineItem[];
+			if (!lineItems || !Array.isArray(lineItems)) return false;
+
 			return lineItems.some((item) => item.status === 'pending');
 		});
 
-		// Get assessment IDs that have FRC started
+		// Get assessment IDs that have FRC in progress
 		const { data: frcData } = await db
 			.from('assessment_frc')
-			.select('assessment_id');
+			.select('assessment_id')
+			.eq('status', 'in_progress');
 
-		const assessmentsWithFRC = new Set((frcData || []).map((f) => f.assessment_id));
+		const assessmentsWithActiveFRC = new Set((frcData || []).map((f) => f.assessment_id));
 
-		// Count only additionals where FRC hasn't been started
+		// Count only additionals where FRC isn't in progress
 		const pendingCount = withPending.filter(
-			(a) => !assessmentsWithFRC.has(a.assessment_id)
+			(a) => !assessmentsWithActiveFRC.has(a.id)
 		).length;
 
 		return pendingCount;
@@ -960,6 +965,46 @@ class AdditionalsService {
 			return 0;
 		}
 
+		return count || 0;
+	}
+
+	/**
+	 * Get count of assessments with additionals records
+	 * This matches what the Additionals page displays
+	 */
+	async getAssessmentsAtStageCount(client?: ServiceClient, engineer_id?: string | null): Promise<number> {
+		const db = client ?? supabase;
+
+		// Query from assessments table for simpler, more reliable filtering
+		// This avoids PostgREST deep filter path issues
+		// Only count additionals for active assessments (stage = 'estimate_finalized')
+		if (engineer_id) {
+			// Engineer view - only their assigned active assessments with additionals
+			const { count, error } = await db
+				.from('assessments')
+				.select('id, appointments!inner(engineer_id), assessment_additionals!inner(id)',
+						{ count: 'exact', head: true })
+				.eq('stage', 'estimate_finalized')  // Only active assessments
+				.eq('appointments.engineer_id', engineer_id);
+
+			if (error) {
+				console.error('Error counting engineer additionals:', error);
+				return 0;
+			}
+			return count || 0;
+		}
+
+		// Admin view - all active assessments with additionals
+		const { count, error } = await db
+			.from('assessments')
+			.select('id, assessment_additionals!inner(id)',
+					{ count: 'exact', head: true })
+			.eq('stage', 'estimate_finalized');  // Only active assessments
+
+		if (error) {
+			console.error('Error counting all additionals:', error);
+			return 0;
+		}
 		return count || 0;
 	}
 }

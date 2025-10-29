@@ -65,7 +65,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 		}
 
 		// THEN transition stage to in_progress (after appointment_id is set)
-		if (['request_submitted', 'request_accepted', 'inspection_scheduled'].includes(assessment.stage)) {
+		if (['request_submitted', 'request_accepted', 'inspection_scheduled', 'appointment_scheduled'].includes(assessment.stage)) {
 			const oldStage = assessment.stage;
 			assessment = await assessmentService.updateStage(
 				assessment.id,

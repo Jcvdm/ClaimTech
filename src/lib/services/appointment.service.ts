@@ -1,9 +1,11 @@
 import { supabase } from '$lib/supabase';
 import { auditService } from './audit.service';
+import { AssessmentService } from './assessment.service';
 import type {
 	Appointment,
 	CreateAppointmentInput,
 	UpdateAppointmentInput,
+	RescheduleAppointmentInput,
 	AppointmentStatus
 } from '$lib/types/appointment';
 import type { ServiceClient } from '$lib/types/service';
@@ -339,6 +341,155 @@ export class AppointmentService {
 		}
 
 		return data || [];
+	}
+
+	/**
+	 * Cancel appointment and revert assessment to inspection_scheduled stage.
+	 * This ensures proper workflow fallback when appointments are cancelled.
+	 *
+	 * @param id - Appointment ID
+	 * @param reason - Optional cancellation reason
+	 * @param client - ServiceClient for RLS authentication
+	 * @returns Cancelled appointment with updated assessment
+	 */
+	async cancelAppointmentWithFallback(
+		id: string,
+		reason?: string,
+		client?: ServiceClient
+	): Promise<Appointment> {
+		const db = client ?? supabase;
+
+		// Step 1: Get appointment to find related assessment
+		const appointment = await this.getAppointment(id, client);
+		if (!appointment) {
+			throw new Error('Appointment not found');
+		}
+
+		// Step 2: Cancel appointment (existing logic)
+		const cancelledAppointment = await this.cancelAppointment(id, reason, client);
+
+		// Step 3: Find related assessment by inspection_id
+		const { data: assessment, error: assessmentError } = await db
+			.from('assessments')
+			.select('id, stage')
+			.eq('inspection_id', appointment.inspection_id)
+			.single();
+
+		if (assessmentError) {
+			console.error('Error finding assessment:', assessmentError);
+			// Return cancelled appointment even if assessment update fails
+			return cancelledAppointment;
+		}
+
+		// Step 4: Update assessment stage to inspection_scheduled (fallback)
+		if (assessment && assessment.stage !== 'inspection_scheduled') {
+			const assessmentService = new AssessmentService();
+			try {
+				await assessmentService.updateAssessment(
+					assessment.id,
+					{ stage: 'inspection_scheduled' },
+					client
+				);
+
+				// Step 5: Create audit log for stage transition
+				await auditService.logChange({
+					entity_type: 'assessment',
+					entity_id: assessment.id,
+					action: 'stage_transition',
+					field_name: 'stage',
+					old_value: assessment.stage,
+					new_value: 'inspection_scheduled',
+					metadata: {
+						reason: 'Appointment cancelled - fallback to inspection scheduling',
+						related_appointment_id: id,
+						cancellation_reason: reason
+					}
+				});
+			} catch (updateError) {
+				console.error('Error updating assessment stage:', updateError);
+				// Continue - appointment is still cancelled
+			}
+		}
+
+		return cancelledAppointment;
+	}
+
+	/**
+	 * Reschedule an appointment with proper tracking and audit trail.
+	 * Updates status to 'rescheduled', tracks original date, and logs the change.
+	 *
+	 * @param id - Appointment ID
+	 * @param input - New appointment details (date, time, location, etc.)
+	 * @param reason - Optional reason for rescheduling
+	 * @param client - ServiceClient for RLS authentication
+	 * @returns Updated appointment with reschedule tracking
+	 */
+	async rescheduleAppointment(
+		id: string,
+		input: RescheduleAppointmentInput,
+		reason?: string,
+		client?: ServiceClient
+	): Promise<Appointment> {
+		const db = client ?? supabase;
+
+		// Step 1: Get current appointment to capture original date
+		const currentAppointment = await this.getAppointment(id, client);
+		if (!currentAppointment) {
+			throw new Error('Appointment not found');
+		}
+
+		// Step 2: Check if date/time actually changed
+		const dateChanged = input.appointment_date !== currentAppointment.appointment_date;
+		const timeChanged = input.appointment_time !== currentAppointment.appointment_time;
+
+		if (!dateChanged && !timeChanged) {
+			// No reschedule needed - just update other fields
+			return this.updateAppointment(id, input, client);
+		}
+
+		// Step 3: Prepare update data with reschedule tracking
+		const updateData: UpdateAppointmentInput = {
+			...input,
+			status: 'rescheduled',
+			rescheduled_from_date: currentAppointment.appointment_date, // Preserve original
+			reschedule_count: (currentAppointment.reschedule_count || 0) + 1,
+			reschedule_reason: reason || null
+		};
+
+		// Step 4: Update appointment
+		const { data: updatedAppointment, error } = await db
+			.from('appointments')
+			.update(updateData)
+			.eq('id', id)
+			.select()
+			.single();
+
+		if (error) {
+			console.error('Error rescheduling appointment:', error);
+			throw new Error(`Failed to reschedule appointment: ${error.message}`);
+		}
+
+		// Step 5: Create audit log for reschedule event
+		await auditService.logChange({
+			entity_type: 'appointment',
+			entity_id: id,
+			action: 'rescheduled',
+			field_name: 'appointment_date',
+			old_value: currentAppointment.appointment_date,
+			new_value: input.appointment_date,
+			metadata: {
+				appointment_number: updatedAppointment.appointment_number,
+				original_date: currentAppointment.appointment_date,
+				original_time: currentAppointment.appointment_time,
+				new_date: input.appointment_date,
+				new_time: input.appointment_time,
+				reschedule_count: updateData.reschedule_count,
+				reason: reason,
+				changed_fields: Object.keys(input)
+			}
+		});
+
+		return updatedAppointment;
 	}
 }
 

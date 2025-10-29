@@ -3,10 +3,16 @@
 	import { goto } from '$app/navigation';
 	import PageHeader from '$lib/components/layout/PageHeader.svelte';
 	import ModernDataTable from '$lib/components/data/ModernDataTable.svelte';
+	import ActionButtonGroup from '$lib/components/data/ActionButtonGroup.svelte';
+	import ActionIconButton from '$lib/components/data/ActionIconButton.svelte';
 	import GradientBadge from '$lib/components/data/GradientBadge.svelte';
 	import TableCell from '$lib/components/data/TableCell.svelte';
 	import EmptyState from '$lib/components/data/EmptyState.svelte';
+	import SummaryComponent from '$lib/components/shared/SummaryComponent.svelte';
 	import { Badge } from '$lib/components/ui/badge';
+	import { Button } from '$lib/components/ui/button';
+	import * as Dialog from '$lib/components/ui/dialog';
+	import { formatDate, formatVehicle } from '$lib/utils/formatters';
 	import {
 		Plus,
 		Hash,
@@ -18,7 +24,10 @@
 		CheckCircle,
 		XCircle,
 		AlertCircle,
-		DollarSign
+		DollarSign,
+		Edit,
+		Eye,
+		ExternalLink
 	} from 'lucide-svelte';
 	import type { AdditionalLineItem } from '$lib/types/assessment';
 
@@ -27,6 +36,8 @@
 	// Filter state
 	type FilterType = 'all' | 'pending' | 'approved' | 'declined';
 	let selectedFilter = $state<FilterType>('all');
+	let selectedAssessment = $state<any | null>(null);
+	let showSummary = $state(false);
 
 	// Prepare data for table
 	// Use vehicle data from assessment_vehicle_identification (updated during assessment)
@@ -38,9 +49,9 @@
 		const lineItems = (additionals.line_items || []) as AdditionalLineItem[];
 
 		// Prefer assessment vehicle data over request data
-		const vehicleMake = vehicleId?.vehicle_make || request?.vehicle_make || '';
-		const vehicleModel = vehicleId?.vehicle_model || request?.vehicle_model || '';
-		const vehicleYear = vehicleId?.vehicle_year || request?.vehicle_year || '';
+		const vehicleMake = vehicleId?.vehicle_make || request?.vehicle_make;
+		const vehicleModel = vehicleId?.vehicle_model || request?.vehicle_model;
+		const vehicleYear = vehicleId?.vehicle_year || request?.vehicle_year;
 		const registration = vehicleId?.registration_number || request?.vehicle_registration || 'N/A';
 
 		// Count line items by status (excluding reversals and reversed items)
@@ -66,18 +77,14 @@
 			requestNumber: request?.request_number || 'N/A',
 			clientName: client?.name || 'Unknown Client',
 			clientType: client?.type || 'N/A',
-			vehicle: `${vehicleYear} ${vehicleMake} ${vehicleModel}`.trim() || 'N/A',
+			vehicle: formatVehicle(vehicleYear, vehicleMake, vehicleModel),
 			registration: registration,
 			pendingCount,
 			approvedCount,
 			declinedCount,
 			totalApproved: additionals.total_approved || 0,
 			createdAt: additionals.created_at,
-			formattedCreated: new Date(additionals.created_at).toLocaleDateString('en-ZA', {
-				year: 'numeric',
-				month: 'short',
-				day: 'numeric'
-			})
+			formattedCreated: formatDate(additionals.created_at)
 		};
 	});
 
@@ -161,12 +168,47 @@
 			label: 'Created',
 			sortable: true,
 			icon: Clock
+		},
+		{
+			key: 'actions',
+			label: 'Actions',
+			sortable: false
 		}
 	];
 
 	function handleRowClick(record: (typeof additionalsWithDetails)[0]) {
-		// Navigate to assessment page with Additionals tab
-		goto(`/work/assessments/${record.appointmentId}?tab=additionals`);
+		// Find the full assessment data for the summary modal
+		const additionalsRecord = data.additionalsRecords.find((a: any) => a.id === record.id);
+		if (additionalsRecord?.assessment) {
+			selectedAssessment = additionalsRecord.assessment;
+			showSummary = true;
+		}
+	}
+
+	function handleEditAdditional(record: (typeof additionalsWithDetails)[0]) {
+		// Navigate to assessment page with Additionals tab in edit mode
+		goto(`/work/assessments/${record.appointmentId}?tab=additionals&edit=true`);
+	}
+
+	function handleOpenReport() {
+		if (selectedAssessment) {
+			// Use nested appointment.id since selectedAssessment comes from the nested query structure
+			// Fallback to appointment_id for backward compatibility
+			const appointmentId = selectedAssessment.appointment?.id ?? selectedAssessment.appointment_id;
+
+			if (!appointmentId) {
+				console.error('[snapshot] Cannot navigate to assessment: Missing appointment_id', $state.snapshot(selectedAssessment));
+				// TODO: Show toast notification to user
+				return;
+			}
+
+			goto(`/work/assessments/${appointmentId}?tab=additionals`);
+		}
+	}
+
+	function closeSummary() {
+		showSummary = false;
+		selectedAssessment = null;
 	}
 </script>
 
@@ -261,6 +303,19 @@
 							maximumFractionDigits: 2
 						})}
 					</TableCell>
+				{:else if column.key === 'actions'}
+					<ActionButtonGroup align="right">
+						<ActionIconButton
+							icon={Edit}
+							label="Edit Additional"
+							onclick={() => handleEditAdditional(row)}
+						/>
+						<ActionIconButton
+							icon={Eye}
+							label="View Details"
+							onclick={() => handleRowClick(row)}
+						/>
+					</ActionButtonGroup>
 				{:else}
 					{row[column.key]}
 				{/if}
@@ -275,4 +330,26 @@
 		</div>
 	{/if}
 </div>
+
+<!-- Summary Modal -->
+<Dialog.Root open={showSummary} onOpenChange={(open) => !open && closeSummary()}>
+	<Dialog.Content class="max-w-2xl">
+		<Dialog.Header>
+			<Dialog.Title>Assessment Summary</Dialog.Title>
+		</Dialog.Header>
+
+		{#if selectedAssessment}
+			<SummaryComponent assessment={selectedAssessment} showAssessmentData={true} />
+
+			<!-- Action Buttons -->
+			<Dialog.Footer>
+				<Button variant="outline" onclick={closeSummary}>Close</Button>
+				<Button onclick={handleOpenReport}>
+					<ExternalLink class="mr-2 h-4 w-4" />
+					View Additionals
+				</Button>
+			</Dialog.Footer>
+		{/if}
+	</Dialog.Content>
+</Dialog.Root>
 

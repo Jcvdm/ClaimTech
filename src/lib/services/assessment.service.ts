@@ -632,12 +632,14 @@ export class AssessmentService {
 		options?: {
 			forcedFinalization?: boolean;
 			missingFields?: Array<{ tab: string; fields: string[] }>;
-		}
+		},
+		client?: ServiceClient
 	): Promise<Assessment> {
+		const db = client ?? supabase;
 		const timestamp = new Date().toISOString();
 
 		// Fetch the estimate to snapshot rates and markups
-		const { data: estimate, error: estimateError } = await supabase
+		const { data: estimate, error: estimateError } = await db
 			.from('assessment_estimates')
 			.select('labour_rate, paint_rate, oem_markup_percentage, alt_markup_percentage, second_hand_markup_percentage, outwork_markup_percentage')
 			.eq('assessment_id', id)
@@ -652,7 +654,7 @@ export class AssessmentService {
 			throw new Error('No estimate found for this assessment');
 		}
 
-		const { data, error } = await supabase
+		const { data, error } = await db
 			.from('assessments')
 			.update({
 				estimate_finalized_at: timestamp,
@@ -674,6 +676,9 @@ export class AssessmentService {
 			console.error('Error finalizing estimate:', error);
 			throw error;
 		}
+
+		// Update assessment stage to 'estimate_finalized' so it appears in Finalized Assessments list
+		await this.updateStage(id, 'estimate_finalized', db);
 
 		// Log audit trail
 		await auditService.logChange({

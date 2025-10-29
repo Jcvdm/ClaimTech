@@ -1,10 +1,12 @@
 # SOP: Implementing Badge Counts in ClaimTech
 
-**Last Updated:** 2025-01-27
-**Status:** ✅ Active
+**Last Updated:** 2025-01-29
+**Status:** ✅ Active Standard
 **Related Documents:**
-- [Working with Assessment-Centric Architecture](.agent/SOP/working_with_assessment_centric_architecture.md)
-- [Badge Count Mismatch Fix Task](.agent/Tasks/active/fix_badge_count_mismatches.md)
+- [Working with Assessment-Centric Architecture](./working_with_assessment_centric_architecture.md)
+- [Page Updates and Badge Refresh](./page_updates_and_badge_refresh.md)
+- [Bug Postmortem: Badge RLS & PostgREST Filter Fixes](../System/bug_postmortem_badge_rls_filter_fixes_jan_29_2025.md)
+- [Badge Count Mismatch Fix Task](../Tasks/active/fix_badge_count_mismatches.md)
 
 ---
 
@@ -264,15 +266,15 @@ async function loadInspectionCount() {
 
 Reference table for all ClaimTech badges:
 
-| Badge | Stages | Join Table | Notes |
-|-------|--------|------------|-------|
-| **New Requests** | `request_submitted` | `requests` | Early stage, no appointment yet |
-| **Inspections** | `inspection_scheduled` | `appointments` | Scheduled inspection |
-| **Appointments** | `appointment_scheduled`, `assessment_in_progress` | `appointments` | Upcoming or active appointments |
-| **Open Assessments** | `assessment_in_progress`, `estimate_review`, `estimate_sent` | `appointments` | Work in progress |
-| **Finalized** | `estimate_finalized` | `appointments` | Completed estimates |
-| **FRC** | Tracked in `frc` table | N/A | Uses separate FRC service |
-| **Additionals** | Tracked in `additionals` table | N/A | Uses separate additionals service |
+| Badge | Stages/Table | Join Table | Pattern | Notes |
+|-------|---------------|------------|---------|-------|
+| **New Requests** | `request_submitted` | `requests` | Stage-based | Early stage, no appointment yet |
+| **Inspections** | `inspection_scheduled` | `inspections` | Stage-based | ⚠️ Use inspections join, NOT appointments (appointment_id is NULL) |
+| **Appointments** | `appointment_scheduled`, `assessment_in_progress` | `appointments` | Stage-based | Upcoming or active appointments |
+| **Open Assessments** | `assessment_in_progress`, `estimate_review`, `estimate_sent` | `appointments` | Stage-based | Work in progress |
+| **Finalized** | `estimate_finalized` | `appointments` | Stage-based | Completed estimates |
+| **FRC** | `assessment_frc` table | `appointments` | **Subprocess-based** | ⭐ Query assessments + FRC join, NOT stage filter |
+| **Additionals** | `assessment_additionals` table | `appointments` | **Subprocess-based** | ⭐ Query assessments + additionals join, NOT stage filter |
 
 ---
 
@@ -317,6 +319,169 @@ if (error) {
 
 ---
 
+## Subprocess Badge Patterns (FRC & Additionals)
+
+### Why Subprocess Badges Are Different
+
+**Subprocesses** (FRC, Additionals) don't change the parent assessment's stage. The assessment remains at `estimate_finalized` throughout the subprocess.
+
+**Key Principle:** Query assessments WITH the subprocess record, not assessments AT a subprocess stage.
+
+### ✅ CORRECT - Assessments-Based Query Pattern
+
+**Use this pattern for FRC and Additionals badges:**
+
+```typescript
+// Query from assessments table (parent entity)
+// Join subprocess table (FRC or Additionals)
+// Filter by engineer via appointments
+
+if (engineer_id) {
+  // Engineer view - only their assigned assessments with subprocess
+  const { count, error } = await db
+    .from('assessments')
+    .select('id, appointments!inner(engineer_id), subprocess_table!inner(id)',
+            { count: 'exact', head: true })
+    .eq('appointments.engineer_id', engineer_id);
+} else {
+  // Admin view - all assessments with subprocess
+  const { count, error } = await db
+    .from('assessments')
+    .select('id, subprocess_table!inner(id)',
+            { count: 'exact', head: true });
+}
+```
+
+**Why This Works:**
+1. ✅ **Starts from parent entity** (assessments) - semantic clarity
+2. ✅ **Simple 1-level filter** (`appointments.engineer_id`) - reliable
+3. ✅ **INNER JOIN** ensures only assessments WITH subprocess records
+4. ✅ **Less fragile** - doesn't depend on PostgREST FK naming conventions
+
+### ❌ WRONG - Deep Nested Filter Pattern
+
+**Don't use this pattern (causes 400 errors):**
+
+```typescript
+// ❌ FRAGILE - Deep nested filter (2 levels)
+from('subprocess_table')
+  .select('*, assessment:assessments!inner(appointment:appointments!inner(...))')
+  .eq('assessment.appointment.engineer_id', engineer_id)  // Prone to 400 errors
+```
+
+**Why This Fails:**
+1. ❌ **Deep filter paths** (2+ levels) - depends on exact FK relationship names
+2. ❌ **Plural vs singular** - `assessments.appointments` vs `assessment.appointment` mismatch causes 400
+3. ❌ **Harder to debug** - unclear parent→child relationship
+4. ❌ **More fragile** - PostgREST relationship names must match exactly
+
+### Real Example: FRC Badge
+
+```typescript
+// src/lib/services/frc.service.ts - getCountByStatus()
+async getCountByStatus(
+  status: 'not_started' | 'in_progress' | 'completed',
+  client?: ServiceClient,
+  engineer_id?: string | null
+): Promise<number> {
+  const db = client ?? supabase;
+
+  if (engineer_id) {
+    // Engineer view - only their assigned assessments with FRC at this status
+    const { count, error } = await db
+      .from('assessments')
+      .select('id, appointments!inner(engineer_id), assessment_frc!inner(status)',
+              { count: 'exact', head: true })
+      .eq('appointments.engineer_id', engineer_id)
+      .eq('assessment_frc.status', status);
+
+    if (error) {
+      console.error('Error counting engineer FRC:', error);
+      return 0;
+    }
+    return count || 0;
+  }
+
+  // Admin view - all assessments with FRC at this status
+  const { count, error } = await db
+    .from('assessments')
+    .select('id, assessment_frc!inner(status)',
+            { count: 'exact', head: true })
+    .eq('assessment_frc.status', status);
+
+  if (error) {
+    console.error('Error counting all FRC:', error);
+    return 0;
+  }
+  return count || 0;
+}
+```
+
+### Real Example: Additionals Badge
+
+```typescript
+// src/lib/services/additionals.service.ts - getAssessmentsAtStageCount()
+async getAssessmentsAtStageCount(
+  client?: ServiceClient,
+  engineer_id?: string | null
+): Promise<number> {
+  const db = client ?? supabase;
+
+  if (engineer_id) {
+    // Engineer view - only their assigned assessments with additionals
+    const { count, error } = await db
+      .from('assessments')
+      .select('id, appointments!inner(engineer_id), assessment_additionals!inner(id)',
+              { count: 'exact', head: true })
+      .eq('appointments.engineer_id', engineer_id);
+
+    if (error) {
+      console.error('Error counting engineer additionals:', error);
+      return 0;
+    }
+    return count || 0;
+  }
+
+  // Admin view - all assessments with additionals
+  const { count, error } = await db
+    .from('assessments')
+    .select('id, assessment_additionals!inner(id)',
+            { count: 'exact', head: true });
+
+  if (error) {
+    console.error('Error counting all additionals:', error);
+    return 0;
+  }
+  return count || 0;
+}
+```
+
+### Key Differences: Stage-Based vs Subprocess-Based
+
+| Aspect | Stage-Based (Appointments) | Subprocess-Based (FRC/Additionals) |
+|--------|---------------------------|-------------------------------------|
+| **Query FROM** | `assessments` | `assessments` |
+| **Filter Type** | `.eq('stage', ...)` or `.in('stage', [...])` | No stage filter |
+| **Child Join** | `appointments!inner(...)` | `subprocess_table!inner(...)` + `appointments!inner(...)` |
+| **Filter Path** | `appointments.engineer_id` | `appointments.engineer_id` |
+| **Stage Changes?** | Yes (assessment moves through pipeline) | No (assessment stays at `estimate_finalized`) |
+
+### When to Use Each Pattern
+
+**Use Stage-Based Pattern:**
+- Requests badge (`request_submitted`)
+- Inspections badge (`inspection_scheduled`)
+- Appointments badge (`appointment_scheduled`, `assessment_in_progress`)
+- Open Assessments badge (`assessment_in_progress`, `estimate_review`, `estimate_sent`)
+- Finalized badge (`estimate_finalized`)
+
+**Use Subprocess-Based Pattern:**
+- FRC badge (assessments WITH FRC records)
+- Additionals badge (assessments WITH additionals records)
+- Any future subprocess that doesn't change assessment stage
+
+---
+
 ## Testing Checklist
 
 After implementing a badge count:
@@ -326,6 +491,9 @@ After implementing a badge count:
 - [ ] **Zero state:** Badge hidden when count is 0
 - [ ] **Error handling:** Badge shows 0 on error (not undefined or crash)
 - [ ] **Stage accuracy:** Count matches page query results exactly
+- [ ] **Filter path validation:** No 400 errors in browser console (check badge polling every 10s)
+- [ ] **Engineer parameter used:** Verify `engineer_id` parameter is actually used in query (not just passed and ignored)
+- [ ] **Subprocess pattern correct:** If subprocess badge, verify uses assessments-based query (not deep filter)
 - [ ] **Database verification:** Run SQL query to verify count manually:
 
 ```sql
@@ -372,6 +540,201 @@ WHERE ap.engineer_id = 'YOUR_ENGINEER_ID'
 **Symptoms:** Badge displays "-" or weird value
 **Diagnosis:** Count query failed, not handling error properly
 **Fix:** Always wrap in try/catch and set to 0 on error (see pattern above)
+
+### REAL BUG EXAMPLE: Engineer Shows Zero Assigned Work (Jan 2025)
+
+**Symptoms:** Engineer has 6 inspections assigned but sidebar badge shows 0
+
+**Root Cause:** Sidebar joins with WRONG TABLE for the stage
+```typescript
+// BUG - Wrong join table for inspection_scheduled stage
+.select('*, appointments!inner(engineer_id)', { count: 'exact', head: true })
+.eq('stage', 'inspection_scheduled');
+// At stage 3 (inspection_scheduled), appointment_id is NULL
+// INNER JOIN with appointments fails → returns 0
+```
+
+**Stage-Based FK Lifecycle:**
+| Stage | inspection_id | appointment_id | Correct Join Table |
+|-------|--------------|----------------|-------------------|
+| 1-2. request_submitted/reviewed | NULL | NULL | N/A (no engineer yet) |
+| 3. inspection_scheduled | **SET** ✓ | NULL ❌ | **inspections** |
+| 4. appointment_scheduled | SET | **SET** ✓ | **appointments** |
+| 5+ assessment_in_progress+ | SET | SET | **appointments** |
+
+**Fix:**
+```typescript
+// CORRECT - Join with inspections table for stage 3
+.select('*, inspections!inner(assigned_engineer_id)', { count: 'exact', head: true })
+.eq('stage', 'inspection_scheduled');
+if (role === 'engineer' && engineer_id) {
+  query = query.eq('inspections.assigned_engineer_id', engineer_id);
+}
+```
+
+**Key Lesson:** Match your JOIN TABLE to the foreign key that's actually SET at that stage:
+- Stage 3 (`inspection_scheduled`) → Join `inspections` (inspection_id is set)
+- Stage 4+ (`appointment_scheduled`+) → Join `appointments` (appointment_id is set)
+
+**Database Verification:**
+```sql
+-- Verify FK state at inspection_scheduled stage
+SELECT
+  a.id,
+  a.stage,
+  a.inspection_id,  -- Should be SET
+  a.appointment_id  -- Should be NULL
+FROM assessments a
+WHERE a.stage = 'inspection_scheduled';
+
+-- Test INNER JOIN behavior with NULL FK
+SELECT COUNT(*)
+FROM assessments a
+INNER JOIN appointments ap ON a.appointment_id = ap.id  -- FAILS when NULL
+WHERE a.stage = 'inspection_scheduled';
+-- Returns: 0 (incorrect - should return count of inspections)
+
+SELECT COUNT(*)
+FROM assessments a
+INNER JOIN inspections i ON a.inspection_id = i.id  -- WORKS
+WHERE a.stage = 'inspection_scheduled';
+-- Returns: 1+ (correct - returns actual inspection count)
+```
+
+**References:**
+- [Fix Sidebar and Stage Update Bugs Task](../Tasks/active/fix_sidebar_and_stage_update_bugs.md)
+- [Working with Assessment-Centric Architecture](./working_with_assessment_centric_architecture.md#design-rationale)
+
+### PostgREST 400 Bad Request - Deep Filter Path Error (Jan 2025)
+
+**Symptoms:** Repeating console errors every 10 seconds:
+```
+Error counting assessments with additionals: {message: ''}
+HEAD https://...assessment_additionals?select=...assessment.appointment.engineer_id=eq... 400 (Bad Request)
+```
+
+**Root Cause:** Invalid PostgREST deep filter syntax using plural table names in 2+ level filter paths:
+```typescript
+// BUG - Deep nested filter with PLURAL table names
+.from('assessment_additionals')
+.select('*, assessments!inner(appointments!inner(engineer_id))')
+.eq('assessments.appointments.engineer_id', engineer_id);  // ❌ 2-level path, fragile
+```
+
+**PostgREST Syntax Rules:**
+- Filter paths must match SELECT embed names EXACTLY
+- Relationship names are typically SINGULAR (not plural table names)
+- Deep nested filters (2+ levels) are fragile and error-prone
+- Prefer 1-level filter paths for reliability
+
+**Fix:** Use assessments-based query pattern (see "Subprocess Badge Patterns" section above):
+```typescript
+// CORRECT - Query from parent entity with 1-level filter
+.from('assessments')
+.select('id, appointments!inner(engineer_id), assessment_additionals!inner(id)')
+.eq('appointments.engineer_id', engineer_id);  // ✓ 1-level, reliable
+```
+
+**Key Lesson:** Always prefer assessments-based queries over deep nested filters for subprocess badges.
+
+**References:**
+- [Badge Count RLS & PostgREST Filter Fixes Postmortem](../System/bug_postmortem_badge_rls_filter_fixes_jan_29_2025.md)
+
+### Engineer Sees All Records - RLS Filter Not Applied (Jan 2025)
+
+**Symptoms:** Engineer badge shows ALL records (e.g., 6 additionals) instead of only their assigned work (e.g., 1 additional)
+
+**Root Cause:** Overly permissive RLS SELECT policies combined with missing manual filtering:
+1. RLS SELECT policies use `USING (true)` which allows all users to see all records
+2. Badge methods receive `engineer_id` parameter but never use it
+3. Code comments falsely claimed "RLS policies automatically filter by engineer"
+
+**Database Evidence:**
+```sql
+-- Current RLS policy (too permissive)
+CREATE POLICY "Allow all users to select all assessment additionals"
+ON assessment_additionals FOR SELECT
+USING (true);  -- ❌ No filtering at all
+```
+
+**Fix:** Always implement explicit engineer filtering in badge queries:
+```typescript
+// WRONG - Relying on RLS (doesn't filter by engineer)
+async getAssessmentsAtStageCount(engineer_id?: string): Promise<number> {
+  const { count } = await supabase
+    .from('assessment_additionals')
+    .select('*', { count: 'exact', head: true });
+  // ❌ engineer_id parameter ignored, RLS doesn't filter
+  return count || 0;
+}
+
+// CORRECT - Explicit engineer filtering
+async getAssessmentsAtStageCount(engineer_id?: string): Promise<number> {
+  if (engineer_id) {
+    const { count } = await supabase
+      .from('assessments')
+      .select('id, appointments!inner(engineer_id), assessment_additionals!inner(id)',
+              { count: 'exact', head: true })
+      .eq('appointments.engineer_id', engineer_id);  // ✓ Manual filter
+    return count || 0;
+  }
+  // Admin view - return all
+  const { count } = await supabase
+    .from('assessments')
+    .select('id, assessment_additionals!inner(id)',
+            { count: 'exact', head: true });
+  return count || 0;
+}
+```
+
+**Key Lessons:**
+1. **Never rely solely on RLS for badge filtering** - always implement explicit filters
+2. **Always use the `engineer_id` parameter** if provided to the method
+3. **Test with engineer accounts** - don't just test as admin
+4. **Document RLS limitations** - RLS `USING (true)` is for visibility, not filtering
+
+**Prevention Pattern:**
+```typescript
+// Template for subprocess badge counts
+async getSubprocessBadgeCount(
+  client?: ServiceClient,
+  engineer_id?: string | null
+): Promise<number> {
+  const db = client ?? supabase;
+
+  // ALWAYS branch on engineer_id presence
+  if (engineer_id) {
+    // Engineer view - explicit filtering required
+    const { count, error } = await db
+      .from('assessments')
+      .select('id, appointments!inner(engineer_id), subprocess_table!inner(id)',
+              { count: 'exact', head: true })
+      .eq('appointments.engineer_id', engineer_id);  // ✓ Required
+
+    if (error) {
+      console.error('Error counting engineer subprocess:', error);
+      return 0;
+    }
+    return count || 0;
+  }
+
+  // Admin view - return all (no engineer filter)
+  const { count, error } = await db
+    .from('assessments')
+    .select('id, subprocess_table!inner(id)',
+            { count: 'exact', head: true });
+
+  if (error) {
+    console.error('Error counting all subprocess:', error);
+    return 0;
+  }
+  return count || 0;
+}
+```
+
+**References:**
+- [Badge Count RLS & PostgREST Filter Fixes Postmortem](../System/bug_postmortem_badge_rls_filter_fixes_jan_29_2025.md)
+- Implementation examples: `src/lib/services/additionals.service.ts:968-999`, `src/lib/services/frc.service.ts:607-640`
 
 ---
 
@@ -436,5 +799,5 @@ If you find a badge using old table-centric approach:
 ---
 
 **Document Status:** ✅ Implemented and tested
-**Last Verified:** 2025-01-27
+**Last Verified:** 2025-01-29 (Added subprocess patterns and PostgREST troubleshooting)
 **Next Review:** When adding new badges or pipeline stages

@@ -5,10 +5,15 @@
 	import { browser } from '$app/environment';
 	import PageHeader from '$lib/components/layout/PageHeader.svelte';
 	import ModernDataTable from '$lib/components/data/ModernDataTable.svelte';
+	import ActionButtonGroup from '$lib/components/data/ActionButtonGroup.svelte';
+	import ActionIconButton from '$lib/components/data/ActionIconButton.svelte';
 	import GradientBadge from '$lib/components/data/GradientBadge.svelte';
 	import TableCell from '$lib/components/data/TableCell.svelte';
 	import EmptyState from '$lib/components/data/EmptyState.svelte';
+	import SummaryComponent from '$lib/components/shared/SummaryComponent.svelte';
 	import { Button } from '$lib/components/ui/button';
+	import * as Dialog from '$lib/components/ui/dialog';
+	import { formatDateTime, formatVehicle } from '$lib/utils/formatters';
 	import {
 		ClipboardList,
 		RefreshCw,
@@ -18,11 +23,16 @@
 		CreditCard,
 		User,
 		TrendingUp,
-		Clock
+		Clock,
+		Play,
+		Eye,
+		ExternalLink
 	} from 'lucide-svelte';
 
 	let { data }: { data: PageData } = $props();
 	let refreshing = $state(false);
+	let selectedAssessment = $state<any | null>(null);
+	let showSummary = $state(false);
 
 	// Manual refresh function
 	async function handleRefresh() {
@@ -63,9 +73,9 @@
 		const vehicleId = assessment.vehicle_identification;
 
 		// Prefer assessment vehicle data over request data
-		const vehicleMake = vehicleId?.vehicle_make || request?.vehicle_make || '';
-		const vehicleModel = vehicleId?.vehicle_model || request?.vehicle_model || '';
-		const vehicleYear = vehicleId?.vehicle_year || request?.vehicle_year || '';
+		const vehicleMake = vehicleId?.vehicle_make || request?.vehicle_make;
+		const vehicleModel = vehicleId?.vehicle_model || request?.vehicle_model;
+		const vehicleYear = vehicleId?.vehicle_year || request?.vehicle_year;
 		const registration = vehicleId?.registration_number || request?.vehicle_registration || '-';
 
 		// Calculate progress percentage
@@ -76,18 +86,12 @@
 		return {
 			...assessment,
 			request_number: request?.request_number || '-',
-			vehicle_display: `${vehicleYear} ${vehicleMake} ${vehicleModel}`.trim() || '-',
+			vehicle_display: formatVehicle(vehicleYear, vehicleMake, vehicleModel),
 			vehicle_registration: registration,
 			engineer_name: engineer?.name || 'Unassigned',
 			progress_percentage: progressPercentage,
 			progress_display: `${completedTabs}/${totalTabs} tabs`,
-			formatted_updated: new Date(assessment.updated_at).toLocaleDateString('en-ZA', {
-				year: 'numeric',
-				month: 'short',
-				day: 'numeric',
-				hour: '2-digit',
-				minute: '2-digit'
-			})
+			formatted_updated: formatDateTime(assessment.updated_at)
 		};
 	});
 
@@ -134,12 +138,33 @@
 			label: 'Last Updated',
 			sortable: true,
 			icon: Clock
+		},
+		{
+			key: 'actions',
+			label: 'Actions',
+			sortable: false
 		}
 	];
 
 	function handleRowClick(assessment: (typeof assessmentsWithDetails)[0]) {
+		selectedAssessment = data.assessments.find((a) => a.id === assessment.id) || null;
+		showSummary = true;
+	}
+
+	function handleContinueAssessment(assessment: (typeof assessmentsWithDetails)[0]) {
 		// Navigate to assessment page using appointment_id
 		goto(`/work/assessments/${assessment.appointment_id}`);
+	}
+
+	function handleOpenReport() {
+		if (selectedAssessment) {
+			goto(`/work/assessments/${selectedAssessment.appointment_id}`);
+		}
+	}
+
+	function closeSummary() {
+		showSummary = false;
+		selectedAssessment = null;
 	}
 </script>
 
@@ -188,6 +213,20 @@
 					<TableCell variant="primary" bold>
 						{row.assessment_number}
 					</TableCell>
+				{:else if column.key === 'actions'}
+					<ActionButtonGroup align="right">
+						<ActionIconButton
+							icon={Play}
+							label="Continue Assessment"
+							onclick={() => handleContinueAssessment(row)}
+							variant="primary"
+						/>
+						<ActionIconButton
+							icon={Eye}
+							label="View Summary"
+							onclick={() => handleRowClick(row)}
+						/>
+					</ActionButtonGroup>
 				{:else}
 					{row[column.key]}
 				{/if}
@@ -202,4 +241,26 @@
 		</div>
 	{/if}
 </div>
+
+<!-- Summary Modal -->
+<Dialog.Root open={showSummary} onOpenChange={(open) => !open && closeSummary()}>
+	<Dialog.Content class="max-w-2xl">
+		<Dialog.Header>
+			<Dialog.Title>Assessment Summary</Dialog.Title>
+		</Dialog.Header>
+
+		{#if selectedAssessment}
+			<SummaryComponent assessment={selectedAssessment} showAssessmentData={true} />
+
+			<!-- Action Buttons -->
+			<Dialog.Footer>
+				<Button variant="outline" onclick={closeSummary}>Close</Button>
+				<Button onclick={handleOpenReport}>
+					<ExternalLink class="mr-2 h-4 w-4" />
+					Continue Assessment
+				</Button>
+			</Dialog.Footer>
+		{/if}
+	</Dialog.Content>
+</Dialog.Root>
 

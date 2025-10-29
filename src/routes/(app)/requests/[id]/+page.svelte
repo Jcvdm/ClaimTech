@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
+	import { page } from '$app/stores';
 	import PageHeader from '$lib/components/layout/PageHeader.svelte';
 	import StatusBadge from '$lib/components/data/StatusBadge.svelte';
 	import ActivityTimeline from '$lib/components/data/ActivityTimeline.svelte';
@@ -26,6 +27,7 @@
 	} from 'lucide-svelte';
 	import { requestService } from '$lib/services/request.service';
 	import { inspectionService } from '$lib/services/inspection.service';
+	import { assessmentService } from '$lib/services/assessment.service';
 	import type { PageData } from './$types';
 	import type { RequestStep } from '$lib/types/request';
 	import { formatCurrency, formatDateLong as formatDate } from '$lib/utils/formatters';
@@ -106,6 +108,26 @@
 		try {
 			// Create inspection from request
 			const inspection = await inspectionService.createInspectionFromRequest(data.request);
+
+			// Find or create assessment for this request
+			const assessment = await assessmentService.findOrCreateByRequest(
+				data.request.id,
+				$page.data.supabase
+			);
+
+			// Update assessment stage to inspection_scheduled
+			await assessmentService.updateStage(
+				assessment.id,
+				'inspection_scheduled',
+				$page.data.supabase
+			);
+
+			// Link inspection to assessment
+			await assessmentService.updateAssessment(
+				assessment.id,
+				{ inspection_id: inspection.id },
+				$page.data.supabase
+			);
 
 			// Update request status
 			await requestService.updateRequest(data.request.id, {

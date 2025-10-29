@@ -20,7 +20,19 @@
       "mcp__supabase__get_logs",
       "Bash(grep:*)",
       "Bash(npm run check:*)",
-      "Bash(npx svelte-kit:*)"
+      "Bash(npx svelte-kit:*)",
+      "Bash(cat:*)",
+      "Bash(npx supabase:*)",
+      "Bash(npx tsx:*)",
+      "Bash(wc:*)",
+      "Bash(git log:*)",
+      "Bash(for file in archive/+page.svelte inspections/+page.svelte assessments/+page.svelte frc/+page.svelte additionals/+page.svelte finalized-assessments/+page.svelte)",
+      "Bash(do echo \"=== $file ===\")",
+      "Bash(head:*)",
+      "Bash(done)",
+      "mcp__supabase__get_project",
+      "mcp__ide__getDiagnostics",
+      "WebFetch(domain:docs.postgrest.org)"
     ],
     "deny": [],
     "ask": []

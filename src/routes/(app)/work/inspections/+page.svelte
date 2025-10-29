@@ -2,12 +2,15 @@
 	import { goto } from '$app/navigation';
 	import PageHeader from '$lib/components/layout/PageHeader.svelte';
 	import ModernDataTable from '$lib/components/data/ModernDataTable.svelte';
+	import ActionButtonGroup from '$lib/components/data/ActionButtonGroup.svelte';
+	import ActionIconButton from '$lib/components/data/ActionIconButton.svelte';
 	import GradientBadge from '$lib/components/data/GradientBadge.svelte';
 	import TableCell from '$lib/components/data/TableCell.svelte';
 	import EmptyState from '$lib/components/data/EmptyState.svelte';
 	import SummaryComponent from '$lib/components/shared/SummaryComponent.svelte';
 	import { Button } from '$lib/components/ui/button';
 	import * as Dialog from '$lib/components/ui/dialog';
+	import { formatDate, formatVehicle } from '$lib/utils/formatters';
 	import {
 		ClipboardCheck,
 		ExternalLink,
@@ -16,7 +19,8 @@
 		User,
 		Car,
 		Calendar,
-		Activity
+		Activity,
+		Eye
 	} from 'lucide-svelte';
 	import type { Assessment } from '$lib/types/assessment';
 	import type { PageData } from './$types';
@@ -33,16 +37,14 @@
 			assessment_number: assessment.assessment_number,
 			request_number: assessment.request?.request_number || '-',
 			client_name: assessment.request?.client?.name || 'Unknown Client',
-			vehicle_display:
-				`${assessment.request?.vehicle_make || ''} ${assessment.request?.vehicle_model || ''}`.trim() ||
-				'-',
+			vehicle_display: formatVehicle(
+				assessment.request?.vehicle_year,
+				assessment.request?.vehicle_make,
+				assessment.request?.vehicle_model
+			),
 			type: assessment.request?.type || 'insurance',
 			request_date: assessment.request?.created_at
-				? new Date(assessment.request.created_at).toLocaleDateString('en-ZA', {
-						year: 'numeric',
-						month: 'short',
-						day: 'numeric'
-					})
+				? formatDate(assessment.request.created_at)
 				: '-',
 			stage: assessment.stage,
 			created_at: assessment.created_at
@@ -91,6 +93,11 @@
 			label: 'Stage',
 			sortable: true,
 			icon: Activity
+		},
+		{
+			key: 'actions',
+			label: 'Actions',
+			sortable: false
 		}
 	];
 
@@ -101,8 +108,15 @@
 
 	function handleOpenReport() {
 		if (selectedAssessment) {
-			// Navigate to assessment detail page using appointment_id if available
-			goto(`/work/assessments/${selectedAssessment.appointment_id || selectedAssessment.id}`);
+			// Route based on appointment existence
+			// Assessments at inspection_scheduled stage don't have appointments yet
+			if (!selectedAssessment.appointment_id) {
+				// No appointment - use inspection detail page (assessment-centric)
+				goto(`/work/inspections/${selectedAssessment.id}`);
+			} else {
+				// Has appointment - use assessment detail page
+				goto(`/work/assessments/${selectedAssessment.appointment_id}`);
+			}
 		}
 	}
 
@@ -149,6 +163,19 @@
 					/>
 				{:else if column.key === 'stage'}
 					<GradientBadge variant="yellow" label="Inspection Scheduled" />
+				{:else if column.key === 'actions'}
+					<ActionButtonGroup align="right">
+						<ActionIconButton
+							icon={Calendar}
+							label="Schedule Appointment"
+							onclick={() => goto(`/work/inspections/${row.id}`)}
+						/>
+						<ActionIconButton
+							icon={Eye}
+							label="View Details"
+							onclick={() => handleRowClick(row)}
+						/>
+					</ActionButtonGroup>
 				{:else}
 					{row[column.key]}
 				{/if}

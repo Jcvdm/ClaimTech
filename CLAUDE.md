@@ -13,7 +13,13 @@ We keep all important docs in .agent folder and keep updating them, structure li
 
 We should always update .agent docs after we implement certain feature, to make sure it fully reflect the up to date information
 
-Before you plan any implementation, always read the .agent/README first to get context
+**CRITICAL - Context Optimization:**
+- NEVER read .md documentation files directly (e.g., .agent/*, .claude/skills/*, README files)
+- ALWAYS use the research-context-gatherer agent to read and research documentation
+- This saves significant context and allows for better summarization
+- Exception: Only read documentation directly if it's a single small file (<50 lines) AND the user explicitly requests it
+
+Before you plan any implementation, use the research-context-gatherer agent to read .agent/README and gather relevant context
 
 ---
 
@@ -24,21 +30,29 @@ This project uses specialized sub-agents for specific domains. Use these agents 
 ### Available Agents
 
 #### 1. Research Context Gatherer (Haiku)
-**When to use:** Thorough research, context gathering, analyzing existing systems, preparing background material
-  VITAL - Use research agent to understand the current state of the system before implementing any new features
+**When to use:** Reading documentation, thorough research, context gathering, analyzing existing systems, preparing background material
+
+**CRITICAL - PRIMARY USE CASE:**
+- Use this agent to READ ALL .md documentation files (.agent/*, .claude/skills/*, README files)
+- DO NOT read documentation files directly - this wastes context
+- Agent will summarize and extract only relevant information
+- Saves 70-90% of context compared to direct reading
 
 **Trigger automatically when:**
-- User mentions "research", "gather context", or "analyze" OR VITAL READ
+- Need to read ANY .md file in .agent/, .claude/skills/, or README files
+- User mentions "research", "gather context", or "analyze"
 - User asks "what are the latest..." or "current state of..."
 - User asks to "research" or "gather context about..."
 - User says "analyze existing..." or "review current..."
+- Before starting ANY new implementation (to understand current system state)
 - Before major architectural decisions that need research
 
 **Example invocations:**
+- "Use research-context-gatherer to read .agent/README and gather project context"
+- "Research context gatherer: read all .agent/System docs about authentication"
 - "Research best practices for GraphQL federation"
-- "Gather context about our authentication system before refactoring"
+- "Gather context about our assessment-centric architecture from .agent/System/"
 - "Analyze our current database schema"
-- "Read"
 
 #### 2. Supabase Specialist (Sonnet)
 **When to use:** Database schema, RLS policies, Supabase auth, real-time, edge functions, storage
@@ -87,7 +101,9 @@ This project uses specialized sub-agents for specific domains. Use these agents 
 4. Integrate recommendations into main response
 
 **Best practices:**
+- **ALWAYS use research-context-gatherer to read .md documentation files** (saves 70-90% context)
 - Use research-context-gatherer before making architectural decisions
+- Use research-context-gatherer at start of ANY new implementation
 - Use supabase-specialist for ANY Supabase-related task
 - Use svelte-implementer for ANY Svelte code
 - Invoke agents proactively, don't wait for user to request
@@ -100,7 +116,7 @@ Full agent documentation and best practices are in `.agent/Agents/` folder:
 - `supabase-specialist.md` - Database, RLS, and Supabase patterns
 - `svelte-implementer.md` - Svelte best practices and patterns
 
-Read these docs when using agents to understand their full capabilities.
+**IMPORTANT:** Use the research-context-gatherer agent to read these docs when needed (don't read directly).
 
 ---
 
@@ -213,11 +229,13 @@ This project uses Claude Code skills to provide systematic workflows and best pr
 ## DEVELOPMENT WORKFLOW
 
 ### Starting Work
-1. Read `.agent/README` for project context
-2. Check relevant System docs for architecture
-3. Review applicable SOPs for procedures
-4. Check Agents docs for when to invoke specialists
+1. **Use research-context-gatherer** to read `.agent/README` for project context
+2. **Use research-context-gatherer** to check relevant System docs for architecture
+3. **Use research-context-gatherer** to review applicable SOPs for procedures
+4. **Use research-context-gatherer** to check Agents docs if needed
 5. ClaimTech Development skill auto-invokes for common tasks
+
+**CRITICAL:** Never read documentation files directly in steps 1-4. Always use the research agent to save context.
 
 ### During Implementation
 1. Follow workflows from ClaimTech Development skill
@@ -237,10 +255,29 @@ This project uses Claude Code skills to provide systematic workflows and best pr
 
 ## CONTEXT OPTIMIZATION
 
-### Use Sub-Agents For:
+### CRITICAL - Documentation Reading Policy:
+**NEVER read documentation files directly. ALWAYS use research-context-gatherer agent.**
+
+This applies to:
+- All .agent/ folder files (README, System/, Tasks/, SOP/, Agents/)
+- All .claude/skills/ documentation files
+- Any README.md or other .md documentation files
+- Any SKILL.md or resource files
+
+**Why:** Saves 70-90% of context. Agent summarizes and extracts only relevant information.
+
+**Exception:** Only read directly if:
+- File is <50 lines AND
+- User explicitly requests direct read AND
+- You need the exact verbatim content
+
+### Use Research-Context-Gatherer Agent For:
+- Reading ALL documentation files (.md files in .agent/, .claude/skills/)
+- Gathering context before starting implementations
 - Research that requires multiple searches
 - Complex planning across many files
-- Isolated tasks that can be summarized
+- Analyzing existing system architecture
+- Understanding current state before changes
 
 ### Use Specialized Agents For:
 - Domain-specific implementations (Supabase, Svelte, etc.)

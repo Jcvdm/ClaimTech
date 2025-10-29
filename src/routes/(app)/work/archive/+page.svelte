@@ -3,10 +3,13 @@
 	import { goto } from '$app/navigation';
 	import PageHeader from '$lib/components/layout/PageHeader.svelte';
 	import ModernDataTable from '$lib/components/data/ModernDataTable.svelte';
+	import ActionButtonGroup from '$lib/components/data/ActionButtonGroup.svelte';
+	import ActionIconButton from '$lib/components/data/ActionIconButton.svelte';
 	import GradientBadge from '$lib/components/data/GradientBadge.svelte';
 	import TableCell from '$lib/components/data/TableCell.svelte';
 	import EmptyState from '$lib/components/data/EmptyState.svelte';
 	import { Badge } from '$lib/components/ui/badge';
+	import { formatDate, formatVehicle } from '$lib/utils/formatters';
 	import {
 		Archive,
 		FileText,
@@ -18,7 +21,9 @@
 		CreditCard,
 		CheckCircle2,
 		XCircle,
-		Clock
+		Clock,
+		Download,
+		Eye
 	} from 'lucide-svelte';
 
 	let { data }: { data: PageData } = $props();
@@ -29,6 +34,9 @@
 
 	// Search state
 	let searchQuery = $state('');
+
+	// Download state
+	let downloadingDocs = $state<string | null>(null);
 
 	// Prepare unified archive data
 	type ArchiveItem = {
@@ -55,9 +63,9 @@
 		const vehicleId = assessment.vehicle_identification;
 
 		// Prefer assessment vehicle data over request data
-		const vehicleMake = vehicleId?.vehicle_make || request?.vehicle_make || '';
-		const vehicleModel = vehicleId?.vehicle_model || request?.vehicle_model || '';
-		const vehicleYear = vehicleId?.vehicle_year || request?.vehicle_year || '';
+		const vehicleMake = vehicleId?.vehicle_make || request?.vehicle_make;
+		const vehicleModel = vehicleId?.vehicle_model || request?.vehicle_model;
+		const vehicleYear = vehicleId?.vehicle_year || request?.vehicle_year;
 		const registration = vehicleId?.registration_number || request?.vehicle_registration || 'N/A';
 
 		allArchiveItems.push({
@@ -66,15 +74,11 @@
 			number: assessment.assessment_number,
 			clientName: client?.name || 'Unknown Client',
 			clientType: client?.type || 'N/A',
-			vehicle: `${vehicleYear} ${vehicleMake} ${vehicleModel}`.trim() || 'N/A',
+			vehicle: formatVehicle(vehicleYear, vehicleMake, vehicleModel),
 			registration: registration,
 			status: 'Completed',
 			completedDate: assessment.updated_at,
-			formattedDate: new Date(assessment.updated_at).toLocaleDateString('en-ZA', {
-				year: 'numeric',
-				month: 'short',
-				day: 'numeric'
-			}),
+			formattedDate: formatDate(assessment.updated_at),
 			detailUrl: `/work/assessments/${assessment.appointment_id}`
 		});
 	});
@@ -90,15 +94,11 @@
 			number: request.request_number,
 			clientName: client?.name || 'Unknown Client',
 			clientType: client?.type || 'N/A',
-			vehicle: `${request.vehicle_year || ''} ${request.vehicle_make || ''} ${request.vehicle_model || ''}`.trim() || 'N/A',
+			vehicle: formatVehicle(request.vehicle_year, request.vehicle_make, request.vehicle_model),
 			registration: request.vehicle_registration || 'N/A',
 			status: 'Cancelled',
 			completedDate: request.updated_at,
-			formattedDate: new Date(request.updated_at).toLocaleDateString('en-ZA', {
-				year: 'numeric',
-				month: 'short',
-				day: 'numeric'
-			}),
+			formattedDate: formatDate(request.updated_at),
 			detailUrl: `/requests/${request.id}`
 		});
 	});
@@ -113,15 +113,11 @@
 			number: inspection.inspection_number,
 			clientName: client?.name || 'Unknown Client',
 			clientType: client?.type || 'N/A',
-			vehicle: `${request?.vehicle_year || ''} ${request?.vehicle_make || ''} ${request?.vehicle_model || ''}`.trim() || 'N/A',
+			vehicle: formatVehicle(request?.vehicle_year, request?.vehicle_make, request?.vehicle_model),
 			registration: request?.vehicle_registration || 'N/A',
 			status: 'Cancelled',
 			completedDate: inspection.updated_at,
-			formattedDate: new Date(inspection.updated_at).toLocaleDateString('en-ZA', {
-				year: 'numeric',
-				month: 'short',
-				day: 'numeric'
-			}),
+			formattedDate: formatDate(inspection.updated_at),
 			detailUrl: `/work/inspections/${inspection.id}`
 		});
 	});
@@ -136,15 +132,11 @@
 			number: appointment.inspection?.inspection_number || 'N/A',
 			clientName: client?.name || 'Unknown Client',
 			clientType: client?.type || 'N/A',
-			vehicle: `${request?.vehicle_year || ''} ${request?.vehicle_make || ''} ${request?.vehicle_model || ''}`.trim() || 'N/A',
+			vehicle: formatVehicle(request?.vehicle_year, request?.vehicle_make, request?.vehicle_model),
 			registration: request?.vehicle_registration || 'N/A',
 			status: 'Cancelled',
 			completedDate: appointment.updated_at,
-			formattedDate: new Date(appointment.updated_at).toLocaleDateString('en-ZA', {
-				year: 'numeric',
-				month: 'short',
-				day: 'numeric'
-			}),
+			formattedDate: formatDate(appointment.updated_at),
 			detailUrl: `/work/appointments/${appointment.id}`
 		});
 	});
@@ -157,9 +149,9 @@
 		const vehicleId = assessment.vehicle_identification;
 
 		// Prefer assessment vehicle data over request data
-		const vehicleMake = vehicleId?.vehicle_make || request?.vehicle_make || '';
-		const vehicleModel = vehicleId?.vehicle_model || request?.vehicle_model || '';
-		const vehicleYear = vehicleId?.vehicle_year || request?.vehicle_year || '';
+		const vehicleMake = vehicleId?.vehicle_make || request?.vehicle_make;
+		const vehicleModel = vehicleId?.vehicle_model || request?.vehicle_model;
+		const vehicleYear = vehicleId?.vehicle_year || request?.vehicle_year;
 		const registration = vehicleId?.registration_number || request?.vehicle_registration || 'N/A';
 
 		allArchiveItems.push({
@@ -168,15 +160,11 @@
 			number: assessment.assessment_number,
 			clientName: client?.name || 'Unknown Client',
 			clientType: client?.type || 'N/A',
-			vehicle: `${vehicleYear} ${vehicleMake} ${vehicleModel}`.trim() || 'N/A',
+			vehicle: formatVehicle(vehicleYear, vehicleMake, vehicleModel),
 			registration: registration,
 			status: 'Cancelled',
 			completedDate: assessment.cancelled_at || assessment.updated_at,
-			formattedDate: new Date(assessment.cancelled_at || assessment.updated_at).toLocaleDateString('en-ZA', {
-				year: 'numeric',
-				month: 'short',
-				day: 'numeric'
-			}),
+			formattedDate: formatDate(assessment.cancelled_at || assessment.updated_at),
 			detailUrl: `/work/assessments/${assessment.appointment_id}`
 		});
 	});
@@ -283,11 +271,28 @@
 			label: 'Completed',
 			sortable: true,
 			icon: Clock
+		},
+		{
+			key: 'actions',
+			label: 'Actions',
+			sortable: false
 		}
 	];
 
 	function handleRowClick(item: ArchiveItem) {
 		goto(item.detailUrl);
+	}
+
+	async function handleDownload(item: ArchiveItem) {
+		downloadingDocs = item.id;
+		try {
+			// TODO: Implement document download logic
+			// This could download all associated documents as ZIP
+			console.log('Downloading documents for:', item.type, item.number);
+			await new Promise((resolve) => setTimeout(resolve, 1000)); // Simulate download
+		} finally {
+			downloadingDocs = null;
+		}
 	}
 </script>
 
@@ -377,6 +382,20 @@
 						label={row.status}
 						icon={isCompleted ? CheckCircle2 : XCircle}
 					/>
+				{:else if column.key === 'actions'}
+					<ActionButtonGroup align="right">
+						<ActionIconButton
+							icon={Eye}
+							label="View Details"
+							onclick={() => handleRowClick(row)}
+						/>
+						<ActionIconButton
+							icon={Download}
+							label="Download Documents"
+							onclick={() => handleDownload(row)}
+							loading={downloadingDocs === row.id}
+						/>
+					</ActionButtonGroup>
 				{:else}
 					{row[column.key]}
 				{/if}
