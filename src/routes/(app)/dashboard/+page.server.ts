@@ -76,19 +76,13 @@ export const load: PageServerLoad = async ({ locals, parent }) => {
 	const { data: completedAssessments } = await assessmentQuery;
 
 	// Fetch completed FRCs for time tracking (last 30 days)
-	let frcQuery = locals.supabase
+	// RLS policies automatically filter by engineer for non-admin users
+	const { data: completedFRCs } = await locals.supabase
 		.from('assessment_frc')
-		.select('started_at, completed_at, created_at, assessment_id, assessments!inner(appointment_id, appointments!inner(engineer_id))')
+		.select('started_at, completed_at, created_at, assessment_id')
 		.eq('status', 'completed')
 		.gte('completed_at', thirtyDaysAgo.toISOString())
 		.order('completed_at', { ascending: false });
-
-	// Filter by engineer if not admin
-	if (isEngineer && engineer_id) {
-		frcQuery = frcQuery.eq('assessments.appointments.engineer_id', engineer_id);
-	}
-
-	const { data: completedFRCs } = await frcQuery;
 
 	// Calculate average times
 	const avgAssessmentTime = calculateAverageDays(

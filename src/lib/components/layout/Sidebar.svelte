@@ -222,7 +222,8 @@
 	async function loadAdditionalsCount() {
 		try {
 			const engineerIdFilter = role === 'engineer' ? engineer_id : undefined;
-			additionalsCount = await additionalsService.getPendingCount($page.data.supabase, engineerIdFilter);
+			// Use stage-based count to match what the Additionals page displays
+			additionalsCount = await additionalsService.getAssessmentsAtStageCount($page.data.supabase, engineerIdFilter);
 		} catch (error) {
 			console.error('Error loading additionals count:', error);
 		}
@@ -344,6 +345,24 @@
 									class="inline-flex items-center justify-center rounded-full bg-green-600 px-2 py-0.5 text-xs font-medium text-white"
 								>
 									{finalizedAssessmentCount}
+								</span>
+							{/if}
+
+							<!-- Show badge for FRC with in-progress count -->
+							{#if item.href === '/work/frc' && frcCount > 0}
+								<span
+									class="inline-flex items-center justify-center rounded-full bg-purple-600 px-2 py-0.5 text-xs font-medium text-white"
+								>
+									{frcCount}
+								</span>
+							{/if}
+
+							<!-- Show badge for Additionals with stage-based count -->
+							{#if item.href === '/work/additionals' && additionalsCount > 0}
+								<span
+									class="inline-flex items-center justify-center rounded-full bg-orange-600 px-2 py-0.5 text-xs font-medium text-white"
+								>
+									{additionalsCount}
 								</span>
 							{/if}
 						</a>

@@ -517,6 +517,167 @@ export { default as UserAvatar } from './UserAvatar.svelte';
 </style>
 ```
 
+## UI Component Patterns
+
+### ActionIconButton Pattern
+
+**When to use**:
+- Table row actions (view, edit, delete, download)
+- Inline editing controls
+- Quick actions that don't need full button prominence
+- Space-constrained interfaces
+
+**Component**: `src/lib/components/data/ActionIconButton.svelte`
+
+**Key Features**:
+- Auto-handles `event.stopPropagation()` to prevent row click interference
+- Built-in loading states with spinner
+- Tooltip via `label` prop
+- Multiple visual variants (default, primary, destructive, outline)
+- Consistent sizing and spacing
+
+**Basic Example**:
+
+```svelte
+<script>
+  import ActionIconButton from '$lib/components/data/ActionIconButton.svelte';
+  import { Edit, Trash2 } from 'lucide-svelte';
+
+  let isDeleting = $state(false);
+
+  async function handleDelete() {
+    isDeleting = true;
+    try {
+      await deleteItem();
+    } finally {
+      isDeleting = false;
+    }
+  }
+</script>
+
+<ActionIconButton
+  icon={Edit}
+  label="Edit Item"
+  onclick={handleEdit}
+/>
+
+<ActionIconButton
+  icon={Trash2}
+  label="Delete Item"
+  onclick={handleDelete}
+  loading={isDeleting}
+  variant="destructive"
+/>
+```
+
+**With ActionButtonGroup** (for multiple actions):
+
+```svelte
+<script>
+  import ActionButtonGroup from '$lib/components/data/ActionButtonGroup.svelte';
+  import ActionIconButton from '$lib/components/data/ActionIconButton.svelte';
+  import { Eye, Edit, Download } from 'lucide-svelte';
+</script>
+
+<ActionButtonGroup align="right">
+  <ActionIconButton
+    icon={Eye}
+    label="View Details"
+    onclick={() => goto(`/items/${item.id}`)}
+  />
+  <ActionIconButton
+    icon={Edit}
+    label="Edit Item"
+    onclick={() => openEditModal(item)}
+  />
+  <ActionIconButton
+    icon={Download}
+    label="Download"
+    onclick={() => downloadItem(item)}
+    loading={downloading === item.id}
+  />
+</ActionButtonGroup>
+```
+
+**Variants**:
+
+| Variant | Use Case | Visual |
+|---------|----------|--------|
+| `default` | General actions (view, download) | Gray hover background |
+| `primary` | Primary actions (start, continue) | Blue hover background |
+| `destructive` | Delete, cancel actions | Red hover background |
+| `outline` | Secondary actions | Border with hover fill |
+
+**In Table Context**:
+
+```svelte
+<!-- In ModernDataTable cellContent snippet -->
+{#snippet cellContent(column, row)}
+  {:else if column.key === 'actions'}
+    <ActionButtonGroup align="right">
+      <ActionIconButton
+        icon={Calendar}
+        label="Schedule Appointment"
+        onclick={() => handleSchedule(row)}
+      />
+      <ActionIconButton
+        icon={Eye}
+        label="View Details"
+        onclick={() => handleRowClick(row)}
+      />
+    </ActionButtonGroup>
+  {:else}
+    {row[column.key]}
+  {/if}
+{/snippet}
+```
+
+**Best Practices**:
+
+1. **Always provide descriptive `label`** - Becomes tooltip, crucial for accessibility
+2. **Use appropriate `variant`** - Match action importance and risk level
+3. **Handle loading states** - For async operations, pass loading prop
+4. **Group related actions** - Use `ActionButtonGroup` for multiple actions
+5. **Use standard icons** - From lucide-svelte for consistency
+6. **Don't nest clickable elements** - stopPropagation is handled automatically
+
+**Common Patterns**:
+
+```svelte
+<!-- Per-row loading state -->
+let downloadingId = $state<string | null>(null);
+
+async function handleDownload(itemId: string) {
+  downloadingId = itemId;
+  try {
+    await download(itemId);
+  } finally {
+    downloadingId = null;
+  }
+}
+
+<ActionIconButton
+  icon={Download}
+  label="Download"
+  onclick={() => handleDownload(item.id)}
+  loading={downloadingId === item.id}
+/>
+
+<!-- Conditional action visibility -->
+{#if item.canEdit}
+  <ActionIconButton
+    icon={Edit}
+    label="Edit"
+    onclick={() => handleEdit(item)}
+  />
+{/if}
+```
+
+**Related Components**:
+- `ActionButtonGroup` - Container for multiple ActionIconButtons
+- `ModernDataTable` - Table component that commonly uses ActionIconButton
+- `GradientBadge` - For status indicators in tables
+
 ## Testing Components
 
 ### Unit Test Example

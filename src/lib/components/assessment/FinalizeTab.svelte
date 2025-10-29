@@ -15,7 +15,8 @@
 	import type { Assessment, DocumentGenerationStatus } from '$lib/types/assessment';
 	import { documentGenerationService } from '$lib/services/document-generation.service';
 	import { assessmentService } from '$lib/services/assessment.service';
-	import { invalidateAll } from '$app/navigation';
+	import { invalidateAll, goto } from '$app/navigation';
+	import { page } from '$app/stores';
 	import { onMount } from 'svelte';
 	import { formatDateTime } from '$lib/utils/formatters';
 	import { getTabCompletionStatus, type TabValidation } from '$lib/utils/validation';
@@ -146,8 +147,16 @@
 		finalizing = true;
 		error = null;
 		try {
-			await assessmentService.finalizeEstimate(assessment.id);
-			await invalidateAll(); // Refresh data to show finalized state
+			await assessmentService.finalizeEstimate(
+				assessment.id,
+				undefined,  // options
+				$page.data.supabase  // Authenticated client from page context
+			);
+			// Force reload of all page data to ensure database changes are visible
+			await invalidateAll();
+			// Navigate to Finalized Assessments list to show the finalized assessment
+			// This triggers sidebar badge refresh with fresh data
+			goto('/work/finalized-assessments');
 		} catch (err) {
 			error = err instanceof Error ? err.message : 'Failed to finalize estimate';
 		} finally {
@@ -169,12 +178,20 @@
 				fields
 			}));
 
-			await assessmentService.finalizeEstimate(assessment.id, {
-				forcedFinalization: true,
-				missingFields: missingFieldsInfo
-			});
-			await invalidateAll(); // Refresh data to show finalized state
+			await assessmentService.finalizeEstimate(
+				assessment.id,
+				{
+					forcedFinalization: true,
+					missingFields: missingFieldsInfo
+				},
+				$page.data.supabase  // Authenticated client from page context
+			);
 			showValidationModal = false; // Close the modal on success
+			// Force reload of all page data to ensure database changes are visible
+			await invalidateAll();
+			// Navigate to Finalized Assessments list to show the finalized assessment
+			// This triggers sidebar badge refresh with fresh data
+			goto('/work/finalized-assessments');
 		} catch (err) {
 			error = err instanceof Error ? err.message : 'Failed to finalize estimate';
 		} finally {

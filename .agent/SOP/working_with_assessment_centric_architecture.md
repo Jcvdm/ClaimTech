@@ -701,8 +701,24 @@ Replace status-based queries with stage-based queries across all list pages.
    // NEW (assessment-centric - Updated Jan 27, 2025)
    .from('assessments')
    .eq('stage', 'appointment_scheduled')
-   // Note: Only show scheduled appointments. Once "Start Assessment" is clicked,
-   // stage changes to 'assessment_in_progress' and assessment moves to Open Assessments page
+
+   // Note: Appointments page displays assessments at 'appointment_scheduled' stage.
+   //
+   // Data Flow During "Start Assessment":
+   // 1. User clicks "Start Assessment" on appointment row
+   // 2. Action updates appointment.status to 'in_progress'
+   // 3. Action updates assessment.stage to 'assessment_in_progress' (CRITICAL!)
+   // 4. User navigates to assessment detail page
+   // 5. On return, appointment has disappeared from Appointments list
+   // 6. Assessment now visible in Open Assessments list
+   //
+   // Why no invalidateAll() needed:
+   // - Navigation causes automatic data refresh
+   // - Stage change naturally filters assessment out of appointments query
+   // - Clean separation of concerns (scheduled vs in-progress)
+   //
+   // See "Mistake #2: Missing Stage Update in Workflow Actions" (line 354)
+   // for common bug pattern and fix checklist.
    ```
 
 4. **Open Assessments Page** (`/work/assessments`)
@@ -983,14 +999,83 @@ const assessments = await getAssessmentsWithRelations();
 
 ---
 
+## Common Bugs and Pitfalls
+
+### Missing Stages in Transition Logic
+
+**Problem:** When adding new stages to the pipeline, forgetting to update stage transition checks in server load functions.
+
+**Example Bug (Fixed January 29, 2025):**
+```typescript
+// ❌ BROKEN: Missing 'appointment_scheduled' stage
+if (['request_submitted', 'request_accepted', 'inspection_scheduled'].includes(assessment.stage)) {
+    assessment = await assessmentService.updateStage(
+        assessment.id,
+        'assessment_in_progress',
+        locals.supabase
+    );
+}
+
+// ✅ FIXED: Includes all eligible stages
+if (['request_submitted', 'request_accepted', 'inspection_scheduled', 'appointment_scheduled'].includes(assessment.stage)) {
+    assessment = await assessmentService.updateStage(
+        assessment.id,
+        'assessment_in_progress',
+        locals.supabase
+    );
+}
+```
+
+**Impact:**
+- Appointments didn't move from Appointments list to Open Assessments list
+- Engineers clicked "Start Assessment" but assessment remained at `appointment_scheduled` stage
+- Core workflow broken
+
+**Root Cause:**
+- Assessment detail page server load function had hard-coded array of stages eligible for transition
+- When `appointment_scheduled` stage was added to pipeline, it wasn't added to this array
+- Stage transition was skipped for appointments
+
+**Prevention:**
+1. **Centralize Stage Constants**: Extract stage transition rules to shared constants file
+2. **Document Dependencies**: When adding new stages, search codebase for hard-coded stage arrays
+3. **Integration Testing**: Test full workflow end-to-end after adding new stages
+4. **Code Review**: Review all `includes(assessment.stage)` checks when modifying pipeline
+
+**Best Practice Pattern:**
+```typescript
+// src/lib/constants/assessment-stages.ts
+export const STAGES_ELIGIBLE_FOR_IN_PROGRESS = [
+    'request_submitted',
+    'request_accepted',
+    'inspection_scheduled',
+    'appointment_scheduled'
+] as const;
+
+// Usage in server load function
+import { STAGES_ELIGIBLE_FOR_IN_PROGRESS } from '$lib/constants/assessment-stages';
+
+if (STAGES_ELIGIBLE_FOR_IN_PROGRESS.includes(assessment.stage)) {
+    // Transition to assessment_in_progress
+}
+```
+
+**Related Files:**
+- Bug location: `src/routes/(app)/work/assessments/[appointment_id]/+page.server.ts:68`
+- Post-mortem: `.agent/System/bug_postmortem_appointment_stage_transition.md`
+- Fix commit: January 29, 2025
+
+---
+
 ## Related SOPs
 
 - [Working with Services](./working_with_services.md)
 - [Adding Database Migrations](./adding_migration.md)
 - [Handling Race Conditions](./handling_race_conditions_in_number_generation.md)
+- [Navigation-Based State Transitions](./navigation_based_state_transitions.md)
 
 ---
 
-**Last Updated:** January 26, 2025
+**Last Updated:** January 29, 2025
 **Author:** Claude Code (Sonnet 4.5)
 **Status:** Active - Phase 3 implementation pending

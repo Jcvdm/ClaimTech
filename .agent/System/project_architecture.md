@@ -397,6 +397,56 @@ reschedule_reason TEXT              -- Reason for most recent reschedule
 - **History Display**: Shows reschedule count, original date, reason
 - **Date Validation**: Prevents past date selection
 
+**3. UI Implementation (Updated Jan 27, 2025)**
+
+**Appointments Page** (`/work/appointments`):
+- **Component Stack**: `ModernDataTable` with `ActionIconButton` for inline actions
+- **Data Query**: Filters assessments by `stage = 'appointment_scheduled'`
+- **Action Icons**:
+  - `Calendar` - Reschedule appointment (opens modal)
+  - `Play` - Start assessment (navigates to detail page)
+  - `Eye` - View details (opens summary modal)
+
+**Component Usage:**
+```svelte
+<ActionButtonGroup align="right">
+  <ActionIconButton
+    icon={Calendar}
+    label="Reschedule Appointment"
+    onclick={() => openRescheduleModal(appointment)}
+  />
+  <ActionIconButton
+    icon={Play}
+    label="Start Assessment"
+    onclick={() => goto(`/work/assessments/${appointment.id}`)}
+    variant="primary"
+  />
+  <ActionIconButton
+    icon={Eye}
+    label="View Details"
+    onclick={() => handleRowClick(appointment)}
+  />
+</ActionButtonGroup>
+```
+
+**Stage Transition Behavior:**
+When engineer clicks "Start Assessment":
+1. Assessment stage updates: `appointment_scheduled` → `assessment_in_progress`
+2. User navigates to assessment detail page
+3. On return to appointments page, appointment has disappeared from list
+4. Assessment now visible on "Open Assessments" page (which queries `assessment_in_progress`)
+
+**Why It Works:**
+- Navigation causes automatic data refresh
+- Stage-based filtering naturally separates scheduled vs in-progress
+- No manual `invalidateAll()` required
+- Clean separation of concerns between appointment status and assessment stage
+
+**Table Utilities:**
+- `formatDate()` - Consistent date formatting
+- `formatVehicle()` - Vehicle display with year/make/model
+- `isAppointmentOverdue()` - Check if appointment time has passed
+
 **Audit Trail:**
 Both operations create comprehensive audit logs:
 ```json

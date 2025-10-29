@@ -5,10 +5,14 @@
 	import { browser } from '$app/environment';
 	import PageHeader from '$lib/components/layout/PageHeader.svelte';
 	import ModernDataTable from '$lib/components/data/ModernDataTable.svelte';
+	import ActionButtonGroup from '$lib/components/data/ActionButtonGroup.svelte';
+	import ActionIconButton from '$lib/components/data/ActionIconButton.svelte';
 	import EmptyState from '$lib/components/data/EmptyState.svelte';
 	import GradientBadge from '$lib/components/data/GradientBadge.svelte';
 	import TableCell from '$lib/components/data/TableCell.svelte';
+	import SummaryComponent from '$lib/components/shared/SummaryComponent.svelte';
 	import { Button } from '$lib/components/ui/button';
+	import * as Dialog from '$lib/components/ui/dialog';
 	import {
 		FileCheck,
 		RefreshCw,
@@ -17,12 +21,19 @@
 		User,
 		Car,
 		Hash,
-		Calendar
+		Calendar,
+		Download,
+		Eye,
+		ExternalLink
 	} from 'lucide-svelte';
-	import { formatDate, formatDateTime } from '$lib/utils/formatters';
+	import { formatDate, formatDateTime, formatVehicle } from '$lib/utils/formatters';
 
 	let { data }: { data: PageData } = $props();
 	let refreshing = $state(false);
+	let selectedAssessment = $state<any | null>(null);
+	let showSummary = $state(false);
+	let generatingReport = $state<string | null>(null);
+	let downloadingDocs = $state<string | null>(null);
 
 	// Manual refresh function
 	async function handleRefresh() {
@@ -60,6 +71,50 @@
 		goto(`/work/assessments/${appointmentId}`);
 	}
 
+	// Handle report generation
+	async function handleGenerateReport(row: any) {
+		generatingReport = row.id;
+		try {
+			// TODO: Implement report generation logic
+			// This could call a service to generate PDF report
+			console.log('Generating report for assessment:', row.assessmentNumber);
+			await new Promise((resolve) => setTimeout(resolve, 1500)); // Simulate API call
+			// After generation, could download or navigate to report
+		} finally {
+			generatingReport = null;
+		}
+	}
+
+	// Handle document download
+	async function handleDownload(row: any) {
+		downloadingDocs = row.id;
+		try {
+			// TODO: Implement document download logic
+			// This could download all assessment documents as ZIP
+			console.log('Downloading documents for assessment:', row.assessmentNumber);
+			await new Promise((resolve) => setTimeout(resolve, 1000)); // Simulate download
+		} finally {
+			downloadingDocs = null;
+		}
+	}
+
+	// Show summary modal
+	function handleShowSummary(row: any) {
+		selectedAssessment = data.assessments.find((a: any) => a.id === row.id) || null;
+		showSummary = true;
+	}
+
+	function handleOpenReport() {
+		if (selectedAssessment) {
+			goto(`/work/assessments/${selectedAssessment.appointment_id}`);
+		}
+	}
+
+	function closeSummary() {
+		showSummary = false;
+		selectedAssessment = null;
+	}
+
 	// Prepare table data
 	// Use vehicle data from assessment_vehicle_identification (updated during assessment)
 	// Falls back to request data if assessment data is not available
@@ -70,9 +125,9 @@
 			const vehicleId = assessment.vehicle_identification;
 
 			// Prefer assessment vehicle data over request data
-			const vehicleMake = vehicleId?.vehicle_make || request?.vehicle_make || '';
-			const vehicleModel = vehicleId?.vehicle_model || request?.vehicle_model || '';
-			const vehicleYear = vehicleId?.vehicle_year || request?.vehicle_year || '';
+			const vehicleMake = vehicleId?.vehicle_make || request?.vehicle_make;
+			const vehicleModel = vehicleId?.vehicle_model || request?.vehicle_model;
+			const vehicleYear = vehicleId?.vehicle_year || request?.vehicle_year;
 			const registration = vehicleId?.registration_number || request?.vehicle_registration || 'N/A';
 
 			return {
@@ -82,7 +137,7 @@
 				requestNumber: request?.request_number || 'N/A',
 				clientName: client?.name || 'N/A',
 				clientType: client?.type || 'N/A',
-				vehicle: `${vehicleYear} ${vehicleMake} ${vehicleModel}`.trim() || 'N/A',
+				vehicle: formatVehicle(vehicleYear, vehicleMake, vehicleModel),
 				registration: registration,
 				finalizedAt: assessment.estimate_finalized_at,
 				submittedAt: assessment.submitted_at
@@ -126,6 +181,11 @@
 			label: 'Finalized',
 			sortable: true,
 			icon: Calendar
+		},
+		{
+			key: 'actions' as const,
+			label: 'Actions',
+			sortable: false
 		}
 	];
 </script>
@@ -193,6 +253,26 @@
 							<span class="text-sm">{formatDateTime(row.finalizedAt)}</span>
 						</div>
 					</TableCell>
+				{:else if column.key === 'actions'}
+					<ActionButtonGroup align="right">
+						<ActionIconButton
+							icon={FileText}
+							label="Generate Report"
+							onclick={() => handleGenerateReport(row)}
+							loading={generatingReport === row.id}
+						/>
+						<ActionIconButton
+							icon={Download}
+							label="Download Documents"
+							onclick={() => handleDownload(row)}
+							loading={downloadingDocs === row.id}
+						/>
+						<ActionIconButton
+							icon={Eye}
+							label="View Summary"
+							onclick={() => handleShowSummary(row)}
+						/>
+					</ActionButtonGroup>
 				{:else}
 					{row[column.key]}
 				{/if}
@@ -207,4 +287,26 @@
 		</div>
 	{/if}
 </div>
+
+<!-- Summary Modal -->
+<Dialog.Root open={showSummary} onOpenChange={(open) => !open && closeSummary()}>
+	<Dialog.Content class="max-w-2xl">
+		<Dialog.Header>
+			<Dialog.Title>Assessment Summary</Dialog.Title>
+		</Dialog.Header>
+
+		{#if selectedAssessment}
+			<SummaryComponent assessment={selectedAssessment} showAssessmentData={true} />
+
+			<!-- Action Buttons -->
+			<Dialog.Footer>
+				<Button variant="outline" onclick={closeSummary}>Close</Button>
+				<Button onclick={handleOpenReport}>
+					<ExternalLink class="mr-2 h-4 w-4" />
+					View Full Assessment
+				</Button>
+			</Dialog.Footer>
+		{/if}
+	</Dialog.Content>
+</Dialog.Root>
 

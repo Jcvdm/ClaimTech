@@ -99,7 +99,8 @@
 			{:else}
 				{#each frc.line_items as line (line.id)}
 					{@const badge = getDecisionBadge(line.decision)}
-					<Table.Row class="hover:bg-gray-50">
+					{@const isRemovedOrDeclined = line.removed_via_additionals || line.declined_via_additionals}
+					<Table.Row class="hover:bg-gray-50 {isRemovedOrDeclined ? 'opacity-60 bg-gray-50/50' : ''}">
 						<!-- Process Type -->
 						<Table.Cell class="px-3 py-3">
 							<span class="px-2 py-1 text-xs font-semibold rounded {getProcessTypeBadgeColor(line.process_type)}">
@@ -116,9 +117,17 @@
 								onclick={() => openRowActions(line)}
 								onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openRowActions(line); } }}
 							>
-								<p class="text-sm font-medium text-gray-900">{line.description}</p>
-								<p class="text-xs text-gray-500 mt-0.5">
-									Source: {line.source === 'estimate' ? 'Original Estimate' : 'Additional'}
+								<p class="text-sm font-medium text-gray-900 {line.removed_via_additionals || line.declined_via_additionals ? 'line-through' : ''}">
+								{line.description}
+							</p>
+								<p class="text-xs text-gray-500 mt-0.5 flex items-center gap-2">
+									<span>Source: {line.source === 'estimate' ? 'Original Estimate' : 'Additional'}</span>
+									{#if line.removed_via_additionals}
+										<Badge variant="destructive" class="text-[10px] py-0 px-1.5">REMOVED</Badge>
+									{/if}
+									{#if line.declined_via_additionals}
+										<Badge variant="destructive" class="text-[10px] py-0 px-1.5" title={line.decline_reason}>DECLINED</Badge>
+									{/if}
 								</p>
 								<p class="text-xs text-gray-500 mt-0.5 flex items-center gap-2">
 									<Badge variant={badge.variant} class={badge.class}>

@@ -825,6 +825,11 @@ export interface FRCLineItem {
 	decision: FRCDecision;
 	adjust_reason?: string | null; // Required when decision = 'adjust'
 
+	// Metadata for removed/declined lines from additionals workflow
+	removed_via_additionals?: boolean; // Line was removed from estimate via additionals
+	declined_via_additionals?: boolean; // Line was declined via additionals
+	decline_reason?: string; // Reason for decline (if applicable)
+
 	// Quoted component breakdown (snapshot from estimate/additional)
 	quoted_part_price_nett?: number | null; // Nett part price without markup
 	quoted_part_price?: number | null; // Selling price with markup

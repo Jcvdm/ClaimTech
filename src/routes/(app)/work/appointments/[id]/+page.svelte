@@ -15,7 +15,6 @@
 		User,
 		Car,
 		FileText,
-		CheckCircle,
 		XCircle,
 		Play
 	} from 'lucide-svelte';
@@ -47,53 +46,15 @@
 	}
 
 	async function handleStartAssessment() {
-		// Update appointment status and assessment stage, then navigate
+		// Navigate to assessment page - server will handle all state transitions
+		// Server-side load function updates stage and appointment status idempotently
 		loading = true;
-		error = null;
 
 		try {
-			// Step 1: Update appointment status to in_progress
-			await appointmentService.updateAppointmentStatus(data.appointment.id, 'in_progress');
-
-			// Step 2: Find assessment by appointment_id
-			const assessment = await assessmentService.getAssessmentByAppointment(
-				data.appointment.id
-			);
-
-			// Step 3: Update assessment stage to assessment_in_progress
-			if (assessment) {
-				await assessmentService.updateStage(
-					assessment.id,
-					'assessment_in_progress'
-				);
-			} else {
-				console.error('No assessment found for appointment:', data.appointment.id);
-				throw new Error('Assessment not found for this appointment');
-			}
-
-			// Step 4: Navigate to assessment page
 			goto(`/work/assessments/${data.appointment.id}`);
 		} catch (err) {
-			console.error('Error starting assessment:', err);
-			error = err instanceof Error ? err.message : 'Failed to start assessment';
-			loading = false;
-		}
-	}
-
-	async function handleCompleteAppointment() {
-		if (!confirm('Mark this appointment as completed?')) return;
-
-		loading = true;
-		error = null;
-
-		try {
-			await appointmentService.updateAppointmentStatus(data.appointment.id, 'completed');
-			// Refresh page to show updated status
-			goto(`/work/appointments/${data.appointment.id}`);
-		} catch (err) {
-			console.error('Error completing appointment:', err);
-			error = err instanceof Error ? err.message : 'Failed to complete appointment';
-		} finally {
+			console.error('Error navigating to assessment:', err);
+			error = err instanceof Error ? err.message : 'Failed to start assessment. Please try again.';
 			loading = false;
 		}
 	}
@@ -225,14 +186,6 @@
 				<Button variant="default" onclick={handleStartAssessment} disabled={loading}>
 					<Play class="mr-2 h-4 w-4" />
 					Start Assessment
-				</Button>
-			{/if}
-
-			<!-- Complete button for in-progress appointments -->
-			{#if data.appointment.status === 'in_progress'}
-				<Button variant="default" onclick={handleCompleteAppointment} disabled={loading}>
-					<CheckCircle class="mr-2 h-4 w-4" />
-					Mark as Completed
 				</Button>
 			{/if}
 

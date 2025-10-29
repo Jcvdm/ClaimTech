@@ -6,6 +6,7 @@ import type {
 	AssessmentAdditionals
 } from '$lib/types/assessment';
 import { auditService } from './audit.service';
+import { assessmentService } from './assessment.service';
 import {
 	composeFinalEstimateLines,
 	calculateBreakdownTotals,
@@ -178,6 +179,10 @@ class FRCService {
 			console.error('Error creating FRC:', error);
 			throw new Error(`Failed to create FRC: ${error.message}`);
 		}
+
+		// Don't update stage - assessment should remain at 'estimate_finalized'
+		// This keeps it visible in Finalized Assessments until FRC is completed
+		// Stage will be updated to 'archived' only when FRC is completed
 
 		// Log audit
 		await auditService.logChange({
@@ -452,6 +457,10 @@ class FRCService {
 				console.error('Error updating assessment status to archived:', assessmentError);
 				// Don't throw - FRC is already completed, just log the error
 			} else {
+				// Update assessment stage to 'archived'
+				// This moves the assessment from Finalized Assessments to Archive
+				await assessmentService.updateStage(frc.assessment_id, 'archived', db);
+
 				// Log assessment status change
 				await auditService.logChange({
 					entity_type: 'assessment',
@@ -573,15 +582,14 @@ class FRCService {
 			`)
 			.order('started_at', { ascending: false });
 
-		// Filter by assessment stage (frc_in_progress)
-		query = query.eq('assessment.stage', 'frc_in_progress');
+		// Don't filter by stage - assessments remain at 'estimate_finalized' during FRC
+		// FRC records are retrieved regardless of assessment stage
 
 		if (filters?.status) {
 			query = query.eq('status', filters.status);
 		}
-		if (filters?.engineer_id) {
-			query = query.eq('assessment.appointment.engineer_id', filters.engineer_id);
-		}
+		// RLS policies automatically filter by engineer for non-admin users
+		// No need for manual engineer filtering - let RLS handle it
 
 		const { data, error } = await query;
 
@@ -599,24 +607,35 @@ class FRCService {
 	async getCountByStatus(status: 'not_started' | 'in_progress' | 'completed', client?: ServiceClient, engineer_id?: string | null): Promise<number> {
 		const db = client ?? supabase;
 
-		let query = db
-			.from('assessment_frc')
-			.select('*, assessments!inner(appointment_id, appointments!inner(engineer_id))', { count: 'exact', head: true })
-			.eq('status', status)
-			.eq('assessments.stage', 'frc_in_progress');
-
-		// Filter by engineer if provided
+		// Query from assessments table for simpler, more reliable filtering
+		// This avoids PostgREST deep filter path issues
 		if (engineer_id) {
-			query = query.eq('assessments.appointments.engineer_id', engineer_id);
+			// Engineer view - only their assigned assessments with FRC at this status
+			const { count, error } = await db
+				.from('assessments')
+				.select('id, appointments!inner(engineer_id), assessment_frc!inner(status)',
+						{ count: 'exact', head: true })
+				.eq('appointments.engineer_id', engineer_id)
+				.eq('assessment_frc.status', status);
+
+			if (error) {
+				console.error('Error counting engineer FRC:', error);
+				return 0;
+			}
+			return count || 0;
 		}
 
-		const { count, error } = await query;
+		// Admin view - all assessments with FRC at this status
+		const { count, error } = await db
+			.from('assessments')
+			.select('id, assessment_frc!inner(status)',
+					{ count: 'exact', head: true })
+			.eq('assessment_frc.status', status);
 
 		if (error) {
-			console.error('Error counting FRC records:', error);
+			console.error('Error counting all FRC:', error);
 			return 0;
 		}
-
 		return count || 0;
 	}
 

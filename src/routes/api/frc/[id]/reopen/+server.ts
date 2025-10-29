@@ -1,6 +1,7 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { auditService } from '$lib/services/audit.service';
+import { assessmentService } from '$lib/services/assessment.service';
 
 /**
  * POST /api/frc/[id]/reopen
@@ -70,6 +71,10 @@ export const POST: RequestHandler = async ({ params, locals }) => {
 			console.error('Error updating assessment status:', updateAssessmentError);
 			// Don't fail the request - FRC is already reopened
 			// Just log the error
+		} else {
+			// Update assessment stage back to 'estimate_finalized'
+			// This returns the assessment to the Finalized Assessments list
+			await assessmentService.updateStage(frc.assessment_id, 'estimate_finalized', locals.supabase);
 		}
 
 		// 5. Log audit trail for FRC status change

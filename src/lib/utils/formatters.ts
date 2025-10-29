@@ -121,3 +121,19 @@ export function formatDateWithWeekday(dateString: string | null | undefined): st
 	});
 }
 
+/**
+ * Format vehicle display with year, make, and model
+ * @param year - Vehicle year or null/undefined
+ * @param make - Vehicle make or null/undefined
+ * @param model - Vehicle model or null/undefined
+ * @returns Formatted vehicle string (e.g., "2020 Toyota Corolla") or "N/A"
+ */
+export function formatVehicle(
+	year?: string | number | null,
+	make?: string | null,
+	model?: string | null
+): string {
+	const vehicleStr = `${year || ''} ${make || ''} ${model || ''}`.trim();
+	return vehicleStr || 'N/A';
+}
+
