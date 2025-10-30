@@ -19,9 +19,10 @@ export interface PDFGeneratorOptions {
 }
 
 // Configuration
-const DEFAULT_TIMEOUT = 30000; // 30 seconds
-const DEFAULT_RETRIES = 2;
-const BROWSER_LAUNCH_TIMEOUT = 10000; // 10 seconds to launch browser
+// Optimized for Vercel Hobby 10s limit - aim for 8-9s total
+const DEFAULT_TIMEOUT = 8000; // 8 seconds total for Hobby plan
+const DEFAULT_RETRIES = 1; // Reduce retries to fail fast
+const BROWSER_LAUNCH_TIMEOUT = 3000; // 3 seconds to launch browser
 
 /**
  * Generate a PDF from HTML content using Puppeteer with retry logic
@@ -115,38 +116,25 @@ async function generatePDFInternal(
 		page.on('console', (msg) => console.log('PAGE LOG:', msg.text()));
 		page.on('pageerror', (error) => console.error('PAGE ERROR:', error));
 
-		// Set content with timeout
+		// Set content with faster readiness check for Hobby plan optimization
 		await Promise.race([
 			page.setContent(html, {
-				waitUntil: 'networkidle0',
+				waitUntil: 'domcontentloaded', // Faster than networkidle0
 				timeout: timeout / 2
 			}),
 			timeoutPromise
 		]);
 
-		// Wait longer for any dynamic content to render and CSS to apply
-		console.log('Waiting for content to fully render...');
-		await new Promise((resolve) => setTimeout(resolve, 3000));
+		// Minimal wait for CSS to apply (optimized for speed)
+		console.log('Waiting for styles to apply...');
+		await new Promise((resolve) => setTimeout(resolve, 200));
 
-		// Wait for specific elements to ensure they're rendered
+		// Quick check for table elements (reduced timeout)
 		try {
-			await page.waitForSelector('table', { timeout: 5000 });
+			await page.waitForSelector('table', { timeout: 1000 });
 			console.log('Table elements found');
-
-			// Check if group headers exist and wait for them
-			const groupHeadersExist = await page.evaluate(() => {
-				return document.querySelectorAll('.group-header').length > 0;
-			});
-
-			if (groupHeadersExist) {
-				console.log('Group headers found in DOM');
-				// Extra wait to ensure styles are applied
-				await new Promise((resolve) => setTimeout(resolve, 1000));
-			} else {
-				console.warn('No group headers found in DOM');
-			}
 		} catch (e) {
-			console.warn('Table elements not found, continuing anyway');
+			console.warn('Table elements not found within 1s, continuing anyway');
 		}
 
 		console.log('HTML content loaded successfully');
@@ -273,11 +261,14 @@ export async function generatePDFWithCustomSize(
 
 		await Promise.race([
 			page.setContent(html, {
-				waitUntil: 'networkidle0',
+				waitUntil: 'domcontentloaded', // Faster than networkidle0
 				timeout: timeout / 2
 			}),
 			timeoutPromise
 		]);
+
+		// Minimal wait for CSS (optimized for speed)
+		await new Promise((resolve) => setTimeout(resolve, 200));
 
 		const pdfBuffer = await Promise.race([
 			page.pdf({

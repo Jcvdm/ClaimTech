@@ -45,6 +45,7 @@ class DocumentGenerationService {
 	/**
 	 * Generate a specific document with streaming progress updates
 	 * @param onProgress - Optional callback to receive progress updates (0-100)
+	 * @returns Document URL or throws error with timeout flag
 	 */
 	async generateDocument(
 		assessmentId: string,
@@ -56,7 +57,11 @@ class DocumentGenerationService {
 			const apiPath = documentType.replace(/_/g, '-');
 
 			console.log(`Generating ${documentType} for assessment ${assessmentId}...`);
-			console.log('⏱️  Streaming progress updates enabled - no timeout needed!');
+			console.log('⏱️  Streaming progress updates enabled - timeout detection active');
+
+			// Start timer to detect Vercel Hobby 10s timeout
+			const startTime = Date.now();
+			const HOBBY_TIMEOUT_WARNING = 7000; // 7 seconds - warn before 10s limit
 
 			const response = await fetch(`/api/generate-${apiPath}`, {
 				method: 'POST',
@@ -87,51 +92,60 @@ class DocumentGenerationService {
 				throw new Error('Response body is not readable');
 			}
 
-			let finalUrl = '';
-			let buffer = '';
+		let finalUrl = '';
+		let buffer = '';
+		let lastUpdateTime = Date.now();
 
-			while (true) {
-				const { done, value } = await reader.read();
+		while (true) {
+			const { done, value } = await reader.read();
 
-				if (done) break;
+			if (done) break;
 
-				// Decode chunk and add to buffer
-				buffer += decoder.decode(value, { stream: true });
+			// Decode chunk and add to buffer
+			buffer += decoder.decode(value, { stream: true });
+			lastUpdateTime = Date.now();
 
-				// Process complete SSE messages (separated by \n\n)
-				const messages = buffer.split('\n\n');
-				buffer = messages.pop() || ''; // Keep incomplete message in buffer
+			// Check if we're approaching Hobby timeout
+			const elapsed = lastUpdateTime - startTime;
+			if (elapsed > HOBBY_TIMEOUT_WARNING && !finalUrl) {
+				console.warn(`⚠️ Generation taking longer than ${HOBBY_TIMEOUT_WARNING}ms - may timeout on Hobby plan`);
+			}
 
-				for (const message of messages) {
-					if (!message.trim() || !message.startsWith('data: ')) continue;
+			// Process complete SSE messages (separated by \n\n)
+			const messages = buffer.split('\n\n');
+			buffer = messages.pop() || ''; // Keep incomplete message in buffer
 
-					try {
-						// Parse SSE data
-						const jsonStr = message.replace(/^data: /, '');
-						const data = JSON.parse(jsonStr);
+			for (const message of messages) {
+				if (!message.trim() || !message.startsWith('data: ')) continue;
 
-						console.log(`Progress: ${data.progress}% - ${data.message || data.status}`);
+				try {
+					// Parse SSE data
+					const jsonStr = message.replace(/^data: /, '');
+					const data = JSON.parse(jsonStr);
 
-						// Call progress callback if provided
-						if (onProgress && typeof data.progress === 'number') {
-							onProgress(data.progress, data.message || data.status);
-						}
+					console.log(`Progress: ${data.progress}% - ${data.message || data.status}`);
 
-						// Handle completion
-						if (data.status === 'complete' && data.url) {
-							finalUrl = data.url;
-							console.log(`${documentType} generated successfully:`, finalUrl);
-						}
-
-						// Handle error
-						if (data.status === 'error') {
-							throw new Error(data.error || 'Unknown error occurred');
-						}
-					} catch (parseError) {
-						console.error('Error parsing SSE message:', message, parseError);
+					// Call progress callback if provided
+					if (onProgress && typeof data.progress === 'number') {
+						onProgress(data.progress, data.message || data.status);
 					}
+
+					// Handle completion
+					if (data.status === 'complete' && data.url) {
+						finalUrl = data.url;
+						const totalTime = Date.now() - startTime;
+						console.log(`${documentType} generated successfully in ${totalTime}ms:`, finalUrl);
+					}
+
+					// Handle error
+					if (data.status === 'error') {
+						throw new Error(data.error || 'Unknown error occurred');
+					}
+				} catch (parseError) {
+					console.error('Error parsing SSE message:', message, parseError);
 				}
 			}
+		}
 
 			if (!finalUrl) {
 				throw new Error('Document generation completed but no URL was returned');
@@ -195,6 +209,13 @@ class DocumentGenerationService {
 	downloadDocument(url: string, filename: string): void {
 		// Open in new tab - this prevents navigating away from current page
 		window.open(url, '_blank');
+	}
+
+	/**
+	 * Get print URL for client-side fallback (Hobby plan workaround)
+	 */
+	getPrintUrl(assessmentId: string, documentType: 'estimate' | 'frc' | 'report'): string {
+		return `/print/${documentType}/${assessmentId}`;
 	}
 }
 

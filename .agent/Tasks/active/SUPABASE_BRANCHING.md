@@ -654,6 +654,87 @@ The `staging` branch exists but is **deprecated** in favor of `vercel-dev`.
 
 ---
 
+## 🧹 Branch Hygiene (Recommended Next Steps)
+
+If your current working branch `vercel-dev` is functionally the same as `dev`, align with the documented flow:
+
+1. Align development branch
+   - If `vercel-dev` ≈ `dev`, either rename it to `dev` or create `dev` and set it as the active development branch.
+   - Ensure CI/CD and Supabase preview branches point to `dev` for day-to-day work.
+
+2. Use short-lived feature branches
+   - Create branches as `feature/<description>` for each unit of work.
+   - Open PRs from `feature/*` into `dev`.
+
+3. Promote via staging before production
+   - When `dev` is stable, open PR `dev → staging` for pre-production testing.
+   - After sign-off, open PR `staging → main` to release to production.
+
+This keeps the environment mapping consistent:
+```
+main     → Production
+staging  → Pre-production testing
+dev      → Active development
+```
+
+> Note: If `vercel-dev` must remain for historical CI reasons, document it as an alias of `dev` and keep only one as the canonical target for PRs.
+
+---
+
+## 🧹 Branch Hygiene (Recommended Next Steps)
+
+If your current working branch `vercel-dev` is functionally the same as `dev`, align with the documented flow:
+
+1. Align development branch
+   - If `vercel-dev` ≈ `dev`, either rename it to `dev` or create `dev` and set it as the active development branch.
+   - Ensure CI/CD and Supabase preview branches point to `dev` for day-to-day work.
+
+2. Use short-lived feature branches
+   - Create branches as `feature/<description>` for each unit of work.
+   - Open PRs from `feature/*` into `dev`.
+
+3. Promote via staging before production
+   - When `dev` is stable, open PR `dev → staging` for pre-production testing.
+   - After sign-off, open PR `staging → main` to release to production.
+
+This keeps the environment mapping consistent:
+```
+main     → Production
+staging  → Pre-production testing
+dev      → Active development
+```
+
+> Note: If `vercel-dev` must remain for historical CI reasons, document it as an alias of `dev` and keep only one as the canonical target for PRs.
+
+---
+
+## 🧹 Branch Hygiene (Recommended Next Steps)
+
+If your current working branch `vercel-dev` is functionally the same as `dev`, align with the documented flow:
+
+1. Align development branch
+   - If `vercel-dev` ≈ `dev`, either rename it to `dev` or create `dev` and set it as the active development branch.
+   - Ensure CI/CD and Supabase preview branches point to `dev` for day-to-day work.
+
+2. Use short-lived feature branches
+   - Create branches as `feature/<description>` for each unit of work.
+   - Open PRs from `feature/*` into `dev`.
+
+3. Promote via staging before production
+   - When `dev` is stable, open PR `dev → staging` for pre-production testing.
+   - After sign-off, open PR `staging → main` to release to production.
+
+This keeps the environment mapping consistent:
+```
+main     → Production
+staging  → Pre-production testing
+dev      → Active development
+```
+
+> Note: If `vercel-dev` must remain for historical CI reasons, document it as an alias of `dev` and keep only one as the canonical target for PRs.
+
+---
+
 ## 🔄 Version History
 
 | Date | Version | Changes |
