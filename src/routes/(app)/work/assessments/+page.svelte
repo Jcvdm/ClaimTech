@@ -13,6 +13,7 @@
 	import EmptyState from '$lib/components/data/EmptyState.svelte';
 	import { Button } from '$lib/components/ui/button';
 	import { formatDateTime, formatVehicle } from '$lib/utils/formatters';
+	import { assessmentService } from '$lib/services/assessment.service';
 	import {
 		ClipboardList,
 		RefreshCw,
@@ -23,11 +24,13 @@
 		User,
 		TrendingUp,
 		Clock,
-		Play
+		Play,
+		XCircle
 	} from 'lucide-svelte';
 
 	let { data }: { data: PageData } = $props();
 	let refreshing = $state(false);
+	let cancellingAssessmentId = $state<string | null>(null);
 	const { loadingId, startNavigation, isLoading } = useNavigationLoading();
 
 	// Manual refresh function
@@ -151,6 +154,26 @@
 		// Navigate to assessment page using appointment_id with loading state
 		startNavigation(assessment.appointment_id, `/work/assessments/${assessment.appointment_id}`);
 	}
+
+	async function handleCancelAssessment(assessment: (typeof assessmentsWithDetails)[0]) {
+		if (!confirm('Are you sure you want to cancel this assessment? This action cannot be undone.')) {
+			return;
+		}
+
+		cancellingAssessmentId = assessment.id;
+		try {
+			// Cancel assessment (sets both status and stage to cancelled)
+			await assessmentService.cancelAssessment(assessment.id);
+
+			// Refresh the page to remove cancelled assessment from list
+			await invalidateAll();
+		} catch (error) {
+			console.error('Error cancelling assessment:', error);
+			alert('Failed to cancel assessment. Please try again.');
+		} finally {
+			cancellingAssessmentId = null;
+		}
+	}
 </script>
 
 <div class="flex-1 space-y-6 p-8">
@@ -212,6 +235,14 @@
 							label="Continue Assessment"
 							onclick={() => handleContinueAssessment(row)}
 							variant="primary"
+						/>
+						<ActionIconButton
+							icon={XCircle}
+							label="Cancel Assessment"
+							onclick={() => handleCancelAssessment(row)}
+							variant="destructive"
+							loading={cancellingAssessmentId === row.id}
+							disabled={cancellingAssessmentId !== null}
 						/>
 					</ActionButtonGroup>
 				{:else}

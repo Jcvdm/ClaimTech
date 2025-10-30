@@ -94,8 +94,8 @@ export class MyService {
 
 ### 2. Working with Assessment-Centric Architecture ⭐ CRITICAL
 - **File**: [working_with_assessment_centric_architecture.md](../SOP/working_with_assessment_centric_architecture.md)
-- **Size**: 1,081 lines | **Last Updated**: Jan 2025
-- **Read When**: Working with assessments, implementing stage-based workflows, understanding subprocess patterns, building list pages
+- **Size**: ~1,300 lines | **Last Updated**: Jan 30, 2025 (Added: Assessment & Inspection Cancellation patterns)
+- **Read When**: Working with assessments, implementing stage-based workflows, understanding subprocess patterns, building list pages, cancelling assessments/inspections
 
 **Contains**:
 - Assessment-centric principles (one assessment per request)
@@ -105,6 +105,7 @@ export class MyService {
 - Stage-based filtering (not status-based)
 - Subprocess implementation (FRC, Additionals)
 - Idempotent operations
+- **Cancellation patterns** (Assessment & Inspection cancellation workflows)
 - Best practices & anti-patterns
 
 **Critical Concepts**:

@@ -135,8 +135,8 @@
 				$page.data.supabase
 			);
 
-			// Navigate back to inspections list (data will be fresh on next page)
-			goto('/work/inspections');
+			// Navigate to archive with cancelled tab selected
+			goto('/work/archive?tab=cancelled');
 		} catch (err) {
 			console.error('Error cancelling inspection:', err);
 			error = err instanceof Error ? err.message : 'Failed to cancel inspection';

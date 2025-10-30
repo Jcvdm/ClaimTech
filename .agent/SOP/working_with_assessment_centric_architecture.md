@@ -312,7 +312,207 @@ reschedule_reason TEXT              -- Reason for most recent reschedule
 
 ---
 
-## Common Sidebar Badge Mistakes
+## Cancelling Assessments (Jan 2025)
+
+### Assessment Cancellation Pattern
+
+**When:** Cancelling an assessment at any stage to stop work
+
+**Why Cancellation is Needed:**
+- Assessments can be cancelled from any stage (terminal state)
+- Cancelled assessments move to Archive page for reactivation if needed
+- Provides clean way to stop work without deleting records
+
+**Service Method:**
+```typescript
+import { assessmentService } from '$lib/services/assessment.service';
+
+// Cancel assessment (sets both status and stage to cancelled)
+const cancelledAssessment = await assessmentService.cancelAssessment(
+  assessmentId,
+  client // Optional: authenticated Supabase client
+);
+
+// Result:
+// 1. Assessment status → 'cancelled'
+// 2. Assessment cancelled_at → timestamp
+// 3. Assessment stage → 'cancelled' (terminal state)
+// 4. Audit logs created for both status and stage changes
+```
+
+**What Happens Behind the Scenes:**
+1. Updates assessment status to `'cancelled'` (sets `cancelled_at` timestamp)
+2. Updates assessment stage to `'cancelled'` (terminal state)
+3. Creates audit log for status change
+4. Creates audit log for stage transition
+5. Returns updated assessment
+
+**UI Integration:**
+
+**Open Assessments Table:**
+```typescript
+// Cancel button in table actions
+<ActionIconButton
+  icon={XCircle}
+  label="Cancel Assessment"
+  onclick={() => handleCancelAssessment(row)}
+  variant="destructive"
+  loading={cancellingAssessmentId === row.id}
+  disabled={cancellingAssessmentId !== null}
+/>
+
+async function handleCancelAssessment(assessment) {
+  if (!confirm('Are you sure you want to cancel this assessment? This action cannot be undone.')) {
+    return;
+  }
+  
+  cancellingAssessmentId = assessment.id;
+  try {
+    await assessmentService.cancelAssessment(assessment.id);
+    await invalidateAll(); // Refresh list (cancelled assessment removed)
+  } catch (error) {
+    console.error('Error cancelling assessment:', error);
+    alert('Failed to cancel assessment. Please try again.');
+  } finally {
+    cancellingAssessmentId = null;
+  }
+}
+```
+
+**Assessment Detail Page Header:**
+```svelte
+<!-- Cancel button in AssessmentLayout header -->
+{#if onCancel && ['assessment_in_progress', 'estimate_review', 'estimate_sent'].includes(assessment.stage)}
+  <Button variant="destructive" onclick={onCancel}>
+    <Trash2 class="mr-2 h-4 w-4" />
+    Cancel
+  </Button>
+{/if}
+
+<!-- Handler in detail page -->
+async function handleCancelAssessment() {
+  if (!confirm('Are you sure you want to cancel this assessment? This action cannot be undone.')) {
+    return;
+  }
+  
+  try {
+    await assessmentService.cancelAssessment(data.assessment.id, data.supabase);
+    goto('/work/archive?tab=cancelled'); // Navigate to archive
+  } catch (error) {
+    console.error('Error cancelling assessment:', error);
+    alert('Failed to cancel assessment. Please try again.');
+  }
+}
+```
+
+**Navigation After Cancellation:**
+- Open Assessments Table → Refreshes list (cancelled assessment disappears)
+- Assessment Detail Page → Redirects to `/work/archive?tab=cancelled`
+- Archive Page → Cancelled assessment appears in "Cancelled" tab
+
+**Valid Stages for Cancellation:**
+- `assessment_in_progress` - Engineer working on assessment
+- `estimate_review` - Estimate under review
+- `estimate_sent` - Estimate sent to client
+- Can be cancelled from any stage, but UI typically shows cancel button for stages 5-7
+
+**Archive Integration:**
+- Cancelled assessments automatically appear in Archive page
+- Archive filters by `stage = 'cancelled'`
+- Users can reactivate cancelled assessments from Archive
+- Cancelled assessments excluded from active work lists (Open Assessments, FRC, Additionals)
+
+**Audit Trail Example:**
+```json
+{
+  "entity_type": "assessment",
+  "entity_id": "uuid",
+  "action": "status_changed",
+  "field_name": "status",
+  "old_value": "in_progress",
+  "new_value": "cancelled"
+},
+{
+  "entity_type": "assessment",
+  "entity_id": "uuid",
+  "action": "stage_transition",
+  "old_value": "assessment_in_progress",
+  "new_value": "cancelled",
+  "metadata": {
+    "assessment_number": "ASM-2025-001"
+  }
+}
+```
+
+**Related Patterns:**
+- [Inspection Cancellation](#cancelling-inspections-jan-2025) - Similar pattern for inspections
+- [Archive Page](../System/project_architecture.md#archive-page) - Where cancelled assessments appear
+- [Reactivation Flow](#reactivation-pattern) - How to reactivate cancelled assessments
+
+---
+
+## Cancelling Inspections (Jan 2025)
+
+### Inspection Cancellation Pattern
+
+**When:** Cancelling an inspection to stop the workflow
+
+**Why Cancellation is Needed:**
+- Inspections can be cancelled at any stage
+- Cancelled inspections move to Archive page for reactivation if needed
+- Reverts request status and assessment stage appropriately
+
+**Service Method:**
+```typescript
+import { inspectionService } from '$lib/services/inspection.service';
+import { requestService } from '$lib/services/request.service';
+import { assessmentService } from '$lib/services/assessment.service';
+
+// Cancel inspection (manual process - no single helper method)
+// 1. Cancel inspection status
+if (inspection) {
+  await inspectionService.updateInspectionStatus(inspection.id, 'cancelled');
+}
+
+// 2. Revert request status
+await requestService.updateRequest(requestId, {
+  status: 'submitted',
+  current_step: 'request',
+  assigned_engineer_id: null
+});
+
+// 3. Clear foreign keys BEFORE stage transition (follows check constraint)
+await assessmentService.updateAssessment(assessmentId, {
+  appointment_id: null,
+  inspection_id: null
+}, client);
+
+// 4. Update assessment stage to request_submitted
+await assessmentService.updateStage(assessmentId, 'request_submitted', client);
+```
+
+**Navigation After Cancellation:**
+- Cancelled inspections redirect to `/work/archive?tab=cancelled`
+- Archive page automatically selects "Cancelled" tab via URL query parameter
+- Cancelled inspections appear in Archive with "Cancelled" status badge
+
+**Archive Integration:**
+- Archive page queries cancelled inspections via `listCancelledInspections()`
+- Includes assessment data via `request_id` join (since `inspection_id` is cleared)
+- DetailUrl uses assessment ID (not inspection ID) for navigation
+- Supports reactivation from Archive page
+
+**Audit Trail:**
+- Inspection status change logged
+- Request status change logged
+- Assessment stage transition logged
+
+**Related Patterns:**
+- [Assessment Cancellation](#cancelling-assessments-jan-2025) - Similar pattern for assessments
+- [Archive Page](../System/project_architecture.md#archive-page) - Where cancelled inspections appear
+- [Reactivation Flow](#reactivation-pattern) - How to reactivate cancelled inspections
+
+---
 
 ### Mistake #1: Wrong Join Table for Stage (CRITICAL)
 

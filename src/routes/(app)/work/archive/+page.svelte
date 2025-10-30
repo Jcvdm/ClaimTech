@@ -1,6 +1,7 @@
 <script lang="ts">
 	import type { PageData } from './$types';
 	import { goto } from '$app/navigation';
+	import { page } from '$app/stores';
 	import PageHeader from '$lib/components/layout/PageHeader.svelte';
 	import ModernDataTable from '$lib/components/data/ModernDataTable.svelte';
 	import ActionButtonGroup from '$lib/components/data/ActionButtonGroup.svelte';
@@ -29,7 +30,11 @@
 
 	// Type filter state - simplified to completed/cancelled
 	type ArchiveType = 'all' | 'completed' | 'cancelled';
-	let selectedType = $state<ArchiveType>('all');
+	// Initialize from URL query parameter if present
+	const initialTab = ($page.url.searchParams.get('tab') as ArchiveType) || 'all';
+	let selectedType = $state<ArchiveType>(
+		initialTab === 'completed' || initialTab === 'cancelled' ? initialTab : 'all'
+	);
 
 	// Search state
 	let searchQuery = $state('');
@@ -106,6 +111,12 @@
 	data.cancelledInspections.forEach((inspection: any) => {
 		const request = inspection.request;
 		const client = request?.client;
+		// Get assessment ID from request - assessments are linked via request_id
+		// Supabase returns assessments as an array (one-to-many relationship)
+		const assessments = request?.assessments || [];
+		const assessment = Array.isArray(assessments) ? assessments[0] : assessments;
+		const assessmentId = assessment?.id || inspection.id; // Fallback to inspection ID if no assessment found
+		
 		allArchiveItems.push({
 			id: inspection.id,
 			type: 'inspection',
@@ -117,7 +128,7 @@
 			status: 'Cancelled',
 			completedDate: inspection.updated_at,
 			formattedDate: formatDate(inspection.updated_at),
-			detailUrl: `/work/inspections/${inspection.id}`
+			detailUrl: `/work/inspections/${assessmentId}` // Use assessment ID for route navigation
 		});
 	});
 

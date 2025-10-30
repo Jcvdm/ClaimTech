@@ -602,7 +602,8 @@ export class AssessmentService {
 	 */
 	async updateAssessmentStatus(
 		id: string,
-		status: 'in_progress' | 'completed' | 'submitted' | 'archived' | 'cancelled'
+		status: 'in_progress' | 'completed' | 'submitted' | 'archived' | 'cancelled',
+		client?: ServiceClient
 	): Promise<Assessment> {
 		const updateData: UpdateAssessmentInput = { status };
 
@@ -616,7 +617,21 @@ export class AssessmentService {
 		// Note: 'archived' status is set when FRC is completed
 		// No specific timestamp field needed as FRC has completed_at
 
-		return this.updateAssessment(id, updateData);
+		return this.updateAssessment(id, updateData, client);
+	}
+
+	/**
+	 * Cancel an assessment
+	 * Sets both status and stage to 'cancelled' with proper audit logging
+	 * @param id - Assessment ID
+	 * @param client - Optional Supabase client
+	 */
+	async cancelAssessment(id: string, client?: ServiceClient): Promise<Assessment> {
+		// Update status to cancelled (sets cancelled_at timestamp)
+		await this.updateAssessmentStatus(id, 'cancelled', client);
+		
+		// Update stage to cancelled (terminal state)
+		return this.updateStage(id, 'cancelled', client);
 	}
 
 	/**

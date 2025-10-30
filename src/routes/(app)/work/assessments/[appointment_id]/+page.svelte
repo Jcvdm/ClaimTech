@@ -116,8 +116,8 @@
 		}
 
 		try {
-			// Update assessment status to cancelled
-			await assessmentService.updateAssessmentStatus(data.assessment.id, 'cancelled');
+			// Cancel assessment (sets both status and stage to cancelled)
+			await assessmentService.cancelAssessment(data.assessment.id, data.supabase);
 
 			// Navigate to archive with cancelled tab selected
 			goto('/work/archive?tab=cancelled');

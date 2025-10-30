@@ -1,7 +1,7 @@
 # ClaimTech Documentation
 
 **Project**: ClaimTech (SVA - SvelteKit Validation App)
-**Last Updated**: January 30, 2025
+**Last Updated**: January 30, 2025 (Updated: Assessment & Inspection Cancellation Features)
 
 ---
 

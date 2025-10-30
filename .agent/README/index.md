@@ -1,7 +1,7 @@
 # ClaimTech Documentation Master Index
 
 **Last Updated**: January 30, 2025
-**Total Documentation**: 28 System docs + 18 SOPs + Task/Historical files
+**Total Documentation**: 28 System docs + 19 SOPs + Task/Historical files
 
 ---
 

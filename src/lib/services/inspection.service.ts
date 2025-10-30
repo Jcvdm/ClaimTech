@@ -384,6 +384,7 @@ export class InspectionService {
 
 	/**
 	 * List cancelled inspections with related data for archive
+	 * Includes assessment ID for navigation (found via request_id since inspection_id is cleared on cancellation)
 	 */
 	async listCancelledInspections(client?: ServiceClient): Promise<any[]> {
 		const db = client ?? supabase;
@@ -403,6 +404,9 @@ export class InspectionService {
 						id,
 						name,
 						type
+					),
+					assessments!request_id(
+						id
 					)
 				)
 			`)

@@ -6,6 +6,47 @@
 
 ## January 30, 2025
 
+### ✅ Assessment Cancellation Feature
+- **NEW**: Added `cancelAssessment()` helper method in `assessmentService`
+  - Sets both `status` and `stage` to `'cancelled'` atomically
+  - Includes automatic audit logging for both changes
+  - Accepts optional `ServiceClient` parameter for RLS compliance
+- **NEW**: Cancel button added to Open Assessments table
+  - Destructive variant button with loading state
+  - Confirmation dialog before cancellation
+  - Auto-refresh after cancellation (removed from list)
+- **NEW**: Cancel button added to Assessment Detail page header
+  - Shows for open assessment stages (`assessment_in_progress`, `estimate_review`, `estimate_sent`)
+  - Redirects to Archive page with cancelled tab selected
+  - Positioned between Save and Exit buttons for visibility
+- **IMPACT**: Users can now cancel open assessments from both table view and detail page
+- **FILES**: 
+  - `src/lib/services/assessment.service.ts` - Added `cancelAssessment()` method
+  - `src/routes/(app)/work/assessments/+page.svelte` - Cancel button in table
+  - `src/routes/(app)/work/assessments/[appointment_id]/+page.svelte` - Updated to use new helper
+  - `src/lib/components/assessment/AssessmentLayout.svelte` - Cancel button in header
+
+### ✅ Inspection Cancellation Flow Fixes
+- **FIX**: Cancelled inspections now redirect to Archive page with cancelled tab selected
+  - Changed redirect from `/work/inspections` to `/work/archive?tab=cancelled`
+  - Matches pattern used for assessment cancellations
+- **FIX**: Fixed 404 error when clicking cancelled inspections in Archive table
+  - Archive page now uses assessment ID (not inspection ID) for detailUrl
+  - Updated `listCancelledInspections()` to include assessment data via request_id join
+  - Archive page extracts assessment ID from nested data structure
+- **IMPACT**: Cancelled inspections properly appear in Archive and can be accessed/reactivated
+- **FILES**:
+  - `src/routes/(app)/work/inspections/[id]/+page.svelte` - Updated redirect
+  - `src/routes/(app)/work/archive/+page.svelte` - Fixed detailUrl, added tab query param support
+  - `src/lib/services/inspection.service.ts` - Added assessment join to cancelled inspections query
+
+### ✅ Archive Page Enhancements
+- **NEW**: Archive page now reads `tab` query parameter from URL
+  - Supports `?tab=cancelled` and `?tab=completed` query parameters
+  - Automatically selects correct tab when navigating from cancellation flows
+  - Gracefully handles invalid tab values (defaults to 'all')
+- **FILES**: `src/routes/(app)/work/archive/+page.svelte`
+
 ### ✅ Vercel Deployment - Live!
 - **DEPLOYED**: ClaimTech is now live on Vercel
   - Production URL: `https://claimtech.vercel.app`

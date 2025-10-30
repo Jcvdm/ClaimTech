@@ -188,16 +188,16 @@
 						<Save class="mr-2 h-4 w-4" />
 						{saving ? 'Saving...' : 'Save'}
 					</Button>
-					<Button variant="outline" onclick={onExit} class="flex-1 sm:flex-none">
-						<X class="mr-2 h-4 w-4" />
-						Exit
-					</Button>
-					{#if onCancel && assessment.status === 'in_progress'}
+					{#if onCancel && ['assessment_in_progress', 'estimate_review', 'estimate_sent'].includes(assessment.stage)}
 						<Button variant="destructive" onclick={onCancel} class="flex-1 sm:flex-none">
 							<Trash2 class="mr-2 h-4 w-4" />
 							Cancel
 						</Button>
 					{/if}
+					<Button variant="outline" onclick={onExit} class="flex-1 sm:flex-none">
+						<X class="mr-2 h-4 w-4" />
+						Exit
+					</Button>
 				</div>
 			</div>
 		</div>
