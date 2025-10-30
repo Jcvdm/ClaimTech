@@ -2,7 +2,7 @@
 	import { Card } from '$lib/components/ui/card';
 	import { Button } from '$lib/components/ui/button';
 	import { Badge } from '$lib/components/ui/badge';
-	import { CheckCircle, Circle, Loader2, Download, FileText } from 'lucide-svelte';
+	import { CheckCircle, Circle, Loader2, Download, FileText, Printer } from 'lucide-svelte';
 	import type { ComponentType } from 'svelte';
 	import { formatDateTime as formatDate } from '$lib/utils/formatters';
 
@@ -17,6 +17,8 @@
 		progressMessage?: string;
 		onGenerate: () => void;
 		onDownload: () => void;
+		printUrl?: string; // Optional: URL for client-side print fallback
+		showPrintFallback?: boolean; // Show print button instead of generate
 	}
 
 	let {
@@ -29,8 +31,16 @@
 		progress = 0,
 		progressMessage = '',
 		onGenerate,
-		onDownload
+		onDownload,
+		printUrl = '',
+		showPrintFallback = false
 	}: Props = $props();
+
+	function handlePrint() {
+		if (printUrl) {
+			window.open(printUrl, '_blank');
+		}
+	}
 </script>
 
 <Card class="p-6">
@@ -117,6 +127,21 @@
 				Download
 			</Button>
 		{/if}
+
+		{#if showPrintFallback && printUrl}
+			<Button onclick={handlePrint} variant="secondary" class="border-orange-300 bg-orange-50 hover:bg-orange-100">
+				<Printer class="mr-2 h-4 w-4" />
+				Print Instead
+			</Button>
+		{/if}
 	</div>
+
+	{#if showPrintFallback}
+		<div class="mt-3 rounded-md bg-orange-50 p-3 border border-orange-200">
+			<p class="text-xs text-orange-900">
+				<strong>⚡ Quick Print:</strong> Server generation is taking longer than expected. Use "Print Instead" to open a print-friendly view in your browser, then save as PDF (Ctrl+P or Cmd+P).
+			</p>
+		</div>
+	{/if}
 </Card>
 

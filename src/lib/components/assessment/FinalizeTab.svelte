@@ -85,6 +85,13 @@
 		photos_zip: ''
 	});
 
+	// Track if generation is slow/timeout for print fallback
+	let showPrintFallback = $state({
+		report: false,
+		estimate: false,
+		frc: false
+	});
+
 	let error = $state<string | null>(null);
 	let finalizing = $state(false);
 	let showValidationModal = $state(false);
@@ -203,7 +210,17 @@
 		generating.report = true;
 		progress.report = 0;
 		progressMessage.report = 'Starting...';
+		showPrintFallback.report = false;
 		error = null;
+
+		// Show print fallback after 8 seconds if still generating
+		const fallbackTimer = setTimeout(() => {
+			if (generating.report) {
+				showPrintFallback.report = true;
+				console.log('⚡ Showing print fallback for report (>8s)');
+			}
+		}, 8000);
+
 		try {
 			// Call service directly with progress callback
 			await documentGenerationService.generateDocument(
@@ -217,9 +234,12 @@
 			await loadGenerationStatus();
 			// Refresh parent data to update assessment with new document URLs
 			await invalidateAll();
+			showPrintFallback.report = false; // Success, hide fallback
 		} catch (err) {
 			error = err instanceof Error ? err.message : 'Failed to generate report';
+			showPrintFallback.report = true; // Error, show fallback
 		} finally {
+			clearTimeout(fallbackTimer);
 			generating.report = false;
 			progress.report = 0;
 			progressMessage.report = '';
@@ -230,7 +250,17 @@
 		generating.estimate = true;
 		progress.estimate = 0;
 		progressMessage.estimate = 'Starting...';
+		showPrintFallback.estimate = false;
 		error = null;
+
+		// Show print fallback after 8 seconds if still generating
+		const fallbackTimer = setTimeout(() => {
+			if (generating.estimate) {
+				showPrintFallback.estimate = true;
+				console.log('⚡ Showing print fallback for estimate (>8s)');
+			}
+		}, 8000);
+
 		try {
 			// Call service directly with progress callback
 			await documentGenerationService.generateDocument(
@@ -244,9 +274,12 @@
 			await loadGenerationStatus();
 			// Refresh parent data to update assessment with new document URLs
 			await invalidateAll();
+			showPrintFallback.estimate = false; // Success, hide fallback
 		} catch (err) {
 			error = err instanceof Error ? err.message : 'Failed to generate estimate';
+			showPrintFallback.estimate = true; // Error, show fallback
 		} finally {
+			clearTimeout(fallbackTimer);
 			generating.estimate = false;
 			progress.estimate = 0;
 			progressMessage.estimate = '';
@@ -434,31 +467,35 @@
 	<div>
 		<h2 class="mb-4 text-xl font-bold text-gray-900">Document Generation</h2>
 		<div class="grid gap-4 md:grid-cols-2">
-			<DocumentCard
-				title="Damage Inspection Report"
-				description="Complete assessment report with vehicle details, damage assessment, and notes"
-				icon={FileText}
-				generated={generationStatus.report_generated}
-				generatedAt={assessment.documents_generated_at}
-				generating={generating.report}
-				progress={progress.report}
-				progressMessage={progressMessage.report}
-				onGenerate={handleGenerateReport}
-				onDownload={() => onDownloadDocument('report')}
-			/>
+		<DocumentCard
+			title="Damage Inspection Report"
+			description="Complete assessment report with vehicle details, damage assessment, and notes"
+			icon={FileText}
+			generated={generationStatus.report_generated}
+			generatedAt={assessment.documents_generated_at}
+			generating={generating.report}
+			progress={progress.report}
+			progressMessage={progressMessage.report}
+			onGenerate={handleGenerateReport}
+			onDownload={() => onDownloadDocument('report')}
+			printUrl={documentGenerationService.getPrintUrl(assessment.id, 'report')}
+			showPrintFallback={showPrintFallback.report}
+		/>
 
-			<DocumentCard
-				title="Repair Estimate"
-				description="Detailed repair estimate with line items, rates, and totals"
-				icon={FileText}
-				generated={generationStatus.estimate_generated}
-				generatedAt={assessment.documents_generated_at}
-				generating={generating.estimate}
-				progress={progress.estimate}
-				progressMessage={progressMessage.estimate}
-				onGenerate={handleGenerateEstimate}
-				onDownload={() => onDownloadDocument('estimate')}
-			/>
+		<DocumentCard
+			title="Repair Estimate"
+			description="Detailed repair estimate with line items, rates, and totals"
+			icon={FileText}
+			generated={generationStatus.estimate_generated}
+			generatedAt={assessment.documents_generated_at}
+			generating={generating.estimate}
+			progress={progress.estimate}
+			progressMessage={progressMessage.estimate}
+			onGenerate={handleGenerateEstimate}
+			onDownload={() => onDownloadDocument('estimate')}
+			printUrl={documentGenerationService.getPrintUrl(assessment.id, 'estimate')}
+			showPrintFallback={showPrintFallback.estimate}
+		/>
 
 			<DocumentCard
 				title="Photographs PDF"
