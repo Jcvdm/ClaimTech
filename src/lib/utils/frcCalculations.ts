@@ -49,10 +49,10 @@ export function composeFinalEstimateLines(
 	const removedOriginalIds = new Set<string>();
 	if (additionals) {
 		additionals.line_items
-			.filter((item) => item.action === 'removed' && item.original_estimate_line_id)
+			.filter((item) => item.action === 'removed' && item.original_line_id)
 			.forEach((item) => {
-				if (item.original_estimate_line_id) {
-					removedOriginalIds.add(item.original_estimate_line_id);
+				if (item.original_line_id) {
+					removedOriginalIds.add(item.original_line_id);
 				}
 			});
 	}
@@ -107,13 +107,13 @@ export function composeFinalEstimateLines(
 		}
 	});
 
-	// Add approved additional lines (excluding reversed, removed, and declined)
+	// Add approved additional lines (excluding reversed and declined)
+	// INCLUDES removal lines with negative amounts to correctly subtract from totals
 	if (additionals) {
 		additionals.line_items
 			.filter(
 				(item) =>
 					item.status === 'approved' &&
-					item.action !== 'removed' &&
 					item.action !== 'reversal' &&
 					item.id &&
 					!reversedTargets.has(item.id)
@@ -157,11 +157,11 @@ export function composeFinalEstimateLines(
 			});
 
 		// Add declined additional lines with markers (excluding reversed)
+		// INCLUDES declined removal lines with negative amounts
 		additionals.line_items
 			.filter(
 				(item) =>
 					item.status === 'declined' &&
-					item.action !== 'removed' &&
 					item.action !== 'reversal' &&
 					item.id &&
 					!reversedTargets.has(item.id)
@@ -215,7 +215,14 @@ export function composeFinalEstimateLines(
  * Calculate breakdown totals from line items (NETT-BASED)
  * Sums nett component values (parts nett, labour, paint, outwork nett)
  * Markup should be applied at aggregate level, not here
- * Excludes removed/declined lines from calculations
+ *
+ * IMPORTANT: INCLUDES ALL LINES (removed/declined) with proper negative handling
+ * - Removed lines: Two lines appear in FRC for audit trail:
+ *   1. Original estimate line: +R12,000 (marked as removed_via_additionals)
+ *   2. Removal additional line: -R12,000 (negative amounts from additionals)
+ *   Result: Net R0 (both lines sum correctly)
+ * - Declined lines: Included with marker flags but count toward totals
+ * - Visual indicators show line status without affecting calculation
  */
 export function calculateBreakdownTotals(
 	lineItems: FRCLineItem[],
@@ -233,10 +240,8 @@ export function calculateBreakdownTotals(
 	let outwork_nett_total = 0;
 
 	lineItems.forEach((line) => {
-		// Skip removed/declined lines from totals calculation
-		if (line.removed_via_additionals || line.declined_via_additionals) {
-			return;
-		}
+		// INCLUDE ALL LINES - removed/declined lines still count in totals
+		// They represent work that was originally quoted and should be tracked
 
 		// Sum nett components (no markup)
 		if (useActual) {

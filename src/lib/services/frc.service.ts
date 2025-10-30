@@ -7,6 +7,8 @@ import type {
 } from '$lib/types/assessment';
 import { auditService } from './audit.service';
 import { assessmentService } from './assessment.service';
+import { estimateService } from './estimate.service';
+import { additionalsService } from './additionals.service';
 import {
 	composeFinalEstimateLines,
 	calculateBreakdownTotals,
@@ -36,6 +38,268 @@ class FRCService {
 		}
 
 		return data;
+	}
+
+	/**
+	 * Get FRC with snapshot line items (auto-merges additionals if changed)
+	 * SNAPSHOT: Returns stored line_items from database (like estimates)
+	 * Auto-merges new additionals while preserving all existing decisions
+	 *
+	 * @param assessmentId - The assessment ID
+	 * @param client - Optional Supabase client (for RLS)
+	 * @returns FRC metadata + snapshot line items (possibly merged)
+	 */
+	async getFRCWithSnapshot(
+		assessmentId: string,
+		client?: ServiceClient
+	): Promise<{ frc: FinalRepairCosting; lines: FRCLineItem[]; wasMerged: boolean }> {
+		const db = client ?? supabase;
+
+		// Get FRC snapshot from database
+		const frc = await this.getByAssessment(assessmentId, db);
+		if (!frc) {
+			throw new Error('FRC not found for this assessment');
+		}
+
+		// If FRC is completed, return snapshot as-is (no merging)
+		if (frc.status === 'completed') {
+			return { frc, lines: frc.line_items || [], wasMerged: false };
+		}
+
+		// Check if additionals have changed since last merge
+		const additionals = await additionalsService.getByAssessment(assessmentId, db);
+
+		const needsSync = !frc.last_merge_at ||
+			(additionals && new Date(additionals.updated_at) > new Date(frc.last_merge_at));
+
+		// If no sync needed, return stored snapshot
+		if (!needsSync) {
+			return { frc, lines: frc.line_items || [], wasMerged: false };
+		}
+
+		// Auto-merge new additionals into snapshot
+		const { data: assessment } = await db
+			.from('assessments')
+			.select('finalized_labour_rate, finalized_paint_rate')
+			.eq('id', assessmentId)
+			.maybeSingle();
+
+		if (!assessment) {
+			throw new Error('Assessment not found');
+		}
+
+		const estimate = await estimateService.getByAssessment(assessmentId, db);
+		if (!estimate) {
+			throw new Error('Estimate not found');
+		}
+
+		// Perform merge with optimistic locking
+		const mergedFRC = await this.mergeAdditionals(
+			frc.id,
+			estimate,
+			additionals,
+			{
+				labour_rate: assessment.finalized_labour_rate,
+				paint_rate: assessment.finalized_paint_rate
+			},
+			db
+		);
+
+		return { frc: mergedFRC, lines: mergedFRC.line_items || [], wasMerged: true };
+	}
+
+	/**
+	 * Merge new additionals into existing FRC snapshot
+	 * Preserves all existing line decisions using stable fingerprint matching
+	 * Uses optimistic locking to prevent race conditions
+	 *
+	 * @param frcId - The FRC ID
+	 * @param estimate - Current estimate
+	 * @param additionals - Current additionals
+	 * @param frozenRates - Frozen rates from finalization
+	 * @param client - Optional Supabase client (for RLS)
+	 * @returns Updated FRC with merged line items
+	 */
+	async mergeAdditionals(
+		frcId: string,
+		estimate: Estimate,
+		additionals: AssessmentAdditionals | null,
+		frozenRates?: { labour_rate: number; paint_rate: number },
+		client?: ServiceClient
+	): Promise<FinalRepairCosting> {
+		const db = client ?? supabase;
+
+		// Get current FRC with version for optimistic locking
+		const frc = await this.getById(frcId, db);
+		if (!frc) {
+			throw new Error('FRC not found');
+		}
+
+		// Generate fresh lines from current estimate + additionals
+		const freshLines = composeFinalEstimateLines(estimate, additionals, frozenRates);
+
+		// Merge fresh lines into snapshot, preserving decisions
+		const mergedLines = this.mergeNewAdditionals(frc.line_items || [], freshLines);
+
+		// Fetch assessment to get frozen markups
+		const { data: assessment } = await db
+			.from('assessments')
+			.select('finalized_oem_markup, finalized_outwork_markup')
+			.eq('id', frc.assessment_id)
+			.maybeSingle();
+
+		const partsMarkup = assessment?.finalized_oem_markup ?? estimate.oem_markup_percentage;
+		const outworkMarkup = assessment?.finalized_outwork_markup ?? estimate.outwork_markup_percentage;
+
+		// Recalculate totals with merged lines
+		const quotedTotals = calculateFRCAggregateTotals(
+			mergedLines,
+			false,
+			{ parts_markup: partsMarkup, outwork_markup: outworkMarkup },
+			frc.vat_percentage
+		);
+
+		const actualTotals = calculateFRCAggregateTotals(
+			mergedLines,
+			true,
+			{ parts_markup: partsMarkup, outwork_markup: outworkMarkup },
+			frc.vat_percentage
+		);
+
+		const now = new Date().toISOString();
+		const currentVersion = frc.line_items_version ?? 0;
+
+		// Update with optimistic locking (version check)
+		const { data, error } = await db
+			.from('assessment_frc')
+			.update({
+				line_items: mergedLines,
+				line_items_version: currentVersion + 1,
+				last_merge_at: now,
+				needs_sync: false,
+				// Update totals
+				quoted_estimate_parts_nett: quotedTotals.estimate.parts_nett,
+				quoted_estimate_labour: quotedTotals.estimate.labour,
+				quoted_estimate_paint: quotedTotals.estimate.paint,
+				quoted_estimate_outwork_nett: quotedTotals.estimate.outwork_nett,
+				quoted_estimate_markup: quotedTotals.estimate.markup,
+				quoted_estimate_subtotal: quotedTotals.estimate.subtotal,
+				quoted_additionals_parts_nett: quotedTotals.additionals.parts_nett,
+				quoted_additionals_labour: quotedTotals.additionals.labour,
+				quoted_additionals_paint: quotedTotals.additionals.paint,
+				quoted_additionals_outwork_nett: quotedTotals.additionals.outwork_nett,
+				quoted_additionals_markup: quotedTotals.additionals.markup,
+				quoted_additionals_subtotal: quotedTotals.additionals.subtotal,
+				quoted_parts_total: quotedTotals.parts_total,
+				quoted_labour_total: quotedTotals.labour_total,
+				quoted_paint_total: quotedTotals.paint_total,
+				quoted_outwork_total: quotedTotals.outwork_total,
+				quoted_subtotal: quotedTotals.subtotal,
+				quoted_vat_amount: quotedTotals.vat_amount,
+				quoted_total: quotedTotals.total,
+				actual_estimate_parts_nett: actualTotals.estimate.parts_nett,
+				actual_estimate_labour: actualTotals.estimate.labour,
+				actual_estimate_paint: actualTotals.estimate.paint,
+				actual_estimate_outwork_nett: actualTotals.estimate.outwork_nett,
+				actual_estimate_markup: actualTotals.estimate.markup,
+				actual_estimate_subtotal: actualTotals.estimate.subtotal,
+				actual_additionals_parts_nett: actualTotals.additionals.parts_nett,
+				actual_additionals_labour: actualTotals.additionals.labour,
+				actual_additionals_paint: actualTotals.additionals.paint,
+				actual_additionals_outwork_nett: actualTotals.additionals.outwork_nett,
+				actual_additionals_markup: actualTotals.additionals.markup,
+				actual_additionals_subtotal: actualTotals.additionals.subtotal,
+				actual_parts_total: actualTotals.parts_total,
+				actual_labour_total: actualTotals.labour_total,
+				actual_paint_total: actualTotals.paint_total,
+				actual_outwork_total: actualTotals.outwork_total,
+				actual_subtotal: actualTotals.subtotal,
+				actual_vat_amount: actualTotals.vat_amount,
+				actual_total: actualTotals.total,
+				updated_at: now
+			})
+			.eq('id', frcId)
+			.eq('line_items_version', currentVersion)  // Optimistic lock check
+			.select()
+			.single();
+
+		if (error) {
+			// Check if it's a version conflict
+			if (error.code === 'PGRST116') {
+				throw new Error('FRC was modified by another process. Please reload and try again.');
+			}
+			console.error('Error merging additionals into FRC:', error);
+			throw new Error(`Failed to merge additionals: ${error.message}`);
+		}
+
+		// Log merge operation
+		await auditService.logChange({
+			entity_type: 'frc',
+			entity_id: frcId,
+			action: 'updated',
+			field_name: 'line_items',
+			new_value: 'Merged additionals into snapshot',
+			metadata: {
+				assessment_id: frc.assessment_id,
+				line_count_before: (frc.line_items || []).length,
+				line_count_after: mergedLines.length,
+				version: currentVersion + 1,
+				quoted_total: quotedTotals.total,
+				actual_total: actualTotals.total
+			}
+		});
+
+		return data;
+	}
+
+	/**
+	 * Merge fresh lines into existing snapshot, preserving decisions
+	 * Uses stable fingerprint (source + source_line_id) to match lines
+	 *
+	 * @param snapshot - Existing line items with decisions
+	 * @param freshLines - Fresh lines from estimate + additionals
+	 * @returns Merged line items with decisions preserved
+	 */
+	private mergeNewAdditionals(
+		snapshot: FRCLineItem[],
+		freshLines: FRCLineItem[]
+	): FRCLineItem[] {
+		// Build fingerprint map from snapshot (existing decisions)
+		const snapshotMap = new Map<string, FRCLineItem>();
+		snapshot.forEach(line => {
+			const fingerprint = `${line.source}:${line.source_line_id}`;
+			snapshotMap.set(fingerprint, line);
+		});
+
+		// Merge fresh lines with snapshot decisions
+		const merged: FRCLineItem[] = freshLines.map(freshLine => {
+			const fingerprint = `${freshLine.source}:${freshLine.source_line_id}`;
+			const existingLine = snapshotMap.get(fingerprint);
+
+			if (!existingLine) {
+				// New line - use fresh data with pending decision
+				return freshLine;
+			}
+
+			// Existing line - preserve decision and actual values
+			return {
+				...freshLine,  // Use fresh quoted values (may have changed)
+				decision: existingLine.decision,  // Preserve decision
+				actual_total: existingLine.actual_total,  // Preserve actual
+				adjust_reason: existingLine.adjust_reason,  // Preserve reason
+				// Preserve component actuals
+				actual_part_price_nett: existingLine.actual_part_price_nett,
+				actual_strip_assemble_hours: existingLine.actual_strip_assemble_hours,
+				actual_strip_assemble: existingLine.actual_strip_assemble,
+				actual_labour_hours: existingLine.actual_labour_hours,
+				actual_labour_cost: existingLine.actual_labour_cost,
+				actual_paint_panels: existingLine.actual_paint_panels,
+				actual_paint_cost: existingLine.actual_paint_cost,
+				actual_outwork_charge: existingLine.actual_outwork_charge
+			};
+		});
+
+		return merged;
 	}
 
 	/**
@@ -77,8 +341,10 @@ class FRCService {
 					metadata: { assessment_id: assessmentId }
 				});
 			} else {
-				// FRC is in progress or completed - don't allow restart
-				throw new Error('FRC already exists for this assessment');
+				// FRC is in progress or completed - return existing (idempotent)
+				// This allows calling startFRC multiple times without error
+				console.log('FRC already exists for assessment, returning existing record');
+				return existing;
 			}
 		}
 
@@ -118,13 +384,18 @@ class FRCService {
 			estimate.vat_percentage
 		);
 
-		// Create FRC record
+		const now = new Date().toISOString();
+
+		// Create FRC record with snapshot
 		const { data, error } = await db
 			.from('assessment_frc')
 			.insert({
 				assessment_id: assessmentId,
 				status: 'in_progress',
 				line_items: lineItems,
+				line_items_version: 1,  // Initialize version for optimistic locking
+				last_merge_at: now,  // Track when snapshot was created/merged
+				needs_sync: false,  // No sync needed on fresh start
 				vat_percentage: estimate.vat_percentage,
 				// Quoted estimate breakdown
 				quoted_estimate_parts_nett: quotedTotals.estimate.parts_nett,
@@ -170,7 +441,7 @@ class FRCService {
 				actual_subtotal: 0,
 				actual_vat_amount: 0,
 				actual_total: 0,
-				started_at: new Date().toISOString()
+				started_at: now
 			})
 			.select()
 			.single();
@@ -329,11 +600,15 @@ class FRCService {
 			frc.vat_percentage
 		);
 
-		// Update FRC
+		const currentVersion = frc.line_items_version ?? 0;
+		const now = new Date().toISOString();
+
+		// Update FRC with optimistic locking
 		const { data, error } = await db
 			.from('assessment_frc')
 			.update({
 				line_items: updatedLineItems,
+				line_items_version: currentVersion + 1,  // Increment version
 				// Actual estimate breakdown
 				actual_estimate_parts_nett: actualTotals.estimate.parts_nett,
 				actual_estimate_labour: actualTotals.estimate.labour,
@@ -356,13 +631,18 @@ class FRCService {
 				actual_subtotal: actualTotals.subtotal,
 				actual_vat_amount: actualTotals.vat_amount,
 				actual_total: actualTotals.total,
-				updated_at: new Date().toISOString()
+				updated_at: now
 			})
 			.eq('id', frcId)
+			.eq('line_items_version', currentVersion)  // Optimistic lock check
 			.select()
 			.single();
 
 		if (error) {
+			// Check if it's a version conflict
+			if (error.code === 'PGRST116') {
+				throw new Error('FRC was modified by another process. Please reload and try again.');
+			}
 			console.error('Error updating FRC line decision:', error);
 			throw new Error(`Failed to update line decision: ${error.message}`);
 		}

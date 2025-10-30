@@ -6,6 +6,26 @@
 
 ## January 30, 2025
 
+### FRC Removed Lines Implementation
+- **FIX**: [FRC Removed Lines Calculation](../SOP/frc_removed_lines.md)
+  - Fixed removal lines with negative amounts being filtered out
+  - Implemented dual-line pattern (original + removal = net zero)
+  - Added "REMOVAL (-)" badge for negative additional lines
+  - Updated `composeFinalEstimateLines()` to include removal lines (lines 116, 164)
+  - **Files Changed**:
+    - `src/lib/utils/frcCalculations.ts` - Removed filters blocking negative removal lines
+    - `src/lib/components/assessment/FRCLinesTable.svelte` - Added removal badge
+  - **Testing**: ASM-2025-017 prepared with removal line for validation
+  - **Impact**: FRC now correctly subtracts removed lines from totals
+
+### New SOP
+- **NEW**: [FRC Removed Lines Handling](../SOP/frc_removed_lines.md) (~350 lines)
+  - Business logic (dual-line pattern)
+  - Technical implementation details
+  - Testing procedures with expected results
+  - Database schema for removal lines
+  - Troubleshooting guide
+
 ### Documentation Restructuring
 - **NEW**: Lightweight README system (90-95% context reduction)
 - **NEW**: [index.md](./index.md) - Master navigation hub

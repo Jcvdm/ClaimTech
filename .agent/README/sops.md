@@ -1,7 +1,7 @@
 # Standard Operating Procedures Index
 
 **Last Updated**: January 30, 2025
-**Total SOPs**: 18 step-by-step guides
+**Total SOPs**: 19 step-by-step guides
 
 ---
 
@@ -302,7 +302,30 @@ async listForUser(userId: string, isAdmin: boolean) {
 
 ---
 
-### 4. Navigation-Based State Transitions ⭐ NEW
+### 4. FRC Removed Lines Handling ⭐ NEW
+- **File**: [frc_removed_lines.md](../SOP/frc_removed_lines.md)
+- **Size**: ~350 lines | **Last Updated**: Jan 30, 2025
+- **Read When**: Working with FRC, debugging removed line calculations, implementing additionals
+
+**Contains**:
+- Dual-line pattern (original + removal = net zero)
+- Negative amount calculations
+- Visual indicators (REMOVED vs REMOVAL badges)
+- Auto-merge behavior and testing
+- Database schema for removal lines
+- Troubleshooting common issues
+
+**Critical Concepts**:
+- Removal line has negative amounts that subtract from totals
+- Both original (+R12k) and removal (-R12k) appear in FRC
+- Filters removed from `composeFinalEstimateLines()` (lines 116, 164)
+- Auto-merge preserves decisions via stable fingerprints
+
+**Testing Procedure**: Remove estimate line → verify dual lines in FRC → verify net zero totals
+
+---
+
+### 5. Navigation-Based State Transitions ⭐ NEW
 - **File**: [navigation_based_state_transitions.md](../SOP/navigation_based_state_transitions.md)
 - **Size**: 591 lines | **Last Updated**: Jan 29, 2025
 - **Read When**: Implementing state transitions via navigation
@@ -317,7 +340,7 @@ async listForUser(userId: string, isAdmin: boolean) {
 
 ---
 
-### 5. Page Updates and Badge Refresh ⭐ NEW
+### 6. Page Updates and Badge Refresh ⭐ NEW
 - **File**: [page_updates_and_badge_refresh.md](../SOP/page_updates_and_badge_refresh.md)
 - **Size**: 284 lines | **Last Updated**: Jan 29, 2025
 - **Read When**: Implementing page navigation or badge refresh

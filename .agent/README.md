@@ -11,7 +11,7 @@
 - **Backend**: SvelteKit SSR + Supabase PostgreSQL
 - **Auth**: Supabase Auth with 100% RLS coverage
 - **Architecture**: Assessment-centric (10-stage pipeline)
-- **Documentation**: 28 System docs, 18 SOPs, 31 database tables
+- **Documentation**: 28 System docs, 19 SOPs, 31 database tables
 
 ---
 
@@ -32,7 +32,7 @@
 Complete index of architecture, database, security, UI patterns, and bug postmortems (28 files).
 
 ### 📝 [Standard Operating Procedures](./README/sops.md)
-Step-by-step guides for database operations, services, authentication, UI features, and debugging (18 files).
+Step-by-step guides for database operations, services, authentication, UI features, and debugging (19 files).
 
 ### 🎯 [Task Guides](./README/task_guides.md)
 Use-case based navigation: "I want to add a feature", "I want to fix a bug", etc.
