@@ -6,6 +6,18 @@
 
 ## January 30, 2025
 
+### Vercel Deployment Strategy
+- **UPDATED**: [Deployment & Branching Strategy](../Tasks/active/SUPABASE_BRANCHING.md)
+  - Renamed from "Supabase Branching Strategy" to include Vercel deployment
+  - Implemented 3-tier branch structure:
+    - `main` → Vercel Production + Supabase Production
+    - `vercel-dev` → Vercel Preview + Supabase Dev Branch
+    - `dev` → Local only + Supabase Dev Branch
+  - Added Vercel deployment setup guide
+  - Added Vercel-specific troubleshooting
+  - Updated workflows for local dev → Vercel testing → production
+  - **Impact**: Clear separation between local development and cloud testing
+
 ### FRC Removed Lines Implementation
 - **FIX**: [FRC Removed Lines Calculation](../SOP/frc_removed_lines.md)
   - Fixed removal lines with negative amounts being filtered out

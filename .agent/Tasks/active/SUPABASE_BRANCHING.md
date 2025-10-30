@@ -1,41 +1,59 @@
-# Supabase Branching Strategy for Claimtech
+# Deployment & Branching Strategy for Claimtech
 
 ## 🌿 Overview
 
-This document explains how Claimtech uses Supabase branches integrated with GitHub for development, staging, and production environments.
+This document explains how Claimtech uses Git branches integrated with Vercel deployments and Supabase database branches for local development, cloud testing, and production environments.
 
 ## 📊 Branch Structure
 
 ```
 GitHub Repository: Jcvdm/ClaimTech
-├── main (production)     → Supabase Production Database
-├── staging               → Supabase Staging Branch (auto-created on PR)
-└── dev (development)     → Supabase Development Branch (auto-created on PR)
+├── main (production)           → Vercel Production + Supabase Production
+├── vercel-dev (Vercel testing) → Vercel Preview + Supabase Dev Branch
+└── dev (local development)     → Local only + Supabase Dev Branch
 ```
 
 ### Branch Details
 
-| Git Branch | Purpose | Supabase Branch | Auto-Created | Data |
-|------------|---------|-----------------|--------------|------|
-| **main** | Production | Production (cfblmkzleqtvtfxujikf) | No (default) | Full production data |
-| **staging** | Pre-production testing | Auto-created on PR | Yes | Schema only |
-| **dev** | Active development | Auto-created on PR | Yes | Schema only |
+| Git Branch | Purpose | Vercel Deployment | Supabase Branch | Environment |
+|------------|---------|-------------------|-----------------|-------------|
+| **main** | Production | Auto-deploy to production | Production (cfblmkzleqtvtfxujikf) | `.env` (production) |
+| **vercel-dev** | Vercel speed/cloud testing | Auto-deploy to preview | Dev branch | `.env.development` |
+| **dev** | Local development | No deploy | Dev branch | `.env.development` |
+
+### Why This Structure?
+
+✅ **Separation of Concerns**
+- `dev` = Fast local iteration without cloud costs
+- `vercel-dev` = Cloud testing (speed, serverless functions, PDF generation) without affecting production
+- `main` = Stable production
+
+✅ **Cost Efficiency**
+- Only deploy to Vercel when needed for testing
+- Local dev is free and fast
+
+✅ **Safety**
+- Test on Vercel preview before production
+- Both `dev` and `vercel-dev` use same Supabase dev branch (data consistency)
+- Production stays isolated
 
 ---
 
 ## 🔑 Environment Configuration
 
-### How the App Knows Which Branch to Connect To
+### Local Development vs Vercel Deployment
 
-The app uses **environment variables** to determine which Supabase instance to connect to. SvelteKit supports multiple environment files based on the `mode`.
+The app uses **environment variables** to determine which Supabase instance to connect to:
+- **Local**: Uses `.env` files in project root
+- **Vercel**: Uses environment variables set in Vercel Dashboard
 
-### Environment Files Structure
+### Environment Files Structure (Local)
 
 ```
-.env                    # Default (production)
-.env.local              # Local overrides (gitignored)
-.env.development        # Development mode
-.env.staging            # Staging mode
+.env                    # Default (production) - gitignored
+.env.local              # Local overrides - gitignored
+.env.development        # Development mode - gitignored
+.env.example            # Template (committed to git)
 ```
 
 ### Configuration Files
@@ -48,7 +66,7 @@ PUBLIC_SUPABASE_ANON_KEY=your_production_anon_key_here
 SUPABASE_SERVICE_ROLE_KEY=your_production_service_key_here
 ```
 
-#### `.env.development` (Development Branch)
+#### `.env.development` (Development Branch - Used by both `dev` and `vercel-dev`)
 ```bash
 # Development Branch Supabase Configuration
 # Get these from Supabase Dashboard → Branches → development → Settings → API
@@ -57,190 +75,310 @@ PUBLIC_SUPABASE_ANON_KEY=your_dev_branch_anon_key_here
 SUPABASE_SERVICE_ROLE_KEY=your_dev_branch_service_key_here
 ```
 
-#### `.env.staging` (Staging Branch)
-```bash
-# Staging Branch Supabase Configuration
-# Get these from Supabase Dashboard → Branches → staging → Settings → API
-PUBLIC_SUPABASE_URL=https://[staging-branch-ref].supabase.co
-PUBLIC_SUPABASE_ANON_KEY=your_staging_branch_anon_key_here
-SUPABASE_SERVICE_ROLE_KEY=your_staging_branch_service_key_here
+### Vercel Environment Variables
+
+Set these in **Vercel Dashboard → Settings → Environment Variables**:
+
+#### Production Environment (main branch)
 ```
+PUBLIC_SUPABASE_URL = https://cfblmkzleqtvtfxujikf.supabase.co
+PUBLIC_SUPABASE_ANON_KEY = production_anon_key
+SUPABASE_SERVICE_ROLE_KEY = production_service_key
+```
+**Apply to**: Production
+
+#### Preview Environment (vercel-dev branch)
+```
+PUBLIC_SUPABASE_URL = https://[dev-branch-ref].supabase.co
+PUBLIC_SUPABASE_ANON_KEY = dev_anon_key
+SUPABASE_SERVICE_ROLE_KEY = dev_service_key
+```
+**Apply to**: Preview
 
 ---
 
-## 🚀 Running the App with Different Branches
+## 🚀 Development Workflow
 
-### NPM Scripts (package.json)
+### 1. Local Development (`dev` branch)
 
-Add these scripts to your `package.json`:
+**Use for**: Daily development, fast iteration, testing locally
+
+```bash
+# Switch to dev branch
+git checkout dev
+
+# Run with development database
+npm run dev:development
+
+# Uses .env.development (Supabase dev branch)
+# Runs on http://localhost:5173
+# No Vercel deployment
+```
+
+### 2. Vercel Testing (`vercel-dev` branch)
+
+**Use for**: Testing speed, serverless functions, PDF generation in cloud environment
+
+```bash
+# Merge dev changes to vercel-dev
+git checkout vercel-dev
+git merge dev
+
+# Push to trigger Vercel deployment
+git push origin vercel-dev
+
+# Vercel automatically deploys to preview URL:
+# https://claimtech-git-vercel-dev-jcvdms-projects.vercel.app
+
+# Uses Vercel environment variables (Supabase dev branch)
+```
+
+### 3. Production Deployment (`main` branch)
+
+**Use for**: Deploying to production after thorough testing
+
+```bash
+# Merge vercel-dev to main
+git checkout main
+git merge vercel-dev
+
+# Push to deploy to production
+git push origin main
+
+# Vercel deploys to production URL:
+# https://claimtech.vercel.app (or your custom domain)
+
+# Uses Vercel production environment variables
+```
+
+### NPM Scripts
 
 ```json
 {
   "scripts": {
     "dev": "vite dev",
-    "dev:staging": "vite dev --mode staging",
     "dev:development": "vite dev --mode development",
     "build": "vite build",
-    "build:staging": "vite build --mode staging",
     "build:development": "vite build --mode development",
     "preview": "vite preview"
   }
 }
 ```
 
-### Usage
-
-```bash
-# Run with production database (default)
-npm run dev
-
-# Run with staging branch
-npm run dev:staging
-
-# Run with development branch
-npm run dev:development
-
-# Build for production
-npm run build
-
-# Build for staging
-npm run build:staging
-```
-
 ---
 
-## 🔄 How GitHub Integration Works
+## 🔄 How Vercel + Supabase Integration Works
 
-### 1. Automatic Preview Branches
+### Vercel Automatic Deployments
 
-When you create a Pull Request on GitHub, Supabase automatically:
-1. Creates a preview branch
-2. Copies the schema from production
-3. Provides unique URL and API keys
-4. Links the preview to your PR
+Vercel monitors your GitHub repository and automatically deploys:
 
-### 2. Branch Lifecycle
+| Branch | Vercel Deployment | URL Pattern | Environment |
+|--------|-------------------|-------------|-------------|
+| `main` | Production | `claimtech.vercel.app` | Production env vars |
+| `vercel-dev` | Preview | `claimtech-git-vercel-dev-*.vercel.app` | Preview env vars |
+| `dev` | None | N/A (local only) | Local `.env.development` |
 
-```
-Developer creates PR (dev → main)
-    ↓
-Supabase creates preview branch
-    ↓
-Developer tests changes in preview
-    ↓
-PR is merged to main
-    ↓
-Supabase updates production
-    ↓
-Preview branch is deleted (optional)
-```
+### Supabase Branch Integration
 
-### 3. What Gets Synced
+Supabase branches are created manually or via PR:
+1. Create Supabase dev branch in Supabase Dashboard
+2. Get API credentials from branch settings
+3. Add credentials to Vercel environment variables (Preview)
+4. Add credentials to local `.env.development`
 
-✅ **Automatically Synced:**
+### What Gets Deployed
+
+✅ **Deployed to Vercel:**
+- Application code (SvelteKit app)
+- Serverless functions (API routes)
+- Static assets
+- Build output
+
+✅ **Synced to Supabase:**
 - Database migrations (`supabase/migrations/*.sql`)
-- Edge functions (`supabase/functions/*`)
-- Config files (`supabase/config.toml`)
+- Schema changes
+- RLS policies
 
-❌ **Not Synced:**
-- Application code (stays in GitHub only)
-- Database data (stays in Supabase only)
-- Storage files (stays in Supabase only)
-- Environment variables (managed separately)
+❌ **Not Deployed/Synced:**
+- `.env` files (use Vercel environment variables)
+- `node_modules` (rebuilt on Vercel)
+- Database data (managed in Supabase)
+- Storage files (managed in Supabase)
 
 ---
 
 ## 🎯 Development Workflow
 
-### Scenario 1: Adding a New Feature
+### Scenario 1: Daily Development Flow
 
 ```bash
-# 1. Start from main branch
-git checkout main
-git pull origin main
+# 1. Work on local dev branch
+git checkout dev
+npm run dev:development
 
-# 2. Create feature branch
+# 2. Make changes, test locally
+git add .
+git commit -m "feat: new feature"
+
+# 3. When ready to test speed on Vercel
+git checkout vercel-dev
+git merge dev
+git push origin vercel-dev
+
+# 4. Vercel auto-deploys to preview URL
+# Test speed, performance, serverless functions
+
+# 5. If all good, merge to production
+git checkout main
+git merge vercel-dev
+git push origin main
+```
+
+### Scenario 2: Feature Branch Development
+
+```bash
+# 1. Create feature branch from dev
+git checkout dev
 git checkout -b feature/new-assessment-fields
 
-# 3. Make changes to code and database
+# 2. Make changes to code and database
 # - Edit application code
 # - Create migration: supabase/migrations/007_new_fields.sql
 
-# 4. Commit and push
+# 3. Test locally
+npm run dev:development
+
+# 4. Commit and merge back to dev
 git add .
 git commit -m "feat: add new assessment fields"
-git push -u origin feature/new-assessment-fields
+git checkout dev
+git merge feature/new-assessment-fields
 
-# 5. Create Pull Request on GitHub
-# feature/new-assessment-fields → dev
+# 5. Test on Vercel
+git checkout vercel-dev
+git merge dev
+git push origin vercel-dev
 
-# 6. Supabase automatically creates preview branch
-# Test your changes using the preview branch URL
-
-# 7. If tests pass, merge PR to dev
-# 8. Test on dev branch
-
-# 9. When ready for production, create PR: dev → main
-# 10. Merge to deploy to production
+# 6. If tests pass, deploy to production
+git checkout main
+git merge vercel-dev
+git push origin main
 ```
 
-### Scenario 2: Hotfix for Production
+### Scenario 3: Hotfix for Production
 
 ```bash
 # 1. Create hotfix branch from main
 git checkout main
 git checkout -b hotfix/critical-bug
 
-# 2. Fix the bug
-# 3. Create migration if needed
+# 2. Fix the bug and test locally
+npm run dev
 
-# 4. Commit and push
+# 3. Commit and merge to main
 git add .
 git commit -m "fix: resolve critical bug"
-git push -u origin hotfix/critical-bug
+git checkout main
+git merge hotfix/critical-bug
+git push origin main
 
-# 5. Create PR: hotfix/critical-bug → main
-# 6. Test in preview branch
-# 7. Merge directly to main (skip dev for urgent fixes)
+# 4. Vercel deploys to production
+# 5. Backport to dev
+git checkout dev
+git merge main
 ```
 
-### Scenario 3: Testing Before Production
+### Scenario 4: Testing Vercel-Specific Features
 
 ```bash
-# 1. Develop on dev branch
-git checkout dev
-# Make changes, test
+# Test PDF generation, serverless functions, etc.
+git checkout vercel-dev
 
-# 2. Create PR: dev → staging
-# 3. Test thoroughly on staging branch
-# 4. If all good, create PR: staging → main
-# 5. Deploy to production
+# Make changes if needed
+git add .
+git commit -m "test: optimize PDF generation"
+git push origin vercel-dev
+
+# Check Vercel deployment logs
+# Test on preview URL
+# If good, merge to main
 ```
 
 ---
 
-## 📝 Getting Branch Credentials
+## 🚀 Setting Up Vercel Deployment
 
-### When Supabase Creates a Preview Branch:
+### Initial Setup
 
-1. **Via GitHub PR:**
-   - Supabase comments on your PR with branch details
-   - Click the link to view branch in Supabase Dashboard
+1. **Connect GitHub Repository to Vercel:**
+   - Go to [vercel.com/new](https://vercel.com/new)
+   - Import your GitHub repository: `Jcvdm/ClaimTech`
+   - Vercel auto-detects SvelteKit ✅
+   - Click **Deploy**
 
-2. **Via Supabase Dashboard:**
+2. **Configure Branch Deployments:**
+   - Vercel Dashboard → Settings → Git
+   - **Production Branch**: `main`
+   - **Preview Branches**: Enable for `vercel-dev`
+   - **Ignored Build Step**: Leave empty (deploy all branches)
+
+3. **Add Environment Variables:**
+
+   **For Production (main branch):**
+   - Vercel Dashboard → Settings → Environment Variables
+   - Add variables and select **Production** environment:
+   ```
+   PUBLIC_SUPABASE_URL = https://cfblmkzleqtvtfxujikf.supabase.co
+   PUBLIC_SUPABASE_ANON_KEY = [production_anon_key]
+   SUPABASE_SERVICE_ROLE_KEY = [production_service_key]
+   ```
+
+   **For Preview (vercel-dev branch):**
+   - Add same variables and select **Preview** environment:
+   ```
+   PUBLIC_SUPABASE_URL = https://[dev-branch-ref].supabase.co
+   PUBLIC_SUPABASE_ANON_KEY = [dev_anon_key]
+   SUPABASE_SERVICE_ROLE_KEY = [dev_service_key]
+   ```
+
+4. **Update Supabase Allowed URLs:**
+   - Supabase Dashboard → Authentication → URL Configuration
+   - Add Vercel URLs:
+     - Production: `https://claimtech.vercel.app`
+     - Preview: `https://claimtech-git-vercel-dev-*.vercel.app`
+   - Add redirect URLs:
+     - `https://claimtech.vercel.app/auth/confirm`
+     - `https://claimtech-git-vercel-dev-*.vercel.app/auth/confirm`
+
+---
+
+## 📝 Getting Supabase Branch Credentials
+
+### Creating a Supabase Dev Branch:
+
+1. **Via Supabase Dashboard:**
    - Go to: https://app.supabase.com/project/cfblmkzleqtvtfxujikf
    - Click **"Branches"** in sidebar
-   - Select your preview branch
+   - Click **"Create Branch"**
+   - Name it `development`
+   - Select schema to copy from production
+
+2. **Get API Credentials:**
+   - Select your dev branch
    - Go to **Settings** → **API**
    - Copy URL and keys
 
 3. **Update Local Environment:**
    ```bash
-   # Create .env.development or .env.staging
-   PUBLIC_SUPABASE_URL=https://[branch-ref].supabase.co
-   PUBLIC_SUPABASE_ANON_KEY=[branch-anon-key]
-   SUPABASE_SERVICE_ROLE_KEY=[branch-service-key]
+   # Create .env.development
+   PUBLIC_SUPABASE_URL=https://[dev-branch-ref].supabase.co
+   PUBLIC_SUPABASE_ANON_KEY=[dev-anon-key]
+   SUPABASE_SERVICE_ROLE_KEY=[dev-service-key]
    ```
+
+4. **Update Vercel Environment Variables:**
+   - Add same credentials to Vercel Preview environment
 
 ---
 
@@ -269,68 +407,122 @@ SUPABASE_SERVICE_ROLE_KEY=your_service_key_here
 
 ### 3. Separate Keys Per Environment
 
-- ✅ Production keys for production
-- ✅ Staging keys for staging
-- ✅ Dev keys for dev branches
+- ✅ Production keys for production (Vercel Production + local `.env`)
+- ✅ Dev keys for development (Vercel Preview + local `.env.development`)
 - ✅ Never use production keys in development
+- ✅ Never commit `.env` files to Git
+
+### 4. Vercel Environment Variables Security
+
+- Mark `SUPABASE_SERVICE_ROLE_KEY` as **sensitive** in Vercel
+- Use different keys for Production vs Preview
+- Rotate keys periodically
+- Never expose service role key to client-side code
 
 ---
 
-## 📊 Current Setup
+## 📊 Current Setup Status
 
-### Git Branches (Created)
+### Git Branches
 
 ```bash
-✅ main          # Production code
-✅ dev           # Development code
-✅ staging       # Staging/testing code
+✅ main          # Production code → Vercel Production
+✅ vercel-dev    # Vercel testing → Vercel Preview
+✅ dev           # Local development → No deployment
+```
+
+### Vercel Deployment
+
+```
+✅ Repository: Jcvdm/ClaimTech
+✅ Production: main branch → claimtech.vercel.app
+✅ Preview: vercel-dev branch → claimtech-git-vercel-dev-*.vercel.app
+✅ Adapter: @sveltejs/adapter-vercel@5.6.3
+✅ Max Duration: 300 seconds (requires Vercel Pro for PDF generation)
 ```
 
 ### Supabase Branches
 
 ```
 ✅ Production (cfblmkzleqtvtfxujikf)  # Main database
-⏳ Preview branches created automatically on PR
-```
-
-### GitHub Integration
-
-```
-✅ Repository: Jcvdm/ClaimTech
-✅ Production branch: master (syncs with main)
-✅ Automatic branching: Enabled
-✅ Deploy to production: Enabled
-✅ Supabase changes only: Enabled
+⏳ Development branch (to be created)  # Dev/testing database
 ```
 
 ---
 
 ## 🆘 Troubleshooting
 
-### Issue: Preview branch not created
+### Vercel Deployment Issues
+
+#### Issue: Vercel build fails
 
 **Solution:**
-1. Check that PR includes Supabase-related changes
-2. Verify GitHub integration is enabled
-3. Check "Supabase changes only" setting
-4. Manually create branch if needed
+1. Check Vercel build logs in dashboard
+2. Verify all dependencies are in `package.json`
+3. Ensure environment variables are set correctly
+4. Check that `@sveltejs/adapter-vercel` is installed
 
-### Issue: Wrong database connection
+#### Issue: Environment variables not working on Vercel
 
 **Solution:**
-1. Check which npm script you're running
-2. Verify `.env` file being loaded
+1. Verify variables are set in Vercel Dashboard → Settings → Environment Variables
+2. Check that variables are assigned to correct environment (Production vs Preview)
+3. Redeploy after adding/changing variables
+4. Check variable names match exactly (case-sensitive)
+
+#### Issue: PDF generation timeout on Vercel
+
+**Solution:**
+1. Verify you're on Vercel Pro plan (Hobby plan has 10s limit)
+2. Check `svelte.config.js` has `maxDuration: 300`
+3. Consider switching to `@sparticuz/chromium` for better serverless compatibility
+4. Check Vercel function logs for timeout errors
+
+#### Issue: Wrong Supabase database on Vercel
+
+**Solution:**
+1. Check Vercel environment variables match intended Supabase branch
+2. Verify Production uses production Supabase URL
+3. Verify Preview uses dev Supabase URL
+4. Redeploy after fixing environment variables
+
+### Local Development Issues
+
+#### Issue: Wrong database connection locally
+
+**Solution:**
+1. Check which npm script you're running (`dev` vs `dev:development`)
+2. Verify correct `.env` file exists (`.env` or `.env.development`)
 3. Check URL in browser console:
    ```javascript
    console.log(import.meta.env.PUBLIC_SUPABASE_URL)
    ```
 
-### Issue: Environment variables not updating
+#### Issue: Environment variables not updating locally
 
 **Solution:**
 1. Stop dev server
 2. Clear Vite cache: `rm -rf node_modules/.vite`
 3. Restart with correct mode: `npm run dev:development`
+4. Verify `.env.development` file exists and has correct values
+
+### Supabase Branch Issues
+
+#### Issue: Supabase dev branch not created
+
+**Solution:**
+1. Manually create branch in Supabase Dashboard
+2. Go to Branches → Create Branch
+3. Name it `development`
+4. Copy schema from production
+
+#### Issue: Can't access Supabase dev branch
+
+**Solution:**
+1. Verify you have correct API credentials
+2. Check branch is active in Supabase Dashboard
+3. Verify RLS policies allow access
+4. Test connection with Supabase MCP tools
 
 ---
 
@@ -341,8 +533,8 @@ SUPABASE_SERVICE_ROLE_KEY=your_service_key_here
 ```bash
 # Switch branches
 git checkout main
+git checkout vercel-dev
 git checkout dev
-git checkout staging
 
 # Create feature branch
 git checkout -b feature/name
@@ -351,19 +543,35 @@ git checkout -b feature/name
 git push -u origin branch-name
 
 # Run with different environments
-npm run dev                    # Production
-npm run dev:development        # Development
-npm run dev:staging           # Staging
+npm run dev                    # Production (local)
+npm run dev:development        # Development (local)
+
+# Merge workflow
+git checkout vercel-dev
+git merge dev                  # Merge dev to vercel-dev
+git push origin vercel-dev     # Trigger Vercel preview deploy
+
+git checkout main
+git merge vercel-dev           # Merge to production
+git push origin main           # Trigger Vercel production deploy
 ```
 
 ### Branch Naming Convention
 
 ```
 main                          # Production
-dev                          # Development
-staging                      # Staging
+vercel-dev                    # Vercel testing
+dev                          # Local development
 feature/description          # New features
 hotfix/description           # Bug fixes
+```
+
+### Deployment URLs
+
+```
+Production:  https://claimtech.vercel.app
+Preview:     https://claimtech-git-vercel-dev-jcvdms-projects.vercel.app
+Local:       http://localhost:5173
 ```
 
 ---
@@ -372,6 +580,7 @@ hotfix/description           # Bug fixes
 
 | Date | Version | Changes |
 |------|---------|---------|
+| 2025-01-30 | 2.0 | Added Vercel deployment strategy, renamed staging to vercel-dev |
 | 2025-10-23 | 1.0 | Initial setup with GitHub integration, dev and staging branches |
 
 ---
