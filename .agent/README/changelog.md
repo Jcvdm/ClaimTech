@@ -11,11 +11,13 @@
   - Renamed from "Supabase Branching Strategy" to include Vercel deployment
   - Implemented 3-tier branch structure:
     - `main` → Vercel Production + Supabase Production
-    - `vercel-dev` → Vercel Preview + Supabase Dev Branch
+    - `vercel-dev` → Vercel Preview + Supabase Dev Branch (replaces staging)
     - `dev` → Local only + Supabase Dev Branch
   - Added Vercel deployment setup guide
   - Added Vercel-specific troubleshooting
   - Updated workflows for local dev → Vercel testing → production
+  - Added "Branch Hygiene & Development Workflow" section with clear rules
+  - Deprecated `staging` branch in favor of `vercel-dev`
   - **Impact**: Clear separation between local development and cloud testing
 
 ### FRC Removed Lines Implementation

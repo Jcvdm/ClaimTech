@@ -576,6 +576,84 @@ Local:       http://localhost:5173
 
 ---
 
+## 🧹 Branch Hygiene & Development Workflow
+
+### Active Branch Strategy
+
+We use a **3-tier workflow** optimized for local development and Vercel cloud testing:
+
+```
+dev (local) → vercel-dev (Vercel preview) → main (production)
+```
+
+### Daily Development Workflow
+
+1. **Work on `dev` branch locally**
+   ```bash
+   git checkout dev
+   # Make changes, test locally with npm run dev:development
+   git add .
+   git commit -m "feat: your feature description"
+   git push origin dev
+   ```
+
+2. **Create feature branches for larger work** (optional)
+   ```bash
+   git checkout dev
+   git checkout -b feature/your-feature-name
+   # Make changes
+   git commit -m "feat: implement feature"
+   # Open PR: feature/* → dev
+   ```
+
+3. **Test on Vercel preview**
+   ```bash
+   # When ready to test in cloud environment
+   git checkout vercel-dev
+   git merge dev
+   git push origin vercel-dev
+   # Vercel auto-deploys to preview URL
+   # Test at: https://claimtech-git-vercel-dev-*.vercel.app
+   ```
+
+4. **Deploy to production**
+   ```bash
+   # After testing on vercel-dev preview
+   git checkout main
+   git merge vercel-dev
+   git push origin main
+   # Vercel auto-deploys to production URL
+   ```
+
+### Branch Purpose & Rules
+
+| Branch | Purpose | Deploy Target | When to Use |
+|--------|---------|---------------|-------------|
+| **dev** | Daily development | Local only | All feature work, bug fixes |
+| **vercel-dev** | Cloud testing | Vercel Preview | Test before production |
+| **main** | Production | Vercel Production | Stable, tested code only |
+
+### Important Rules
+
+✅ **DO:**
+- Make all changes on `dev` branch
+- Test locally before merging to `vercel-dev`
+- Test on Vercel preview before merging to `main`
+- Keep `main` and `vercel-dev` clean (no direct commits)
+
+❌ **DON'T:**
+- Don't commit directly to `main` or `vercel-dev`
+- Don't skip testing on `vercel-dev` before production
+- Don't merge untested code to `main`
+
+### About the `staging` Branch
+
+The `staging` branch exists but is **deprecated** in favor of `vercel-dev`.
+- `vercel-dev` serves as our staging/pre-production environment
+- If you need `staging` for other purposes, document it separately
+
+---
+
 ## 🔄 Version History
 
 | Date | Version | Changes |
