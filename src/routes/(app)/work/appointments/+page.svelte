@@ -152,6 +152,7 @@
 
 	async function handleStartAssessment(assessmentId: string, appointmentId: string) {
 		// Use the navigation loading utility to handle loading state
+		// Note: Table handles row-level loading via loadingRowId - no need for button-level loading prop
 		startNavigation(assessmentId, `/work/assessments/${appointmentId}`);
 	}
 
@@ -343,7 +344,6 @@
 										icon={Play}
 										label="Start Assessment"
 										onclick={() => handleStartAssessment(row.assessment_id, row.appointment_id)}
-										loading={startingAssessment === row.assessment_id}
 										variant="primary"
 									/>
 									<ActionIconButton
@@ -409,7 +409,6 @@
 									icon={Play}
 									label="Start Assessment"
 									onclick={() => handleStartAssessment(row.assessment_id, row.appointment_id)}
-									loading={startingAssessment === row.assessment_id}
 									variant="primary"
 								/>
 								<ActionIconButton

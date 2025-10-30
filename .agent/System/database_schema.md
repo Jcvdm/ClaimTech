@@ -2,7 +2,7 @@
 
 ## Overview
 
-The ClaimTech database is built on **PostgreSQL** via **Supabase**. The schema consists of 50+ tables organized around the **assessment-centric architecture** (Jan 2025): Requests → Assessments (stage pipeline) → Documents → Archive.
+The ClaimTech database is built on **PostgreSQL** via **Supabase**. The schema consists of **31 tables** organized around the **assessment-centric architecture** (Jan 2025): Requests → Assessments (stage pipeline) → Documents → Archive.
 
 All tables have:
 - UUID primary keys (`id`)

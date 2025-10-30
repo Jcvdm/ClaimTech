@@ -32,7 +32,10 @@
       "Bash(done)",
       "mcp__supabase__get_project",
       "mcp__ide__getDiagnostics",
-      "WebFetch(domain:docs.postgrest.org)"
+      "WebFetch(domain:docs.postgrest.org)",
+      "Bash(for file in \"C:/Users/Jcvdm/Desktop/Jaco/Programming/sites/Claimtech/.agent/System\"/*.md)",
+      "Bash(for file in \"C:/Users/Jcvdm/Desktop/Jaco/Programming/sites/Claimtech/.agent/SOP\"/*.md)",
+      "Bash(test:*)"
     ],
     "deny": [],
     "ask": []
