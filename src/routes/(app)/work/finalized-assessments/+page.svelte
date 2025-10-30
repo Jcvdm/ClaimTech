@@ -3,6 +3,7 @@
 	import { goto, invalidateAll } from '$app/navigation';
 	import { onMount } from 'svelte';
 	import { browser } from '$app/environment';
+	import { useNavigationLoading } from '$lib/utils/useNavigationLoading.svelte';
 	import PageHeader from '$lib/components/layout/PageHeader.svelte';
 	import ModernDataTable from '$lib/components/data/ModernDataTable.svelte';
 	import ActionButtonGroup from '$lib/components/data/ActionButtonGroup.svelte';
@@ -29,6 +30,7 @@
 	import { formatDate, formatDateTime, formatVehicle } from '$lib/utils/formatters';
 
 	let { data }: { data: PageData } = $props();
+	const { loadingId, startNavigation } = useNavigationLoading();
 	let refreshing = $state(false);
 	let selectedAssessment = $state<any | null>(null);
 	let showSummary = $state(false);
@@ -68,7 +70,7 @@
 
 	// Navigate to assessment detail
 	function handleViewAssessment(appointmentId: string) {
-		goto(`/work/assessments/${appointmentId}`);
+		startNavigation(appointmentId, `/work/assessments/${appointmentId}`);
 	}
 
 	// Handle report generation
@@ -214,6 +216,8 @@
 			data={tableData}
 			{columns}
 			onRowClick={(row) => handleViewAssessment(row.appointmentId)}
+			loadingRowId={loadingId}
+			rowIdKey="appointmentId"
 			striped={true}
 			animated={true}
 		>

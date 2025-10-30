@@ -3,6 +3,7 @@
 	import { goto, invalidateAll } from '$app/navigation';
 	import { onMount } from 'svelte';
 	import { browser } from '$app/environment';
+	import { useNavigationLoading } from '$lib/utils/useNavigationLoading.svelte';
 	import PageHeader from '$lib/components/layout/PageHeader.svelte';
 	import ModernDataTable from '$lib/components/data/ModernDataTable.svelte';
 	import ActionButtonGroup from '$lib/components/data/ActionButtonGroup.svelte';
@@ -27,6 +28,7 @@
 
 	let { data }: { data: PageData } = $props();
 	let refreshing = $state(false);
+	const { loadingId, startNavigation, isLoading } = useNavigationLoading();
 
 	// Manual refresh function
 	async function handleRefresh() {
@@ -141,13 +143,13 @@
 	];
 
 	function handleRowClick(assessment: (typeof assessmentsWithDetails)[0]) {
-		// Navigate directly to assessment detail page
-		goto(`/work/assessments/${assessment.appointment_id}`);
+		// Navigate directly to assessment detail page with loading state
+		startNavigation(assessment.appointment_id, `/work/assessments/${assessment.appointment_id}`);
 	}
 
 	function handleContinueAssessment(assessment: (typeof assessmentsWithDetails)[0]) {
-		// Navigate to assessment page using appointment_id
-		goto(`/work/assessments/${assessment.appointment_id}`);
+		// Navigate to assessment page using appointment_id with loading state
+		startNavigation(assessment.appointment_id, `/work/assessments/${assessment.appointment_id}`);
 	}
 </script>
 
@@ -173,7 +175,14 @@
 			onAction={() => goto('/work/appointments')}
 		/>
 	{:else}
-		<ModernDataTable data={assessmentsWithDetails} {columns} onRowClick={handleRowClick} striped>
+		<ModernDataTable
+			data={assessmentsWithDetails}
+			{columns}
+			onRowClick={handleRowClick}
+			loadingRowId={loadingId}
+			rowIdKey="appointment_id"
+			striped
+		>
 			{#snippet cellContent(column, row)}
 				{#if column.key === 'progress_display'}
 					{@const percentage = row.progress_percentage}

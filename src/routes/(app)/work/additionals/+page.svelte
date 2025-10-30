@@ -1,6 +1,7 @@
 <script lang="ts">
 	import type { PageData } from './$types';
 	import { goto } from '$app/navigation';
+	import { useNavigationLoading } from '$lib/utils/useNavigationLoading.svelte';
 	import PageHeader from '$lib/components/layout/PageHeader.svelte';
 	import ModernDataTable from '$lib/components/data/ModernDataTable.svelte';
 	import ActionButtonGroup from '$lib/components/data/ActionButtonGroup.svelte';
@@ -27,6 +28,7 @@
 	import type { AdditionalLineItem } from '$lib/types/assessment';
 
 	let { data }: { data: PageData } = $props();
+	const { loadingId, startNavigation } = useNavigationLoading();
 
 	// Filter state
 	type FilterType = 'all' | 'pending' | 'approved' | 'declined';
@@ -170,13 +172,13 @@
 	];
 
 	function handleRowClick(record: (typeof additionalsWithDetails)[0]) {
-		// Navigate directly to Additionals tab on assessment page
-		goto(`/work/assessments/${record.appointmentId}?tab=additionals`);
+		// Navigate directly to Additionals tab on assessment page with loading state
+		startNavigation(record.id, `/work/assessments/${record.appointmentId}?tab=additionals`);
 	}
 
 	function handleEditAdditional(record: (typeof additionalsWithDetails)[0]) {
-		// Navigate to assessment page with Additionals tab in edit mode
-		goto(`/work/assessments/${record.appointmentId}?tab=additionals&edit=true`);
+		// Navigate to assessment page with Additionals tab in edit mode with loading state
+		startNavigation(record.id, `/work/assessments/${record.appointmentId}?tab=additionals&edit=true`);
 	}
 </script>
 
@@ -239,6 +241,8 @@
 			data={additionalsWithDetails}
 			{columns}
 			onRowClick={handleRowClick}
+			loadingRowId={loadingId}
+			rowIdKey="id"
 			striped
 		>
 			{#snippet cellContent(column, row)}

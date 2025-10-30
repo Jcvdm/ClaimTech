@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
+	import { useNavigationLoading } from '$lib/utils/useNavigationLoading.svelte';
 	import PageHeader from '$lib/components/layout/PageHeader.svelte';
 	import ModernDataTable from '$lib/components/data/ModernDataTable.svelte';
 	import GradientBadge from '$lib/components/data/GradientBadge.svelte';
@@ -12,6 +13,7 @@
 	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();
+	const { loadingId, startNavigation } = useNavigationLoading();
 
 	type RequestWithClient = Request & { client_name: string; formatted_date: string };
 
@@ -80,7 +82,7 @@
 	];
 
 	function handleRowClick(request: RequestWithClient) {
-		goto(`/requests/${request.id}`);
+		startNavigation(request.id, `/requests/${request.id}`);
 	}
 </script>
 
@@ -140,7 +142,14 @@
 			onAction={() => goto('/requests/new')}
 		/>
 	{:else}
-		<ModernDataTable data={requestsWithDetails} {columns} onRowClick={handleRowClick} striped>
+		<ModernDataTable
+			data={requestsWithDetails}
+			{columns}
+			onRowClick={handleRowClick}
+			loadingRowId={loadingId}
+			rowIdKey="id"
+			striped
+		>
 			{#snippet cellContent(column, row)}
 				{#if column.key === 'request_number'}
 					<TableCell variant="primary" bold>

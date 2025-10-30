@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
+	import { useNavigationLoading } from '$lib/utils/useNavigationLoading.svelte';
 	import PageHeader from '$lib/components/layout/PageHeader.svelte';
 	import ModernDataTable from '$lib/components/data/ModernDataTable.svelte';
 	import ActionButtonGroup from '$lib/components/data/ActionButtonGroup.svelte';
@@ -21,6 +22,7 @@
 	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();
+	const { loadingId, startNavigation } = useNavigationLoading();
 
 	// Derive display data from assessments with nested request/client
 	const assessmentsWithDetails = $derived(
@@ -94,8 +96,8 @@
 	];
 
 	function handleRowClick(row: (typeof assessmentsWithDetails)[0]) {
-		// Navigate directly to inspection detail page
-		goto(`/work/inspections/${row.id}`);
+		// Navigate directly to inspection detail page with loading state
+		startNavigation(row.id, `/work/inspections/${row.id}`);
 	}
 </script>
 
@@ -121,6 +123,8 @@
 			data={assessmentsWithDetails}
 			{columns}
 			onRowClick={handleRowClick}
+			loadingRowId={loadingId}
+			rowIdKey="id"
 			striped
 		>
 			{#snippet cellContent(column, row)}

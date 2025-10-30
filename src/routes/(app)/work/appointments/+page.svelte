@@ -1,6 +1,7 @@
 <script lang="ts">
 	import type { PageData } from './$types';
 	import { goto } from '$app/navigation';
+	import { useNavigationLoading } from '$lib/utils/useNavigationLoading.svelte';
 	import PageHeader from '$lib/components/layout/PageHeader.svelte';
 	import EmptyState from '$lib/components/data/EmptyState.svelte';
 	import ModernDataTable from '$lib/components/data/ModernDataTable.svelte';
@@ -38,12 +39,12 @@
 	import { appointmentService } from '$lib/services/appointment.service';
 
 	let { data }: { data: PageData } = $props();
+	const { loadingId, startNavigation } = useNavigationLoading();
 
 	// Filter state
 	let selectedType = $state<AppointmentType | 'all'>('all');
 	let dateFilter = $state<string>(''); // Date picker value
 	let loading = $state(false);
-	let startingAssessment = $state<string | null>(null); // Track which assessment is being started
 
 	// Schedule/Reschedule modal state
 	let showScheduleModal = $state(false);
@@ -146,30 +147,12 @@
 	];
 
 	function handleRowClick(row: (typeof allAssessmentsWithDetails)[0]) {
-		goto(`/work/appointments/${row.appointment_id}`);
+		startNavigation(row.appointment_id, `/work/appointments/${row.appointment_id}`);
 	}
 
 	async function handleStartAssessment(assessmentId: string, appointmentId: string) {
-		// Prevent double-click: if already starting this assessment, ignore
-		if (startingAssessment === assessmentId) {
-			console.log('Assessment already being started, ignoring duplicate click');
-			return;
-		}
-
-		startingAssessment = assessmentId;
-		try {
-			// Navigate to assessment page using appointment_id for routing
-			// The assessment already exists, we're just starting the workflow
-			goto(`/work/assessments/${appointmentId}`);
-		} catch (error) {
-			console.error('Error starting assessment:', error);
-			alert('Failed to start assessment. Please try again.');
-		} finally {
-			// Reset after navigation delay to allow button to be clicked again if needed
-			setTimeout(() => {
-				startingAssessment = null;
-			}, 1000);
-		}
+		// Use the navigation loading utility to handle loading state
+		startNavigation(assessmentId, `/work/assessments/${appointmentId}`);
 	}
 
 	function handleOpenScheduleModal(assessment: (typeof allAssessmentsWithDetails)[0]) {
@@ -322,7 +305,14 @@
 				</div>
 
 				<div class="overflow-hidden rounded-xl border-2 border-red-200 bg-red-50/30 shadow-sm">
-					<ModernDataTable data={overdueAssessments} {columns} onRowClick={handleRowClick} striped>
+					<ModernDataTable
+						data={overdueAssessments}
+						{columns}
+						onRowClick={handleRowClick}
+						loadingRowId={loadingId}
+						rowIdKey="appointment_id"
+						striped
+					>
 						{#snippet cellContent(column, row)}
 							{#if column.key === 'appointment_number'}
 								<TableCell variant="primary" bold class="text-red-900">
@@ -384,6 +374,8 @@
 					data={upcomingAssessments}
 					{columns}
 					onRowClick={handleRowClick}
+					loadingRowId={loadingId}
+					rowIdKey="appointment_id"
 					striped
 					animated
 				>

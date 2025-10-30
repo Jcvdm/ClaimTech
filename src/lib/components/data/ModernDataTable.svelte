@@ -1,7 +1,7 @@
 <script lang="ts" generics="T extends Record<string, any>">
 	import { Button } from '$lib/components/ui/button';
 	import * as Table from '$lib/components/ui/table';
-	import { ChevronUp, ChevronDown, ChevronsUpDown } from 'lucide-svelte';
+	import { ChevronUp, ChevronDown, ChevronsUpDown, Loader2 } from 'lucide-svelte';
 	import type { Snippet } from 'svelte';
 
 	type Column<T> = {
@@ -22,6 +22,9 @@
 		cellContent?: Snippet<[Column<T>, T]>;
 		striped?: boolean;
 		animated?: boolean;
+		loadingRowId?: string | null;
+		loadingIndicator?: 'spinner' | 'pulse' | 'none';
+		rowIdKey?: keyof T;
 	};
 
 	let {
@@ -33,7 +36,10 @@
 		class: className = '',
 		cellContent,
 		striped = true,
-		animated = true
+		animated = true,
+		loadingRowId = null,
+		loadingIndicator = 'spinner',
+		rowIdKey = 'id' as keyof T
 	}: Props = $props();
 
 	let sortKey = $state<keyof T | null>(null);
@@ -129,21 +135,55 @@
 					</Table.Row>
 				{:else}
 					{#each paginatedData() as row, index}
+						{@const rowId = String(row[rowIdKey])}
+						{@const isLoading = loadingRowId === rowId}
 						<Table.Row
-							class="group border-b border-gray-100 {onRowClick
+							class="group border-b border-gray-100 relative {onRowClick && !loadingRowId
 								? 'cursor-pointer'
-								: ''} {striped && index % 2 === 0
-								? 'bg-white'
-								: striped
-									? 'bg-gray-50/30'
-									: 'bg-white'} {animated
+								: ''} {isLoading
+								? 'bg-blue-50 border-blue-200 animate-pulse'
+								: striped && index % 2 === 0
+									? 'bg-white'
+									: striped
+										? 'bg-gray-50/30'
+										: 'bg-white'} {isLoading
+								? 'opacity-100'
+								: loadingRowId
+									? 'opacity-60'
+									: ''} {!isLoading && animated
 								? 'hover:bg-gradient-to-r hover:from-blue-50/50 hover:to-indigo-50/50 hover:shadow-md hover:scale-[1.002] transform transition-all duration-200 ease-out'
 								: 'hover:bg-gray-50'}"
-							onclick={() => onRowClick?.(row)}
+							onclick={() => !loadingRowId && onRowClick?.(row)}
 						>
-							{#each columns as column}
+							{#each columns as column, colIndex}
 								<Table.Cell class={column.class}>
-									{#if cellContent}
+									{#if isLoading && colIndex === 0 && loadingIndicator !== 'none'}
+										<div class="flex items-center gap-2">
+											<div class="flex-shrink-0">
+												<svg
+													class="h-4 w-4 animate-spin text-blue-600"
+													xmlns="http://www.w3.org/2000/svg"
+													fill="none"
+													viewBox="0 0 24 24"
+												>
+													<circle
+														class="opacity-25"
+														cx="12"
+														cy="12"
+														r="10"
+														stroke="currentColor"
+														stroke-width="2"
+													/>
+													<path
+														class="opacity-75"
+														fill="currentColor"
+														d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+													/>
+												</svg>
+											</div>
+											<span class="text-sm font-medium text-blue-600">Loading...</span>
+										</div>
+									{:else if cellContent}
 										{@render cellContent(column, row)}
 									{:else}
 										{row[column.key]}

@@ -3,6 +3,7 @@
 	import favicon from '$lib/assets/favicon.svg';
 	import { onMount } from 'svelte';
 	import { invalidate } from '$app/navigation';
+	import NavigationLoadingBar from '$lib/components/layout/NavigationLoadingBar.svelte';
 
 	let { children, data } = $props();
 
@@ -26,5 +27,7 @@
 <svelte:head>
 	<link rel="icon" href={favicon} />
 </svelte:head>
+
+<NavigationLoadingBar />
 
 {@render children?.()}

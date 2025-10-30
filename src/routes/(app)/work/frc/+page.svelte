@@ -1,6 +1,7 @@
 <script lang="ts">
 	import type { PageData } from './$types';
 	import { goto } from '$app/navigation';
+	import { useNavigationLoading } from '$lib/utils/useNavigationLoading.svelte';
 	import PageHeader from '$lib/components/layout/PageHeader.svelte';
 	import ModernDataTable from '$lib/components/data/ModernDataTable.svelte';
 	import ActionButtonGroup from '$lib/components/data/ActionButtonGroup.svelte';
@@ -25,6 +26,7 @@
 	} from 'lucide-svelte';
 
 	let { data }: { data: PageData } = $props();
+	const { loadingId, startNavigation } = useNavigationLoading();
 
 	// Status filter state - default to 'in_progress' for better UX
 	type FRCStatus = 'not_started' | 'in_progress' | 'completed';
@@ -165,12 +167,12 @@
 	];
 
 	function handleRowClick(frc: (typeof frcWithDetails)[0]) {
-		// Navigate directly to FRC tab on assessment page
+		// Navigate directly to FRC tab on assessment page with loading state
 		if (!frc.appointmentId) {
 			console.error('Cannot navigate to assessment: FRC record missing appointment_id', frc);
 			return;
 		}
-		goto(`/work/assessments/${frc.appointmentId}?tab=frc`);
+		startNavigation(frc.id, `/work/assessments/${frc.appointmentId}?tab=frc`);
 	}
 
 	function handleViewReport(frc: (typeof frcWithDetails)[0]) {
@@ -180,8 +182,8 @@
 			// TODO: Show toast notification to user
 			return;
 		}
-		// Navigate to assessment page with FRC tab
-		goto(`/work/assessments/${frc.appointmentId}?tab=frc`);
+		// Navigate to assessment page with FRC tab with loading state
+		startNavigation(frc.id, `/work/assessments/${frc.appointmentId}?tab=frc`);
 	}
 
 	function handleEditFRC(frc: (typeof frcWithDetails)[0]) {
@@ -251,7 +253,14 @@
 			onAction={() => goto('/work/finalized-assessments')}
 		/>
 	{:else}
-		<ModernDataTable data={frcWithDetails} {columns} onRowClick={handleRowClick} striped>
+		<ModernDataTable
+			data={frcWithDetails}
+			{columns}
+			onRowClick={handleRowClick}
+			loadingRowId={loadingId}
+			rowIdKey="id"
+			striped
+		>
 			{#snippet cellContent(column, row)}
 				{#if column.key === 'assessmentNumber'}
 					<TableCell variant="primary" bold>
