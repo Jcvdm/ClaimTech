@@ -12,6 +12,7 @@
 - **Auth**: Supabase Auth with 100% RLS coverage
 - **Architecture**: Assessment-centric (10-stage pipeline)
 - **Documentation**: 28 System docs, 19 SOPs, 31 database tables
+- **Deployment**: ✅ Live on Vercel (https://claimtech.vercel.app)
 
 ---
 

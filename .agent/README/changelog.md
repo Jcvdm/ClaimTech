@@ -6,6 +6,15 @@
 
 ## January 30, 2025
 
+### ✅ Vercel Deployment - Live!
+- **DEPLOYED**: ClaimTech is now live on Vercel
+  - Production URL: `https://claimtech.vercel.app`
+  - Git integration connected: `Jcvdm/ClaimTech` repository
+  - Auto-deployment enabled for all branches
+  - Environment variables configured for Supabase integration
+  - **Status**: Running great - performance testing in progress
+  - **Next**: Monitor build times, test PDF generation, validate speed improvements
+
 ### Vercel Deployment Strategy
 - **UPDATED**: [Deployment & Branching Strategy](../Tasks/active/SUPABASE_BRANCHING.md)
   - Renamed from "Supabase Branching Strategy" to include Vercel deployment
