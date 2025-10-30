@@ -15,7 +15,9 @@
 		TrendingUp,
 		TrendingDown,
 		Minus,
-		CircleCheck
+		CircleCheck,
+		Info,
+		AlertTriangle
 	} from 'lucide-svelte';
 	import type {
 		FinalRepairCosting,
@@ -52,11 +54,13 @@
 	const onUpdate = $derived(props.onUpdate);
 
 	let frc = $state<FinalRepairCosting | null>(null);
+	let lines = $state<FRCLineItem[]>([]); // Snapshot from database (auto-merges additionals)
 	let additionals = $state<AssessmentAdditionals | null>(null);
 	let documents = $state<FRCDocument[]>([]);
 	let loading = $state(true);
 	let error = $state<string | null>(null);
 	let starting = $state(false);
+	let wasMerged = $state(false); // Track if last load auto-merged additionals
 
 	// Adjust modal state
 	let showAdjustModal = $state(false);
@@ -90,18 +94,29 @@
 	let frcError = $state<string | null>(null);
 	let frcReportUrl = $state<string | null>(null);
 
-	// Load FRC and additionals
+	// Load FRC with snapshot lines (auto-merges additionals if changed)
+	// Uses snapshot pattern: line_items stored in database with auto-merge on load
 	async function loadFRC() {
 		loading = true;
 		error = null;
+		wasMerged = false;
 		try {
-			const [frcData, additionalsData] = await Promise.all([
-				frcService.getByAssessment(assessmentId),
-				additionalsService.getByAssessment(assessmentId)
-			]);
-
-			frc = frcData;
+			// Load additionals first
+			const additionalsData = await additionalsService.getByAssessment(assessmentId);
 			additionals = additionalsData;
+
+			// Try to get FRC with snapshot (auto-merges if additionals changed)
+			try {
+				const result = await frcService.getFRCWithSnapshot(assessmentId);
+				frc = result.frc;
+				lines = result.lines; // ✅ Snapshot from database (possibly merged)
+				wasMerged = result.wasMerged; // Track if merge happened
+			} catch (err) {
+				// FRC doesn't exist yet
+				frc = null;
+				lines = [];
+				wasMerged = false;
+			}
 
 			if (frc) {
 				documents = await frcDocumentsService.getDocumentsByFRC(frc.id);
@@ -132,12 +147,42 @@
 	// Handle Agree decision
 	async function handleAgree(line: FRCLineItem) {
 		if (!frc) return;
+
+		// Backup for rollback
+		const previousLines = [...lines];
+
 		try {
 			error = null;
+
+			// 1. Optimistic update - update UI immediately
+			const lineIndex = lines.findIndex(l => l.id === line.id);
+			if (lineIndex !== -1) {
+				lines[lineIndex] = {
+					...lines[lineIndex],
+					decision: 'agree',
+					actual_total: lines[lineIndex].quoted_total,
+					actual_part_price_nett: lines[lineIndex].quoted_part_price_nett,
+					actual_strip_assemble_hours: lines[lineIndex].strip_assemble_hours,
+					actual_strip_assemble: lines[lineIndex].quoted_strip_assemble,
+					actual_labour_hours: lines[lineIndex].labour_hours,
+					actual_labour_cost: lines[lineIndex].quoted_labour_cost,
+					actual_paint_panels: lines[lineIndex].paint_panels,
+					actual_paint_cost: lines[lineIndex].quoted_paint_cost,
+					actual_outwork_charge: lines[lineIndex].quoted_outwork_charge_nett,
+					adjust_reason: null
+				};
+			}
+
+			// 2. Make API call in background
 			const updated = await frcService.updateLineDecision(frc.id, line.id, 'agree');
+
+			// 3. Update from server response
 			frc = updated;
+			lines = updated.line_items || [];
 			await onUpdate();
 		} catch (err) {
+			// 4. Rollback on error
+			lines = previousLines;
 			error = err instanceof Error ? err.message : 'Failed to update line';
 		}
 	}
@@ -206,8 +251,31 @@
 			return;
 		}
 
+		// Backup for rollback
+		const previousLines = [...lines];
+		const rates = getRatesFor(adjustingLine);
+
 		try {
-			const rates = getRatesFor(adjustingLine);
+			// 1. Optimistic update - update UI immediately
+			const lineIndex = lines.findIndex(l => l.id === adjustingLine.id);
+			if (lineIndex !== -1) {
+				lines[lineIndex] = {
+					...lines[lineIndex],
+					decision: 'adjust',
+					actual_total: totalToSave,
+					adjust_reason: adjustReason,
+					actual_part_price_nett: actualPartsNett,
+					actual_strip_assemble_hours: actualSAHours,
+					actual_strip_assemble: actualSAHours ? calculateSACost(actualSAHours, rates.labour) : null,
+					actual_labour_hours: actualLabourHours,
+					actual_labour_cost: actualLabourHours ? calculateLabourCost(actualLabourHours, rates.labour) : null,
+					actual_paint_panels: actualPaintPanels,
+					actual_paint_cost: actualPaintPanels ? calculatePaintCost(actualPaintPanels, rates.paint) : null,
+					actual_outwork_charge: actualOutwork
+				};
+			}
+
+			// 2. Make API call in background
 			const updated = await frcService.updateLineDecision(
 				frc.id,
 				adjustingLine.id,
@@ -225,11 +293,16 @@
 					actual_outwork_charge: actualOutwork
 				}
 			);
+
+			// 3. Update from server response
 			frc = updated;
+			lines = updated.line_items || [];
 			showAdjustModal = false;
 			adjustingLine = null;
 			await onUpdate();
 		} catch (err) {
+			// 4. Rollback on error
+			lines = previousLines;
 			adjustError = err instanceof Error ? err.message : 'Failed to update line';
 		}
 	}
@@ -421,9 +494,10 @@
 	// Check if all lines have decisions
 	const allLinesDecided = $derived(() => {
 		if (!frc) return false;
-		return frc.line_items.every((line) => line.decision !== 'pending');
+		return lines.every((line) => line.decision !== 'pending');
 	});
 
+	// Initial load on mount
 	$effect(() => {
 		loadFRC();
 	});
@@ -466,7 +540,7 @@
 						FRC Status: {frc.status === 'completed' ? 'Completed' : 'In Progress'}
 					</p>
 					<p class="text-xs {frc.status === 'completed' ? 'text-green-700' : 'text-blue-700'}">
-						{frc.line_items.length} line items • Started {new Date(frc.started_at!).toLocaleDateString()}
+						{lines.length} line items • Started {new Date(frc.started_at!).toLocaleDateString()}
 						{#if frc.completed_at}
 							• Completed {new Date(frc.completed_at).toLocaleDateString()}
 						{/if}
@@ -479,6 +553,38 @@
 				{/if}
 			</div>
 		</Card>
+
+		<!-- Snapshot Info Banner -->
+		{#if frc.status === 'in_progress'}
+			<Card class="p-4 {wasMerged ? 'bg-purple-50 border-purple-200' : 'bg-blue-50 border-blue-200'}">
+				<div class="flex items-start gap-3">
+					<Info class="h-5 w-5 {wasMerged ? 'text-purple-600' : 'text-blue-600'} mt-0.5 flex-shrink-0" />
+					<div class="flex-1">
+						{#if wasMerged}
+							<p class="text-sm font-semibold text-purple-900">Additionals Auto-Merged</p>
+							<p class="mt-1 text-xs text-purple-800">
+								New additionals were detected and merged into FRC snapshot. All previous line decisions have been preserved.
+								{#if lines.filter(l => l.removed_via_additionals).length > 0}
+									<span class="font-semibold">
+										Includes {lines.filter(l => l.removed_via_additionals).length} removed line(s) (shown with strikethrough and included in totals).
+									</span>
+								{/if}
+							</p>
+						{:else}
+							<p class="text-sm font-semibold text-blue-900">FRC Snapshot</p>
+							<p class="mt-1 text-xs text-blue-800">
+								This is a snapshot of your finalized estimate + additionals at the time FRC was started. Line decisions are preserved across additionals changes.
+								{#if lines.filter(l => l.removed_via_additionals).length > 0}
+									<span class="font-semibold">
+										Includes {lines.filter(l => l.removed_via_additionals).length} removed line(s) (shown with strikethrough and included in totals).
+									</span>
+								{/if}
+							</p>
+						{/if}
+					</div>
+				</div>
+			</Card>
+		{/if}
 
 		<!-- Sign-Off Details (when completed) -->
 		{#if frc.status === 'completed' && frc.signed_off_by_name}
@@ -801,6 +907,7 @@
 			<h3 class="text-lg font-semibold text-gray-900 mb-4">Line Items</h3>
 			<FRCLinesTable
 				{frc}
+				{lines}
 				onAgree={handleAgree}
 				onAdjust={openAdjustModal}
 			/>

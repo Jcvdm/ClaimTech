@@ -10,11 +10,12 @@
 
 	interface Props {
 		frc: FinalRepairCosting;
+		lines: FRCLineItem[]; // Live-computed lines (not from frc.line_items)
 		onAgree: (line: FRCLineItem) => void;
 		onAdjust: (line: FRCLineItem) => void;
 	}
 
-	let { frc, onAgree, onAdjust }: Props = $props();
+	let { frc, lines, onAgree, onAdjust }: Props = $props();
 
 	// Row actions dialog state
 	let rowActionsOpen = $state(false);
@@ -85,7 +86,7 @@
 			</Table.Row>
 		</Table.Header>
 		<Table.Body>
-			{#if frc.line_items.length === 0}
+			{#if lines.length === 0}
 				<Table.Row class="hover:bg-transparent">
 					<!-- xl and above: 7 columns -->
 					<Table.Cell colspan={7} class="hidden xl:table-cell h-24 text-center text-gray-500">
@@ -97,7 +98,7 @@
 					</Table.Cell>
 				</Table.Row>
 			{:else}
-				{#each frc.line_items as line (line.id)}
+				{#each lines as line (line.id)}
 					{@const badge = getDecisionBadge(line.decision)}
 					{@const isRemovedOrDeclined = line.removed_via_additionals || line.declined_via_additionals}
 					<Table.Row class="hover:bg-gray-50 {isRemovedOrDeclined ? 'opacity-60 bg-gray-50/50' : ''}">
@@ -127,6 +128,11 @@
 									{/if}
 									{#if line.declined_via_additionals}
 										<Badge variant="destructive" class="text-[10px] py-0 px-1.5" title={line.decline_reason}>DECLINED</Badge>
+									{/if}
+									{#if line.source === 'additional' && (line.quoted_total ?? 0) < 0}
+										<Badge variant="outline" class="text-[10px] py-0 px-1.5 border-red-400 text-red-600">
+											REMOVAL (-)
+										</Badge>
 									{/if}
 								</p>
 								<p class="text-xs text-gray-500 mt-0.5 flex items-center gap-2">

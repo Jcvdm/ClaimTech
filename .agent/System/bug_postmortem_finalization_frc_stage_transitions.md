@@ -538,6 +538,7 @@ async updateStage(id: string, newStage: AssessmentStage, client?) {
 - `.agent/SOP/navigation_based_state_transitions.md` - Server-side stage transition pattern
 - `.agent/System/project_architecture.md` - Complete system overview
 - `.agent/System/bug_postmortem_appointment_stage_transition.md` - Similar stage transition bug
+- `.agent/SOP/frc_removed_lines.md` - Follow-up: Removal lines calculation fix (Jan 30, 2025)
 
 ---
 
@@ -549,3 +550,164 @@ All three bugs have been fixed and type-checked. Implementation is complete and 
 1. User performs end-to-end testing
 2. If successful, create follow-up issues for prevention measures
 3. Update team on new patterns to follow
+
+---
+
+## Addendum: Removal Lines Evolution (January 30, 2025)
+
+### Follow-up Discovery
+
+The January 29 fix implemented visual indicators for removed/declined lines but **excluded them from calculations** (lines 235-239):
+
+```typescript
+lineItems.forEach((line) => {
+    // Skip removed/declined lines from totals
+    if (line.removed_via_additionals || line.declined_via_additionals) {
+        return;
+    }
+    // ... sum components ...
+});
+```
+
+**This was incorrect behavior**. Testing revealed that:
+
+1. **Original line** (+R12,000) appeared with "REMOVED" badge
+2. **Removal additional line** was filtered out entirely (never appeared in FRC)
+3. **Result**: Net total of +R12,000 instead of R0
+
+### Root Cause of Exclusion Logic
+
+The January 29 fix had two filters that excluded removal lines:
+
+**Line 116** (approved additionals):
+```typescript
+.filter((item) =>
+    item.status === 'approved' &&
+    item.action !== 'removed' &&  // ❌ This excluded negative removal lines
+    item.action !== 'reversal'
+)
+```
+
+**Line 164** (declined additionals):
+```typescript
+.filter((item) =>
+    item.status === 'declined' &&
+    item.action !== 'removed' &&  // ❌ This excluded negative removal lines
+    item.action !== 'reversal'
+)
+```
+
+These filters prevented **removal additional lines** (with negative amounts) from appearing in the FRC, while the **original estimate line** remained visible (marked with `removed_via_additionals: true`).
+
+### Correct Behavior (January 30 Fix)
+
+**Dual-Line Pattern**: Both lines must appear for correct audit trail and calculations:
+
+1. **Original Estimate Line**:
+   - Source: `estimate`
+   - Total: +R12,000
+   - Flag: `removed_via_additionals: true`
+   - Badge: "REMOVED" (gray)
+   - **Included in calculations**: Yes (positive amount adds to estimate breakdown)
+
+2. **Removal Additional Line**:
+   - Source: `additional`
+   - Total: -R12,000 (negative)
+   - Action: `removed`
+   - Badge: "REMOVAL (-)" (red)
+   - **Included in calculations**: Yes (negative amount subtracts from additionals breakdown)
+
+3. **Net Effect**: +R12,000 + (-R12,000) = R0 ✓
+
+### Changes Made (January 30, 2025)
+
+**File**: `src/lib/utils/frcCalculations.ts`
+
+1. **Line 116-120**: Removed `item.action !== 'removed'` filter
+```typescript
+// ✅ INCLUDES removal lines with negative amounts
+.filter(
+  (item) =>
+    item.status === 'approved' &&
+    // Removed: item.action !== 'removed' filter
+)
+```
+
+2. **Line 164-168**: Removed `item.action !== 'removed'` filter
+```typescript
+// ✅ INCLUDES declined removal lines
+.filter(
+  (item) =>
+    item.status === 'declined' &&
+    // Removed: item.action !== 'removed' filter
+)
+```
+
+3. **Lines 214-226**: Updated documentation explaining negative value handling
+```typescript
+/**
+ * Calculate breakdown totals from line items (NETT-BASED)
+ *
+ * IMPORTANT: INCLUDES ALL LINES (removed/declined) with proper negative handling
+ * - Removed lines: Two lines appear in FRC for audit trail:
+ *   1. Original estimate line: +R12,000 (marked as removed_via_additionals)
+ *   2. Removal additional line: -R12,000 (negative amounts from additionals)
+ *   Result: Net R0 (both lines sum correctly)
+ */
+```
+
+**File**: `src/lib/components/assessment/FRCLinesTable.svelte`
+
+4. **Lines 132-136**: Added "REMOVAL (-)" badge for negative additional lines
+```svelte
+{#if line.source === 'additional' && (line.quoted_total ?? 0) < 0}
+  <Badge variant="outline" class="text-[10px] py-0 px-1.5 border-red-400 text-red-600">
+    REMOVAL (-)
+  </Badge>
+{/if}
+```
+
+### Why Negative Amounts Must Be Included
+
+The removal line represents an **additional operation** that subtracts from the estimate. The calculation pattern is:
+
+```
+ESTIMATE BREAKDOWN:
+  Original line: +R12,000
+
+ADDITIONALS BREAKDOWN:
+  Removal line: -R12,000
+
+COMBINED TOTAL: R0
+```
+
+If we exclude the removal line:
+- Estimate breakdown: +R12,000
+- Additionals breakdown: R0 (excluded)
+- Combined total: +R12,000 ❌ WRONG
+
+If we include the removal line:
+- Estimate breakdown: +R12,000
+- Additionals breakdown: -R12,000
+- Combined total: R0 ✓ CORRECT
+
+### New Documentation
+
+**Created**: `.agent/SOP/frc_removed_lines.md` (~350 lines)
+- Complete guide to dual-line pattern
+- Testing procedures
+- Database schema for removal lines
+- Troubleshooting common issues
+
+**Updated**: `.agent/README/sops.md` - Added FRC removed lines SOP to index
+
+**Updated**: `.agent/README/changelog.md` - Documented January 30 fix
+
+### Lesson Learned
+
+**Don't confuse visual indicators with calculation exclusion**:
+- Visual indicators (strikethrough, badges) show line status
+- Calculation logic must process ALL lines including negative amounts
+- Removal lines are not "removed from FRC" - they are "additional operations that remove value"
+
+The January 29 fix correctly showed visual indicators but incorrectly excluded removal lines from appearing in FRC entirely. The January 30 fix ensures both lines appear with proper negative amount calculations.

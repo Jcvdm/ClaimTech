@@ -863,6 +863,9 @@ export interface FinalRepairCosting {
 	assessment_id: string;
 	status: FRCStatus;
 	line_items: FRCLineItem[];
+	line_items_version?: number; // Optimistic locking version counter
+	last_merge_at?: string | null; // Timestamp of last additionals merge
+	needs_sync?: boolean; // Flag indicating if merge needed
 	vat_percentage: number;
 	// Quoted estimate breakdown (original estimate only)
 	quoted_estimate_parts_nett: number;
