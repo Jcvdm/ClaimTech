@@ -13,7 +13,15 @@
   - Auto-deployment enabled for all branches
   - Environment variables configured for Supabase integration
   - **Status**: Running great - performance testing in progress
+  - **Auth URLs Configured**: Password resets and email confirmations now work in production
   - **Next**: Monitor build times, test PDF generation, validate speed improvements
+
+### ✅ Supabase Auth Configuration - Production Ready
+- **CONFIGURED**: Added Vercel redirect URLs to Supabase auth settings
+  - Added: `https://claimtech.vercel.app/auth/callback`
+  - Added: `https://claimtech.vercel.app/auth/confirm`
+  - **Impact**: Password resets, email confirmations, and magic links now work in production
+  - **Method**: Updated via Supabase MCP (SVA project cfblmkzleqtvtfxujikf)
 
 ### Vercel Deployment Strategy
 - **UPDATED**: [Deployment & Branching Strategy](../Tasks/active/SUPABASE_BRANCHING.md)
