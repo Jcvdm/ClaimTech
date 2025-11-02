@@ -8,6 +8,7 @@ import type {
 } from '$lib/types/assessment';
 import { PROCESS_TYPE_CONFIGS } from '$lib/constants/processTypes';
 import { formatCurrency, formatDateNumeric } from '$lib/utils/formatters';
+import { escapeHtmlWithLineBreaks } from '$lib/utils/sanitize';
 
 interface EstimateData {
 	assessment: Assessment;
@@ -659,9 +660,18 @@ export function generateEstimateHTML(data: EstimateData): string {
 	</div>
 	` : ''}
 
+	<!-- Terms & Conditions -->
+	${companySettings?.estimate_terms_and_conditions ? `
+	<div style="margin-top: 30px; page-break-inside: avoid;">
+		<h3 style="margin-bottom: 10px; color: #1e40af;">TERMS & CONDITIONS</h3>
+		<div style="font-size: 9pt; line-height: 1.5; color: #333; border: 1px solid #ddd; padding: 12px; background: #f9f9f9; white-space: pre-wrap;">
+			${escapeHtmlWithLineBreaks(companySettings.estimate_terms_and_conditions)}
+		</div>
+	</div>
+	` : ''}
+
 	<!-- Footer -->
 	<div class="footer">
-		<p><strong>Terms & Conditions:</strong> This estimate is valid for 30 days from the date of issue. All work is subject to inspection and approval.</p>
 		<p style="margin-top: 10px;">${companySettings?.company_name || 'Claimtech'} | ${companySettings?.email || 'info@claimtech.co.za'} | ${companySettings?.website || 'www.claimtech.co.za'}</p>
 		<p>Estimate generated on ${formatDateNumeric(new Date().toISOString())}</p>
 	</div>

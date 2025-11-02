@@ -7,6 +7,7 @@ import type {
 	CompanySettings
 } from '$lib/types/assessment';
 import { formatCurrency, formatDateNumeric } from '$lib/utils/formatters';
+import { escapeHtmlWithLineBreaks } from '$lib/utils/sanitize';
 
 interface ReportData {
 	assessment: Assessment;
@@ -431,6 +432,16 @@ export function generateReportHTML(data: ReportData): string {
 	<div class="section">
 		<div class="section-title">ASSESSMENT NOTES</div>
 		<div class="notes-box">${assessment.notes}</div>
+	</div>
+	` : ''}
+
+	<!-- Terms & Conditions -->
+	${companySettings?.assessment_terms_and_conditions ? `
+	<div class="section" style="margin-top: 30px; page-break-inside: avoid;">
+		<div class="section-title">TERMS & CONDITIONS</div>
+		<div style="font-size: 9pt; line-height: 1.5; color: #333; border: 1px solid #ddd; padding: 12px; background: #f9f9f9; white-space: pre-wrap;">
+			${escapeHtmlWithLineBreaks(companySettings.assessment_terms_and_conditions)}
+		</div>
 	</div>
 	` : ''}
 

@@ -700,6 +700,10 @@ export interface CompanySettings {
 	email: string;
 	website: string;
 	logo_url?: string | null;
+	// Terms and Conditions fields for each document type
+	assessment_terms_and_conditions?: string | null;
+	estimate_terms_and_conditions?: string | null;
+	frc_terms_and_conditions?: string | null;
 	created_at: string;
 	updated_at: string;
 }
@@ -729,6 +733,10 @@ export interface UpdateCompanySettingsInput {
 	email?: string;
 	website?: string;
 	logo_url?: string;
+	// Terms and Conditions fields
+	assessment_terms_and_conditions?: string | null;
+	estimate_terms_and_conditions?: string | null;
+	frc_terms_and_conditions?: string | null;
 }
 
 // Additional line item status
