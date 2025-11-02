@@ -221,6 +221,31 @@ SvelteKit's `+page.server.ts` files use server load functions to fetch data:
   - Photos: `assessments/{assessment_id}/{category}/{filename}`
   - Documents: `assessments/{assessment_id}/documents/{filename}`
 
+### Audit Logging System (Implemented Jan 30, 2025)
+Comprehensive audit trail tracking all interactions and changes within the assessment workflow.
+
+**Coverage:**
+- 21 distinct audit action types (created, line_item_added, line_item_approved, rates_updated, etc.)
+- 21 supported entity types (assessment, estimate, frc, vehicle_identification, etc.)
+- Complete service coverage: All assessment workflow operations logged
+- Rich metadata capture: Descriptions, totals, field changes, operation context
+
+**Service Layer:**
+- `AuditService` with defensive error handling (never breaks main operations)
+- `getAssessmentHistory()` for cross-entity-type queries
+- All methods accept optional `ServiceClient` for RLS compliance
+
+**UI Components:**
+- `ActivityTimeline` - Visual timeline with icons, colors, formatted action text
+- `AuditTab` - Admin-only tab on assessment detail pages showing complete history
+
+**Key Pattern:**
+- Most operations use `assessment_id` as `entity_id` regardless of `entity_type`
+- Enables single-query retrieval of all assessment history across entity types
+- Assessment creation uses assessment's own ID (also retrievable via `getAssessmentHistory()`)
+
+**See**: [Audit Logging System](./audit_logging_system.md) for complete documentation
+
 ---
 
 ## Key Workflows

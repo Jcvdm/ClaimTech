@@ -78,11 +78,14 @@ export class Exterior360Service {
 
 		// Log audit trail
 		try {
+			const fieldsUpdated = Object.keys(cleanedInput).filter(key => cleanedInput[key as keyof UpdateExterior360Input] !== undefined);
 			await auditService.logChange({
 				entity_type: 'exterior_360',
-				entity_id: data.id,
+				entity_id: assessmentId,
 				action: 'updated',
-				metadata: { assessment_id: assessmentId }
+				metadata: {
+					fields_updated: fieldsUpdated
+				}
 			});
 		} catch (auditError) {
 			console.error('Error logging audit change:', auditError);

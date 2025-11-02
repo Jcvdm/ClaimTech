@@ -181,11 +181,14 @@ export class VehicleValuesService {
 
 		// Log audit trail
 		try {
+			const fieldsUpdated = Object.keys(input).filter(key => input[key as keyof UpdateVehicleValuesInput] !== undefined);
 			await auditService.logChange({
 				entity_type: 'vehicle_values',
-				entity_id: id,
+				entity_id: data.assessment_id,
 				action: 'updated',
-				metadata: { assessment_id: data.assessment_id }
+				metadata: {
+					fields_updated: fieldsUpdated
+				}
 			});
 		} catch (auditError) {
 			console.error('Error logging audit change:', auditError);

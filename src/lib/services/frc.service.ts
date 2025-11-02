@@ -233,21 +233,24 @@ class FRCService {
 		}
 
 		// Log merge operation
-		await auditService.logChange({
-			entity_type: 'frc',
-			entity_id: frcId,
-			action: 'updated',
-			field_name: 'line_items',
-			new_value: 'Merged additionals into snapshot',
-			metadata: {
-				assessment_id: frc.assessment_id,
-				line_count_before: (frc.line_items || []).length,
-				line_count_after: mergedLines.length,
-				version: currentVersion + 1,
-				quoted_total: quotedTotals.total,
-				actual_total: actualTotals.total
-			}
-		});
+		try {
+			const newLinesCount = mergedLines.length - (frc.line_items || []).length;
+			await auditService.logChange({
+				entity_type: 'frc',
+				entity_id: frc.assessment_id,
+				action: 'frc_merged',
+				metadata: {
+					frc_id: frcId,
+					additionals_count: newLinesCount > 0 ? newLinesCount : 0,
+					merged_total: quotedTotals.total,
+					line_count_before: (frc.line_items || []).length,
+					line_count_after: mergedLines.length,
+					version: currentVersion + 1
+				}
+			});
+		} catch (auditError) {
+			console.error('Error logging audit change:', auditError);
+		}
 
 		return data;
 	}
@@ -761,20 +764,26 @@ class FRCService {
 		}
 
 		// Log audit with sign-off details
-		await auditService.logChange({
-			entity_type: 'frc',
-			entity_id: frcId,
-			action: 'completed',
-			new_value: 'FRC completed and signed off',
-			metadata: {
-				quoted_total: frc.quoted_total,
-				actual_total: frc.actual_total,
-				delta: frc.actual_total - frc.quoted_total,
-				signed_off_by: signOffData.name,
-				signed_off_email: signOffData.email,
-				signed_off_role: signOffData.role
-			}
-		});
+		try {
+			await auditService.logChange({
+				entity_type: 'frc',
+				entity_id: frc.assessment_id,
+				action: 'frc_completed',
+				metadata: {
+					frc_id: frcId,
+					sign_off_by: signOffData.name,
+					completion_date: now,
+					final_total: data.actual_total,
+					quoted_total: frc.quoted_total,
+					actual_total: frc.actual_total,
+					delta: frc.actual_total - frc.quoted_total,
+					signed_off_email: signOffData.email,
+					signed_off_role: signOffData.role
+				}
+			});
+		} catch (auditError) {
+			console.error('Error logging audit change:', auditError);
+		}
 
 		return data;
 	}

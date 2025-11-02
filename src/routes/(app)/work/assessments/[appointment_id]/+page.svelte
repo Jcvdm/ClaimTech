@@ -15,6 +15,7 @@
 	import FinalizeTab from '$lib/components/assessment/FinalizeTab.svelte';
 	import AdditionalsTab from '$lib/components/assessment/AdditionalsTab.svelte';
 	import FRCTab from '$lib/components/assessment/FRCTab.svelte';
+	import AuditTab from '$lib/components/assessment/AuditTab.svelte';
 	import AssessmentNotes from '$lib/components/assessment/AssessmentNotes.svelte';
 	import { assessmentService } from '$lib/services/assessment.service';
 	import { vehicleIdentificationService } from '$lib/services/vehicle-identification.service';
@@ -677,6 +678,7 @@
 	onCancel={handleCancelAssessment}
 	{saving}
 	{lastSaved}
+	userRole={data.role}
 	vehicleIdentification={data.vehicleIdentification}
 	exterior360={data.exterior360}
 	interiorMechanical={data.interiorMechanical}
@@ -850,6 +852,11 @@
 			onUpdate={async () => {
 				// FRC updated, no need to reload entire page
 			}}
+		/>
+	{:else if currentTab === 'audit'}
+		<AuditTab 
+			assessmentId={data.assessment.id}
+			supabase={data.supabase}
 		/>
 	{/if}
 

@@ -108,10 +108,10 @@ export class PreIncidentEstimateService {
 		try {
 			await auditService.logChange({
 				entity_type: 'pre_incident_estimate',
-				entity_id: data.id,
+				entity_id: input.assessment_id,
 				action: 'created',
 				metadata: {
-					assessment_id: input.assessment_id,
+					estimate_id: data.id,
 					total: total
 				}
 			});
@@ -174,11 +174,35 @@ export class PreIncidentEstimateService {
 
 		// Log audit trail
 		try {
-			await auditService.logChange({
-				entity_type: 'pre_incident_estimate',
-				entity_id: id,
-				action: 'updated'
-			});
+			// Check if rates were updated
+			const ratesChanged =
+				(input.labour_rate !== undefined && input.labour_rate !== currentEstimate.labour_rate) ||
+				(input.paint_rate !== undefined && input.paint_rate !== currentEstimate.paint_rate) ||
+				(input.vat_percentage !== undefined && input.vat_percentage !== currentEstimate.vat_percentage);
+
+			if (ratesChanged) {
+				await auditService.logChange({
+					entity_type: 'pre_incident_estimate',
+					entity_id: currentEstimate.assessment_id,
+					action: 'rates_updated',
+					metadata: {
+						estimate_id: id,
+						old_labour_rate: currentEstimate.labour_rate,
+						new_labour_rate: data.labour_rate,
+						old_paint_rate: currentEstimate.paint_rate,
+						new_paint_rate: data.paint_rate,
+						old_vat_percentage: currentEstimate.vat_percentage,
+						new_vat_percentage: data.vat_percentage
+					}
+				});
+			} else {
+				// Generic update for other changes
+				await auditService.logChange({
+					entity_type: 'pre_incident_estimate',
+					entity_id: currentEstimate.assessment_id,
+					action: 'updated'
+				});
+			}
 		} catch (auditError) {
 			console.error('Error logging audit change:', auditError);
 		}
@@ -211,7 +235,27 @@ export class PreIncidentEstimateService {
 
 		const updatedLineItems = [...estimate.line_items, newItem];
 
-		return this.update(id, { line_items: updatedLineItems });
+		const result = await this.update(id, { line_items: updatedLineItems });
+
+		// Log audit trail for line item addition
+		try {
+			await auditService.logChange({
+				entity_type: 'pre_incident_estimate',
+				entity_id: estimate.assessment_id,
+				action: 'line_item_added',
+				metadata: {
+					estimate_id: id,
+					line_item_id: newItem.id,
+					description: item.description,
+					process_type: item.process_type,
+					total: total
+				}
+			});
+		} catch (auditError) {
+			console.error('Error logging audit change:', auditError);
+		}
+
+		return result;
 	}
 
 	/**
@@ -227,6 +271,9 @@ export class PreIncidentEstimateService {
 			throw new Error('Pre-incident estimate not found');
 		}
 
+		const oldItem = estimate.line_items.find((item) => item.id === itemId);
+		const oldTotal = oldItem?.total || 0;
+
 		const updatedLineItems = estimate.line_items.map((lineItem) => {
 			if (lineItem.id === itemId) {
 				const updated = { ...lineItem, ...item };
@@ -239,7 +286,28 @@ export class PreIncidentEstimateService {
 			return lineItem;
 		});
 
-		return this.update(id, { line_items: updatedLineItems });
+		const result = await this.update(id, { line_items: updatedLineItems });
+
+		// Log audit trail for line item update
+		try {
+			const updatedItem = updatedLineItems.find((item) => item.id === itemId);
+			await auditService.logChange({
+				entity_type: 'pre_incident_estimate',
+				entity_id: estimate.assessment_id,
+				action: 'line_item_updated',
+				metadata: {
+					estimate_id: id,
+					line_item_id: itemId,
+					description: updatedItem?.description || oldItem?.description,
+					old_total: oldTotal,
+					new_total: updatedItem?.total || 0
+				}
+			});
+		} catch (auditError) {
+			console.error('Error logging audit change:', auditError);
+		}
+
+		return result;
 	}
 
 	/**
@@ -251,9 +319,29 @@ export class PreIncidentEstimateService {
 			throw new Error('Pre-incident estimate not found');
 		}
 
+		const deletedItem = estimate.line_items.find((item) => item.id === itemId);
 		const updatedLineItems = estimate.line_items.filter((item) => item.id !== itemId);
 
-		return this.update(id, { line_items: updatedLineItems });
+		const result = await this.update(id, { line_items: updatedLineItems });
+
+		// Log audit trail for line item deletion
+		try {
+			await auditService.logChange({
+				entity_type: 'pre_incident_estimate',
+				entity_id: estimate.assessment_id,
+				action: 'line_item_deleted',
+				metadata: {
+					estimate_id: id,
+					line_item_id: itemId,
+					description: deletedItem?.description,
+					total: deletedItem?.total || 0
+				}
+			});
+		} catch (auditError) {
+			console.error('Error logging audit change:', auditError);
+		}
+
+		return result;
 	}
 
 	/**

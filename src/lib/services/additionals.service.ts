@@ -229,9 +229,7 @@ class AdditionalsService {
 		await auditService.logChange({
 			entity_type: 'estimate',
 			entity_id: assessmentId,
-			action: 'updated',
-			field_name: 'original_line_removed',
-			new_value: 'original_estimate_line_removed',
+			action: 'original_line_removed',
 			metadata: {
 				original_line_id: originalLineItem.id,
 				description: originalLineItem.description,
@@ -283,10 +281,13 @@ class AdditionalsService {
 		await auditService.logChange({
 			entity_type: 'estimate',
 			entity_id: assessmentId,
-			action: 'updated',
-			field_name: 'additionals',
-			new_value: 'line_item_added',
-			metadata: { description: lineItem.description }
+			action: 'line_item_added',
+			metadata: {
+				line_item_id: newItem.id,
+				description: lineItem.description,
+				process_type: lineItem.process_type,
+				total: lineItem.total || 0
+			}
 		});
 
 		return data;
@@ -345,11 +346,11 @@ class AdditionalsService {
 		await auditService.logChange({
 			entity_type: 'estimate',
 			entity_id: assessmentId,
-			action: 'updated',
-			field_name: 'additionals_line_status',
-			old_value: 'pending',
-			new_value: 'approved',
-			metadata: { line_item_id: lineItemId, description: item?.description }
+			action: 'line_item_approved',
+			metadata: {
+				line_item_id: lineItemId,
+				description: item?.description
+			}
 		});
 
 		return data;
@@ -413,10 +414,7 @@ class AdditionalsService {
 		await auditService.logChange({
 			entity_type: 'estimate',
 			entity_id: assessmentId,
-			action: 'updated',
-			field_name: 'additionals_line_status',
-			old_value: 'pending',
-			new_value: 'declined',
+			action: 'line_item_declined',
 			metadata: {
 				line_item_id: lineItemId,
 				description: item?.description,
@@ -463,10 +461,11 @@ class AdditionalsService {
 		await auditService.logChange({
 			entity_type: 'estimate',
 			entity_id: assessmentId,
-			action: 'updated',
-			field_name: 'additionals',
-			new_value: 'line_item_deleted',
-			metadata: { line_item_id: lineItemId, description: item?.description }
+			action: 'line_item_deleted',
+			metadata: {
+				line_item_id: lineItemId,
+				description: item?.description
+			}
 		});
 
 		return data;
@@ -561,9 +560,7 @@ class AdditionalsService {
 		await auditService.logChange({
 			entity_type: 'estimate',
 			entity_id: assessmentId,
-			action: 'updated',
-			field_name: 'additionals_line_reversed',
-			new_value: 'approved_line_reversed',
+			action: 'line_item_reversed',
 			metadata: {
 				original_line_id: lineItemId,
 				description: originalItem.description,
@@ -650,9 +647,7 @@ class AdditionalsService {
 		await auditService.logChange({
 			entity_type: 'estimate',
 			entity_id: assessmentId,
-			action: 'updated',
-			field_name: 'additionals_line_reinstated',
-			new_value: 'declined_line_reinstated',
+			action: 'line_item_reinstated',
 			metadata: {
 				original_line_id: lineItemId,
 				description: originalItem.description,
@@ -753,9 +748,7 @@ class AdditionalsService {
 		await auditService.logChange({
 			entity_type: 'estimate',
 			entity_id: assessmentId,
-			action: 'updated',
-			field_name: 'original_line_reinstated',
-			new_value: 'removed_original_reinstated',
+			action: 'line_item_reinstated',
 			metadata: {
 				removal_line_id: removalItem.id,
 				original_line_id: originalLineId,

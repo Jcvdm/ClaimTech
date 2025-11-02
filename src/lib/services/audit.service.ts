@@ -114,6 +114,43 @@ export class AuditService {
 			return [];
 		}
 	}
+
+	/**
+	 * Get all audit logs for an assessment (across all entity types)
+	 * This is useful when audit logs use different entity_types (assessment, estimate, frc, etc.)
+	 * but all reference the same assessment_id
+	 * 
+	 * Includes:
+	 * - Assessment creation (entity_type='assessment', entity_id=assessment.id)
+	 * - All operations on estimate/additionals/frc/etc (entity_id=assessment_id)
+	 */
+	async getAssessmentHistory(assessmentId: string, client?: ServiceClient): Promise<AuditLog[]> {
+		const db = client ?? supabase;
+
+		try {
+			// Get all logs where entity_id matches assessment_id
+			// This includes:
+			// - Assessment creation (entity_type='assessment', entity_id=assessment.id)
+			// - Estimate operations (entity_type='estimate', entity_id=assessment_id)
+			// - FRC operations (entity_type='frc', entity_id=assessment_id)
+			// - And all other operations that reference the assessment
+			const { data, error } = await db
+				.from('audit_logs')
+				.select('*')
+				.eq('entity_id', assessmentId)
+				.order('created_at', { ascending: false });
+
+			if (error) {
+				console.error('Error fetching assessment audit history:', error);
+				throw new Error(`Failed to fetch assessment audit history: ${error.message}`);
+			}
+
+			return data || [];
+		} catch (err) {
+			console.error('Error fetching assessment audit history:', err);
+			return [];
+		}
+	}
 }
 
 export const auditService = new AuditService();

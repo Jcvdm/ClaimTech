@@ -4,6 +4,7 @@ import type {
 	CreateAssessmentNoteInput,
 	UpdateAssessmentNoteInput
 } from '$lib/types/assessment';
+import { auditService } from './audit.service';
 
 /**
  * Service for managing assessment notes (global notes visible across all tabs)
@@ -65,6 +66,21 @@ class AssessmentNotesService {
 		if (error) {
 			console.error('Error creating assessment note:', error);
 			throw new Error(`Failed to create assessment note: ${error.message}`);
+		}
+
+		// Log audit trail
+		try {
+			await auditService.logChange({
+				entity_type: 'assessment_notes',
+				entity_id: input.assessment_id,
+				action: 'created',
+				metadata: {
+					note_id: data.id,
+					note_type: input.note_type || 'manual'
+				}
+			});
+		} catch (auditError) {
+			console.error('Error logging audit change:', auditError);
 		}
 
 		return data;
@@ -148,6 +164,20 @@ class AssessmentNotesService {
 			throw new Error(`Failed to update assessment note: ${error.message}`);
 		}
 
+		// Log audit trail
+		try {
+			await auditService.logChange({
+				entity_type: 'assessment_notes',
+				entity_id: data.assessment_id,
+				action: 'updated',
+				metadata: {
+					note_id: id
+				}
+			});
+		} catch (auditError) {
+			console.error('Error logging audit change:', auditError);
+		}
+
 		return data;
 	}
 
@@ -155,11 +185,30 @@ class AssessmentNotesService {
 	 * Delete a note
 	 */
 	async deleteNote(id: string): Promise<void> {
+		// Get note before deletion for audit logging
+		const note = await this.getNote(id).catch(() => null);
+
 		const { error } = await supabase.from('assessment_notes').delete().eq('id', id);
 
 		if (error) {
 			console.error('Error deleting assessment note:', error);
 			throw new Error(`Failed to delete assessment note: ${error.message}`);
+		}
+
+		// Log audit trail
+		if (note) {
+			try {
+				await auditService.logChange({
+					entity_type: 'assessment_notes',
+					entity_id: note.assessment_id,
+					action: 'cancelled',
+					metadata: {
+						note_id: id
+					}
+				});
+			} catch (auditError) {
+				console.error('Error logging audit change:', auditError);
+			}
 		}
 	}
 

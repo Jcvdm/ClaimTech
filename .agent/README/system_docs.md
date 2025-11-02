@@ -1,7 +1,7 @@
 # System Documentation Index
 
 **Last Updated**: January 30, 2025
-**Total Files**: 28 System documentation files
+**Total Files**: 29 System documentation files
 
 ---
 
@@ -120,6 +120,24 @@ Comprehensive system documentation covering architecture, database design, secur
 - Type badge helpers
 - Appointment status helpers
 - Formatting functions (dates, currency)
+
+---
+
+### 4. Audit Logging System ⭐ NEW
+- **File**: [audit_logging_system.md](../System/audit_logging_system.md)
+- **Size**: ~600 lines | **Last Updated**: Jan 30, 2025
+- **Read When**: Implementing audit logging, understanding audit patterns, debugging workflow issues
+
+**Contains**:
+- Complete audit logging architecture and patterns
+- 21 audit action types with usage guidelines
+- Service-by-service coverage documentation
+- Metadata patterns and best practices
+- UI components (ActivityTimeline, AuditTab)
+- Query patterns and performance considerations
+- Troubleshooting guide
+
+**Key for**: Understanding audit trail system, implementing logging in new services, compliance tracking
 
 ---
 
@@ -260,6 +278,30 @@ Comprehensive system documentation covering architecture, database design, secur
 - **[Task Guides](./task_guides.md)** - Use-case based navigation
 - **[Changelog](./changelog.md)** - Recent updates chronologically
 - **[FAQ](./faq.md)** - Common questions
+
+---
+
+---
+
+## 🔍 Audit & Compliance
+
+### Audit Logging System ⭐ NEW
+- **File**: [audit_logging_system.md](../System/audit_logging_system.md)
+- **Size**: ~600 lines | **Last Updated**: Jan 30, 2025
+- **Read When**: Implementing audit logging, understanding audit patterns, compliance requirements, debugging workflow issues
+
+**Contains**:
+- Complete audit logging architecture (21 entity types, 21 action types)
+- Service-by-service coverage documentation
+- Metadata patterns and best practices
+- UI components (ActivityTimeline, AuditTab)
+- Query patterns (`getAssessmentHistory()`, `getEntityHistory()`)
+- Performance considerations and indexing strategy
+- Troubleshooting guide
+
+**Key for**: Understanding audit trail system, implementing logging in new services, compliance tracking, debugging user actions
+
+**Related**: [Database Schema](./database_schema.md) - audit_logs table schema
 
 ---
 

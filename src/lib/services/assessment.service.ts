@@ -80,9 +80,12 @@ export class AssessmentService {
 				try {
 					await auditService.logChange({
 						entity_type: 'assessment',
-						entity_id: data.id,
-						action: 'created',
-						new_value: assessmentNumber
+						entity_id: data.id, // Use assessment id itself for creation log
+						action: 'assessment_created',
+						metadata: {
+							assessment_number: assessmentNumber,
+							request_id: input.request_id
+						}
 					});
 				} catch (auditError) {
 					console.error('Error logging audit change:', auditError);
@@ -158,13 +161,11 @@ export class AssessmentService {
 				try {
 					await auditService.logChange({
 						entity_type: 'assessment',
-						entity_id: data.id,
-						action: 'created',
-						new_value: assessmentNumber,
+						entity_id: data.id, // Use assessment id itself for creation log
+						action: 'assessment_created',
 						metadata: {
-							request_id: requestId,
-							stage: 'request_submitted',
-							created_with_request: true
+							assessment_number: assessmentNumber,
+							request_id: requestId
 						}
 					});
 				} catch (auditError) {

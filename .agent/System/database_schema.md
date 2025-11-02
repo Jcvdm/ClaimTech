@@ -949,30 +949,41 @@ Notes attached to assessments with chat-style editing and categorization (1:N wi
 ---
 
 ### `audit_logs`
-Comprehensive audit trail for all entity changes.
+Comprehensive audit trail for all entity changes. Tracks 21 distinct entity types with 21 specific audit actions.
 
 **Columns:**
-- `id` (UUID, PK)
-- `entity_type` (TEXT, NOT NULL) - e.g., 'request', 'assessment', 'estimate'
-- `entity_id` (UUID, NOT NULL) - ID of the affected entity
-- `action` (TEXT, NOT NULL) - e.g., 'created', 'updated', 'deleted'
-- `changed_fields` (JSONB) - Object containing field changes
-- `old_values` (JSONB)
-- `new_values` (JSONB)
-- `user_id` (UUID) - User who performed the action
-- `user_email` (TEXT)
-- `ip_address` (TEXT)
-- `user_agent` (TEXT)
+- `id` (UUID, PK, DEFAULT uuid_generate_v4())
+- `entity_type` (TEXT, NOT NULL, CHECK constraint) - One of 21 supported entity types
+- `entity_id` (UUID, NOT NULL) - ID of the affected entity (typically assessment_id for context)
+- `action` (TEXT, NOT NULL) - One of 21 audit action types (see audit_logging_system.md)
+- `field_name` (TEXT, nullable) - Specific field that changed (optional)
+- `old_value` (TEXT, nullable) - Previous value before change (optional)
+- `new_value` (TEXT, nullable) - New value after change (optional)
+- `changed_by` (TEXT, nullable, DEFAULT 'System') - User who made the change
+- `metadata` (JSONB, nullable) - Additional context (descriptions, totals, line_item_id, etc.)
 - `created_at` (TIMESTAMPTZ, DEFAULT NOW())
 
 **Indexes:**
-- `idx_audit_logs_entity` on `(entity_type, entity_id)`
-- `idx_audit_logs_user` on `user_id`
-- `idx_audit_logs_created_at` on `created_at`
+- `idx_audit_logs_entity` on `(entity_type, entity_id)` - Fast entity lookups
+- `idx_audit_logs_created_at` on `created_at DESC` - Time-based queries
+- `idx_audit_logs_action` on `action` - Action type filtering
 
-**Supported Entity Types:**
-- `request`, `inspection`, `appointment`, `assessment`
-- `estimate`, `pre_incident_estimate`, `vehicle_values`, `frc`
+**Supported Entity Types (21 total):**
+- Core: `request`, `inspection`, `task`, `client`, `engineer`, `appointment`
+- Assessment: `assessment`, `vehicle_identification`, `exterior_360`, `accessory`, `interior_mechanical`, `tyre`, `damage_record`, `vehicle_values`
+- Estimates: `estimate`, `pre_incident_estimate`, `estimate_line_item`
+- Subprocesses: `frc`, `frc_document`
+- Supporting: `assessment_notes`
+
+**Audit Actions (21 types):**
+- Basic: `created`, `updated`, `status_changed`, `assigned`, `cancelled`, `accepted`, `appointed`, `completed`, `stage_transition`
+- Line Items: `line_item_added`, `line_item_updated`, `line_item_deleted`, `line_item_approved`, `line_item_declined`, `line_item_reversed`, `line_item_reinstated`, `original_line_removed`
+- Specialized: `rates_updated`, `frc_completed`, `frc_merged`, `assessment_created`
+
+**Usage Pattern:**
+Most operations use `assessment_id` as `entity_id` regardless of `entity_type`, enabling cross-entity-type history queries. Assessment creation uses assessment's own ID.
+
+**See**: [Audit Logging System](./audit_logging_system.md) for complete documentation
 
 ---
 

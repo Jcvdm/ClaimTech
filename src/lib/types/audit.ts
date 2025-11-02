@@ -16,7 +16,9 @@ export type EntityType =
 	| 'estimate'
 	| 'pre_incident_estimate'
 	| 'frc'
-	| 'frc_document';
+	| 'frc_document'
+	| 'estimate_line_item'
+	| 'assessment_notes';
 
 export type AuditAction =
 	| 'created'
@@ -26,7 +28,20 @@ export type AuditAction =
 	| 'cancelled'
 	| 'accepted'
 	| 'appointed'
-	| 'completed';
+	| 'completed'
+	| 'line_item_added'
+	| 'line_item_updated'
+	| 'line_item_deleted'
+	| 'line_item_approved'
+	| 'line_item_declined'
+	| 'line_item_reversed'
+	| 'line_item_reinstated'
+	| 'original_line_removed'
+	| 'rates_updated'
+	| 'frc_completed'
+	| 'frc_merged'
+	| 'stage_transition'
+	| 'assessment_created';
 
 export interface AuditLog {
 	id: string;

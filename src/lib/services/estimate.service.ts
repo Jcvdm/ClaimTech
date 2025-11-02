@@ -244,11 +244,39 @@ export class EstimateService {
 
 		// Log audit trail
 		try {
-			await auditService.logChange({
-				entity_type: 'estimate',
-				entity_id: id,
-				action: 'updated'
-			});
+			// Check if rates were updated
+			const ratesChanged =
+				(input.labour_rate !== undefined && input.labour_rate !== currentEstimate.labour_rate) ||
+				(input.paint_rate !== undefined && input.paint_rate !== currentEstimate.paint_rate) ||
+				(input.vat_percentage !== undefined && input.vat_percentage !== currentEstimate.vat_percentage) ||
+				(input.oem_markup_percentage !== undefined && input.oem_markup_percentage !== currentEstimate.oem_markup_percentage) ||
+				(input.alt_markup_percentage !== undefined && input.alt_markup_percentage !== currentEstimate.alt_markup_percentage) ||
+				(input.second_hand_markup_percentage !== undefined && input.second_hand_markup_percentage !== currentEstimate.second_hand_markup_percentage) ||
+				(input.outwork_markup_percentage !== undefined && input.outwork_markup_percentage !== currentEstimate.outwork_markup_percentage);
+
+			if (ratesChanged) {
+				await auditService.logChange({
+					entity_type: 'estimate',
+					entity_id: data.assessment_id,
+					action: 'rates_updated',
+					metadata: {
+						estimate_id: id,
+						old_labour_rate: currentEstimate.labour_rate,
+						new_labour_rate: data.labour_rate,
+						old_paint_rate: currentEstimate.paint_rate,
+						new_paint_rate: data.paint_rate,
+						old_vat_percentage: currentEstimate.vat_percentage,
+						new_vat_percentage: data.vat_percentage
+					}
+				});
+			} else {
+				// Generic update for other changes
+				await auditService.logChange({
+					entity_type: 'estimate',
+					entity_id: data.assessment_id,
+					action: 'updated'
+				});
+			}
 		} catch (auditError) {
 			console.error('Error logging audit change:', auditError);
 		}
@@ -286,7 +314,27 @@ export class EstimateService {
 
 		const updatedLineItems = [...estimate.line_items, newItem];
 
-		return this.update(id, { line_items: updatedLineItems });
+		const result = await this.update(id, { line_items: updatedLineItems });
+
+		// Log audit trail for line item addition
+		try {
+			await auditService.logChange({
+				entity_type: 'estimate',
+				entity_id: estimate.assessment_id,
+				action: 'line_item_added',
+				metadata: {
+					estimate_id: id,
+					line_item_id: newId,
+					description: item.description,
+					process_type: item.process_type,
+					total: total
+				}
+			});
+		} catch (auditError) {
+			console.error('Error logging audit change:', auditError);
+		}
+
+		return result;
 	}
 
 	/**
@@ -302,6 +350,9 @@ export class EstimateService {
 			throw new Error('Estimate not found');
 		}
 
+		const oldItem = estimate.line_items.find((item) => item.id === itemId);
+		const oldTotal = oldItem?.total || 0;
+
 		const updatedLineItems = estimate.line_items.map((lineItem) => {
 			if (lineItem.id === itemId) {
 				const updated = { ...lineItem, ...item };
@@ -314,7 +365,28 @@ export class EstimateService {
 			return lineItem;
 		});
 
-		return this.update(id, { line_items: updatedLineItems });
+		const result = await this.update(id, { line_items: updatedLineItems });
+
+		// Log audit trail for line item update
+		try {
+			const updatedItem = updatedLineItems.find((item) => item.id === itemId);
+			await auditService.logChange({
+				entity_type: 'estimate',
+				entity_id: estimate.assessment_id,
+				action: 'line_item_updated',
+				metadata: {
+					estimate_id: id,
+					line_item_id: itemId,
+					description: updatedItem?.description || oldItem?.description,
+					old_total: oldTotal,
+					new_total: updatedItem?.total || 0
+				}
+			});
+		} catch (auditError) {
+			console.error('Error logging audit change:', auditError);
+		}
+
+		return result;
 	}
 
 	/**
@@ -326,9 +398,29 @@ export class EstimateService {
 			throw new Error('Estimate not found');
 		}
 
+		const deletedItem = estimate.line_items.find((item) => item.id === itemId);
 		const updatedLineItems = estimate.line_items.filter((item) => item.id !== itemId);
 
-		return this.update(id, { line_items: updatedLineItems });
+		const result = await this.update(id, { line_items: updatedLineItems });
+
+		// Log audit trail for line item deletion
+		try {
+			await auditService.logChange({
+				entity_type: 'estimate',
+				entity_id: estimate.assessment_id,
+				action: 'line_item_deleted',
+				metadata: {
+					estimate_id: id,
+					line_item_id: itemId,
+					description: deletedItem?.description,
+					total: deletedItem?.total || 0
+				}
+			});
+		} catch (auditError) {
+			console.error('Error logging audit change:', auditError);
+		}
+
+		return result;
 	}
 
 	/**
@@ -341,10 +433,32 @@ export class EstimateService {
 			throw new Error('Estimate not found');
 		}
 
+		// Calculate total amount removed
+		const deletedItems = estimate.line_items.filter((item) => itemIds.includes(item.id!));
+		const totalAmountRemoved = deletedItems.reduce((sum, item) => sum + (item.total || 0), 0);
+
 		// Filter out all items with IDs in the itemIds array
 		const updatedLineItems = estimate.line_items.filter((item) => !itemIds.includes(item.id!));
 
-		return this.update(id, { line_items: updatedLineItems });
+		const result = await this.update(id, { line_items: updatedLineItems });
+
+		// Log audit trail for bulk deletion
+		try {
+			await auditService.logChange({
+				entity_type: 'estimate',
+				entity_id: estimate.assessment_id,
+				action: 'line_item_deleted',
+				metadata: {
+					estimate_id: id,
+					count: itemIds.length,
+					total_amount_removed: totalAmountRemoved
+				}
+			});
+		} catch (auditError) {
+			console.error('Error logging audit change:', auditError);
+		}
+
+		return result;
 	}
 
 	/**

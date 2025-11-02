@@ -1,7 +1,7 @@
 # ClaimTech Documentation Master Index
 
 **Last Updated**: January 30, 2025
-**Total Documentation**: 28 System docs + 19 SOPs + Task/Historical files
+**Total Documentation**: 29 System docs + 19 SOPs + Task/Historical files
 
 ---
 
@@ -25,7 +25,7 @@
 
 ## System Documentation
 
-**📚 [Complete System Docs Index](./system_docs.md)** - 28 files organized by category
+**📚 [Complete System Docs Index](./system_docs.md)** - 29 files organized by category
 
 ### Core Architecture (MUST READ)
 - **[Project Architecture](../System/project_architecture.md)** (977 lines) - Complete tech stack, 10-stage pipeline, security patterns
@@ -41,6 +41,7 @@
 - **[Development Guide](../System/development_guide.md)** - npm scripts, environment setup
 - **[MCP Setup](../System/mcp_setup.md)** - Supabase MCP for direct DB access
 - **[Table Utilities Reference](../System/table_utilities.md)** (540 lines) - UI formatting helpers
+- **[Audit Logging System](../System/audit_logging_system.md)** ⭐ NEW - Complete audit trail documentation
 
 ### UI & Loading Patterns
 - **[UI Loading Patterns](../System/ui_loading_patterns.md)** (690 lines) - All 3 loading patterns, complete guide

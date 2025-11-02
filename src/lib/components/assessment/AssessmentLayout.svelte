@@ -13,7 +13,8 @@
 		ClipboardList,
 		FileCheck,
 		Plus,
-		Trash2
+		Trash2,
+		History
 	} from 'lucide-svelte';
 	import type { Assessment } from '$lib/types/assessment';
 	import {
@@ -43,6 +44,7 @@
 		onCancel?: () => void;
 		saving?: boolean;
 		lastSaved?: string | null;
+		userRole?: string;
 		// Assessment data for validation
 		vehicleIdentification?: any;
 		exterior360?: any;
@@ -63,6 +65,7 @@
 		onCancel = undefined,
 		saving = false,
 		lastSaved = null,
+		userRole = 'engineer',
 		vehicleIdentification = null,
 		exterior360 = null,
 		interiorMechanical = null,
@@ -97,6 +100,11 @@
 		// Keep tab visible for archived assessments so completed FRCs can be viewed and reopened
 		if (assessment?.status === 'submitted' || assessment?.status === 'archived') {
 			baseTabs.push({ id: 'frc', label: 'FRC', icon: FileCheck });
+		}
+
+		// Add audit tab for admin users only
+		if (userRole === 'admin') {
+			baseTabs.push({ id: 'audit', label: 'Audit Trail', icon: History });
 		}
 
 		return baseTabs;

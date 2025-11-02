@@ -1,5 +1,16 @@
 <script lang="ts">
-	import { Clock, CheckCircle, XCircle, Edit, UserPlus, FileText } from 'lucide-svelte';
+	import {
+		Clock,
+		CheckCircle,
+		XCircle,
+		Edit,
+		UserPlus,
+		FileText,
+		Plus,
+		RotateCcw,
+		DollarSign,
+		CheckSquare
+	} from 'lucide-svelte';
 	import { Badge } from '$lib/components/ui/badge';
 	import type { AuditLog } from '$lib/types/audit';
 	import { formatRelativeTime } from '$lib/utils/formatters';
@@ -19,6 +30,18 @@
 				return UserPlus;
 			case 'updated':
 				return Edit;
+			case 'line_item_added':
+				return Plus;
+			case 'line_item_approved':
+				return CheckCircle;
+			case 'line_item_declined':
+				return XCircle;
+			case 'line_item_reversed':
+				return RotateCcw;
+			case 'rates_updated':
+				return DollarSign;
+			case 'frc_completed':
+				return CheckSquare;
 			default:
 				return Clock;
 		}
@@ -37,6 +60,18 @@
 				return 'text-purple-600';
 			case 'updated':
 				return 'text-yellow-600';
+			case 'line_item_added':
+				return 'text-blue-600';
+			case 'line_item_approved':
+				return 'text-green-600';
+			case 'line_item_declined':
+				return 'text-red-600';
+			case 'line_item_reversed':
+				return 'text-orange-600';
+			case 'rates_updated':
+				return 'text-purple-600';
+			case 'frc_completed':
+				return 'text-green-600';
 			default:
 				return 'text-gray-600';
 		}
@@ -59,6 +94,32 @@
 					return `Workflow step changed from ${log.old_value} to ${log.new_value}`;
 				}
 				return `Updated ${log.field_name || 'details'}`;
+			case 'line_item_added':
+				return `Line item added${log.metadata?.description ? `: ${log.metadata.description}` : ''}`;
+			case 'line_item_updated':
+				return `Line item updated${log.metadata?.description ? `: ${log.metadata.description}` : ''}`;
+			case 'line_item_deleted':
+				return `Line item deleted${log.metadata?.description ? `: ${log.metadata.description}` : ''}`;
+			case 'line_item_approved':
+				return `Line item approved${log.metadata?.description ? `: ${log.metadata.description}` : ''}`;
+			case 'line_item_declined':
+				return `Line item declined${log.metadata?.description ? `: ${log.metadata.description}` : ''}${log.metadata?.reason ? ` - ${log.metadata.reason}` : ''}`;
+			case 'line_item_reversed':
+				return `Line item reversed${log.metadata?.description ? `: ${log.metadata.description}` : ''}${log.metadata?.reason ? ` - ${log.metadata.reason}` : ''}`;
+			case 'line_item_reinstated':
+				return `Line item reinstated${log.metadata?.description ? `: ${log.metadata.description}` : ''}${log.metadata?.reason ? ` - ${log.metadata.reason}` : ''}`;
+			case 'original_line_removed':
+				return `Original line removed${log.metadata?.description ? `: ${log.metadata.description}` : ''}`;
+			case 'rates_updated':
+				return `Rates updated`;
+			case 'frc_completed':
+				return `FRC completed${log.metadata?.sign_off_by ? ` by ${log.metadata.sign_off_by}` : ''}`;
+			case 'frc_merged':
+				return `FRC merged additionals${log.metadata?.additionals_count ? ` (${log.metadata.additionals_count} items)` : ''}`;
+			case 'stage_transition':
+				return `Stage transition${log.old_value && log.new_value ? ` from ${log.old_value} to ${log.new_value}` : ''}`;
+			case 'assessment_created':
+				return `Assessment created${log.metadata?.assessment_number ? `: ${log.metadata.assessment_number}` : ''}`;
 			default:
 				return log.action;
 		}

@@ -112,13 +112,18 @@ frc                  -- Final Repair Costing subprocess
 ├── description (text)
 ├── cost (numeric)
 
-audit_log            -- Change tracking
+audit_logs           -- Comprehensive audit trail (21 entity types, 21 action types)
 ├── id (uuid, PK)
-├── entity_type (text)
-├── entity_id (uuid)
-├── action (enum: created, updated, deleted)
-├── changed_by (uuid, FK to users.id)
-├── changes (jsonb)
+├── entity_type (text, NOT NULL) -- 21 supported types
+├── entity_id (uuid, NOT NULL) -- Typically assessment_id for context
+├── action (text, NOT NULL) -- 21 action types (created, line_item_added, etc.)
+├── field_name (text, nullable)
+├── old_value (text, nullable)
+├── new_value (text, nullable)
+├── changed_by (text, nullable, DEFAULT 'System')
+├── metadata (jsonb, nullable) -- Rich context (descriptions, totals, etc.)
+├── created_at (timestamptz, DEFAULT NOW())
+└── Indexes: (entity_type, entity_id), (created_at DESC), (action)
 
 settings             -- App configuration
 ├── id (uuid, PK)

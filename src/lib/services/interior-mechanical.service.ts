@@ -81,11 +81,14 @@ export class InteriorMechanicalService {
 
 		// Log audit trail
 		try {
+			const fieldsUpdated = Object.keys(cleanedInput).filter(key => cleanedInput[key as keyof UpdateInteriorMechanicalInput] !== undefined);
 			await auditService.logChange({
 				entity_type: 'interior_mechanical',
-				entity_id: data.id,
+				entity_id: assessmentId,
 				action: 'updated',
-				metadata: { assessment_id: assessmentId }
+				metadata: {
+					fields_updated: fieldsUpdated
+				}
 			});
 		} catch (auditError) {
 			console.error('Error logging audit change:', auditError);
