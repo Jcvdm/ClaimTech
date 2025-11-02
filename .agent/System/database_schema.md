@@ -1064,6 +1064,11 @@ Singleton table for company information used in document generation (single row)
 **Branding:**
 - `logo_url` (TEXT) - URL to company logo
 
+**Terms & Conditions (Added Nov 2025, Migration 20251102):**
+- `assessment_terms_and_conditions` (TEXT) - T&Cs text displayed in Assessment Report PDFs
+- `estimate_terms_and_conditions` (TEXT) - T&Cs text displayed in Estimate PDFs
+- `frc_terms_and_conditions` (TEXT) - T&Cs text displayed in FRC Report PDFs
+
 **Timestamps:**
 - `created_at`, `updated_at`
 

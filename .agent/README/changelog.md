@@ -1,6 +1,50 @@
 # Changelog - Recent Updates
 
-**Last Updated**: January 30, 2025
+**Last Updated**: November 2, 2025
+
+---
+
+## November 2, 2025
+
+### ✅ Terms & Conditions Feature
+- **NEW**: Customizable Terms & Conditions for all three document types
+  - **Assessment Reports** - `assessment_terms_and_conditions` (TEXT)
+  - **Estimate Documents** - `estimate_terms_and_conditions` (TEXT)
+  - **FRC Reports** - `frc_terms_and_conditions` (TEXT)
+- **MIGRATION**: `20251102_add_terms_and_conditions_to_company_settings.sql`
+  - Added 3 TEXT columns to `company_settings` table
+  - Idempotent migration with `IF NOT EXISTS` checks
+  - Includes rollback instructions and column documentation
+  - Applied to production database (cfblmkzleqtvtfxujikf)
+- **SECURITY**: XSS protection via HTML escaping
+  - Created `src/lib/utils/sanitize.ts` with `escapeHtml()` and `escapeHtmlWithLineBreaks()`
+  - All T&Cs content escaped before rendering in PDFs
+  - Input validation (10,000 character max per field)
+  - Input sanitization (whitespace trimming, line break normalization)
+- **UI**: Settings page enhancements
+  - Added dedicated "Terms & Conditions" section with FileText icon
+  - 3 large textareas (10 rows each) with helpful placeholders
+  - Real-time character counters (e.g., "0 / 10,000 characters")
+  - Clear descriptions for each document type
+- **PDF INTEGRATION**: All three templates updated
+  - T&Cs sections appear before footer in all PDFs
+  - Preserves multi-line formatting with `white-space: pre-wrap`
+  - Conditional rendering (only shows if T&Cs exist)
+  - Consistent styling across all document types
+- **CODE CLEANUP**: Removed hardcoded T&Cs from estimate template footer
+- **FILES**:
+  - `src/lib/utils/sanitize.ts` (NEW) - Sanitization utilities
+  - `src/lib/types/assessment.ts` - Updated CompanySettings interface
+  - `src/routes/(app)/settings/+page.server.ts` - Validation & sanitization
+  - `src/routes/(app)/settings/+page.svelte` - UI with character counters
+  - `src/lib/templates/report-template.ts` - Integrated T&Cs section
+  - `src/lib/templates/estimate-template.ts` - Integrated T&Cs section
+  - `src/lib/templates/frc-report-template.ts` - Integrated T&Cs section
+  - `supabase/migrations/20251102_add_terms_and_conditions_to_company_settings.sql`
+- **COMMITS**:
+  - `d735f3f` - feat: add terms and conditions fields to company settings
+  - `d3454b7` - feat: implement terms and conditions UI and PDF integration
+- **IMPACT**: Companies can now customize legal terms for each document type, improving compliance and flexibility
 
 ---
 
