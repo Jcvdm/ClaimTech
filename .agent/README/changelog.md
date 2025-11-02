@@ -6,6 +6,27 @@
 
 ## November 2, 2025
 
+### 🔧 FRC Completion Stage Update Fix (CRITICAL)
+- **ISSUE**: Assessment ASM-2025-003 stuck in Finalized Assessments and Additionals after FRC completion
+- **ROOT CAUSE**: Silent failure in `completeFRC()` method - stage update failed but error was caught and only logged
+- **IMPACT**: Assessments with completed FRCs appearing in wrong lists due to stage/status mismatch
+- **FIX**: Refactored `completeFRC()` error handling in `src/lib/services/frc.service.ts`
+  - Made stage update independent and critical (no longer nested in conditional)
+  - Added explicit error handling for each step (status update, stage update, verification)
+  - Added verification step to confirm both `stage` and `status` are `'archived'`
+  - Errors now throw instead of being silently caught
+  - Clear "CRITICAL ERROR:" prefixes for debugging
+- **VERIFICATION**:
+  - Query assessment after update to verify `stage = 'archived'` and `status = 'archived'`
+  - Throw error if verification fails
+  - User sees error message if archiving fails (no silent failures)
+- **MANUAL FIX APPLIED**: Updated ASM-2025-003 stage from `'estimate_finalized'` to `'archived'`
+- **FILES**:
+  - `src/lib/services/frc.service.ts` (lines 731-800) - Refactored error handling
+  - `.agent/System/frc_completion_stage_update_fix_nov_2_2025.md` (NEW) - Complete documentation
+- **DOCUMENTATION**: Added to system_docs.md index as critical bug postmortem
+- **PREVENTION**: Future FRC completions will fail loudly if stage update fails, preventing inconsistent state
+
 ### ✅ Terms & Conditions Feature
 - **NEW**: Customizable Terms & Conditions for all three document types
   - **Assessment Reports** - `assessment_terms_and_conditions` (TEXT)

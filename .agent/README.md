@@ -1,7 +1,7 @@
 # ClaimTech Documentation
 
 **Project**: ClaimTech (SVA - SvelteKit Validation App)
-**Last Updated**: November 2, 2025 (Updated: Terms & Conditions Feature Completed)
+**Last Updated**: November 2, 2025 (Updated: FRC Completion Stage Update Fix + Terms & Conditions Feature)
 
 ---
 
@@ -11,7 +11,7 @@
 - **Backend**: SvelteKit SSR + Supabase PostgreSQL
 - **Auth**: Supabase Auth with 100% RLS coverage
 - **Architecture**: Assessment-centric (10-stage pipeline)
-- **Documentation**: 29 System docs, 19 SOPs, 31 database tables
+- **Documentation**: 30 System docs, 19 SOPs, 31 database tables
 - **Deployment**: ✅ Live on Vercel (https://claimtech.vercel.app)
 
 ---
@@ -30,7 +30,7 @@
 ## Documentation Categories
 
 ### 📚 [System Documentation](./README/system_docs.md)
-Complete index of architecture, database, security, UI patterns, and bug postmortems (28 files).
+Complete index of architecture, database, security, UI patterns, and bug postmortems (30 files).
 
 ### 📝 [Standard Operating Procedures](./README/sops.md)
 Step-by-step guides for database operations, services, authentication, UI features, and debugging (19 files).

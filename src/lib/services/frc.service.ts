@@ -728,23 +728,53 @@ class FRCService {
 			throw new Error(`Failed to complete FRC: ${error.message}`);
 		}
 
-		// Update assessment status to 'archived' when FRC is completed
+		// CRITICAL: Update assessment status and stage to 'archived' when FRC is completed
 		// This moves the assessment from Finalized Assessments to Archive
+		// Both status and stage MUST be updated for correct filtering
 		try {
-			const { error: assessmentError } = await db
+			// Step 1: Update assessment status to 'archived'
+			const { error: statusError } = await db
 				.from('assessments')
 				.update({ status: 'archived', updated_at: now })
 				.eq('id', frc.assessment_id);
 
-			if (assessmentError) {
-				console.error('Error updating assessment status to archived:', assessmentError);
-				// Don't throw - FRC is already completed, just log the error
-			} else {
-				// Update assessment stage to 'archived'
-				// This moves the assessment from Finalized Assessments to Archive
-				await assessmentService.updateStage(frc.assessment_id, 'archived', db);
+			if (statusError) {
+				console.error('CRITICAL ERROR: Failed to update assessment status to archived:', statusError);
+				throw new Error(`Failed to archive assessment status: ${statusError.message}`);
+			}
 
-				// Log assessment status change
+			// Step 2: Update assessment stage to 'archived' (CRITICAL - must succeed)
+			// This is what controls list filtering (Finalized vs Archive)
+			try {
+				await assessmentService.updateStage(frc.assessment_id, 'archived', db);
+			} catch (stageError) {
+				console.error('CRITICAL ERROR: Failed to update assessment stage to archived:', stageError);
+				// Stage update is critical - if it fails, the assessment will be in wrong lists
+				throw new Error(`Failed to archive assessment stage: ${stageError instanceof Error ? stageError.message : 'Unknown error'}`);
+			}
+
+			// Step 3: Verify both status and stage were updated correctly
+			const { data: verifyData, error: verifyError } = await db
+				.from('assessments')
+				.select('stage, status')
+				.eq('id', frc.assessment_id)
+				.single();
+
+			if (verifyError || !verifyData) {
+				console.error('CRITICAL ERROR: Failed to verify assessment archive state:', verifyError);
+				throw new Error('Failed to verify assessment was archived correctly');
+			}
+
+			if (verifyData.stage !== 'archived' || verifyData.status !== 'archived') {
+				console.error('CRITICAL ERROR: Assessment stage/status verification failed', {
+					expected: { stage: 'archived', status: 'archived' },
+					actual: { stage: verifyData.stage, status: verifyData.status }
+				});
+				throw new Error(`Assessment archive verification failed: stage=${verifyData.stage}, status=${verifyData.status}`);
+			}
+
+			// Step 4: Log assessment status change (non-critical, don't throw on failure)
+			try {
 				await auditService.logChange({
 					entity_type: 'assessment',
 					entity_id: frc.assessment_id,
@@ -757,10 +787,16 @@ class FRCService {
 						frc_id: frcId
 					}
 				});
+			} catch (auditError) {
+				console.error('Warning: Failed to log assessment status change to audit:', auditError);
+				// Don't throw - audit logging is non-critical
 			}
+
 		} catch (assessmentUpdateError) {
-			console.error('Error in assessment status update:', assessmentUpdateError);
-			// Continue - FRC completion is the primary operation
+			console.error('CRITICAL ERROR: Assessment archiving failed after FRC completion:', assessmentUpdateError);
+			// This is a critical failure - the FRC is completed but assessment is not archived
+			// Throw the error so the UI can show it to the user
+			throw new Error(`FRC completed but failed to archive assessment: ${assessmentUpdateError instanceof Error ? assessmentUpdateError.message : 'Unknown error'}`);
 		}
 
 		// Log audit with sign-off details

@@ -1,7 +1,7 @@
 # System Documentation Index
 
-**Last Updated**: January 30, 2025
-**Total Files**: 29 System documentation files
+**Last Updated**: November 2, 2025
+**Total Files**: 30 System documentation files
 
 ---
 
@@ -219,14 +219,22 @@ Comprehensive system documentation covering architecture, database design, secur
 - **Read When**: Debugging navigation with nested data
 - **Contains**: Nested object navigation pattern fixes
 
+**9. FRC Completion Stage Update Fix** ⭐ CRITICAL
+- **File**: [frc_completion_stage_update_fix_nov_2_2025.md](../System/frc_completion_stage_update_fix_nov_2_2025.md)
+- **Date**: November 2, 2025
+- **Read When**: Working with FRC completion, stage transitions, or list filtering
+- **Contains**: Critical fix for silent stage update failures during FRC completion
+- **Impact**: Prevents assessments from getting stuck in wrong lists (Finalized/Additionals instead of Archive)
+- **Key Learning**: Always verify critical state changes, never silently catch errors on critical operations
+
 #### RLS & Assessment Access (Jan 26, 2025)
 
-**9. Early-Stage Assessment RLS Fix**
+**10. Early-Stage Assessment RLS Fix**
 - **File**: [early_stage_assessment_rls_fix_jan_26_2025.md](../System/early_stage_assessment_rls_fix_jan_26_2025.md)
 - **Read When**: Writing RLS policies for nullable relationships
 - **Contains**: Dual-check RLS pattern for nullable foreign keys, Migrations 073-074
 
-**10. Phase 3 Frontend + Enum Fix**
+**11. Phase 3 Frontend + Enum Fix**
 - **File**: [phase_3_frontend_and_enum_fix_jan_26_2025.md](../System/phase_3_frontend_and_enum_fix_jan_26_2025.md)
 - **Size**: 602 lines
 - **Read When**: Understanding assessment stage enum values
@@ -234,12 +242,12 @@ Comprehensive system documentation covering architecture, database design, secur
 
 #### Older Implementation Logs
 
-**11. RLS Recursion Fix Summary**
+**12. RLS Recursion Fix Summary**
 - **File**: [rls_recursion_fix_summary.md](../System/rls_recursion_fix_summary.md)
 - **Date**: Oct 2025
 - **Contains**: Historical RLS recursion fixes
 
-**12-17. Additional Documentation**
+**13-18. Additional Documentation**
 - **Supabase Email Templates**: [supabase_email_templates.md](../System/supabase_email_templates.md) - Email template setup for PKCE flow
 - **Auth Redirect Research**: [auth_redirect_research.md](../System/auth_redirect_research.md) - Auth flow investigation
 - **Documentation Update Summaries**: Various doc update logs
