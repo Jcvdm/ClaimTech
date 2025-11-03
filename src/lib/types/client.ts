@@ -17,6 +17,11 @@ export interface Client {
 	total_writeoff_percentage: number; // Default 70.00
 	salvage_percentage: number; // Default 28.00
 
+	// Terms & Conditions fields (override company defaults)
+	assessment_terms_and_conditions?: string | null;
+	estimate_terms_and_conditions?: string | null;
+	frc_terms_and_conditions?: string | null;
+
 	created_at: string;
 	updated_at: string;
 	is_active: boolean;
@@ -35,6 +40,9 @@ export interface CreateClientInput {
 	borderline_writeoff_percentage?: number;
 	total_writeoff_percentage?: number;
 	salvage_percentage?: number;
+	assessment_terms_and_conditions?: string;
+	estimate_terms_and_conditions?: string;
+	frc_terms_and_conditions?: string;
 }
 
 export interface UpdateClientInput extends Partial<CreateClientInput> {}

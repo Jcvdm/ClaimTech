@@ -71,6 +71,9 @@ Insurance companies or private clients who request assessments.
 - `borderline_writeoff_percentage` (DECIMAL, DEFAULT 65.00) - Percentage threshold for borderline write-off
 - `total_writeoff_percentage` (DECIMAL, DEFAULT 70.00) - Percentage threshold for total write-off
 - `salvage_percentage` (DECIMAL, DEFAULT 28.00) - Percentage for salvage value calculation
+- `assessment_terms_and_conditions` (TEXT, NULL) - Client-specific T&Cs for Assessment Reports. If set, overrides company default. Falls back to `company_settings.assessment_terms_and_conditions` if NULL.
+- `estimate_terms_and_conditions` (TEXT, NULL) - Client-specific T&Cs for Estimate documents. If set, overrides company default. Falls back to `company_settings.estimate_terms_and_conditions` if NULL.
+- `frc_terms_and_conditions` (TEXT, NULL) - Client-specific T&Cs for FRC Reports. If set, overrides company default. Falls back to `company_settings.frc_terms_and_conditions` if NULL.
 - `created_at`, `updated_at`
 
 **Indexes:**

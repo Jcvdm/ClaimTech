@@ -2,7 +2,29 @@ import { supabase } from '$lib/supabase';
 import type { Client, CreateClientInput, UpdateClientInput } from '$lib/types/client';
 import type { ServiceClient } from '$lib/types/service';
 
+// Maximum length for Terms & Conditions fields
+const MAX_TCS_LENGTH = 10000;
+
 export class ClientService {
+	/**
+	 * Validate Terms & Conditions fields
+	 * Ensures T&Cs don't exceed maximum length
+	 */
+	private validateTermsAndConditions(input: CreateClientInput | UpdateClientInput): void {
+		const fields = [
+			{ name: 'assessment_terms_and_conditions', value: input.assessment_terms_and_conditions },
+			{ name: 'estimate_terms_and_conditions', value: input.estimate_terms_and_conditions },
+			{ name: 'frc_terms_and_conditions', value: input.frc_terms_and_conditions }
+		] as const;
+
+		for (const field of fields) {
+			if (field.value && field.value.length > MAX_TCS_LENGTH) {
+				throw new Error(
+					`${field.name} exceeds maximum length of ${MAX_TCS_LENGTH.toLocaleString()} characters (current: ${field.value.length.toLocaleString()})`
+				);
+			}
+		}
+	}
 	/**
 	 * List all clients
 	 */
@@ -52,6 +74,9 @@ export class ClientService {
 	 * Create a new client
 	 */
 	async createClient(input: CreateClientInput, client?: ServiceClient): Promise<Client> {
+		// Validate T&Cs field lengths
+		this.validateTermsAndConditions(input);
+
 		const db = client ?? supabase;
 
 		const { data, error } = await db
@@ -75,6 +100,9 @@ export class ClientService {
 	 * Update an existing client
 	 */
 	async updateClient(id: string, input: UpdateClientInput, client?: ServiceClient): Promise<Client | null> {
+		// Validate T&Cs field lengths
+		this.validateTermsAndConditions(input);
+
 		const db = client ?? supabase;
 
 		const { data, error } = await db
@@ -164,6 +192,38 @@ export class ClientService {
 		}
 
 		return data || [];
+	}
+
+	/**
+	 * Get client Terms & Conditions fields only
+	 * Used by PDF generation to minimize data transfer
+	 * @returns Object with T&Cs fields or null if client not found
+	 */
+	async getClientTermsAndConditions(
+		clientId: string,
+		client?: ServiceClient
+	): Promise<{
+		assessment_terms_and_conditions: string | null;
+		estimate_terms_and_conditions: string | null;
+		frc_terms_and_conditions: string | null;
+	} | null> {
+		const db = client ?? supabase;
+
+		const { data, error } = await db
+			.from('clients')
+			.select('assessment_terms_and_conditions, estimate_terms_and_conditions, frc_terms_and_conditions')
+			.eq('id', clientId)
+			.single();
+
+		if (error) {
+			if (error.code === 'PGRST116') {
+				return null; // Not found
+			}
+			console.error('Error fetching client T&Cs:', error);
+			throw new Error(`Failed to fetch client T&Cs: ${error.message}`);
+		}
+
+		return data;
 	}
 }
 

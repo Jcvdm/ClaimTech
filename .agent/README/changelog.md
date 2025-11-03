@@ -1,6 +1,6 @@
 # Changelog - Recent Updates
 
-**Last Updated**: November 2, 2025
+**Last Updated**: November 2, 2025 (Client T&Cs Implementation)
 
 ---
 
@@ -27,7 +27,7 @@
 - **DOCUMENTATION**: Added to system_docs.md index as critical bug postmortem
 - **PREVENTION**: Future FRC completions will fail loudly if stage update fails, preventing inconsistent state
 
-### ✅ Terms & Conditions Feature
+### ✅ Terms & Conditions Feature - Company Defaults
 - **NEW**: Customizable Terms & Conditions for all three document types
   - **Assessment Reports** - `assessment_terms_and_conditions` (TEXT)
   - **Estimate Documents** - `estimate_terms_and_conditions` (TEXT)
@@ -66,6 +66,56 @@
   - `d735f3f` - feat: add terms and conditions fields to company settings
   - `d3454b7` - feat: implement terms and conditions UI and PDF integration
 - **IMPACT**: Companies can now customize legal terms for each document type, improving compliance and flexibility
+
+### ✅ Terms & Conditions Feature - Client-Specific Overrides
+- **NEW**: Client-specific Terms & Conditions with fallback to company defaults
+  - Each client can optionally have custom T&Cs for all three document types
+  - **Fallback Pattern**: Client T&Cs → Company T&Cs → Empty
+  - Overrides company defaults only when client T&Cs are specified
+- **MIGRATION**: `20251102_add_terms_and_conditions_to_clients.sql`
+  - Added 3 TEXT columns to `clients` table:
+    - `assessment_terms_and_conditions` (TEXT, NULL)
+    - `estimate_terms_and_conditions` (TEXT, NULL)
+    - `frc_terms_and_conditions` (TEXT, NULL)
+  - Idempotent migration with `IF NOT EXISTS` checks
+  - Includes column documentation explaining fallback pattern
+  - RLS policies inherited from existing client table policies
+- **SERVICE LAYER**: Enhanced ClientService
+  - Added `validateTermsAndConditions()` method for server-side validation
+  - Input validation (10,000 character max per field)
+  - Validation applied to both create and update operations
+  - Added `getClientTermsAndConditions()` method for optimized T&Cs-only queries
+- **SECURITY**: Consistent with company T&Cs patterns
+  - Same 10,000 character limit per field
+  - Input sanitization via existing `sanitizeInput()` utility
+  - HTML escaping in PDF generation
+- **UI**: ClientForm enhancements
+  - Added dedicated "Terms & Conditions" section card
+  - 3 large textareas (8 rows each) with helpful placeholders
+  - Real-time character counters using Svelte 5 `$derived` runes
+  - Clear description: "Optional: Client-specific terms and conditions. Leave empty to use company default T&Cs"
+  - Visual consistency with company settings T&Cs UI
+- **PDF INTEGRATION**: All three API routes updated with fallback logic
+  - `generate-report/+server.ts` (lines 123-126) - Assessment Report fallback
+  - `generate-estimate/+server.ts` (lines 104-107) - Estimate fallback
+  - `generate-frc-report/+server.ts` (lines 124-126) - FRC Report fallback
+  - Added client data fetching to FRC route (lines 74-102)
+  - Fallback implemented: `client?.{type}_tcs || companySettings?.{type}_tcs || null`
+- **TYPE SAFETY**: Full TypeScript support
+  - Updated `Client` interface in `src/lib/types/client.ts`
+  - Updated `CreateClientInput` and `UpdateClientInput` interfaces
+  - Regenerated `src/lib/types/database.types.ts` from live Supabase schema
+  - TypeScript compilation verified with `npm run check`
+- **FILES**:
+  - `supabase/migrations/20251102_add_terms_and_conditions_to_clients.sql` (NEW)
+  - `src/lib/types/client.ts` - Added T&Cs fields to interfaces
+  - `src/lib/types/database.types.ts` - Regenerated from schema
+  - `src/lib/services/client.service.ts` - Added validation methods
+  - `src/lib/components/forms/ClientForm.svelte` - Added T&Cs section UI
+  - `src/routes/api/generate-report/+server.ts` - Added fallback logic
+  - `src/routes/api/generate-estimate/+server.ts` - Added fallback logic
+  - `src/routes/api/generate-frc-report/+server.ts` - Added client fetch + fallback logic
+- **IMPACT**: Clients can now have custom legal terms that override company defaults, enabling per-client compliance requirements while maintaining company-wide defaults
 
 ---
 

@@ -121,8 +121,9 @@
 		try {
 			let query = $page.data.supabase
 				.from('assessments')
-				.select('*, requests!inner(assigned_engineer_id)', { count: 'exact', head: true })
-				.eq('stage', 'request_submitted');
+				.select('*, requests!inner(assigned_engineer_id, status)', { count: 'exact', head: true })
+				.eq('stage', 'request_submitted')
+				.in('requests.status', ['submitted', 'draft']); // Only count active requests (match /requests page filter)
 
 			if (role === 'engineer' && engineer_id) {
 				query = query.eq('requests.assigned_engineer_id', engineer_id);
@@ -311,6 +312,15 @@
 								{/if}
 								{item.label}
 							</span>
+
+							<!-- Show badge for New Requests with pending count -->
+							{#if item.href === '/requests' && newRequestCount > 0}
+								<span
+									class="inline-flex items-center justify-center rounded-full bg-red-600 px-2 py-0.5 text-xs font-medium text-white"
+								>
+									{newRequestCount}
+								</span>
+							{/if}
 
 							<!-- Show badge for Inspections with pending count -->
 							{#if item.href === '/work/inspections' && inspectionCount > 0}

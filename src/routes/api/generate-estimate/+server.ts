@@ -101,6 +101,10 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 			yield { status: 'processing', progress: 45, message: 'Generating HTML template...' };
 			console.log(`[${new Date().toISOString()}] [Request ${requestId}] Progress 45% yielded successfully`);
 
+			// Determine T&Cs to use (client-specific or company defaults)
+			// Fallback pattern: client T&Cs → company T&Cs → empty
+			const termsAndConditions = client?.estimate_terms_and_conditions || companySettings?.estimate_terms_and_conditions || null;
+
 			// Generate HTML
 			console.log(`[${new Date().toISOString()}] [Request ${requestId}] Generating HTML template...`);
 			const html = generateEstimateHTML({
@@ -108,7 +112,10 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 				vehicleIdentification,
 				estimate,
 				lineItems,
-				companySettings,
+				companySettings: companySettings ? {
+					...companySettings,
+					estimate_terms_and_conditions: termsAndConditions
+				} : companySettings,
 				request: requestData,
 				client,
 				repairer

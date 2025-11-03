@@ -1,7 +1,7 @@
 # ClaimTech Documentation
 
 **Project**: ClaimTech (SVA - SvelteKit Validation App)
-**Last Updated**: November 2, 2025 (Updated: FRC Completion Stage Update Fix + Terms & Conditions Feature)
+**Last Updated**: November 2, 2025 (Updated: FRC Completion Stage Update Fix + Terms & Conditions - Company & Client-Specific)
 
 ---
 

@@ -80,9 +80,9 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 						.then(({ data }) =>
 							data
 								? locals.supabase.from('clients').select('*').eq('id', data.client_id).single()
-								: { data: null }
+								: { data: null, error: null }
 						)
-				: Promise.resolve({ data: null }),
+				: Promise.resolve({ data: null, error: null }),
 			locals.supabase.from('assessment_estimates').select('*').eq('assessment_id', assessmentId).single(),
 			locals.supabase.from('assessment_estimates').select('repairer_id').eq('assessment_id', assessmentId).single()
 				.then(({ data }) =>
@@ -120,6 +120,10 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
 			yield { status: 'processing', progress: 45, message: 'Generating HTML template...' };
 
+			// Determine T&Cs to use (client-specific or company defaults)
+			// Fallback pattern: client T&Cs → company T&Cs → empty
+			const termsAndConditions = client?.assessment_terms_and_conditions || companySettings?.assessment_terms_and_conditions || null;
+
 			// Generate HTML
 			const html = generateReportHTML({
 				assessment: { ...assessment, report_number: reportNumber },
@@ -127,7 +131,10 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 				exterior360,
 				interiorMechanical,
 				damageRecord,
-				companySettings,
+				companySettings: companySettings ? {
+					...companySettings,
+					assessment_terms_and_conditions: termsAndConditions
+				} : companySettings,
 				request: requestData,
 				inspection,
 				client,

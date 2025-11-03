@@ -26,6 +26,17 @@
 	let total_writeoff_percentage = $state(client?.total_writeoff_percentage || 70);
 	let salvage_percentage = $state(client?.salvage_percentage || 28);
 
+	// Terms & Conditions fields
+	let assessment_tcs = $state(client?.assessment_terms_and_conditions || '');
+	let estimate_tcs = $state(client?.estimate_terms_and_conditions || '');
+	let frc_tcs = $state(client?.frc_terms_and_conditions || '');
+
+	// Character count limits and derived values
+	const MAX_TCS_LENGTH = 10000;
+	let assessmentTCsLength = $derived(assessment_tcs.length);
+	let estimateTCsLength = $derived(estimate_tcs.length);
+	let frcTCsLength = $derived(frc_tcs.length);
+
 	async function handleSubmit(e: Event) {
 		e.preventDefault();
 		const formData = new FormData(e.target as HTMLFormElement);
@@ -165,6 +176,64 @@
 			placeholder="Any additional notes about this client..."
 			rows={4}
 		/>
+	</Card>
+
+	<Card class="p-6">
+		<h3 class="mb-4 text-lg font-semibold text-gray-900">Terms & Conditions</h3>
+		<p class="mb-6 text-sm text-gray-600">
+			Optional: Client-specific terms and conditions. Leave empty to use company default T&Cs in generated
+			documents.
+		</p>
+
+		<div class="space-y-6">
+			<!-- Assessment Report T&Cs -->
+			<div>
+				<FormField
+					label="Assessment Report T&Cs"
+					name="assessment_terms_and_conditions"
+					type="textarea"
+					bind:value={assessment_tcs}
+					maxlength={MAX_TCS_LENGTH}
+					rows={8}
+					placeholder="Optional: Client-specific terms for Assessment Report PDFs..."
+				/>
+				<p class="mt-1 text-xs text-gray-500">
+					{assessmentTCsLength.toLocaleString()} / {MAX_TCS_LENGTH.toLocaleString()} characters
+				</p>
+			</div>
+
+			<!-- Estimate T&Cs -->
+			<div>
+				<FormField
+					label="Estimate T&Cs"
+					name="estimate_terms_and_conditions"
+					type="textarea"
+					bind:value={estimate_tcs}
+					maxlength={MAX_TCS_LENGTH}
+					rows={8}
+					placeholder="Optional: Client-specific terms for Estimate PDFs..."
+				/>
+				<p class="mt-1 text-xs text-gray-500">
+					{estimateTCsLength.toLocaleString()} / {MAX_TCS_LENGTH.toLocaleString()} characters
+				</p>
+			</div>
+
+			<!-- FRC Report T&Cs -->
+			<div>
+				<FormField
+					label="FRC Report T&Cs"
+					name="frc_terms_and_conditions"
+					type="textarea"
+					bind:value={frc_tcs}
+					maxlength={MAX_TCS_LENGTH}
+					rows={8}
+					placeholder="Optional: Client-specific terms for FRC Report PDFs..."
+				/>
+				<p class="mt-1 text-xs text-gray-500">
+					{frcTCsLength.toLocaleString()} / {MAX_TCS_LENGTH.toLocaleString()} characters
+				</p>
+			</div>
+		</div>
 	</Card>
 
 	<FormActions

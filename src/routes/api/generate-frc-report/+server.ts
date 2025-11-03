@@ -76,7 +76,8 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 				{ data: vehicleIdentification },
 				{ data: estimate },
 				{ data: additionals },
-				{ data: companySettings }
+				{ data: companySettings },
+				{ data: client }
 			] = await Promise.all([
 				supabase
 					.from('assessment_vehicle_identification')
@@ -85,7 +86,19 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 					.single(),
 				locals.supabase.from('assessment_estimates').select('*').eq('assessment_id', assessmentId).single(),
 				locals.supabase.from('assessment_additionals').select('*').eq('assessment_id', assessmentId).single(),
-				locals.supabase.from('company_settings').select('*').single()
+				locals.supabase.from('company_settings').select('*').single(),
+				assessment.request_id
+					? locals.supabase
+							.from('requests')
+							.select('client_id')
+							.eq('id', assessment.request_id)
+							.single()
+							.then(({ data }) =>
+								data
+									? locals.supabase.from('clients').select('*').eq('id', data.client_id).single()
+									: { data: null, error: null }
+							)
+					: Promise.resolve({ data: null, error: null })
 			]);
 
 			console.log(`[${new Date().toISOString()}] [Request ${requestId}] Yielding progress: 40%`);
@@ -108,6 +121,10 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 			yield { status: 'processing', progress: 50, message: 'Generating HTML template...' };
 			console.log(`[${new Date().toISOString()}] [Request ${requestId}] Progress 50% yielded successfully`);
 
+			// Determine T&Cs to use (client-specific or company defaults)
+			// Fallback pattern: client T&Cs → company T&Cs → empty
+			const termsAndConditions = client?.frc_terms_and_conditions || companySettings?.frc_terms_and_conditions || null;
+
 			// Generate HTML
 			console.log(`[${new Date().toISOString()}] [Request ${requestId}] Generating HTML template...`);
 			const html = generateFRCReportHTML({
@@ -117,7 +134,10 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 				estimate,
 				additionals,
 				repairer,
-				companySettings,
+				companySettings: companySettings ? {
+					...companySettings,
+					frc_terms_and_conditions: termsAndConditions
+				} : companySettings,
 				frcDocuments: frcDocuments || []
 			});
 
