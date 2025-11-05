@@ -527,6 +527,652 @@ Auto-invokes when working with:
 
 ---
 
+### Workflow 7: Client-Specific Overrides with Fallback
+
+**When:** Implementing features with company-wide defaults that can be overridden per client
+**Time:** 30-45 minutes
+**Triggers:** "override", "fallback", "client-specific", "company default", "customization"
+
+**Pattern:** Company Default → Client Override → Empty
+
+**Steps:**
+
+1. **Add Database Fields**
+   ```sql
+   -- Add to company_settings table (company-wide defaults)
+   ALTER TABLE company_settings ADD COLUMN IF NOT EXISTS
+     assessment_terms_and_conditions text;
+
+   -- Add to clients table (client-specific overrides)
+   ALTER TABLE clients ADD COLUMN IF NOT EXISTS
+     assessment_terms_and_conditions text;
+
+   -- Add check constraints for character limits
+   ALTER TABLE company_settings ADD CONSTRAINT
+     assessment_tc_length CHECK (
+       assessment_terms_and_conditions IS NULL OR
+       length(assessment_terms_and_conditions) <= 10000
+     );
+   ```
+
+2. **Update Service Layer**
+   ```typescript
+   // src/lib/services/company.service.ts
+   async updateSettings(
+     companyId: string,
+     updates: Partial<CompanySettings>,
+     client?: ServiceClient
+   ): Promise<CompanySettings> {
+     const db = client ?? supabase;
+
+     // Validate character limits
+     if (updates.assessment_terms_and_conditions) {
+       if (updates.assessment_terms_and_conditions.length > 10000) {
+         throw new Error('Terms and conditions exceed 10,000 character limit');
+       }
+     }
+
+     const { data, error } = await db
+       .from('company_settings')
+       .update(updates)
+       .eq('id', companyId)
+       .select()
+       .single();
+
+     if (error) throw error;
+     return data;
+   }
+   ```
+
+3. **Implement Fallback Pattern**
+   ```typescript
+   // In API endpoint or service
+   async function getEffectiveTermsAndConditions(
+     clientId: string,
+     companyId: string,
+     documentType: 'assessment' | 'estimate' | 'frc',
+     client?: ServiceClient
+   ): Promise<string | null> {
+     const db = client ?? supabase;
+
+     // Get both client and company data
+     const [{ data: clientData }, { data: companySettings }] = await Promise.all([
+       db.from('clients').select('*').eq('id', clientId).single(),
+       db.from('company_settings').select('*').eq('id', companyId).single()
+     ]);
+
+     // Fallback pattern: client → company → empty
+     const fieldName = `${documentType}_terms_and_conditions`;
+     return clientData?.[fieldName] ||
+            companySettings?.[fieldName] ||
+            null;
+   }
+   ```
+
+4. **Create Form UI with Character Counter**
+   ```svelte
+   <script lang="ts">
+     let termsAndConditions = $state('');
+     let charCount = $derived(termsAndConditions.length);
+     const MAX_LENGTH = 10000;
+     let isOverLimit = $derived(charCount > MAX_LENGTH);
+
+     async function handleSubmit() {
+       if (isOverLimit) {
+         alert('Text exceeds character limit');
+         return;
+       }
+       // Submit form
+     }
+   </script>
+
+   <form on:submit|preventDefault={handleSubmit}>
+     <label>
+       Assessment Terms & Conditions
+       <textarea
+         bind:value={termsAndConditions}
+         placeholder="Enter terms and conditions (optional)"
+         rows="10"
+       />
+       <div class="character-counter" class:error={isOverLimit}>
+         {charCount} / {MAX_LENGTH} characters
+       </div>
+     </label>
+     <button type="submit" disabled={isOverLimit}>
+       Save Settings
+     </button>
+   </form>
+
+   <style>
+     .character-counter {
+       font-size: 0.875rem;
+       color: #666;
+       margin-top: 0.25rem;
+     }
+     .character-counter.error {
+       color: #dc2626;
+       font-weight: 600;
+     }
+   </style>
+   ```
+
+5. **Server-Side Validation**
+   ```typescript
+   // +page.server.ts
+   export const actions = {
+     updateTerms: async ({ request, locals }) => {
+       const formData = await request.formData();
+       const terms = formData.get('assessment_terms_and_conditions')?.toString();
+
+       // Validate length
+       if (terms && terms.length > 10000) {
+         return fail(400, {
+           error: 'Terms and conditions exceed 10,000 character limit'
+         });
+       }
+
+       try {
+         await companyService.updateSettings(
+           companyId,
+           { assessment_terms_and_conditions: terms },
+           locals.supabase
+         );
+
+         return { success: true };
+       } catch (error) {
+         return fail(500, { error: error.message });
+       }
+     }
+   };
+   ```
+
+6. **Use in PDF Templates**
+   ```typescript
+   // In PDF generation endpoint
+   const effectiveTerms = await getEffectiveTermsAndConditions(
+     clientId,
+     companyId,
+     'assessment',
+     locals.supabase
+   );
+
+   const html = `
+     <!DOCTYPE html>
+     <html>
+       <body>
+         <!-- Report content -->
+
+         ${effectiveTerms ? `
+           <section class="terms">
+             <h2>Terms and Conditions</h2>
+             <div>${escapeHtmlWithLineBreaks(effectiveTerms)}</div>
+           </section>
+         ` : ''}
+       </body>
+     </html>
+   `;
+   ```
+
+**Output:** Company-wide defaults with optional client overrides
+
+**Quality Checklist:**
+- [ ] Database fields are nullable (overrides are optional)
+- [ ] Character limit constraints at database level
+- [ ] Server-side validation enforces limits
+- [ ] UI shows real-time character counter
+- [ ] Fallback pattern implemented correctly (client → company → null)
+- [ ] HTML sanitization for user-generated content
+- [ ] Works in PDF templates with conditional rendering
+- [ ] Documentation updated
+
+**Common Pitfalls:**
+- ❌ Making override fields required (should be nullable)
+- ❌ Only validating on client-side (must validate server-side)
+- ❌ Wrong fallback order (should be client → company → null)
+- ❌ Not sanitizing HTML in PDF templates
+- ❌ Missing character counters in UI
+
+**Reference:** See Terms & Conditions feature implementation
+
+---
+
+### Workflow 8: HTML Sanitization & XSS Prevention
+
+**When:** Handling user-generated content that will be displayed or included in PDFs
+**Time:** 20-30 minutes
+**Triggers:** "user content", "sanitize", "XSS", "escape HTML", "text input"
+
+**Pattern:** Sanitize Input → Validate → Escape Output
+
+**Steps:**
+
+1. **Create Sanitization Utilities**
+   ```typescript
+   // src/lib/utils/sanitize.ts
+
+   /**
+    * Sanitize user input by removing potentially dangerous characters
+    * Use for input validation before storing in database
+    */
+   export function sanitizeInput(input: string | null | undefined): string {
+     if (!input) return '';
+
+     return input
+       .trim()
+       .replace(/[<>]/g, '') // Remove < and >
+       .substring(0, 10000); // Enforce max length
+   }
+
+   /**
+    * Escape HTML entities for safe display
+    * Use when rendering user content in HTML context
+    */
+   export function escapeHtml(text: string): string {
+     const escapeMap: Record<string, string> = {
+       '&': '&amp;',
+       '<': '&lt;',
+       '>': '&gt;',
+       '"': '&quot;',
+       "'": '&#x27;',
+       '/': '&#x2F;'
+     };
+
+     return text.replace(/[&<>"'/]/g, (char) => escapeMap[char] || char);
+   }
+
+   /**
+    * Escape HTML and preserve line breaks
+    * Use for multi-line user content in PDFs
+    */
+   export function escapeHtmlWithLineBreaks(text: string): string {
+     return escapeHtml(text).replace(/\n/g, '<br>');
+   }
+
+   /**
+    * Validate text length
+    */
+   export function validateLength(
+     text: string,
+     maxLength: number = 10000
+   ): { valid: boolean; error?: string } {
+     if (text.length > maxLength) {
+       return {
+         valid: false,
+         error: `Text exceeds ${maxLength} character limit`
+       };
+     }
+     return { valid: true };
+   }
+   ```
+
+2. **Use in Service Layer**
+   ```typescript
+   // src/lib/services/client.service.ts
+   import { sanitizeInput, validateLength } from '$lib/utils/sanitize';
+
+   async update(
+     id: string,
+     updates: Partial<ClientInput>,
+     client?: ServiceClient
+   ): Promise<Client> {
+     const db = client ?? supabase;
+
+     // Sanitize text fields
+     if (updates.assessment_terms_and_conditions) {
+       const sanitized = sanitizeInput(updates.assessment_terms_and_conditions);
+
+       // Validate length
+       const validation = validateLength(sanitized, 10000);
+       if (!validation.valid) {
+         throw new Error(validation.error);
+       }
+
+       updates.assessment_terms_and_conditions = sanitized;
+     }
+
+     const { data, error } = await db
+       .from('clients')
+       .update(updates)
+       .eq('id', id)
+       .select()
+       .single();
+
+     if (error) throw error;
+     return data;
+   }
+   ```
+
+3. **Use in PDF Templates**
+   ```typescript
+   // src/routes/api/generate-report/+server.ts
+   import { escapeHtmlWithLineBreaks } from '$lib/utils/sanitize';
+
+   export async function POST({ request, locals }) {
+     // Get user-generated content
+     const termsAndConditions = await getTermsAndConditions(...);
+
+     const html = `
+       <!DOCTYPE html>
+       <html>
+         <body>
+           ${termsAndConditions ? `
+             <section class="terms">
+               <h2>Terms and Conditions</h2>
+               <div class="terms-content">
+                 ${escapeHtmlWithLineBreaks(termsAndConditions)}
+               </div>
+             </section>
+           ` : ''}
+         </body>
+       </html>
+     `;
+
+     // Generate PDF with Puppeteer
+     const pdf = await generatePDF(html);
+     return new Response(pdf, { ... });
+   }
+   ```
+
+4. **Server-Side Validation**
+   ```typescript
+   // +page.server.ts
+   import { sanitizeInput, validateLength } from '$lib/utils/sanitize';
+
+   export const actions = {
+     updateContent: async ({ request, locals }) => {
+       const formData = await request.formData();
+       const rawContent = formData.get('content')?.toString() || '';
+
+       // Sanitize
+       const content = sanitizeInput(rawContent);
+
+       // Validate
+       const validation = validateLength(content, 10000);
+       if (!validation.valid) {
+         return fail(400, { error: validation.error });
+       }
+
+       try {
+         await service.update(id, { content }, locals.supabase);
+         return { success: true };
+       } catch (error) {
+         return fail(500, { error: error.message });
+       }
+     }
+   };
+   ```
+
+**Output:** Safe handling of user-generated content
+
+**Quality Checklist:**
+- [ ] Input sanitization before database storage
+- [ ] Output escaping when rendering to HTML/PDF
+- [ ] Server-side validation (never trust client)
+- [ ] Character length limits enforced
+- [ ] Line breaks preserved where needed
+- [ ] No inline JavaScript possible in user content
+- [ ] Utilities tested with malicious input
+
+**Security Tests:**
+```typescript
+// Test XSS prevention
+const maliciousInput = '<script>alert("XSS")</script>';
+const sanitized = sanitizeInput(maliciousInput);
+expect(sanitized).not.toContain('<script>');
+
+const escaped = escapeHtml('<script>alert("XSS")</script>');
+expect(escaped).toBe('&lt;script&gt;alert(&quot;XSS&quot;)&lt;&#x2F;script&gt;');
+```
+
+**Common Pitfalls:**
+- ❌ Only sanitizing on client-side (must sanitize server-side)
+- ❌ Not escaping output in PDFs
+- ❌ Removing line breaks when they should be preserved
+- ❌ Allowing unchecked HTML tags
+- ❌ Not validating content length
+
+**Reference:** See `src/lib/utils/sanitize.ts`
+
+---
+
+### Workflow 9: Multi-Step Transactions with Verification
+
+**When:** Critical operations with multiple database updates that must all succeed
+**Time:** 30-45 minutes
+**Triggers:** "critical operation", "multi-step", "verification", "atomic update", "stage transition"
+
+**Pattern:** Step → Verify → Step → Verify → Audit
+
+**Steps:**
+
+1. **Structure Operation as Multi-Step**
+   ```typescript
+   async function criticalOperation(
+     id: string,
+     client: ServiceClient
+   ): Promise<Result> {
+     try {
+       // Step 1: Update field A
+       const { error: error1 } = await client
+         .from('table')
+         .update({ field_a: valueA })
+         .eq('id', id);
+
+       if (error1) {
+         throw new Error(`Step 1 failed: ${error1.message}`);
+       }
+
+       // Step 2: Update field B (CRITICAL)
+       try {
+         await service.updateFieldB(id, valueB, client);
+       } catch (error2) {
+         console.error('CRITICAL ERROR: Step 2 failed:', error2);
+         throw new Error(`Step 2 failed: ${error2.message}`);
+       }
+
+       // Step 3: VERIFY both updates succeeded
+       const { data, error: verifyError } = await client
+         .from('table')
+         .select('field_a, field_b')
+         .eq('id', id)
+         .single();
+
+       if (verifyError) {
+         throw new Error(`Verification failed: ${verifyError.message}`);
+       }
+
+       if (data.field_a !== valueA || data.field_b !== valueB) {
+         throw new Error(
+           `CRITICAL ERROR: Verification failed. ` +
+           `Expected field_a=${valueA}, field_b=${valueB}. ` +
+           `Got field_a=${data.field_a}, field_b=${data.field_b}`
+         );
+       }
+
+       // Step 4: Audit logging (defensive - don't throw)
+       try {
+         await auditService.logChange({...}, client);
+       } catch (auditError) {
+         console.error('Warning: Failed to log audit:', auditError);
+       }
+
+       return { success: true, data };
+
+     } catch (error) {
+       // ALWAYS re-throw - UI must show error
+       console.error('Critical operation failed:', error);
+       throw error;
+     }
+   }
+   ```
+
+2. **Add Verification Queries**
+   ```typescript
+   // After critical update, explicitly verify
+   const { data: verify, error: verifyError } = await db
+     .from('assessments')
+     .select('stage, status')
+     .eq('id', assessmentId)
+     .single();
+
+   if (verifyError) {
+     throw new Error(`Verification query failed: ${verifyError.message}`);
+   }
+
+   if (verify.stage !== expectedStage) {
+     throw new Error(
+       `CRITICAL ERROR: Stage verification failed. ` +
+       `Expected stage='${expectedStage}', got stage='${verify.stage}'`
+     );
+   }
+   ```
+
+3. **Per-Step Error Handling**
+   ```typescript
+   // Wrap critical steps in try-catch
+   try {
+     await assessmentService.updateStage(id, 'archived', db);
+   } catch (stageError) {
+     console.error('CRITICAL ERROR: Failed to update stage:', stageError);
+     throw new Error(`Stage update failed: ${stageError.message}`);
+   }
+   ```
+
+4. **Defensive Audit Logging**
+   ```typescript
+   // Audit failures should NOT break the operation
+   try {
+     await auditService.logChange({
+       entity_type: 'frc',
+       entity_id: id,
+       action: 'complete',
+       changes: { status: 'completed' }
+     }, db);
+   } catch (auditError) {
+     // Log but don't throw - audit is non-critical
+     console.error('Warning: Failed to log audit:', auditError);
+   }
+   ```
+
+5. **Fail Loudly**
+   ```typescript
+   // NEVER catch and silently log - always re-throw
+   } catch (error) {
+     console.error('FRC completion failed:', error);
+     throw error; // ← Re-throw to UI
+   }
+   ```
+
+**Real Example:** FRC Completion (see assessment-centric-specialist skill)
+
+**Output:** Robust multi-step operations with verification
+
+**Quality Checklist:**
+- [ ] Each critical step has error handling
+- [ ] Verification query after critical updates
+- [ ] "CRITICAL ERROR:" prefix for important failures
+- [ ] Detailed error messages with expected vs actual
+- [ ] Audit logging is defensive (doesn't break operation)
+- [ ] All errors re-thrown to UI (no silent failures)
+- [ ] Console logging for debugging
+- [ ] Tested failure scenarios
+
+**When to Use:**
+- ✅ Stage transitions with side effects
+- ✅ FRC/Additional completion flows
+- ✅ Multi-field atomic updates
+- ✅ Operations where inconsistent state is dangerous
+- ❌ Simple single-field updates (overkill)
+- ❌ Non-critical operations
+
+**Reference:** See `src/lib/services/frc.service.ts` lines 731-800
+
+---
+
+### Workflow 10: Vercel Deployment Configuration
+
+**When:** Setting up production deployment or configuring environment variables
+**Time:** 20-30 minutes
+**Triggers:** "deployment", "Vercel", "production", "environment", "env vars"
+
+**Pattern:** Local Dev → Preview (vercel-dev) → Production (main)
+
+**Steps:**
+
+1. **Configure Vercel Project**
+   ```bash
+   # Install Vercel CLI
+   npm i -g vercel
+
+   # Link project
+   vercel link
+
+   # Set environment variables
+   vercel env add PUBLIC_SUPABASE_URL
+   vercel env add PUBLIC_SUPABASE_ANON_KEY
+   vercel env add SUPABASE_SERVICE_ROLE_KEY
+   ```
+
+2. **Set Up Branch Strategy**
+   ```
+   main          → Vercel Production + Supabase Production
+   vercel-dev    → Vercel Preview + Supabase Dev Branch
+   dev           → Local only + Supabase Dev Branch
+   ```
+
+3. **Configure Auth URLs in Supabase**
+   ```
+   Site URL: https://claimtech.vercel.app
+   Redirect URLs:
+   - https://claimtech.vercel.app/auth/callback
+   - https://claimtech.vercel.app/auth/confirm
+   ```
+
+4. **Environment Variables**
+   ```bash
+   # Production
+   PUBLIC_SUPABASE_URL=https://xxx.supabase.co
+   PUBLIC_SUPABASE_ANON_KEY=eyJ...
+   SUPABASE_SERVICE_ROLE_KEY=eyJ...
+
+   # Preview/Development
+   PUBLIC_SUPABASE_URL=https://xxx.supabase.co
+   PUBLIC_SUPABASE_ANON_KEY=eyJ...
+   SUPABASE_SERVICE_ROLE_KEY=eyJ...
+   ```
+
+5. **Verify Deployment**
+   ```bash
+   # Check production build
+   npm run build
+
+   # Test preview deployment
+   vercel --prod=false
+
+   # Deploy to production
+   git push origin main
+   ```
+
+**Output:** Production-ready deployment on Vercel
+
+**Quality Checklist:**
+- [ ] All environment variables set in Vercel
+- [ ] Auth redirect URLs configured in Supabase
+- [ ] Branch strategy documented
+- [ ] Production build succeeds locally
+- [ ] Preview deployments working
+- [ ] Auto-deployment enabled for main branch
+
+**Common Issues:**
+- Auth redirects fail → Check Site URL and Redirect URLs
+- Environment vars missing → Set in Vercel dashboard
+- Build fails → Test `npm run build` locally first
+- Wrong Supabase project → Verify PROJECT_ID
+
+**Reference:** See `.agent/Tasks/active/SUPABASE_BRANCHING.md`
+
+---
+
 ## Best Practices
 
 ### Always:
@@ -575,6 +1221,6 @@ Auto-invokes when working with:
 
 ---
 
-**Skill Version:** 1.0.0
-**Last Updated:** October 25, 2025
-**ClaimTech Version:** Current (28 tables, 18/28 RLS enabled)
+**Skill Version:** 1.1.0
+**Last Updated:** November 2, 2025
+**ClaimTech Version:** Production (31 tables, 100% RLS coverage, deployed on Vercel)

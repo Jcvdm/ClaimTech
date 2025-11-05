@@ -43,20 +43,22 @@ Auto-invokes when working with:
 
 ```
 request_submitted (default)
-  ↓ (Admin accepts)
-request_accepted
+  ↓ (Admin reviews)
+request_reviewed
   ↓ (Admin schedules appointment)
+appointment_scheduled
+  ↓ (Engineer accepts)
 inspection_scheduled
   ↓ (Engineer clicks "Start Assessment")
 assessment_in_progress
-  ↓ (Engineer completes all tabs)
-assessment_completed
-  ↓ (Admin finalizes estimate)
+  ↓ (Engineer creates estimate)
+estimate_review
+  ↓ (Admin sends estimate)
+estimate_sent
+  ↓ (Estimate approved)
 estimate_finalized
   ↓ (FRC started)
 frc_in_progress
-  ↓ (FRC completed)
-frc_completed
   ↓ (Admin archives)
 archived
 
@@ -87,11 +89,11 @@ archived
 2. **Map Status to Stage**
    ```typescript
    // Status → Stage mapping
-   'draft' → 'request_submitted', 'request_accepted'
-   'pending' → 'request_accepted'
-   'scheduled' → 'inspection_scheduled'
+   'draft' → 'request_submitted', 'request_reviewed'
+   'pending' → 'request_reviewed'
+   'scheduled' → 'appointment_scheduled', 'inspection_scheduled'
    'in_progress' → 'assessment_in_progress'
-   'completed' → 'assessment_completed'
+   'completed' → 'estimate_review', 'estimate_sent'
    'submitted' → 'estimate_finalized'
    'archived' → 'archived'
    'cancelled' → 'cancelled'
@@ -221,14 +223,15 @@ export async function load({ locals }) {
    // src/lib/types/assessment.ts
    export type AssessmentStage =
      | 'request_submitted'
-     | 'request_accepted'
+     | 'request_reviewed'
+     | 'appointment_scheduled'
      | 'inspection_scheduled'
      | 'assessment_in_progress'
-     | 'assessment_completed'
+     | 'estimate_review'
+     | 'estimate_sent'
      | 'quality_review' // ← NEW STAGE
      | 'estimate_finalized'
      | 'frc_in_progress'
-     | 'frc_completed'
      | 'archived'
      | 'cancelled';
    ```
@@ -265,9 +268,10 @@ export async function load({ locals }) {
      CHECK (
        CASE
          WHEN stage IN (
-           'inspection_scheduled', 'assessment_in_progress',
-           'assessment_completed', 'quality_review', -- ← Added here
-           'estimate_finalized', 'frc_in_progress', 'frc_completed'
+           'appointment_scheduled', 'inspection_scheduled',
+           'assessment_in_progress', 'estimate_review', 'estimate_sent',
+           'quality_review', -- ← Added here
+           'estimate_finalized', 'frc_in_progress'
          )
            THEN appointment_id IS NOT NULL
          ELSE TRUE
@@ -465,8 +469,15 @@ if (assessment.stage === 'archived') {
 
 // Only allow valid transitions
 const validTransitions = {
-  'request_submitted': ['request_accepted', 'cancelled'],
-  'request_accepted': ['inspection_scheduled', 'cancelled'],
+  'request_submitted': ['request_reviewed', 'cancelled'],
+  'request_reviewed': ['appointment_scheduled', 'cancelled'],
+  'appointment_scheduled': ['inspection_scheduled', 'cancelled'],
+  'inspection_scheduled': ['assessment_in_progress', 'cancelled'],
+  'assessment_in_progress': ['estimate_review', 'cancelled'],
+  'estimate_review': ['estimate_sent', 'assessment_in_progress', 'cancelled'],
+  'estimate_sent': ['estimate_finalized', 'estimate_review', 'cancelled'],
+  'estimate_finalized': ['frc_in_progress', 'archived'],
+  'frc_in_progress': ['archived'],
   // ... etc
 };
 
@@ -548,14 +559,13 @@ if (!validTransitions[currentStage]?.includes(newStage)) {
    ```typescript
    // Create mapping object for reference
    const statusToStage: Record<string, AssessmentStage | AssessmentStage[]> = {
-     'draft': ['request_submitted', 'request_accepted'],
-     'pending': 'request_accepted',
-     'scheduled': 'inspection_scheduled',
+     'draft': ['request_submitted', 'request_reviewed'],
+     'pending': 'request_reviewed',
+     'scheduled': ['appointment_scheduled', 'inspection_scheduled'],
      'in_progress': 'assessment_in_progress',
-     'completed': 'assessment_completed',
+     'completed': ['estimate_review', 'estimate_sent'],
      'submitted': 'estimate_finalized',
      'frc_in_progress': 'frc_in_progress',
-     'frc_completed': 'frc_completed',
      'archived': 'archived',
      'cancelled': 'cancelled'
    };
@@ -840,12 +850,13 @@ ALTER TABLE assessments
   CHECK (
     CASE
       WHEN stage IN (
+        'appointment_scheduled',
         'inspection_scheduled',
         'assessment_in_progress',
-        'assessment_completed',
+        'estimate_review',
+        'estimate_sent',
         'estimate_finalized',
-        'frc_in_progress',
-        'frc_completed'
+        'frc_in_progress'
       )
         THEN appointment_id IS NOT NULL
       ELSE TRUE
@@ -854,12 +865,13 @@ ALTER TABLE assessments
 ```
 
 **Stages Requiring appointment_id:**
+- appointment_scheduled
 - inspection_scheduled
 - assessment_in_progress
-- assessment_completed
+- estimate_review
+- estimate_sent
 - estimate_finalized
 - frc_in_progress
-- frc_completed
 
 **Complete Example:**
 
@@ -884,7 +896,8 @@ export async function load({ params, locals }) {
   // Check if needs stage update
   const needsStageUpdate = [
     'request_submitted',
-    'request_accepted',
+    'request_reviewed',
+    'appointment_scheduled',
     'inspection_scheduled'
   ].includes(assessment.stage);
 
@@ -1044,23 +1057,29 @@ const totalPages = Math.ceil(count / pageSize);
 **Stage-Based Query Examples:**
 
 ```typescript
-// Requests page (multiple stages)
-.in('stage', ['request_submitted', 'request_accepted'])
+// New Requests page
+.eq('stage', 'request_submitted')
 
-// Inspections page (single stage)
-.eq('stage', 'request_accepted')
+// Requests page (multiple stages)
+.in('stage', ['request_submitted', 'request_reviewed'])
+
+// Inspections page
+.eq('stage', 'request_reviewed')
 
 // Appointments page
+.eq('stage', 'appointment_scheduled')
+
+// Inspections scheduled page
 .eq('stage', 'inspection_scheduled')
 
 // Open Assessments page
 .eq('stage', 'assessment_in_progress')
 
-// Finalized Assessments page
-.eq('stage', 'estimate_finalized')
+// Finalized Assessments page (multiple stages)
+.in('stage', ['estimate_review', 'estimate_sent', 'estimate_finalized'])
 
-// FRC page (multiple stages)
-.in('stage', ['frc_in_progress', 'frc_completed'])
+// FRC page
+.eq('stage', 'frc_in_progress')
 
 // Archive page (multiple stages)
 .in('stage', ['archived', 'cancelled'])
@@ -1081,6 +1100,526 @@ const totalPages = Math.ceil(count / pageSize);
 - ❌ Forgetting engineer filtering for role-based access
 - ❌ Loading all records without pagination
 - ❌ Not ordering results
+
+---
+
+### Skill 8: Multi-Step Transactions with Verification
+
+**When:** Critical operations requiring multiple database updates, stage transitions with side effects, FRC completion
+
+**Complexity:** Medium-High
+**Time Estimate:** 30-45 minutes
+
+**Critical Pattern - Explicit Verification:**
+
+When performing operations with multiple steps where failure of any step could leave data in an inconsistent state, use explicit verification queries after each critical step.
+
+```typescript
+// Pattern: Multi-step transaction with per-step error handling
+async function criticalMultiStepOperation(
+  id: string,
+  client: ServiceClient
+): Promise<Result> {
+  try {
+    // Step 1: Update field A
+    const { error: stepError1 } = await client
+      .from('table')
+      .update({ field_a: valueA })
+      .eq('id', id);
+
+    if (stepError1) {
+      throw new Error(`Step 1 failed: ${stepError1.message}`);
+    }
+
+    // Step 2: Update field B (critical - must succeed)
+    try {
+      await someService.updateField(id, valueB, client);
+    } catch (stepError2) {
+      console.error('CRITICAL ERROR: Step 2 failed:', stepError2);
+      throw new Error(`Step 2 failed: ${stepError2.message}`);
+    }
+
+    // Step 3: VERIFY both updates succeeded
+    const { data: verifyData, error: verifyError } = await client
+      .from('table')
+      .select('field_a, field_b')
+      .eq('id', id)
+      .single();
+
+    if (verifyError) {
+      throw new Error(`Verification query failed: ${verifyError.message}`);
+    }
+
+    if (verifyData.field_a !== valueA || verifyData.field_b !== valueB) {
+      throw new Error(
+        `CRITICAL ERROR: Verification failed. ` +
+        `Expected field_a=${valueA}, field_b=${valueB}. ` +
+        `Got field_a=${verifyData.field_a}, field_b=${verifyData.field_b}`
+      );
+    }
+
+    // Step 4: Perform side effects only after verification
+    await performSideEffects(id, client);
+
+    return { success: true, data: verifyData };
+
+  } catch (error) {
+    // ALWAYS re-throw - critical failures must bubble to UI
+    console.error('Critical multi-step operation failed:', error);
+    throw new Error(`Critical operation failed: ${error.message}`);
+  }
+}
+```
+
+**Real Example: FRC Completion (from frc.service.ts)**
+
+```typescript
+// src/lib/services/frc.service.ts lines 731-800
+async completeFRC(frcId: string, client?: ServiceClient): Promise<FRC> {
+  const db = client ?? supabase;
+
+  try {
+    // Step 1: Mark FRC as completed
+    const { data: frc, error: frcError } = await db
+      .from('frc')
+      .update({
+        status: 'completed',
+        completed_at: new Date().toISOString()
+      })
+      .eq('id', frcId)
+      .select('*, assessment:assessments(*)')
+      .single();
+
+    if (frcError) {
+      throw new Error(`Failed to complete FRC: ${frcError.message}`);
+    }
+
+    // Step 2: Update assessment stage (CRITICAL - must not fail silently)
+    try {
+      await assessmentService.updateStage(
+        frc.assessment.id,
+        'archived',
+        db
+      );
+    } catch (stageError) {
+      console.error('CRITICAL ERROR: Failed to update assessment stage:', stageError);
+      throw new Error(`Failed to update assessment stage: ${stageError.message}`);
+    }
+
+    // Step 3: VERIFY assessment stage was updated
+    const { data: verifyAssessment, error: verifyError } = await db
+      .from('assessments')
+      .select('id, stage, status')
+      .eq('id', frc.assessment.id)
+      .single();
+
+    if (verifyError) {
+      throw new Error(`Verification failed: ${verifyError.message}`);
+    }
+
+    if (verifyAssessment.stage !== 'archived') {
+      throw new Error(
+        `CRITICAL ERROR: Assessment stage verification failed. ` +
+        `Expected stage='archived', got stage='${verifyAssessment.stage}'`
+      );
+    }
+
+    // Step 4: Log audit trail (only after verification succeeds)
+    try {
+      await auditService.logChange({
+        entity_type: 'frc',
+        entity_id: frcId,
+        action: 'complete',
+        changes: { status: 'completed' },
+        user_id: frc.created_by
+      }, db);
+    } catch (auditError) {
+      // Audit failures are non-critical - log but don't throw
+      console.error('Warning: Failed to log audit:', auditError);
+    }
+
+    return frc;
+
+  } catch (error) {
+    // ALWAYS re-throw - UI must show error to user
+    console.error('FRC completion failed:', error);
+    throw error;
+  }
+}
+```
+
+**Why This Pattern Is Critical:**
+
+1. **Silent Failures Are Dangerous**
+   - Without explicit verification, stage update could fail silently
+   - Assessment would show wrong stage in UI
+   - User wouldn't know operation failed
+
+2. **Error Handling Per Step**
+   - Each critical step has its own try-catch
+   - Errors include context about which step failed
+   - "CRITICAL ERROR:" prefix helps debugging
+
+3. **Explicit Verification**
+   - After critical updates, query database to verify
+   - Compare actual values to expected values
+   - Throw detailed error if verification fails
+
+4. **Fail Loudly**
+   - Re-throw all errors to UI
+   - Don't catch and log silently
+   - User must know if operation failed
+
+**Steps to Implement:**
+
+1. **Identify Critical Operations**
+   ```typescript
+   // Critical: Multiple updates that must all succeed
+   - Stage transitions with status updates
+   - FRC/Additional completion flows
+   - Request creation with assessment
+   - Appointment scheduling with stage update
+   ```
+
+2. **Structure as Multi-Step with Try-Catch Per Step**
+   ```typescript
+   try {
+     // Step 1
+     const result1 = await operation1();
+     if (error1) throw new Error('Step 1 failed');
+
+     // Step 2 (critical)
+     try {
+       await operation2();
+     } catch (step2Error) {
+       console.error('CRITICAL ERROR:', step2Error);
+       throw new Error(`Step 2 failed: ${step2Error.message}`);
+     }
+
+     // Continue...
+   } catch (error) {
+     console.error('Multi-step operation failed:', error);
+     throw error; // Re-throw to UI
+   }
+   ```
+
+3. **Add Verification Query**
+   ```typescript
+   // After critical updates, verify with SELECT
+   const { data: verify } = await db
+     .select('field1, field2')
+     .eq('id', id)
+     .single();
+
+   if (verify.field1 !== expectedValue1 || verify.field2 !== expectedValue2) {
+     throw new Error(
+       `Verification failed: expected X, got Y`
+     );
+   }
+   ```
+
+4. **Add Audit Logging (Defensive)**
+   ```typescript
+   // Audit failures should NOT break the operation
+   try {
+     await auditService.logChange({...}, client);
+   } catch (auditError) {
+     console.error('Warning: Failed to log audit:', auditError);
+     // DON'T throw - audit is non-critical
+   }
+   ```
+
+5. **Test Failure Scenarios**
+   - [ ] Test Step 1 failure → error thrown, UI shows message
+   - [ ] Test Step 2 failure → error thrown, UI shows message
+   - [ ] Test verification failure → error thrown, UI shows message
+   - [ ] Test audit failure → logged but operation succeeds
+   - [ ] Verify no silent failures
+
+**Quality Checklist:**
+- [ ] Each critical step has error handling
+- [ ] Uses "CRITICAL ERROR:" prefix for debugging
+- [ ] Verification query after critical updates
+- [ ] Detailed error messages with expected vs actual values
+- [ ] Re-throws errors to UI (no silent failures)
+- [ ] Audit logging is defensive (doesn't break operation)
+- [ ] Console logging for debugging
+- [ ] Tested all failure scenarios
+
+**Common Pitfalls:**
+- ❌ Catching errors without re-throwing (silent failures)
+- ❌ Not verifying critical updates succeeded
+- ❌ Vague error messages ("Update failed" without context)
+- ❌ Audit logging failures breaking the operation
+- ❌ Not using "CRITICAL ERROR:" prefix for important failures
+- ❌ Missing per-step error handling
+
+**When to Use This Pattern:**
+- ✅ Stage transitions with side effects
+- ✅ FRC/Additional completion flows
+- ✅ Multi-field updates that must be atomic
+- ✅ Operations where inconsistent state would be dangerous
+- ❌ Simple single-field updates (overkill)
+- ❌ Non-critical operations (standard error handling is fine)
+
+---
+
+### Skill 9: Assessment Cancellation Pattern
+
+**When:** User cancels an assessment, inspection cannot be completed, request is withdrawn
+
+**Complexity:** Low-Medium
+**Time Estimate:** 15-20 minutes
+
+**Core Pattern - Atomic Status + Stage Updates:**
+
+When cancelling an assessment, ALWAYS update both `status` and `stage` fields atomically. The `stage` field is the primary field for queries, but `status` provides additional context.
+
+```typescript
+// Pattern: Atomic cancellation with helper method
+async cancelAssessment(
+  assessmentId: string,
+  reason: string,
+  client: ServiceClient
+): Promise<Assessment> {
+  const db = client ?? supabase;
+
+  // Single atomic update - both status and stage
+  const { data: assessment, error } = await db
+    .from('assessments')
+    .update({
+      status: 'cancelled',
+      stage: 'cancelled',
+      cancelled_at: new Date().toISOString(),
+      cancellation_reason: reason
+    })
+    .eq('id', assessmentId)
+    .select('*')
+    .single();
+
+  if (error) {
+    throw new Error(`Failed to cancel assessment: ${error.message}`);
+  }
+
+  // Log audit trail
+  try {
+    await auditService.logChange({
+      entity_type: 'assessment',
+      entity_id: assessmentId,
+      action: 'cancel',
+      changes: {
+        status: 'cancelled',
+        stage: 'cancelled',
+        reason
+      },
+      user_id: (await getCurrentUser(db)).id
+    }, db);
+  } catch (auditError) {
+    console.error('Warning: Failed to log cancellation audit:', auditError);
+  }
+
+  return assessment;
+}
+```
+
+**Real Example: Inspection Cancellation (from inspection handler)**
+
+```typescript
+// src/routes/(app)/work/inspections/[id]/+page.server.ts
+export const actions = {
+  cancel: async ({ params, request, locals }) => {
+    const formData = await request.formData();
+    const reason = formData.get('reason')?.toString();
+
+    if (!reason) {
+      return fail(400, { error: 'Cancellation reason is required' });
+    }
+
+    try {
+      // Get inspection with assessment
+      const { data: inspection } = await locals.supabase
+        .from('inspections')
+        .select('*, assessment:assessments(*)')
+        .eq('id', params.id)
+        .single();
+
+      if (!inspection?.assessment) {
+        return fail(404, { error: 'Assessment not found' });
+      }
+
+      // Cancel assessment atomically
+      await assessmentService.cancelAssessment(
+        inspection.assessment.id,
+        reason,
+        locals.supabase
+      );
+
+      // Redirect to archive with cancelled tab active
+      throw redirect(303, '/work/archive?tab=cancelled');
+
+    } catch (error) {
+      console.error('Failed to cancel assessment:', error);
+      return fail(500, { error: 'Failed to cancel assessment' });
+    }
+  }
+};
+```
+
+**Archive Page Tab Query Pattern:**
+
+After cancellation, redirect to archive page with `?tab=cancelled` query parameter to show the cancelled assessments tab.
+
+```typescript
+// Archive page load function
+export async function load({ url, locals }) {
+  const tab = url.searchParams.get('tab') || 'all';
+
+  let query = locals.supabase
+    .from('assessments')
+    .select('*');
+
+  // Filter by tab
+  if (tab === 'cancelled') {
+    query = query.eq('stage', 'cancelled');
+  } else if (tab === 'archived') {
+    query = query.eq('stage', 'archived');
+  } else {
+    // 'all' tab - show both
+    query = query.in('stage', ['archived', 'cancelled']);
+  }
+
+  const { data: assessments } = await query
+    .order('updated_at', { ascending: false });
+
+  return { assessments, currentTab: tab };
+}
+```
+
+```svelte
+<!-- Archive page UI with tabs -->
+<script>
+  export let data;
+</script>
+
+<div class="tabs">
+  <a href="/work/archive?tab=all"
+     class:active={data.currentTab === 'all'}>
+    All ({data.allCount})
+  </a>
+  <a href="/work/archive?tab=archived"
+     class:active={data.currentTab === 'archived'}>
+    Archived ({data.archivedCount})
+  </a>
+  <a href="/work/archive?tab=cancelled"
+     class:active={data.currentTab === 'cancelled'}>
+    Cancelled ({data.cancelledCount})
+  </a>
+</div>
+
+<!-- Assessment list -->
+{#each data.assessments as assessment}
+  <!-- ... -->
+{/each}
+```
+
+**Why Atomic Updates Matter:**
+
+```typescript
+// ❌ WRONG - Two separate updates (race condition possible)
+await db.update({ status: 'cancelled' }).eq('id', id);
+await db.update({ stage: 'cancelled' }).eq('id', id);
+
+// ✅ CORRECT - Single atomic update
+await db.update({
+  status: 'cancelled',
+  stage: 'cancelled'
+}).eq('id', id);
+```
+
+**Steps to Implement:**
+
+1. **Add Helper Method to Assessment Service**
+   ```typescript
+   // src/lib/services/assessment.service.ts
+   async cancelAssessment(
+     assessmentId: string,
+     reason: string,
+     client?: ServiceClient
+   ): Promise<Assessment> {
+     // Implementation above
+   }
+   ```
+
+2. **Add Cancellation Action to Page**
+   ```typescript
+   // Add to any page where cancellation is possible
+   export const actions = {
+     cancel: async ({ params, request, locals }) => {
+       const reason = (await request.formData()).get('reason')?.toString();
+
+       if (!reason) {
+         return fail(400, { error: 'Reason required' });
+       }
+
+       await assessmentService.cancelAssessment(
+         params.assessmentId,
+         reason,
+         locals.supabase
+       );
+
+       throw redirect(303, '/work/archive?tab=cancelled');
+     }
+   };
+   ```
+
+3. **Add Cancellation UI**
+   ```svelte
+   <form method="POST" action="?/cancel">
+     <label>
+       Cancellation Reason
+       <textarea name="reason" required minlength="10"></textarea>
+     </label>
+     <button type="submit">Cancel Assessment</button>
+   </form>
+   ```
+
+4. **Update Archive Page with Tabs**
+   - Add tab navigation with counts
+   - Read `?tab=` query parameter
+   - Filter assessments by tab
+   - Redirect to cancelled tab after cancellation
+
+5. **Test Cancellation Flow**
+   - [ ] Cancel assessment from inspection page
+   - [ ] Verify redirects to archive?tab=cancelled
+   - [ ] Check cancelled tab shows assessment
+   - [ ] Verify status='cancelled' and stage='cancelled'
+   - [ ] Check audit log created
+   - [ ] Test with different user roles
+
+**Quality Checklist:**
+- [ ] Updates both status AND stage atomically
+- [ ] Includes cancellation_reason field
+- [ ] Includes cancelled_at timestamp
+- [ ] Logs audit trail
+- [ ] Redirects to archive?tab=cancelled
+- [ ] Archive page has tab navigation
+- [ ] Cancellation UI requires reason (min 10 chars)
+- [ ] Works with RLS for both admin and engineer
+- [ ] Error handling includes user-friendly messages
+
+**Common Pitfalls:**
+- ❌ Only updating status OR stage (not both)
+- ❌ Two separate updates instead of atomic update
+- ❌ Not redirecting to cancelled tab
+- ❌ Missing cancellation reason validation
+- ❌ Not logging audit trail
+- ❌ Forgetting to add tab query parameter handling
+
+**Related Patterns:**
+- Archive page: `/work/archive?tab=cancelled`
+- Tab-based filtering: `url.searchParams.get('tab')`
+- Query parameter redirects: `redirect(303, '/path?param=value')`
 
 ---
 
@@ -1107,34 +1646,43 @@ const totalPages = Math.ceil(count / pageSize);
 
 3. **Update Each Page Systematically**
 
-   **Page 1: Requests** (`/requests/+page.server.ts`)
+   **Page 1: New Requests** (`/requests/new/+page.server.ts`)
    ```typescript
    // OLD
    .eq('status', 'draft')
 
    // NEW
-   .in('stage', ['request_submitted', 'request_accepted'])
+   .eq('stage', 'request_submitted')
    ```
 
-   **Page 2: Inspections** (`/work/inspections/+page.server.ts`)
+   **Page 2: Requests** (`/requests/+page.server.ts`)
+   ```typescript
+   // OLD
+   .eq('status', 'draft')
+
+   // NEW
+   .in('stage', ['request_submitted', 'request_reviewed'])
+   ```
+
+   **Page 3: Inspections** (`/work/inspections/+page.server.ts`)
    ```typescript
    // OLD
    .eq('status', 'pending')
 
    // NEW
-   .eq('stage', 'request_accepted')
+   .eq('stage', 'request_reviewed')
    ```
 
-   **Page 3: Appointments** (`/work/appointments/+page.server.ts`)
+   **Page 4: Appointments** (`/work/appointments/+page.server.ts`)
    ```typescript
    // OLD
    .eq('status', 'scheduled')
 
    // NEW
-   .eq('stage', 'inspection_scheduled')
+   .eq('stage', 'appointment_scheduled')
    ```
 
-   **Page 4: Open Assessments** (`/work/assessments/+page.server.ts`)
+   **Page 5: Open Assessments** (`/work/assessments/+page.server.ts`)
    ```typescript
    // OLD
    .eq('status', 'in_progress')
@@ -1143,25 +1691,25 @@ const totalPages = Math.ceil(count / pageSize);
    .eq('stage', 'assessment_in_progress')
    ```
 
-   **Page 5: Finalized** (`/work/finalized/+page.server.ts`)
+   **Page 6: Finalized Assessments** (`/work/finalized-assessments/+page.server.ts`)
    ```typescript
    // OLD
    .eq('status', 'submitted')
 
    // NEW
-   .eq('stage', 'estimate_finalized')
+   .in('stage', ['estimate_review', 'estimate_sent', 'estimate_finalized'])
    ```
 
-   **Page 6: FRC** (`/work/frc/+page.server.ts`)
+   **Page 7: FRC** (`/work/frc/+page.server.ts`)
    ```typescript
    // OLD
-   .in('status', ['frc_in_progress', 'frc_completed'])
+   .in('status', ['frc_in_progress'])
 
-   // NEW (same stages)
-   .in('stage', ['frc_in_progress', 'frc_completed'])
+   // NEW
+   .eq('stage', 'frc_in_progress')
    ```
 
-   **Page 7: Archive** (`/archive/+page.server.ts`)
+   **Page 8: Archive** (`/work/archive/+page.server.ts`)
    ```typescript
    // OLD
    .in('status', ['archived', 'cancelled'])
@@ -1236,9 +1784,9 @@ const totalPages = Math.ceil(count / pageSize);
      CHECK (
        CASE
          WHEN stage IN (
-           'inspection_scheduled', 'assessment_in_progress',
-           'assessment_completed', 'quality_review',
-           'estimate_finalized', 'frc_in_progress', 'frc_completed'
+           'appointment_scheduled', 'inspection_scheduled',
+           'assessment_in_progress', 'estimate_review', 'estimate_sent',
+           'quality_review', 'estimate_finalized', 'frc_in_progress'
          )
            THEN appointment_id IS NOT NULL
          ELSE TRUE
@@ -1254,14 +1802,15 @@ const totalPages = Math.ceil(count / pageSize);
    // src/lib/types/assessment.ts
    export type AssessmentStage =
      | 'request_submitted'
-     | 'request_accepted'
+     | 'request_reviewed'
+     | 'appointment_scheduled'
      | 'inspection_scheduled'
      | 'assessment_in_progress'
-     | 'assessment_completed'
+     | 'estimate_review'
+     | 'estimate_sent'
      | 'quality_review' // NEW
      | 'estimate_finalized'
      | 'frc_in_progress'
-     | 'frc_completed'
      | 'archived'
      | 'cancelled';
    ```
@@ -1720,7 +2269,7 @@ When invoked, this agent should:
 
 ---
 
-**Skill Version:** 1.0.0
-**Last Updated:** January 26, 2025
-**ClaimTech Version:** Assessment-centric architecture (Phase 0-2 complete)
-**Status:** Production ready, Phase 3 pending
+**Skill Version:** 1.1.0
+**Last Updated:** November 2, 2025
+**ClaimTech Version:** Assessment-centric architecture (Production)
+**Status:** Production ready, all phases complete

@@ -2,6 +2,8 @@
 
 @import "tw-animate-css";
 
+@import "bigger-picture/dist/bigger-picture.css";
+
 @custom-variant dark (&:is(.dark *));
 
 :root {

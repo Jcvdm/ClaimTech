@@ -39,7 +39,13 @@
       "Bash(src/lib/types/database.types.ts)",
       "mcp__supabase__generate_typescript_types",
       "Bash(src/lib/types/database.types.ts.tmp)",
-      "Bash(node -e \"const fs = require(''fs''); const types = $JSON.stringify(JSON.stringify(''export type Json = string | number | boolean | null | { [key: string]: Json | undefined  | Json[]\\n\\n// Types generated from Supabase\\nexport type Database = { public: { Tables: { clients: { Row: { id: string; name: string; assessment_terms_and_conditions: string | null; estimate_terms_and_conditions: string | null; frc_terms_and_conditions: string | null } } } } }'')).replace(/\\\\/g, '''')}; fs.writeFileSync(''src/lib/types/database.types.ts'', types);\")"
+      "Bash(node -e \"const fs = require(''fs''); const types = $JSON.stringify(JSON.stringify(''export type Json = string | number | boolean | null | { [key: string]: Json | undefined  | Json[]\\n\\n// Types generated from Supabase\\nexport type Database = { public: { Tables: { clients: { Row: { id: string; name: string; assessment_terms_and_conditions: string | null; estimate_terms_and_conditions: string | null; frc_terms_and_conditions: string | null } } } } }'')).replace(/\\\\/g, '''')}; fs.writeFileSync(''src/lib/types/database.types.ts'', types);\")",
+      "WebFetch(domain:photoswipe.com)",
+      "WebFetch(domain:biggerpicture.henrygd.me)",
+      "WebFetch(domain:bundlephobia.com)",
+      "Bash(npm install:*)",
+      "Bash(npm run build:*)",
+      "Bash(npm uninstall:*)"
     ],
     "deny": [],
     "ask": []

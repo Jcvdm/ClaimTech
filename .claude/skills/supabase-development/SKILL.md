@@ -302,21 +302,301 @@ await db.from('assessment_vehicle_identification').update({
 
 ## Audit Logging
 
-**When to log:**
-- Status changes
-- Assignments
-- Deletions
-- Finalizations
+ClaimTech implements comprehensive audit logging with 21 action types across 21 entity types, providing complete traceability of all system changes.
+
+### When to Log
+
+**Always log:**
+- Entity creation (`create`)
+- Entity updates (`update`)
+- Entity deletions (`delete`)
+- Status/stage changes (`status_changed`, `stage_changed`)
+- Assignments (`assign`)
+- Important actions (`submit`, `approve`, `reject`, `cancel`, `complete`, `finalize`)
+- Photo uploads/deletions (`photo_added`, `photo_deleted`)
+- Document generation (`generate_report`, `generate_estimate`, `generate_frc_report`)
+
+### Audit Action Types (21 Total)
 
 ```typescript
+type AuditAction =
+  | 'create'
+  | 'update'
+  | 'delete'
+  | 'status_changed'
+  | 'stage_changed'
+  | 'assign'
+  | 'unassign'
+  | 'submit'
+  | 'approve'
+  | 'reject'
+  | 'cancel'
+  | 'complete'
+  | 'finalize'
+  | 'photo_added'
+  | 'photo_deleted'
+  | 'generate_report'
+  | 'generate_estimate'
+  | 'generate_frc_report'
+  | 'schedule'
+  | 'reschedule'
+  | 'accept';
+```
+
+### Entity Types (21 Total)
+
+```typescript
+type AuditEntityType =
+  | 'assessment'
+  | 'request'
+  | 'appointment'
+  | 'inspection'
+  | 'estimate'
+  | 'estimate_item'
+  | 'frc'
+  | 'additional'
+  | 'client'
+  | 'engineer'
+  | 'vehicle'
+  | 'damage'
+  | 'vehicle_values'
+  | 'tyres'
+  | 'pre_incident_estimate'
+  | 'vehicle_identification'
+  | 'company_settings'
+  | 'rates_and_markups'
+  | 'user'
+  | 'part_type'
+  | 'repair_method';
+```
+
+### Basic Usage
+
+```typescript
+import { auditService } from '$lib/services/audit.service';
+
+// Simple action logging
 await auditService.logChange({
   entity_type: 'assessment',
-  entity_id: id,
+  entity_id: assessmentId,
   action: 'status_changed',
-  field_name: 'status',
-  old_value: 'in_progress',
-  new_value: 'completed'
-});
+  changes: {
+    status: 'completed'
+  },
+  user_id: userId
+}, client);
+
+// Field-level change tracking
+await auditService.logChange({
+  entity_type: 'estimate_item',
+  entity_id: itemId,
+  action: 'update',
+  changes: {
+    part_name: { old: 'Front Bumper', new: 'Rear Bumper' },
+    hours: { old: 2, new: 3 }
+  },
+  user_id: userId
+}, client);
+```
+
+### Defensive Audit Logging Pattern
+
+**CRITICAL**: Audit logging should NEVER break core operations. Always use defensive error handling:
+
+```typescript
+// ✅ GOOD: Defensive audit logging
+async function completeAssessment(id: string, client: ServiceClient) {
+  // Core operation
+  const { data: assessment, error } = await client
+    .from('assessments')
+    .update({ status: 'completed', completed_at: new Date().toISOString() })
+    .eq('id', id)
+    .select()
+    .single();
+
+  if (error) {
+    throw new Error(`Failed to complete assessment: ${error.message}`);
+  }
+
+  // Defensive audit logging - DON'T throw
+  try {
+    await auditService.logChange({
+      entity_type: 'assessment',
+      entity_id: id,
+      action: 'complete',
+      changes: { status: 'completed' },
+      user_id: assessment.created_by
+    }, client);
+  } catch (auditError) {
+    // Log warning but don't throw - audit failure is non-critical
+    console.error('Warning: Failed to log audit:', auditError);
+  }
+
+  return assessment;
+}
+
+// ❌ BAD: Audit failure breaks operation
+async function completeAssessmentBad(id: string, client: ServiceClient) {
+  const assessment = await updateAssessment(...);
+
+  // If this throws, entire operation fails!
+  await auditService.logChange({...}, client);
+
+  return assessment;
+}
+```
+
+### Cross-Entity History Queries
+
+Get complete history across multiple entity types:
+
+```typescript
+// Get all audit logs for an assessment (including related entities)
+const history = await auditService.getAssessmentHistory(
+  assessmentId,
+  client
+);
+
+// Returns logs for:
+// - assessment
+// - estimate
+// - estimate_items
+// - frc
+// - additionals
+// - inspection
+// - appointment
+// All related to this assessment
+```
+
+### Advanced Filtering
+
+```typescript
+// Filter by specific actions
+const { data: logs } = await client
+  .from('audit_logs')
+  .select('*')
+  .eq('entity_type', 'assessment')
+  .in('action', ['status_changed', 'stage_changed'])
+  .gte('created_at', startDate)
+  .order('created_at', { ascending: false });
+
+// Filter by user
+const { data: userLogs } = await client
+  .from('audit_logs')
+  .select('*')
+  .eq('user_id', userId)
+  .order('created_at', { ascending: false });
+```
+
+### Admin-Only Audit Tab
+
+Audit logs are displayed in an admin-only tab on assessment pages:
+
+```svelte
+<!-- AuditTab.svelte -->
+<script lang="ts">
+  import { auditService } from '$lib/services/audit.service';
+
+  let history = $state<AuditLog[]>([]);
+
+  async function loadHistory() {
+    try {
+      history = await auditService.getAssessmentHistory(assessmentId);
+    } catch (error) {
+      console.error('Failed to load audit history:', error);
+      // Don't break UI if audit fails to load
+    }
+  }
+</script>
+
+{#if userRole === 'admin'}
+  <section class="audit-tab">
+    <h2>Audit History</h2>
+    {#each history as log}
+      <div class="audit-entry">
+        <time>{log.created_at}</time>
+        <span class="action">{log.action}</span>
+        <span class="entity">{log.entity_type}</span>
+        <pre>{JSON.stringify(log.changes, null, 2)}</pre>
+      </div>
+    {/each}
+  </section>
+{/if}
+```
+
+### Best Practices
+
+1. **Always Defensive**
+   - Wrap audit calls in try-catch
+   - Log warnings, don't throw
+   - Core operations must never fail due to audit
+
+2. **Complete Context**
+   - Include user_id for attribution
+   - Include both old and new values for changes
+   - Use descriptive action types
+
+3. **Appropriate Granularity**
+   - Log entity-level changes (create, update, delete)
+   - Log important state transitions (status, stage)
+   - Don't log every field update individually (group related changes)
+
+4. **Performance Considerations**
+   - Audit logging is asynchronous (doesn't block UI)
+   - Use batch logging for multiple related changes
+   - Don't query audit logs on every page load (admin-only)
+
+5. **Privacy & Compliance**
+   - Audit logs are immutable (no updates/deletes)
+   - Retain logs for compliance requirements
+   - Include timestamps and user attribution
+
+### Common Patterns
+
+**Pattern 1: Stage Transition**
+```typescript
+await assessmentService.updateStage(id, newStage, client);
+// updateStage() internally logs the audit
+```
+
+**Pattern 2: Bulk Changes**
+```typescript
+const changes = {
+  field1: { old: oldValue1, new: newValue1 },
+  field2: { old: oldValue2, new: newValue2 },
+  field3: { old: oldValue3, new: newValue3 }
+};
+
+try {
+  await auditService.logChange({
+    entity_type: 'estimate',
+    entity_id: id,
+    action: 'update',
+    changes,
+    user_id: userId
+  }, client);
+} catch (auditError) {
+  console.error('Warning: Audit logging failed:', auditError);
+}
+```
+
+**Pattern 3: Document Generation**
+```typescript
+// After successful PDF generation
+try {
+  await auditService.logChange({
+    entity_type: 'assessment',
+    entity_id: assessmentId,
+    action: 'generate_report',
+    changes: {
+      document_type: 'assessment_report',
+      generated_at: new Date().toISOString()
+    },
+    user_id: userId
+  }, client);
+} catch (auditError) {
+  console.error('Warning: Failed to log document generation:', auditError);
+}
 ```
 
 ## Common Pitfalls
