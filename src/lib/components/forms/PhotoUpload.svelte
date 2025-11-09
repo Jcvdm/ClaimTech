@@ -1,8 +1,8 @@
 <script lang="ts">
 	import { Button } from '$lib/components/ui/button';
-	import * as Dialog from '$lib/components/ui/dialog';
-	import { Camera, Upload, X, Loader2, ZoomIn, ZoomOut, RotateCcw, Maximize2, Minimize2 } from 'lucide-svelte';
+	import { Camera, Upload, X, Loader2 } from 'lucide-svelte';
 	import { storageService } from '$lib/services/storage.service';
+	import PhotoViewer from '$lib/components/photo-viewer/PhotoViewer.svelte';
 
 	interface Props {
 		value?: string | null;
@@ -60,21 +60,8 @@
 		return storageService.toPhotoProxyUrl(url);
 	});
 
-	// Modal state
-	let showModal = $state(false);
-	let photoZoom = $state<number>(1);
-	let modalSize = $state<'small' | 'medium' | 'large' | 'fullscreen'>('medium');
-
-	// Derived modal size class for reactivity
-	let modalSizeClass = $derived(
-		modalSize === 'fullscreen'
-			? '!max-w-full !max-h-full !w-screen !h-screen !inset-0 !translate-x-0 !translate-y-0 !rounded-none'
-			: modalSize === 'large'
-				? 'sm:!max-w-5xl md:!max-w-5xl lg:!max-w-5xl !max-h-[90vh]'
-				: modalSize === 'medium'
-					? 'sm:!max-w-3xl md:!max-w-3xl lg:!max-w-3xl !max-h-[80vh]'
-					: 'sm:!max-w-2xl md:!max-w-2xl lg:!max-w-2xl !max-h-[70vh]'
-	);
+	// Photo viewer state
+	let selectedPhotoIndex = $state<number | null>(null);
 
 	async function handleFileSelect(event: Event) {
 		const target = event.target as HTMLInputElement;
@@ -98,36 +85,18 @@
 	function handleDragEnter(event: DragEvent) {
 		event.preventDefault();
 		event.stopPropagation();
-		// Set dropEffect to 'copy' to show the correct cursor
-		if (event.dataTransfer) {
-			event.dataTransfer.dropEffect = 'copy';
-		}
 		isDragging = true;
 	}
 
 	function handleDragOver(event: DragEvent) {
 		event.preventDefault();
 		event.stopPropagation();
-		// Set dropEffect to 'copy' to show the correct cursor
-		if (event.dataTransfer) {
-			event.dataTransfer.dropEffect = 'copy';
-		}
-		isDragging = true;
 	}
 
 	function handleDragLeave(event: DragEvent) {
 		event.preventDefault();
 		event.stopPropagation();
-
-		// Only set isDragging to false if we're actually leaving the drop zone
-		// Check if the related target (where we're going) is NOT a child of the current target
-		const target = event.currentTarget as HTMLElement;
-		const relatedTarget = event.relatedTarget as HTMLElement | null;
-
-		// If relatedTarget is null or not contained within the drop zone, we're leaving
-		if (!relatedTarget || !target.contains(relatedTarget)) {
-			isDragging = false;
-		}
+		isDragging = false;
 	}
 
 	async function handleDrop(event: DragEvent) {
@@ -205,29 +174,13 @@
 		cameraInput?.click();
 	}
 
-	// Modal functions
-	function openPhotoModal() {
-		showModal = true;
-		photoZoom = 1;
-		modalSize = 'medium';
+	// Photo viewer functions
+	function openPhotoViewer() {
+		selectedPhotoIndex = 0;
 	}
 
-	function closePhotoModal() {
-		showModal = false;
-		photoZoom = 1;
-		modalSize = 'medium';
-	}
-
-	function zoomIn() {
-		photoZoom = Math.min(3, photoZoom + 0.25);
-	}
-
-	function zoomOut() {
-		photoZoom = Math.max(0.5, photoZoom - 0.25);
-	}
-
-	function resetZoom() {
-		photoZoom = 1;
+	function closePhotoViewer() {
+		selectedPhotoIndex = null;
 	}
 </script>
 
@@ -246,7 +199,7 @@
 		<div class="relative bg-gray-100 rounded-lg flex items-center justify-center group">
 			<button
 				type="button"
-				onclick={openPhotoModal}
+				onclick={openPhotoViewer}
 				class="w-full {height} rounded-lg overflow-hidden cursor-pointer"
 			>
 				<img
@@ -284,8 +237,8 @@
 		<!-- Upload Area with Drag & Drop -->
 		<div
 			class="flex gap-2"
-			role="button"
-			tabindex="0"
+			role="region"
+			aria-label="Photo upload area"
 			ondragenter={handleDragEnter}
 			ondragover={handleDragOver}
 			ondragleave={handleDragLeave}
@@ -297,10 +250,6 @@
 					? 'border-blue-500 bg-blue-50'
 					: 'border-gray-300 bg-gray-50 hover:bg-gray-100'} disabled:cursor-not-allowed disabled:opacity-50"
 				onclick={triggerCameraInput}
-				ondragenter={handleDragEnter}
-				ondragover={handleDragOver}
-				ondragleave={handleDragLeave}
-				ondrop={handleDrop}
 				disabled={disabled || uploading}
 			>
 				<div class="text-center pointer-events-none">
@@ -334,10 +283,6 @@
 					? 'border-blue-500 bg-blue-50'
 					: 'border-gray-300 bg-gray-50 hover:bg-gray-100'} disabled:cursor-not-allowed disabled:opacity-50"
 				onclick={triggerFileInput}
-				ondragenter={handleDragEnter}
-				ondragover={handleDragOver}
-				ondragleave={handleDragLeave}
-				ondrop={handleDrop}
 				disabled={disabled || uploading}
 			>
 				<div class="text-center pointer-events-none">
@@ -390,104 +335,27 @@
 	/>
 </div>
 
-<!-- Photo Preview Modal -->
-{#if showModal && currentPhotoUrl}
-	<Dialog.Root open={showModal} onOpenChange={closePhotoModal}>
-		<Dialog.Content class={modalSizeClass}>
-			<Dialog.Header>
-				<div class="flex items-center justify-between">
-					<Dialog.Title>{label || 'Photo Preview'}</Dialog.Title>
-
-					<div class="flex items-center gap-2">
-						<!-- Zoom Controls -->
-						<div class="flex gap-1">
-							<Button variant="ghost" size="sm" onclick={zoomOut} disabled={photoZoom <= 0.5}>
-								<ZoomOut class="h-4 w-4" />
-							</Button>
-							<Button variant="ghost" size="sm" onclick={resetZoom}>
-								<RotateCcw class="h-4 w-4" />
-							</Button>
-							<Button variant="ghost" size="sm" onclick={zoomIn} disabled={photoZoom >= 3}>
-								<ZoomIn class="h-4 w-4" />
-							</Button>
-						</div>
-
-						<!-- Size Controls -->
-						<div class="flex gap-1">
-							<Button
-								variant="ghost"
-								size="sm"
-								onclick={() => (modalSize = 'small')}
-								class={modalSize === 'small' ? 'bg-gray-100' : ''}
-							>
-								S
-							</Button>
-							<Button
-								variant="ghost"
-								size="sm"
-								onclick={() => (modalSize = 'medium')}
-								class={modalSize === 'medium' ? 'bg-gray-100' : ''}
-							>
-								M
-							</Button>
-							<Button
-								variant="ghost"
-								size="sm"
-								onclick={() => (modalSize = 'large')}
-								class={modalSize === 'large' ? 'bg-gray-100' : ''}
-							>
-								L
-							</Button>
-							<Button
-								variant="ghost"
-								size="sm"
-								onclick={() =>
-									(modalSize = modalSize === 'fullscreen' ? 'large' : 'fullscreen')}
-							>
-								{#if modalSize === 'fullscreen'}
-									<Minimize2 class="h-4 w-4" />
-								{:else}
-									<Maximize2 class="h-4 w-4" />
-								{/if}
-							</Button>
-						</div>
-					</div>
-				</div>
-			</Dialog.Header>
-
-			<!-- Large Photo with Zoom -->
-			<div class="bg-gray-100 rounded-lg flex items-center justify-center p-4 overflow-auto">
-				<img
-					src={currentPhotoUrl}
-					alt={label || 'Full size photo'}
-					class="w-full h-auto max-h-[60vh] object-contain transition-transform duration-200"
-					style="transform: scale({photoZoom})"
-				/>
-			</div>
-
-			<!-- Action Buttons -->
-			<div class="flex justify-between gap-2 pt-4">
-				<div class="flex gap-2">
-					{#if !disabled}
-						<Button variant="outline" onclick={triggerFileInput}>
-							Change Photo
-						</Button>
-						{#if onRemove}
-							<Button
-								variant="outline"
-								onclick={() => {
-									handleRemove();
-									closePhotoModal();
-								}}
-							>
-								<X class="mr-2 h-4 w-4" />
-								Remove Photo
-							</Button>
-						{/if}
-					{/if}
-				</div>
-				<Button onclick={closePhotoModal}>Close</Button>
-			</div>
-		</Dialog.Content>
-	</Dialog.Root>
+<!-- Photo Viewer -->
+{#if selectedPhotoIndex !== null && currentPhotoUrl}
+	<PhotoViewer
+		photos={[
+			{
+				id: 'current-photo',
+				photo_url: value || '',
+				photo_path: value || '',
+				label: label || 'Photo',
+				display_order: 0,
+				created_at: new Date().toISOString(),
+				updated_at: new Date().toISOString()
+			} as any
+		]}
+		startIndex={0}
+		onClose={closePhotoViewer}
+		onDelete={onRemove
+			? async (photoId: string, photoPath: string) => {
+					handleRemove();
+					closePhotoViewer();
+				}
+			: async () => {}}
+	/>
 {/if}

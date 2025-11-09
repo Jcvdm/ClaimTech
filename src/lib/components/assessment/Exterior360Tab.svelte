@@ -2,23 +2,25 @@
 	import { Card } from '$lib/components/ui/card';
 	import { Button } from '$lib/components/ui/button';
 	import FormField from '$lib/components/forms/FormField.svelte';
-	import PhotoUpload from '$lib/components/forms/PhotoUpload.svelte';
+	import Exterior360PhotosPanel from './Exterior360PhotosPanel.svelte';
 	import RequiredFieldsWarning from './RequiredFieldsWarning.svelte';
 	import { Plus, Trash2, Loader2, AlertCircle } from 'lucide-svelte';
 	import { debounce } from '$lib/utils/useUnsavedChanges.svelte';
 	import { useDraft } from '$lib/utils/useDraft.svelte';
 	import { useOptimisticQueue } from '$lib/utils/useOptimisticQueue.svelte';
 	import { onMount, onDestroy } from 'svelte';
-	import type { Exterior360, VehicleAccessory, AccessoryType } from '$lib/types/assessment';
+	import type { Exterior360, VehicleAccessory, AccessoryType, Exterior360Photo } from '$lib/types/assessment';
 	import { validateExterior360 } from '$lib/utils/validation';
 
 	interface Props {
 		data: Exterior360 | null;
 		assessmentId: string;
 		accessories: VehicleAccessory[];
+		exterior360Photos: Exterior360Photo[];
 		onUpdate: (data: Partial<Exterior360>) => void;
 		onAddAccessory: (accessory: { accessory_type: AccessoryType; custom_name?: string }) => Promise<VehicleAccessory>;
 		onDeleteAccessory: (id: string) => Promise<void>;
+		onPhotosUpdate: () => void;
 	}
 
 	// Make props reactive using $derived pattern
@@ -29,6 +31,7 @@
 	const onUpdate = $derived(props.onUpdate);
 	const onAddAccessory = $derived(props.onAddAccessory);
 	const onDeleteAccessory = $derived(props.onDeleteAccessory);
+	const onPhotosUpdate = $derived(props.onPhotosUpdate);
 
 	// Use optimistic queue for immediate UI updates with status tracking
 	const accessories = useOptimisticQueue(props.accessories, {
@@ -51,58 +54,6 @@
 
 	let overallCondition = $state(data?.overall_condition || '');
 	let vehicleColor = $state(data?.vehicle_color || '');
-
-	// Photo positions - use individual $state variables
-	let frontPhotoUrl = $state(data?.front_photo_url || '');
-	let frontLeftPhotoUrl = $state(data?.front_left_photo_url || '');
-	let leftPhotoUrl = $state(data?.left_photo_url || '');
-	let rearLeftPhotoUrl = $state(data?.rear_left_photo_url || '');
-	let rearPhotoUrl = $state(data?.rear_photo_url || '');
-	let rearRightPhotoUrl = $state(data?.rear_right_photo_url || '');
-	let rightPhotoUrl = $state(data?.right_photo_url || '');
-	let frontRightPhotoUrl = $state(data?.front_right_photo_url || '');
-
-	// Photo position configuration
-	const photoPositions = [
-		{ key: 'front_photo_url', label: 'Front', subcategory: 'front' },
-		{ key: 'front_left_photo_url', label: 'Front Left', subcategory: 'front_left' },
-		{ key: 'left_photo_url', label: 'Left', subcategory: 'left' },
-		{ key: 'rear_left_photo_url', label: 'Rear Left', subcategory: 'rear_left' },
-		{ key: 'rear_photo_url', label: 'Rear', subcategory: 'rear' },
-		{ key: 'rear_right_photo_url', label: 'Rear Right', subcategory: 'rear_right' },
-		{ key: 'right_photo_url', label: 'Right', subcategory: 'right' },
-		{ key: 'front_right_photo_url', label: 'Front Right', subcategory: 'front_right' }
-	];
-
-	// Get photo URL by key
-	function getPhotoUrl(key: string): string {
-		switch (key) {
-			case 'front_photo_url': return frontPhotoUrl;
-			case 'front_left_photo_url': return frontLeftPhotoUrl;
-			case 'left_photo_url': return leftPhotoUrl;
-			case 'rear_left_photo_url': return rearLeftPhotoUrl;
-			case 'rear_photo_url': return rearPhotoUrl;
-			case 'rear_right_photo_url': return rearRightPhotoUrl;
-			case 'right_photo_url': return rightPhotoUrl;
-			case 'front_right_photo_url': return frontRightPhotoUrl;
-			default: return '';
-		}
-	}
-
-	// Set photo URL by key
-	function setPhotoUrl(key: string, url: string) {
-		switch (key) {
-			case 'front_photo_url': frontPhotoUrl = url; break;
-			case 'front_left_photo_url': frontLeftPhotoUrl = url; break;
-			case 'left_photo_url': leftPhotoUrl = url; break;
-			case 'rear_left_photo_url': rearLeftPhotoUrl = url; break;
-			case 'rear_photo_url': rearPhotoUrl = url; break;
-			case 'rear_right_photo_url': rearRightPhotoUrl = url; break;
-			case 'right_photo_url': rightPhotoUrl = url; break;
-			case 'front_right_photo_url': frontRightPhotoUrl = url; break;
-		}
-		handleSave();
-	}
 
 	let showAccessoryModal = $state(false);
 	let selectedAccessoryType = $state<AccessoryType>('mags');
@@ -134,16 +85,6 @@
 			if (!colorDraft.hasDraft() && data.vehicle_color) {
 				vehicleColor = data.vehicle_color;
 			}
-
-			// Always update photo URLs from data
-			if (data.front_photo_url) frontPhotoUrl = data.front_photo_url;
-			if (data.front_left_photo_url) frontLeftPhotoUrl = data.front_left_photo_url;
-			if (data.left_photo_url) leftPhotoUrl = data.left_photo_url;
-			if (data.rear_left_photo_url) rearLeftPhotoUrl = data.rear_left_photo_url;
-			if (data.rear_photo_url) rearPhotoUrl = data.rear_photo_url;
-			if (data.rear_right_photo_url) rearRightPhotoUrl = data.rear_right_photo_url;
-			if (data.right_photo_url) rightPhotoUrl = data.right_photo_url;
-			if (data.front_right_photo_url) frontRightPhotoUrl = data.front_right_photo_url;
 		}
 	});
 
@@ -165,15 +106,7 @@
 	function handleSave() {
 		const updateData: Partial<Exterior360> = {
 			overall_condition: (overallCondition || undefined) as any,
-			vehicle_color: vehicleColor || undefined,
-			front_photo_url: frontPhotoUrl || undefined,
-			front_left_photo_url: frontLeftPhotoUrl || undefined,
-			left_photo_url: leftPhotoUrl || undefined,
-			rear_left_photo_url: rearLeftPhotoUrl || undefined,
-			rear_photo_url: rearPhotoUrl || undefined,
-			rear_right_photo_url: rearRightPhotoUrl || undefined,
-			right_photo_url: rightPhotoUrl || undefined,
-			front_right_photo_url: frontRightPhotoUrl || undefined
+			vehicle_color: vehicleColor || undefined
 		};
 		onUpdate(updateData);
 
@@ -235,14 +168,13 @@
 
 	// Validation for warning banner
 	const validation = $derived.by(() => {
-		return validateExterior360({
-			overall_condition: overallCondition,
-			vehicle_color: vehicleColor,
-			front_photo_url: frontPhotoUrl,
-			rear_photo_url: rearPhotoUrl,
-			left_photo_url: leftPhotoUrl,
-			right_photo_url: rightPhotoUrl
-		});
+		return validateExterior360(
+			{
+				overall_condition: overallCondition,
+				vehicle_color: vehicleColor
+			},
+			props.exterior360Photos
+		);
 	});
 </script>
 
@@ -287,30 +219,12 @@
 		</div>
 	</Card>
 
-	<!-- 360° Photos -->
-	<Card class="p-6">
-		<h3 class="mb-4 text-lg font-semibold text-gray-900">
-			360° Photos <span class="text-red-500">*</span>
-		</h3>
-		<p class="mb-6 text-sm text-gray-600">
-			Take photos from all 8 positions around the vehicle for a complete exterior assessment
-		</p>
-		<div class="grid gap-4 md:grid-cols-4">
-			{#each photoPositions as position}
-				<PhotoUpload
-					value={getPhotoUrl(position.key)}
-					label={position.label}
-					required
-					{assessmentId}
-					category="360"
-					subcategory={position.subcategory}
-					onUpload={(url) => setPhotoUrl(position.key, url)}
-					onRemove={() => setPhotoUrl(position.key, '')}
-					height="h-32"
-				/>
-			{/each}
-		</div>
-	</Card>
+	<!-- Exterior Photos -->
+	<Exterior360PhotosPanel
+		{assessmentId}
+		photos={props.exterior360Photos}
+		onUpdate={onPhotosUpdate}
+	/>
 
 	<!-- Accessories -->
 	<Card class="p-6">

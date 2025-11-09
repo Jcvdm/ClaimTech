@@ -140,8 +140,9 @@
 				`Request accepted! Inspection ${inspection.inspection_number} has been created. You can now appoint an engineer.`
 			);
 
-			// Navigate to inspection detail page (data will be fresh on next page)
-			goto(`/work/inspections/${inspection.id}`);
+			// Navigate to inspection detail page using assessment ID (assessment-centric architecture)
+			// The inspection detail page expects assessment ID as route parameter, not inspection ID
+			goto(`/work/inspections/${assessment.id}`);
 		} catch (err) {
 			console.error('Error accepting request:', err);
 			error = err instanceof Error ? err.message : 'Failed to accept request';

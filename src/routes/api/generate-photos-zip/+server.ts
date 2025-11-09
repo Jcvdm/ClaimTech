@@ -58,6 +58,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 				{ data: interiorMechanical },
 				{ data: estimatePhotos },
 				{ data: preIncidentPhotos },
+				{ data: interiorPhotos },
 				{ data: tyres }
 			] = await Promise.all([
 				locals.supabase
@@ -85,6 +86,11 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 							.eq('estimate_id', preIncidentEstimate.id)
 							.order('created_at', { ascending: true })
 					: Promise.resolve({ data: [] }),
+				locals.supabase
+					.from('assessment_interior_photos')
+					.select('*')
+					.eq('assessment_id', assessmentId)
+					.order('display_order', { ascending: true }),
 				locals.supabase
 					.from('assessment_tyres')
 					.select('*')
@@ -254,6 +260,21 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 					folder: '03_Interior_Mechanical',
 					filename: `${photoCounter++}_Engine_Bay.jpg`
 				});
+			}
+
+			// Collect Additional Interior Photos
+			if (interiorPhotos && interiorPhotos.length > 0) {
+				let additionalPhotoCounter = 1;
+				for (const photo of interiorPhotos) {
+					if (photo.photo_url) {
+						const label = photo.label || `Additional_Interior_${additionalPhotoCounter}`;
+						photoTasks.push({
+							url: photo.photo_url,
+							folder: '03_Interior_Additional',
+							filename: `${additionalPhotoCounter++}_${label.replace(/\s+/g, '_')}.jpg`
+						});
+					}
+				}
 			}
 
 			// Collect Tire & Rim Photos

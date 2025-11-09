@@ -33,18 +33,15 @@ export function validateVehicleIdentification(data: any): TabValidation {
 /**
  * Validate 360 Exterior tab
  */
-export function validateExterior360(data: any): TabValidation {
+export function validateExterior360(data: any, exterior360Photos: any[] = []): TabValidation {
 	const missingFields: string[] = [];
 
 	if (!data?.overall_condition) missingFields.push('Overall Condition');
 	if (!data?.vehicle_color) missingFields.push('Vehicle Color');
 	
-	// Check for at least 4 photos (front, rear, left, right)
-	const requiredPhotos = ['front_photo_url', 'rear_photo_url', 'left_photo_url', 'right_photo_url'];
-	const missingPhotos = requiredPhotos.filter(photo => !data?.[photo]);
-	
-	if (missingPhotos.length > 0) {
-		missingFields.push(`${missingPhotos.length} required photos`);
+	// Require at least 4 exterior photos (similar to old requirement of front, rear, left, right)
+	if (exterior360Photos.length < 4) {
+		missingFields.push(`At least 4 exterior photos (currently ${exterior360Photos.length})`);
 	}
 
 	return {
@@ -57,7 +54,7 @@ export function validateExterior360(data: any): TabValidation {
 /**
  * Validate Interior & Mechanical tab
  */
-export function validateInteriorMechanical(data: any): TabValidation {
+export function validateInteriorMechanical(data: any, interiorPhotos: any[] = []): TabValidation {
 	const missingFields: string[] = [];
 
 	if (!data?.mileage_reading) missingFields.push('Mileage Reading');
@@ -66,6 +63,11 @@ export function validateInteriorMechanical(data: any): TabValidation {
 	if (!data?.steering) missingFields.push('Steering Status');
 	if (!data?.brakes) missingFields.push('Brakes Status');
 	if (!data?.handbrake) missingFields.push('Handbrake Status');
+	
+	// Require at least 2 interior photos
+	if (interiorPhotos.length < 2) {
+		missingFields.push('At least 2 interior photos');
+	}
 
 	return {
 		tabId: 'interior',
@@ -139,13 +141,15 @@ export function validateAssessment(assessmentData: {
 	vehicleIdentification: any;
 	exterior360: any;
 	interiorMechanical: any;
+	interiorPhotos?: any[];
+	exterior360Photos?: any[];
 	tyres: any[];
 	damageRecords: any[];
 }): ValidationResult {
 	const validations = [
 		validateVehicleIdentification(assessmentData.vehicleIdentification),
-		validateExterior360(assessmentData.exterior360),
-		validateInteriorMechanical(assessmentData.interiorMechanical),
+		validateExterior360(assessmentData.exterior360, assessmentData.exterior360Photos || []),
+		validateInteriorMechanical(assessmentData.interiorMechanical, assessmentData.interiorPhotos || []),
 		validateTyres(assessmentData.tyres),
 		validateDamage(assessmentData.damageRecords)
 	];
@@ -292,6 +296,8 @@ export function getTabCompletionStatus(assessmentData: {
 	vehicleIdentification: any;
 	exterior360: any;
 	interiorMechanical: any;
+	interiorPhotos?: any[];
+	exterior360Photos?: any[];
 	tyres: any[];
 	damageRecord: any;
 	vehicleValues: any;
@@ -300,8 +306,8 @@ export function getTabCompletionStatus(assessmentData: {
 }): TabValidation[] {
 	return [
 		validateVehicleIdentification(assessmentData.vehicleIdentification),
-		validateExterior360(assessmentData.exterior360),
-		validateInteriorMechanical(assessmentData.interiorMechanical),
+		validateExterior360(assessmentData.exterior360, assessmentData.exterior360Photos || []),
+		validateInteriorMechanical(assessmentData.interiorMechanical, assessmentData.interiorPhotos || []),
 		validateTyres(assessmentData.tyres),
 		validateDamage(assessmentData.damageRecord ? [assessmentData.damageRecord] : []),
 		validateVehicleValues(assessmentData.vehicleValues),

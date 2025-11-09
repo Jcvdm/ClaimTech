@@ -211,6 +211,14 @@
 		}
 	}
 
+	async function handleRefreshData() {
+		// Reload interior photos from database
+		const { interiorPhotosService } = await import('$lib/services/interior-photos.service');
+		const updatedPhotos = await interiorPhotosService.getPhotosByAssessment(data.assessment.id);
+		// Update local state (triggers reactivity)
+		data.interiorPhotos = updatedPhotos;
+	}
+
 	// Tyres handlers
 	async function handleUpdateTyre(id: string, updateData: Partial<Tyre>) {
 		try {
@@ -682,6 +690,8 @@
 	vehicleIdentification={data.vehicleIdentification}
 	exterior360={data.exterior360}
 	interiorMechanical={data.interiorMechanical}
+	interiorPhotos={data.interiorPhotos}
+	exterior360Photos={data.exterior360Photos}
 	tyres={data.tyres}
 	damageRecord={data.damageRecord}
 	vehicleValues={data.vehicleValues}
@@ -716,15 +726,25 @@
 			data={data.exterior360}
 			assessmentId={data.assessment.id}
 			accessories={data.accessories}
+			exterior360Photos={data.exterior360Photos}
 			onUpdate={handleUpdateExterior360}
 			onAddAccessory={handleAddAccessory}
 			onDeleteAccessory={handleDeleteAccessory}
+			onPhotosUpdate={async () => {
+				// Reload exterior 360 photos from database
+				const { exterior360PhotosService } = await import('$lib/services/exterior-360-photos.service');
+				const updatedPhotos = await exterior360PhotosService.getPhotosByAssessment(data.assessment.id);
+				// Update local state (triggers reactivity)
+				data.exterior360Photos = updatedPhotos;
+			}}
 		/>
 	{:else if currentTab === 'interior'}
 		<InteriorMechanicalTab
 			data={data.interiorMechanical}
 			assessmentId={data.assessment.id}
+			interiorPhotos={data.interiorPhotos}
 			onUpdate={handleUpdateInteriorMechanical}
+			onPhotosUpdate={handleRefreshData}
 		/>
 	{:else if currentTab === 'tyres'}
 		<TyresTab

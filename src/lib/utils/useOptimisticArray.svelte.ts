@@ -51,18 +51,29 @@
 /**
  * Create an optimistic array that updates immediately and syncs with parent
  * 
- * @param parentArray - The parent prop array to sync with
+ * @param parentArray - The parent prop array to sync with (can be a getter function for better reactivity)
  * @returns Object with value getter and mutation methods
  */
 export function useOptimisticArray<T extends { id: string }>(
-	parentArray: T[]
+	parentArray: T[] | (() => T[])
 ) {
 	// Local state for immediate updates
 	let localArray = $state<T[]>([]);
 
+	// Create a derived value that tracks the parent array reactively
+	// This ensures we detect changes even if the array reference stays the same
+	const parentArrayValue = typeof parentArray === 'function' 
+		? $derived(parentArray())
+		: $derived(parentArray);
+
 	// Sync with parent props whenever they change
+	// Using $derived ensures we track the array contents, not just the reference
 	$effect(() => {
-		localArray = [...parentArray];
+		const currentParent = parentArrayValue;
+		// Always sync to ensure we have the latest data from parent
+		// The comparison check prevents unnecessary updates but we need to ensure
+		// we sync when parent data loads initially
+		localArray = [...currentParent];
 	});
 
 	return {
@@ -144,7 +155,7 @@ export function useOptimisticArray<T extends { id: string }>(
 		 * Useful for error recovery or manual sync
 		 */
 		reset(): void {
-			localArray = [...parentArray];
+			localArray = [...parentArrayValue];
 		},
 
 		/**

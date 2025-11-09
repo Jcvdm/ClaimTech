@@ -2,17 +2,21 @@
 	import { Card } from '$lib/components/ui/card';
 	import FormField from '$lib/components/forms/FormField.svelte';
 	import PhotoUpload from '$lib/components/forms/PhotoUpload.svelte';
+	import InteriorPhotosPanel from './InteriorPhotosPanel.svelte';
 	import RequiredFieldsWarning from './RequiredFieldsWarning.svelte';
 	import { debounce } from '$lib/utils/useUnsavedChanges.svelte';
 	import { useDraft } from '$lib/utils/useDraft.svelte';
 	import { onMount, onDestroy } from 'svelte';
-	import type { InteriorMechanical } from '$lib/types/assessment';
+	import type { InteriorMechanical, InteriorPhoto } from '$lib/types/assessment';
 	import { validateInteriorMechanical } from '$lib/utils/validation';
+	import { interiorPhotosService } from '$lib/services/interior-photos.service';
 
 	interface Props {
 		data: InteriorMechanical | null;
 		assessmentId: string;
+		interiorPhotos: InteriorPhoto[];
 		onUpdate: (data: Partial<InteriorMechanical>) => void;
+		onPhotosUpdate: () => void;
 	}
 
 	// Make props reactive using $derived pattern
@@ -21,7 +25,9 @@
 
 	const data = $derived(props.data);
 	const assessmentId = $derived(props.assessmentId);
+	const interiorPhotos = $derived(props.interiorPhotos);
 	const onUpdate = $derived(props.onUpdate);
+	const onPhotosUpdate = $derived(props.onPhotosUpdate);
 
 	// Initialize localStorage draft for critical fields
 	const mileageDraft = useDraft(`assessment-${assessmentId}-mileage`);
@@ -34,9 +40,6 @@
 	let oilLevelPhotoUrl = $state(data?.oil_level_photo_url || '');
 	let coolantPhotoUrl = $state(data?.coolant_photo_url || '');
 	let mileagePhotoUrl = $state(data?.mileage_photo_url || '');
-	let interiorFrontPhotoUrl = $state(data?.interior_front_photo_url || '');
-	let interiorRearPhotoUrl = $state(data?.interior_rear_photo_url || '');
-	let dashboardPhotoUrl = $state(data?.dashboard_photo_url || '');
 	let gearLeverPhotoUrl = $state(data?.gear_lever_photo_url || '');
 
 	// Data
@@ -69,9 +72,6 @@
 			if (data.oil_level_photo_url) oilLevelPhotoUrl = data.oil_level_photo_url;
 			if (data.coolant_photo_url) coolantPhotoUrl = data.coolant_photo_url;
 			if (data.mileage_photo_url) mileagePhotoUrl = data.mileage_photo_url;
-			if (data.interior_front_photo_url) interiorFrontPhotoUrl = data.interior_front_photo_url;
-			if (data.interior_rear_photo_url) interiorRearPhotoUrl = data.interior_rear_photo_url;
-			if (data.dashboard_photo_url) dashboardPhotoUrl = data.dashboard_photo_url;
 			if (data.gear_lever_photo_url) gearLeverPhotoUrl = data.gear_lever_photo_url;
 
 			// Update other fields
@@ -107,9 +107,6 @@
 			oil_level_photo_url: oilLevelPhotoUrl || undefined,
 			coolant_photo_url: coolantPhotoUrl || undefined,
 			mileage_photo_url: mileagePhotoUrl || undefined,
-			interior_front_photo_url: interiorFrontPhotoUrl || undefined,
-			interior_rear_photo_url: interiorRearPhotoUrl || undefined,
-			dashboard_photo_url: dashboardPhotoUrl || undefined,
 			gear_lever_photo_url: gearLeverPhotoUrl || undefined,
 			mileage_reading: mileageReading ? parseInt(mileageReading) : undefined,
 			interior_condition: (interiorCondition || undefined) as any,
@@ -149,7 +146,7 @@
 			steering: steering,
 			brakes: brakes,
 			handbrake: handbrake
-		});
+		}, interiorPhotos);
 	});
 </script>
 
@@ -273,41 +270,11 @@
 	</Card>
 
 	<!-- Interior Photos -->
-	<Card class="p-6">
-		<h3 class="mb-4 text-lg font-semibold text-gray-900">Interior Photos</h3>
-		<div class="grid gap-4 md:grid-cols-3">
-			<PhotoUpload
-				value={interiorFrontPhotoUrl}
-				label="Front Interior"
-				{assessmentId}
-				category="interior"
-				subcategory="front"
-				onUpload={(url) => { interiorFrontPhotoUrl = url; handleSave(); }}
-				onRemove={() => { interiorFrontPhotoUrl = ''; handleSave(); }}
-				height="h-32"
-			/>
-			<PhotoUpload
-				value={interiorRearPhotoUrl}
-				label="Rear Interior"
-				{assessmentId}
-				category="interior"
-				subcategory="rear"
-				onUpload={(url) => { interiorRearPhotoUrl = url; handleSave(); }}
-				onRemove={() => { interiorRearPhotoUrl = ''; handleSave(); }}
-				height="h-32"
-			/>
-			<PhotoUpload
-				value={dashboardPhotoUrl}
-				label="Dashboard"
-				{assessmentId}
-				category="interior"
-				subcategory="dashboard"
-				onUpload={(url) => { dashboardPhotoUrl = url; handleSave(); }}
-				onRemove={() => { dashboardPhotoUrl = ''; handleSave(); }}
-				height="h-32"
-			/>
-		</div>
-	</Card>
+	<InteriorPhotosPanel
+		{assessmentId}
+		photos={interiorPhotos}
+		onUpdate={onPhotosUpdate}
+	/>
 
 	<!-- Interior Condition -->
 	<Card class="p-6">

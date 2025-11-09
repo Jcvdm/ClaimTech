@@ -117,6 +117,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 			{ data: interiorMechanical },
 			{ data: estimatePhotos },
 			{ data: preIncidentPhotos },
+			{ data: interiorPhotos },
 			{ data: companySettings },
 			{ data: tyres }
 		] = await Promise.all([
@@ -145,6 +146,11 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 						.eq('estimate_id', preIncidentEstimate.id)
 						.order('created_at', { ascending: true })
 				: Promise.resolve({ data: [] }),
+			locals.supabase
+				.from('assessment_interior_photos')
+				.select('*')
+				.eq('assessment_id', assessmentId)
+				.order('display_order', { ascending: true }),
 			locals.supabase.from('company_settings').select('*').single(),
 			locals.supabase
 				.from('assessment_tyres')
@@ -244,12 +250,34 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		}
 	}
 
-	const interiorPhotos = (await Promise.all(interiorPhotoPromises)).filter(p => p !== null);
-	if (interiorPhotos.length > 0) {
+	const fixedInteriorPhotos = (await Promise.all(interiorPhotoPromises)).filter(p => p !== null);
+	if (fixedInteriorPhotos.length > 0) {
 		sections.push({
 			title: 'Interior & Mechanical',
-			photos: interiorPhotos
+			photos: fixedInteriorPhotos
 		});
+	}
+
+	// Additional Interior Photos - PARALLEL conversion
+	yield { status: 'processing', progress: 42, message: 'Converting additional interior photos...' };
+
+	if (interiorPhotos && interiorPhotos.length > 0) {
+		const additionalInteriorPhotoPromises = interiorPhotos.map(photo =>
+			convertProxyUrlToDataUrl(photo.photo_url, locals).then(dataUrl =>
+				dataUrl ? {
+					url: dataUrl,
+					caption: photo.label || 'Additional Interior Photo'
+				} : null
+			)
+		);
+
+		const additionalInteriorPhotos = (await Promise.all(additionalInteriorPhotoPromises)).filter(p => p !== null);
+		if (additionalInteriorPhotos.length > 0) {
+			sections.push({
+				title: 'Additional Interior Photos',
+				photos: additionalInteriorPhotos
+			});
+		}
 	}
 
 	yield { status: 'processing', progress: 45, message: 'Converting tyre photos...' };

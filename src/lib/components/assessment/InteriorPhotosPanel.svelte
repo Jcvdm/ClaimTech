@@ -1,17 +1,16 @@
 <script lang="ts">
 	import { Card } from '$lib/components/ui/card';
 	import { Button } from '$lib/components/ui/button';
-	import { Upload, Loader2 } from 'lucide-svelte';
-	import type { EstimatePhoto } from '$lib/types/assessment';
+	import { Upload, Trash2, Loader2 } from 'lucide-svelte';
+	import type { InteriorPhoto } from '$lib/types/assessment';
 	import { storageService } from '$lib/services/storage.service';
-	import { estimatePhotosService } from '$lib/services/estimate-photos.service';
+	import { interiorPhotosService } from '$lib/services/interior-photos.service';
 	import { useOptimisticArray } from '$lib/utils/useOptimisticArray.svelte';
 	import PhotoViewer from '$lib/components/photo-viewer/PhotoViewer.svelte';
 
 	interface Props {
-		estimateId: string;
 		assessmentId: string;
-		photos: EstimatePhoto[];
+		photos: InteriorPhoto[];
 		onUpdate: () => void;
 	}
 
@@ -20,7 +19,6 @@
 	let props: Props = $props();
 
 	// Reactive derived props
-	const estimateId = $derived(props.estimateId);
 	const assessmentId = $derived(props.assessmentId);
 	const onUpdate = $derived(props.onUpdate);
 
@@ -94,16 +92,16 @@
 				const result = await storageService.uploadAssessmentPhoto(
 					file,
 					assessmentId,
-					'estimate',
-					'incident'
+					'interior',
+					'additional'
 				);
 
 				// Get next display order
-				const displayOrder = await estimatePhotosService.getNextDisplayOrder(estimateId);
+				const displayOrder = await interiorPhotosService.getNextDisplayOrder(assessmentId);
 
 				// Create photo record
-				const newPhoto = await estimatePhotosService.createPhoto({
-					estimate_id: estimateId,
+				const newPhoto = await interiorPhotosService.createPhoto({
+					assessment_id: assessmentId,
 					photo_url: result.url,
 					photo_path: result.path,
 					display_order: displayOrder
@@ -140,7 +138,7 @@
 			await storageService.deletePhoto(photoPath);
 
 			// Delete from database
-			await estimatePhotosService.deletePhoto(photoId);
+			await interiorPhotosService.deletePhoto(photoId);
 
 			// Refresh photos from parent (will sync via $effect)
 			await onUpdate();
@@ -170,7 +168,7 @@
 			await storageService.deletePhoto(photoPath);
 
 			// Delete from database
-			await estimatePhotosService.deletePhoto(photoId);
+			await interiorPhotosService.deletePhoto(photoId);
 
 			// Refresh photos from parent (will sync via $effect)
 			await onUpdate();
@@ -183,7 +181,7 @@
 	}
 
 	async function handleLabelUpdate(photoId: string, label: string) {
-		console.log('[EstimatePhotosPanel] Label update requested:', {
+		console.log('[InteriorPhotosPanel] Label update requested:', {
 			photoId,
 			newLabel: label,
 			currentPhotos: photos.value.map((p) => ({ id: p.id, label: p.label }))
@@ -192,19 +190,19 @@
 		try {
 			// IMMEDIATE optimistic update for instant UI feedback
 			photos.update(photoId, { label });
-			console.log('[EstimatePhotosPanel] Optimistic update applied');
+			console.log('[InteriorPhotosPanel] Optimistic update applied');
 
 			// Update label in database
-			await estimatePhotosService.updatePhotoLabel(photoId, label);
-			console.log('[EstimatePhotosPanel] Database updated');
+			await interiorPhotosService.updatePhotoLabel(photoId, label);
+			console.log('[InteriorPhotosPanel] Database updated');
 
 			// Refresh photos to get updated data (will sync via $effect)
 			await onUpdate();
-			console.log('[EstimatePhotosPanel] Photos refreshed from parent');
+			console.log('[InteriorPhotosPanel] Photos refreshed from parent');
 
-			console.log('[EstimatePhotosPanel] Label update complete:', photoId);
+			console.log('[InteriorPhotosPanel] Label update complete:', photoId);
 		} catch (error) {
-			console.error('[EstimatePhotosPanel] Error updating label:', error);
+			console.error('[InteriorPhotosPanel] Error updating label:', error);
 
 			// Revert optimistic update on error
 			await onUpdate();
@@ -217,7 +215,7 @@
 <!-- Unified Photo Panel -->
 <Card class="p-6">
 	<h3 class="mb-4 text-lg font-semibold text-gray-900">
-		{photos.value.length === 0 ? 'Incident Photos' : `Incident Photos (${photos.value.length})`}
+		{photos.value.length === 0 ? 'Interior Photos' : `Interior Photos (${photos.value.length})`}
 	</h3>
 
 	{#if photos.value.length === 0}
@@ -318,7 +316,7 @@
 						<div class="absolute inset-0">
 							<img
 								src={storageService.toPhotoProxyUrl(photo.photo_url)}
-								alt={photo.label || 'Incident photo'}
+								alt={photo.label || 'Interior photo'}
 								class="w-full h-full object-cover cursor-pointer"
 							/>
 						</div>
@@ -363,3 +361,4 @@
 		onLabelUpdate={handleLabelUpdate}
 	/>
 {/if}
+

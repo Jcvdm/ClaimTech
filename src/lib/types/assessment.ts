@@ -188,9 +188,6 @@ export interface InteriorMechanical {
 	oil_level_photo_url?: string | null;
 	coolant_photo_url?: string | null;
 	mileage_photo_url?: string | null;
-	interior_front_photo_url?: string | null;
-	interior_rear_photo_url?: string | null;
-	dashboard_photo_url?: string | null;
 	gear_lever_photo_url?: string | null;
 	mileage_reading?: number | null;
 	interior_condition?: VehicleCondition | null;
@@ -332,9 +329,6 @@ export interface CreateInteriorMechanicalInput {
 	oil_level_photo_url?: string;
 	coolant_photo_url?: string;
 	mileage_photo_url?: string;
-	interior_front_photo_url?: string;
-	interior_rear_photo_url?: string;
-	dashboard_photo_url?: string;
 	gear_lever_photo_url?: string;
 	mileage_reading?: number;
 	interior_condition?: VehicleCondition;
@@ -814,6 +808,84 @@ export interface CreateAdditionalsPhotoInput {
 
 export interface UpdateAdditionalsPhotoInput {
 	label?: string | null;
+	display_order?: number;
+}
+
+// Interior Photo interfaces
+export interface InteriorPhoto {
+	id: string;
+	assessment_id: string;
+	photo_url: string;
+	photo_path: string;
+	label?: string | null;
+	display_order: number;
+	created_at: string;
+	updated_at: string;
+}
+
+export interface CreateInteriorPhotoInput {
+	assessment_id: string;
+	photo_url: string;
+	photo_path: string;
+	label?: string | null;
+	display_order?: number;
+}
+
+export interface UpdateInteriorPhotoInput {
+	label?: string | null;
+	display_order?: number;
+}
+
+// Exterior 360 Photo interfaces (additional photos beyond required 8-position 360° photos)
+export interface Exterior360Photo {
+	id: string;
+	assessment_id: string;
+	photo_url: string;
+	photo_path: string;
+	label?: string | null;
+	display_order: number;
+	created_at: string;
+	updated_at: string;
+}
+
+export interface CreateExterior360PhotoInput {
+	assessment_id: string;
+	photo_url: string;
+	photo_path: string;
+	label?: string | null;
+	display_order?: number;
+}
+
+export interface UpdateExterior360PhotoInput {
+	label?: string | null;
+	display_order?: number;
+}
+
+// Damage Photo interfaces (photos of vehicle damage)
+export interface DamagePhoto {
+	id: string;
+	assessment_id: string;
+	photo_url: string;
+	photo_path: string;
+	label?: string | null;
+	panel?: string | null; // Which panel this damage photo shows
+	display_order: number;
+	created_at: string;
+	updated_at: string;
+}
+
+export interface CreateDamagePhotoInput {
+	assessment_id: string;
+	photo_url: string;
+	photo_path: string;
+	label?: string | null;
+	panel?: string | null;
+	display_order?: number;
+}
+
+export interface UpdateDamagePhotoInput {
+	label?: string | null;
+	panel?: string | null;
 	display_order?: number;
 }
 

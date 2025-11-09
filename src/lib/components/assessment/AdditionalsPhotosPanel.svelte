@@ -1,13 +1,12 @@
 <script lang="ts">
 	import { Card } from '$lib/components/ui/card';
 	import { Button } from '$lib/components/ui/button';
-	import { Input } from '$lib/components/ui/input';
-	import * as Dialog from '$lib/components/ui/dialog';
-	import { Upload, Trash2, Image as ImageIcon, Loader2, ChevronLeft, ChevronRight, ZoomIn, ZoomOut, Maximize2, Minimize2 } from 'lucide-svelte';
+	import { Upload, Loader2 } from 'lucide-svelte';
 	import type { AdditionalsPhoto } from '$lib/types/assessment';
 	import { storageService } from '$lib/services/storage.service';
 	import { additionalsPhotosService } from '$lib/services/additionals-photos.service';
 	import { useOptimisticArray } from '$lib/utils/useOptimisticArray.svelte';
+	import PhotoViewer from '$lib/components/photo-viewer/PhotoViewer.svelte';
 
 	interface Props {
 		additionalsId: string;
@@ -31,20 +30,6 @@
 	let isDragging = $state(false);
 	let fileInput: HTMLInputElement;
 	let selectedPhotoIndex = $state<number | null>(null);
-	let tempLabel = $state<string>('');
-	let modalSize = $state<'small' | 'medium' | 'large' | 'fullscreen'>('medium');
-	let photoZoom = $state<number>(1);
-
-	// Derived modal size class for reactivity with important modifiers to override Dialog defaults
-	let modalSizeClass = $derived(
-		modalSize === 'fullscreen'
-			? '!max-w-full !max-h-full !w-screen !h-screen !inset-0 !translate-x-0 !translate-y-0 !rounded-none'
-			: modalSize === 'large'
-				? 'sm:!max-w-5xl md:!max-w-5xl lg:!max-w-5xl !max-h-[90vh]'
-				: modalSize === 'medium'
-					? 'sm:!max-w-3xl md:!max-w-3xl lg:!max-w-3xl !max-h-[80vh]'
-					: 'sm:!max-w-2xl md:!max-w-2xl lg:!max-w-2xl !max-h-[70vh]'
-	);
 
 	// Drag and drop handlers
 	function handleDragEnter(event: DragEvent) {
@@ -142,9 +127,16 @@
 		}
 	}
 
-	async function handleDeletePhoto(photoId: string, photoPath: string) {
-		if (!confirm('Are you sure you want to delete this photo?')) return;
+	// Photo viewer functions
+	function openPhotoViewer(index: number) {
+		selectedPhotoIndex = index;
+	}
 
+	function closePhotoViewer() {
+		selectedPhotoIndex = null;
+	}
+
+	async function handlePhotoDelete(photoId: string, photoPath: string) {
 		try {
 			// Remove from optimistic array immediately for instant UI feedback
 			photos.remove(photoId);
@@ -165,104 +157,46 @@
 		}
 	}
 
-	// Modal functions
-	function openPhotoModal(index: number) {
-		selectedPhotoIndex = index;
-		tempLabel = photos.value[index].label || '';
-		photoZoom = 1;
-		modalSize = 'medium';
-	}
-
-	function closePhotoModal() {
-		selectedPhotoIndex = null;
-		tempLabel = '';
-		photoZoom = 1;
-		modalSize = 'medium';
-	}
-
-	function zoomIn() {
-		photoZoom = Math.min(3, photoZoom + 0.25);
-	}
-
-	function zoomOut() {
-		photoZoom = Math.max(0.5, photoZoom - 0.25);
-	}
-
-	function resetZoom() {
-		photoZoom = 1;
-	}
-
-	function previousPhoto() {
-		if (selectedPhotoIndex !== null && selectedPhotoIndex > 0) {
-			selectedPhotoIndex--;
-			tempLabel = photos.value[selectedPhotoIndex].label || '';
-		}
-	}
-
-	function nextPhoto() {
-		if (selectedPhotoIndex !== null && selectedPhotoIndex < photos.value.length - 1) {
-			selectedPhotoIndex++;
-			tempLabel = photos.value[selectedPhotoIndex].label || '';
-		}
-	}
-
-	async function handleLabelSaveInModal() {
-		if (selectedPhotoIndex === null) return;
+	async function handleLabelUpdate(photoId: string, label: string) {
+		console.log('[AdditionalsPhotosPanel] Label update requested:', {
+			photoId,
+			newLabel: label,
+			currentPhotos: photos.value.map((p) => ({ id: p.id, label: p.label }))
+		});
 
 		try {
-			const photo = photos.value[selectedPhotoIndex];
-			await additionalsPhotosService.updatePhotoLabel(photo.id, tempLabel);
+			// IMMEDIATE optimistic update for instant UI feedback
+			photos.update(photoId, { label });
+			console.log('[AdditionalsPhotosPanel] Optimistic update applied');
+
+			// Update label in database
+			await additionalsPhotosService.updatePhotoLabel(photoId, label);
+			console.log('[AdditionalsPhotosPanel] Database updated');
+
+			// Refresh photos to get updated data (will sync via $effect)
 			await onUpdate();
+			console.log('[AdditionalsPhotosPanel] Photos refreshed from parent');
+
+			console.log('[AdditionalsPhotosPanel] Label update complete:', photoId);
 		} catch (error) {
-			console.error('Error updating label:', error);
-		}
-	}
+			console.error('[AdditionalsPhotosPanel] Error updating label:', error);
 
-	async function handleDeleteInModal() {
-		if (selectedPhotoIndex === null) return;
-
-		const photo = photos.value[selectedPhotoIndex];
-		if (!confirm('Are you sure you want to delete this photo?')) return;
-
-		try {
-			// Delete from storage
-			await storageService.deletePhoto(photo.photo_path);
-
-			// Delete from database
-			await additionalsPhotosService.deletePhoto(photo.id);
-
-			// Close modal and refresh
-			closePhotoModal();
+			// Revert optimistic update on error
 			await onUpdate();
-		} catch (error) {
-			console.error('Error deleting photo:', error);
-			alert('Failed to delete photo. Please try again.');
-		}
-	}
 
-	// Keyboard navigation
-	function handleKeydown(event: KeyboardEvent) {
-		if (selectedPhotoIndex === null) return;
-
-		if (event.key === 'ArrowLeft') {
-			event.preventDefault();
-			previousPhoto();
-		} else if (event.key === 'ArrowRight') {
-			event.preventDefault();
-			nextPhoto();
-		} else if (event.key === 'Escape') {
-			closePhotoModal();
+			throw error; // Re-throw to let PhotoViewer handle error display
 		}
 	}
 </script>
 
-<svelte:window onkeydown={handleKeydown} />
+<!-- Unified Photo Panel -->
+<Card class="p-6">
+	<h3 class="mb-4 text-lg font-semibold text-gray-900">
+		{photos.value.length === 0 ? 'Additional Photos' : `Additional Photos (${photos.value.length})`}
+	</h3>
 
-<div class="space-y-6">
-	<!-- Upload Zone -->
-	<Card class="p-6">
-		<h3 class="mb-4 text-lg font-semibold text-gray-900">Upload Additional Photos</h3>
-		
+	{#if photos.value.length === 0}
+		<!-- Empty state: Large centered upload zone -->
 		<div
 			class="relative border-2 border-dashed rounded-lg p-8 text-center transition-colors {isDragging
 				? 'border-blue-500 bg-blue-50'
@@ -272,193 +206,136 @@
 			ondragleave={handleDragLeave}
 			ondrop={handleDrop}
 		>
-			<input
-				type="file"
-				bind:this={fileInput}
-				onchange={handleFileSelect}
-				accept="image/*"
-				multiple
-				class="hidden"
-			/>
-
 			{#if uploading}
 				<div class="space-y-3">
-					<Loader2 class="mx-auto h-12 w-12 animate-spin text-blue-600" />
-					<p class="text-sm text-gray-600">Uploading... {uploadProgress}%</p>
+					<Loader2 class="mx-auto h-12 w-12 text-blue-600 animate-spin" />
+					<p class="text-sm font-medium text-gray-700">Uploading photos...</p>
 					<div class="w-full bg-gray-200 rounded-full h-2">
 						<div
-							class="bg-blue-600 h-2 rounded-full transition-all"
+							class="h-full bg-blue-500 transition-all duration-300 rounded-full"
 							style="width: {uploadProgress}%"
 						></div>
 					</div>
+					<p class="text-xs text-gray-500">{uploadProgress}%</p>
+				</div>
+			{:else if isDragging}
+				<div>
+					<Upload class="mx-auto h-12 w-12 text-blue-500" />
+					<p class="mt-2 text-sm font-medium text-blue-600">Drop photos here to upload</p>
 				</div>
 			{:else}
 				<Upload class="mx-auto h-12 w-12 text-gray-400" />
 				<p class="mt-2 text-sm text-gray-600">
-					Drag and drop photos here, or
-					<button
+					Drag & drop photos or <button
 						type="button"
 						onclick={triggerFileInput}
-						class="text-blue-600 hover:text-blue-700 font-medium"
+						class="font-medium text-blue-600 hover:text-blue-800"
 					>
 						browse
 					</button>
 				</p>
-				<p class="mt-1 text-xs text-gray-500">Supports: JPG, PNG, GIF (multiple files)</p>
+				<p class="mt-1 text-xs text-gray-500">
+					Supports: JPG, PNG, GIF • Multiple files supported
+				</p>
+				<Button onclick={triggerFileInput} class="mt-4">
+					<Upload class="mr-2 h-4 w-4" />
+					Upload Photos
+				</Button>
 			{/if}
 		</div>
-	</Card>
+	{:else}
+		<!-- Grid with upload zone as first item -->
+		<div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 max-h-[600px] overflow-y-auto p-1">
+			<!-- Upload zone as first grid cell -->
+			<div
+				class="relative w-full aspect-square border-2 border-dashed rounded-lg transition-colors cursor-pointer {isDragging
+					? 'border-blue-500 bg-blue-50'
+					: 'border-gray-300 hover:border-gray-400 bg-gray-50'}"
+				ondragenter={handleDragEnter}
+				ondragover={handleDragOver}
+				ondragleave={handleDragLeave}
+				ondrop={handleDrop}
+				onclick={triggerFileInput}
+			>
+				{#if uploading}
+					<div class="absolute inset-0 flex flex-col items-center justify-center p-4">
+						<Loader2 class="h-8 w-8 text-blue-600 animate-spin" />
+						<p class="mt-2 text-xs font-medium text-gray-700">Uploading...</p>
+						<div class="w-full max-w-[80px] bg-gray-200 rounded-full h-1.5 mt-2">
+							<div
+								class="h-full bg-blue-500 transition-all duration-300 rounded-full"
+								style="width: {uploadProgress}%"
+							></div>
+						</div>
+					</div>
+				{:else if isDragging}
+					<div class="absolute inset-0 flex flex-col items-center justify-center p-4">
+						<Upload class="h-8 w-8 text-blue-500" />
+						<p class="mt-2 text-xs font-medium text-blue-600 text-center">Drop here</p>
+					</div>
+				{:else}
+					<div class="absolute inset-0 flex flex-col items-center justify-center p-4">
+						<Upload class="h-8 w-8 text-gray-400" />
+						<p class="mt-2 text-xs text-gray-600 text-center font-medium">Add Photos</p>
+					</div>
+				{/if}
+			</div>
 
-	<!-- Photos Grid -->
-	{#if photos.value.length > 0}
-		<Card class="p-6">
-			<h3 class="mb-4 text-lg font-semibold text-gray-900">
-				Additional Photos ({photos.value.length})
-			</h3>
-
-			<div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-				{#each photos.value as photo, index (photo.id)}
-					<div class="group relative aspect-square rounded-lg overflow-hidden border border-gray-200 hover:border-blue-500 transition-colors">
-						<button
-							type="button"
-							onclick={() => openPhotoModal(index)}
-							class="w-full h-full"
-						>
+			<!-- Photo thumbnails -->
+			{#each photos.value as photo, index (photo.id)}
+				<div class="w-full">
+					<button
+						onclick={() => openPhotoViewer(index)}
+						class="relative w-full aspect-square bg-gray-100 rounded-lg overflow-hidden group block"
+						type="button"
+					>
+						<!-- Photo Image -->
+						<div class="absolute inset-0">
 							<img
 								src={storageService.toPhotoProxyUrl(photo.photo_url)}
 								alt={photo.label || 'Additional photo'}
-								class="w-full h-full object-cover"
+								class="w-full h-full object-cover cursor-pointer"
 							/>
-						</button>
-						
-						<!-- Overlay with label and delete -->
-						<div class="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-40 transition-all flex items-end">
-							<div class="w-full p-2 opacity-0 group-hover:opacity-100 transition-opacity">
-								{#if photo.label}
-									<p class="text-xs text-white font-medium truncate mb-1">{photo.label}</p>
-								{/if}
-								<Button
-									size="sm"
-									variant="destructive"
-									onclick={(e) => {
-										e.stopPropagation();
-										handleDeletePhoto(photo.id, photo.photo_path);
-									}}
-									class="w-full"
-								>
-									<Trash2 class="h-3 w-3 mr-1" />
-									Delete
-								</Button>
-							</div>
 						</div>
-					</div>
-				{/each}
-			</div>
-		</Card>
-	{/if}
-</div>
 
-<!-- Photo Modal -->
-{#if selectedPhotoIndex !== null}
-	{@const photo = photos.value[selectedPhotoIndex]}
-	<Dialog.Root open={selectedPhotoIndex !== null} onOpenChange={closePhotoModal}>
-		<Dialog.Content class={modalSizeClass}>
-			<Dialog.Header>
-				<Dialog.Title>
-					Photo {selectedPhotoIndex + 1} of {photos.value.length}
-				</Dialog.Title>
-			</Dialog.Header>
+						<!-- Hover overlay - excludes bottom area where label sits -->
+						<div class="absolute inset-x-0 top-0 {photo.label ? 'bottom-10' : 'bottom-0'} bg-black/0 group-hover:bg-black/60 transition-all duration-200 flex items-center justify-center pointer-events-none z-10">
+							<span class="text-white opacity-0 group-hover:opacity-100 transition-opacity text-sm font-semibold drop-shadow-lg">
+								Click to view
+							</span>
+						</div>
 
-			<div class="space-y-4">
-				<!-- Photo viewer with zoom -->
-				<div class="relative bg-gray-100 rounded-lg overflow-hidden" style="min-height: 400px;">
-					<div class="overflow-auto max-h-[60vh]">
-						<img
-							src={storageService.toPhotoProxyUrl(photo.photo_url)}
-							alt={photo.label || 'Additional photo'}
-							class="w-full h-auto transition-transform"
-							style="transform: scale({photoZoom}); transform-origin: center;"
-						/>
-					</div>
-				</div>
-
-				<!-- Controls -->
-				<div class="flex items-center justify-between gap-2">
-					<!-- Navigation -->
-					<div class="flex gap-2">
-						<Button
-							size="sm"
-							variant="outline"
-							onclick={previousPhoto}
-							disabled={selectedPhotoIndex === 0}
-						>
-							<ChevronLeft class="h-4 w-4" />
-						</Button>
-						<Button
-							size="sm"
-							variant="outline"
-							onclick={nextPhoto}
-							disabled={selectedPhotoIndex === photos.value.length - 1}
-						>
-							<ChevronRight class="h-4 w-4" />
-						</Button>
-					</div>
-
-					<!-- Zoom controls -->
-					<div class="flex gap-2">
-						<Button size="sm" variant="outline" onclick={zoomOut}>
-							<ZoomOut class="h-4 w-4" />
-						</Button>
-						<Button size="sm" variant="outline" onclick={resetZoom}>
-							{Math.round(photoZoom * 100)}%
-						</Button>
-						<Button size="sm" variant="outline" onclick={zoomIn}>
-							<ZoomIn class="h-4 w-4" />
-						</Button>
-					</div>
-
-					<!-- Size toggle -->
-					<Button
-						size="sm"
-						variant="outline"
-						onclick={() => {
-							modalSize = modalSize === 'fullscreen' ? 'medium' : 'fullscreen';
-						}}
-					>
-						{#if modalSize === 'fullscreen'}
-							<Minimize2 class="h-4 w-4" />
-						{:else}
-							<Maximize2 class="h-4 w-4" />
+						<!-- Label overlay - separate from hover overlay -->
+						{#if photo.label}
+							<div class="absolute bottom-0 left-0 right-0 bg-black/80 text-white text-xs p-2 truncate z-20">
+								{photo.label}
+							</div>
 						{/if}
-					</Button>
+					</button>
 				</div>
+			{/each}
+		</div>
+	{/if}
 
-				<!-- Label input -->
-				<div class="space-y-2">
-					<label for="photo-label" class="text-sm font-medium text-gray-700">
-						Photo Label
-					</label>
-					<div class="flex gap-2">
-						<Input
-							id="photo-label"
-							type="text"
-							bind:value={tempLabel}
-							placeholder="Enter photo label..."
-							class="flex-1"
-						/>
-						<Button onclick={handleLabelSaveInModal}>Save Label</Button>
-					</div>
-				</div>
+	<!-- Hidden file input -->
+	<input
+		bind:this={fileInput}
+		type="file"
+		accept="image/*"
+		multiple
+		onchange={handleFileSelect}
+		class="hidden"
+	/>
+</Card>
 
-				<!-- Delete button -->
-				<div class="flex justify-end">
-					<Button variant="destructive" onclick={handleDeleteInModal}>
-						<Trash2 class="h-4 w-4 mr-2" />
-						Delete Photo
-					</Button>
-				</div>
-			</div>
-		</Dialog.Content>
-	</Dialog.Root>
+<!-- Photo Viewer -->
+{#if selectedPhotoIndex !== null}
+	<PhotoViewer
+		photos={photos.value}
+		startIndex={selectedPhotoIndex}
+		onClose={closePhotoViewer}
+		onDelete={handlePhotoDelete}
+		onLabelUpdate={handleLabelUpdate}
+	/>
 {/if}
 

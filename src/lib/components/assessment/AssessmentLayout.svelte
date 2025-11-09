@@ -49,6 +49,8 @@
 		vehicleIdentification?: any;
 		exterior360?: any;
 		interiorMechanical?: any;
+		interiorPhotos?: any[];
+		exterior360Photos?: any[];
 		tyres?: any[];
 		damageRecord?: any;
 		vehicleValues?: any;
@@ -69,6 +71,8 @@
 		vehicleIdentification = null,
 		exterior360 = null,
 		interiorMechanical = null,
+		interiorPhotos = [],
+		exterior360Photos = [],
 		tyres = [],
 		damageRecord = null,
 		vehicleValues = null,
@@ -119,10 +123,10 @@
 			validations['identification'] = validateVehicleIdentification(vehicleIdentification);
 		}
 		if (exterior360) {
-			validations['360'] = validateExterior360(exterior360);
+			validations['360'] = validateExterior360(exterior360, exterior360Photos || []);
 		}
 		if (interiorMechanical) {
-			validations['interior'] = validateInteriorMechanical(interiorMechanical);
+			validations['interior'] = validateInteriorMechanical(interiorMechanical, interiorPhotos || []);
 		}
 		if (tyres && tyres.length > 0) {
 			validations['tyres'] = validateTyres(tyres);
