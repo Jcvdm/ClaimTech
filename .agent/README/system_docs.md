@@ -1,7 +1,7 @@
 # System Documentation Index
 
-**Last Updated**: January 2025 (Unified Photo Panel Pattern)
-**Total Files**: 32 System documentation files
+**Last Updated**: November 9, 2025 (Photo Panel Display Fix)
+**Total Files**: 33 System documentation files
 
 ---
 
@@ -212,7 +212,20 @@ Comprehensive system documentation covering architecture, database design, secur
 
 ---
 
-## 🐛 Bug Postmortems & Implementation History (17 files)
+## 🐛 Bug Postmortems & Implementation History (18 files)
+
+### Recent Critical Fixes (Nov 2025)
+
+#### Photo Panel Reactivity ⭐ IMPORTANT
+
+**1. Photo Panel Display Fix - Reactivity Pattern**
+- **File**: [photo_panel_display_fix_nov_9_2025.md](../Tasks/completed/PHOTO_PANEL_DISPLAY_FIX_NOV_9_2025.md)
+- **Date**: November 9, 2025
+- **Read When**: Working with photo panels, debugging photo display issues, implementing optimistic updates
+- **Contains**: Root cause analysis of photo display bug, reactivity chain explanation, direct state update pattern
+- **Impact**: Photos now display correctly after upload, tab switching, and page reload
+- **Key Learning**: Generic refresh callbacks break optimistic array pattern - use direct state updates
+- **Related**: [Optimistic Array Bug Fix](../Tasks/completed/OPTIMISTIC_ARRAY_BUG_FIX_RESEARCH_NOV_9_2025.md) - Svelte 5 reactivity patterns
 
 ### Recent Critical Fixes (Jan 2025)
 

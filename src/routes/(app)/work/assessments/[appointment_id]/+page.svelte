@@ -28,6 +28,8 @@
 	import { preIncidentEstimateService } from '$lib/services/pre-incident-estimate.service';
 	import { estimatePhotosService } from '$lib/services/estimate-photos.service';
 	import { preIncidentEstimatePhotosService } from '$lib/services/pre-incident-estimate-photos.service';
+	import { interiorPhotosService } from '$lib/services/interior-photos.service';
+	import { exterior360PhotosService } from '$lib/services/exterior-360-photos.service';
 	import { vehicleValuesService } from '$lib/services/vehicle-values.service';
 	import { documentGenerationService } from '$lib/services/document-generation.service';
 	import { assessmentNotesService } from '$lib/services/assessment-notes.service';
@@ -732,7 +734,6 @@
 			onDeleteAccessory={handleDeleteAccessory}
 			onPhotosUpdate={async () => {
 				// Reload exterior 360 photos from database
-				const { exterior360PhotosService } = await import('$lib/services/exterior-360-photos.service');
 				const updatedPhotos = await exterior360PhotosService.getPhotosByAssessment(data.assessment.id);
 				// Update local state (triggers reactivity)
 				data.exterior360Photos = updatedPhotos;
@@ -744,7 +745,12 @@
 			assessmentId={data.assessment.id}
 			interiorPhotos={data.interiorPhotos}
 			onUpdate={handleUpdateInteriorMechanical}
-			onPhotosUpdate={handleRefreshData}
+			onPhotosUpdate={async () => {
+				// Reload interior photos from database
+				const updatedPhotos = await interiorPhotosService.getPhotosByAssessment(data.assessment.id);
+				// Update local state (triggers reactivity)
+				data.interiorPhotos = updatedPhotos;
+			}}
 		/>
 	{:else if currentTab === 'tyres'}
 		<TyresTab

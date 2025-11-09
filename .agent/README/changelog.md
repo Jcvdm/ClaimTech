@@ -1,6 +1,43 @@
 # Changelog - Recent Updates
 
-**Last Updated**: January 2025 (Unified Photo Panel Pattern)
+**Last Updated**: November 9, 2025 (Photo Panel Display Fix)
+
+---
+
+## November 9, 2025
+
+### ✅ Photo Panel Display Fix - Reactivity Pattern
+- **ISSUE**: Photo panels not displaying uploaded photos after upload or tab switching
+  - Photos didn't appear in grid after upload
+  - Upload corner wasn't visible (only large centered upload zone showed)
+  - Tab switching showed empty photo panels
+  - Page reload didn't load photos from database
+- **ROOT CAUSE**: Generic `handleRefreshData()` callback used `invalidateAll()` which reloaded page data but didn't change prop references
+  - `useOptimisticArray(() => props.photos)` getter didn't detect changes
+  - Reactive dependency chain broken: prop reference → getter → $derived → $effect → UI
+- **SOLUTION**: Updated `onPhotosUpdate` callbacks to directly update parent state
+  - Changed from generic `handleRefreshData()` to specific state updates
+  - `data.interiorPhotos = updatedPhotos` triggers prop reference change
+  - Getter function detects change → $derived re-evaluates → $effect syncs → UI updates
+- **IMPLEMENTATION**:
+  - Added imports: `interiorPhotosService`, `exterior360PhotosService`
+  - Updated `InteriorMechanicalTab` `onPhotosUpdate` callback (lines 748-753)
+  - Optimized `Exterior360Tab` `onPhotosUpdate` callback (lines 735-740)
+  - Removed dynamic import from Exterior360Tab for consistency
+- **VERIFICATION**:
+  - ✅ Photos display in grid immediately after upload
+  - ✅ Upload corner visible in top-left of grid
+  - ✅ Photos persist when switching tabs
+  - ✅ Photos load correctly on page reload
+  - ✅ Photo viewer opens when clicking photos
+- **FILES**:
+  - `src/routes/(app)/work/assessments/[appointment_id]/+page.svelte` - Updated callbacks
+  - `.agent/Tasks/completed/PHOTO_PANEL_DISPLAY_FIX_NOV_9_2025.md` - Complete documentation
+- **KEY LEARNING**: Direct state updates are critical for reactive prop changes in Svelte 5
+  - Generic refresh callbacks break optimistic array pattern
+  - Always update specific state properties, not generic refresh
+  - Consistency matters - all photo panels should follow same pattern
+- **RELATED**: [Optimistic Array Bug Fix](../Tasks/completed/OPTIMISTIC_ARRAY_BUG_FIX_RESEARCH_NOV_9_2025.md) - Svelte 5 reactivity patterns
 
 ---
 
