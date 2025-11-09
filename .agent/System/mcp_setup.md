@@ -120,6 +120,105 @@ Model Context Protocol (MCP) is a standard for connecting AI assistants to exter
 
 ---
 
+## Code Execution Pattern (Preferred)
+
+### Overview
+
+ClaimTech uses MCP servers as **code APIs** rather than individual tool calls. This MCP-as-Code-API pattern provides 88-98% token reduction for multi-step workflows while enabling sophisticated data processing.
+
+### Why Code Execution?
+
+**Traditional Tool Chaining** (Inefficient):
+```
+User: "Analyze assessment completion times by stage"
+
+Claude: → Call mcp__supabase__list_tables (500 tokens)
+        → Call mcp__supabase__execute_sql for assessments (500 tokens)
+        → Call mcp__supabase__execute_sql for stage_history (500 tokens)
+        → Process in conversation context (1000 tokens)
+        → Format response (500 tokens)
+
+Total: ~3000 tokens, 5 API calls, 30+ seconds
+```
+
+**Code Execution Pattern** (Efficient):
+```
+User: "Analyze assessment completion times by stage"
+
+Claude: → Write TypeScript code (200 tokens)
+        → Execute via code executor (100 tokens)
+        → Return formatted results (50 tokens)
+
+Total: ~350 tokens, 1 execution, 5 seconds
+88% reduction in token usage
+```
+
+### When to Use Code Execution
+
+Use code execution when you need:
+
+1. **Multiple data transformations** - Fetch → filter → map → aggregate → format
+2. **Complex filtering/aggregation** - Custom calculations, statistical analysis
+3. **Batch processing** - Update 10+ records, process 100+ files
+4. **Data analysis** - Averages, percentages, correlations
+5. **Multi-step workflows** - Conditional logic, retry logic, validation
+6. **Report generation** - Markdown/HTML output, charts, summaries
+
+Use direct tool calls when:
+
+1. **Single operation** - Create one file, read one record
+2. **Simple CRUD** - Update one record without complex logic
+3. **Immediate feedback** - Streaming responses needed
+
+### Quick Example
+
+```typescript
+import { executeSQL } from '/servers/supabase/database';
+
+const projectId = process.env.SUPABASE_PROJECT_ID!;
+
+// Fetch data
+const assessments = await executeSQL({
+  projectId,
+  query: `
+    SELECT id, stage, created_at, stage_history
+    FROM assessments
+    WHERE stage IN ('completed', 'archived')
+      AND created_at >= NOW() - INTERVAL '30 days'
+  `
+});
+
+// Transform and analyze
+const stageStats = assessments.reduce((acc, a) => {
+  const history = JSON.parse(a.stage_history || '[]');
+  // ... calculate stage durations ...
+  return acc;
+}, {});
+
+// Return formatted results
+console.log(JSON.stringify(stageStats, null, 2));
+```
+
+### Benefits
+
+- **88-98% token reduction** vs tool chaining
+- **Single execution** instead of 5-10+ tool calls
+- **Complex TypeScript logic** in isolated execution context
+- **Access to all 6 MCP servers** as code APIs
+- **Type-safe** operations with full TypeScript support
+- **Error handling** in familiar programming patterns
+
+### Documentation
+
+For comprehensive guides and patterns:
+
+- **[Using Code Executor](../../.agent/SOP/using_code_executor.md)** (500+ lines) - Step-by-step workflow guide
+- **[Code Execution Architecture](./code_execution_architecture.md)** (800+ lines) - Architecture and token efficiency
+- **[Code Execution Patterns](./code_execution_patterns.md)** (600+ lines) - 6 real-world patterns
+- **[MCP Code API Reference](./mcp_code_api_reference.md)** (1,200+ lines) - Complete API for all 6 servers
+
+---
+
 ## Using Supabase MCP
 
 ### After Setup
@@ -270,8 +369,9 @@ You should see tools prefixed with `mcp__supabase__` in the response.
 - [Supabase Development Skill](../../.claude/skills/supabase-development/SKILL.md) - Supabase patterns and templates
 - [Project Architecture](./project_architecture.md) - Overall system architecture
 - [Database Schema](./database_schema.md) - Complete database documentation
+- [Code Execution Architecture](./code_execution_architecture.md) - MCP-as-Code-API pattern
 
 ---
 
-**Last Updated**: January 25, 2025
+**Last Updated**: November 9, 2025
 **Maintained By**: ClaimTech Development Team

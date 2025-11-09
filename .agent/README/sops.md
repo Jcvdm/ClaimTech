@@ -1,13 +1,13 @@
 # Standard Operating Procedures Index
 
-**Last Updated**: January 30, 2025
-**Total SOPs**: 19 step-by-step guides
+**Last Updated**: November 9, 2025
+**Total SOPs**: 21 step-by-step guides
 
 ---
 
 ## Overview
 
-Standard Operating Procedures for database operations, service layer development, authentication/security, UI implementation, and debugging. Each SOP provides step-by-step instructions, code templates, and best practices.
+Standard Operating Procedures for database operations, service layer development, authentication/security, UI implementation, code execution, and debugging. Each SOP provides step-by-step instructions, code templates, and best practices.
 
 ---
 
@@ -158,7 +158,7 @@ export class MyService {
 
 ### 1. Implementing Form Actions & Auth ⭐ MUST READ
 - **File**: [implementing_form_actions_auth.md](../SOP/implementing_form_actions_auth.md)
-- **Size**: 1,191 lines (largest SOP)
+- **Size**: 1,191 lines
 - **Read When**: Implementing login/logout, creating form actions, choosing API routes vs form actions, auth debugging
 
 **Contains**:
@@ -236,9 +236,39 @@ USING (
 
 ---
 
-## 🎨 UI & Features (4 SOPs)
+## 🎨 UI & Features (5 SOPs)
 
-### 1. Implementing Role-Based Filtering
+### 1. Photo Labeling Patterns ⭐ NEW
+- **File**: [photo_labeling_patterns.md](../SOP/photo_labeling_patterns.md)
+- **Size**: ~1,000 lines | **Last Updated**: Nov 6, 2025
+- **Read When**: Adding photo labeling to components, implementing inline editing, working with photo galleries
+
+**Contains**:
+- 3 reusable patterns (Fixed Bottom Bar, Modal Footer, Thumbnail Overlay)
+- Pattern decision matrix for choosing approach
+- Complete code templates for each pattern
+- Optimistic update implementation (required)
+- Navigation tracking patterns (prevents "wrong photo" bugs)
+- Component communication via callbacks
+- Keyboard shortcuts (E, Enter, Escape)
+- Comprehensive testing checklist
+- Common mistakes to avoid
+- Integration with photo services
+
+**Quick Patterns**:
+- **Pattern 1**: Fixed Bottom Bar (fullscreen viewers like bigger-picture)
+- **Pattern 2**: Modal Footer (Dialog-based viewers)
+- **Pattern 3**: Thumbnail Overlay (inline galleries)
+
+**Critical Requirements**:
+- Use optimistic updates for instant UI feedback
+- Use library's native position tracking (not indexOf)
+- Log photo IDs at all critical points
+- Implement error recovery (revert optimistic updates)
+
+---
+
+### 2. Implementing Role-Based Filtering
 - **File**: [implementing_role_based_filtering.md](../SOP/implementing_role_based_filtering.md)
 - **Size**: 885 lines
 - **Read When**: Filtering data by user role, implementing admin vs engineer views, adding role checks
@@ -353,6 +383,64 @@ async listForUser(userId: string, isAdmin: boolean) {
 
 ---
 
+## 💻 Code Execution & Data Processing ⭐ NEW
+
+### 1. Using Code Executor
+- **File**: [using_code_executor.md](../SOP/using_code_executor.md)
+- **Size**: 500+ lines | **Last Updated**: Nov 9, 2025
+- **Read When**: Processing multi-step data workflows, analyzing data, batch operations, generating reports
+
+**Contains**:
+- Decision tree: when to use code execution vs direct tool calls
+- Step-by-step procedure (identify sources → design logic → write code → execute → handle results)
+- TypeScript code templates for common scenarios
+- MCP server integration patterns (Supabase, GitHub, Playwright)
+- Error handling and debugging
+- Token efficiency analysis (88-98% reduction)
+
+**Use Cases**:
+- Multi-step data transformations (fetch → filter → map → aggregate)
+- Complex analysis with calculations (averages, correlations, statistics)
+- Batch processing (update 10+ records, process 100+ files)
+- Report generation with formatting (Markdown/HTML output)
+- Data correlation across multiple sources
+
+**Quick Decision Guide**:
+| Scenario | Tool Count | Transformations | Recommendation |
+|----------|-----------|-----------------|----------------|
+| Get assessment by ID | 1 | None | Direct tool call |
+| Analyze completion times | 3-5 | Multiple | **Code execution** |
+| Batch update 10+ items | 10+ | Validation | **Code execution** |
+| Generate monthly report | 5-10 | Calculations | **Code execution** |
+
+**Pattern**:
+```typescript
+import { executeSQL } from '/servers/supabase/database';
+
+const projectId = process.env.SUPABASE_PROJECT_ID!;
+
+// Fetch data
+const data = await executeSQL({
+  projectId,
+  query: 'SELECT * FROM assessments WHERE stage = $1',
+  params: ['completed']
+});
+
+// Transform and analyze
+const analysis = data.map(/* ... */).reduce(/* ... */);
+
+// Return formatted results
+console.log(JSON.stringify(analysis, null, 2));
+```
+
+**Critical Benefits**:
+- 88-98% token reduction vs tool chaining
+- Single execution vs 5-10+ tool calls
+- Complex TypeScript logic in isolated context
+- Access to all 6 MCP servers as code APIs
+
+---
+
 ## 🐛 Debugging & Testing (5 SOPs)
 
 ### 1. Debugging Supabase Auth Hooks
@@ -428,6 +516,12 @@ async listForUser(userId: string, isAdmin: boolean) {
 3. Review [Role-Based Filtering](#1-implementing-role-based-filtering)
 4. Follow [Navigation-Based State Transitions](#4-navigation-based-state-transitions)
 
+### For Data Processing ⭐ NEW
+1. Read [Using Code Executor](#1-using-code-executor) - Decision tree and workflows
+2. Reference [Code Execution Patterns](../System/code_execution_patterns.md) - Real examples
+3. Check [MCP Code API Reference](../System/mcp_code_api_reference.md) - API docs
+4. Review [Code Execution Architecture](../System/code_execution_architecture.md) - Token efficiency
+
 ### For Bug Fixes
 1. Check relevant debugging SOP (above)
 2. Review [System Bug Postmortems](./system_docs.md#bug-postmortems)
@@ -443,4 +537,4 @@ async listForUser(userId: string, isAdmin: boolean) {
 ---
 
 **Maintenance**: Update this index when adding new SOPs
-**Last Review**: January 30, 2025
+**Last Review**: November 9, 2025

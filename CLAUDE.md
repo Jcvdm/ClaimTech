@@ -55,7 +55,7 @@ We should always update .agent docs after implementing features to keep informat
 
 ## Claude Skills
 
-Claude Skills are **domain expertise modules** that auto-invoke based on keywords and context. ClaimTech has 3 active skills that provide specialized knowledge and patterns.
+Claude Skills are **domain expertise modules** that auto-invoke based on keywords and context. ClaimTech has 4 active skills that provide specialized knowledge and patterns.
 
 ### Active Skills
 
@@ -74,6 +74,7 @@ Claude Skills are **domain expertise modules** that auto-invoke based on keyword
 - Three Supabase clients (browser, SSR, service role)
 - Unique ID generation (CLM-2025-001, ASM-2025-001)
 - Audit logging conventions
+- **Can leverage code execution** for complex data transformations
 
 **Resources**: `.claude/skills/supabase-development/`
 - SKILL.md - Core patterns and conventions
@@ -134,12 +135,41 @@ Claude Skills are **domain expertise modules** that auto-invoke based on keyword
 
 ---
 
+#### 4. **photo-component-development**
+**Purpose**: Photo component patterns with inline editing, optimistic updates, and navigation tracking
+**Auto-invokes on**: photo, image, label, gallery, viewer, thumbnail, carousel, inline edit, navigation tracking
+**Use when**:
+- Implementing photo viewer components
+- Adding photo label editing
+- Working with photo galleries
+- Debugging photo navigation issues
+- Implementing optimistic updates for photos
+
+**Key Patterns**:
+- Fixed Bottom Bar pattern (fullscreen viewers)
+- Modal Footer pattern (dialog viewers)
+- Thumbnail Overlay pattern (inline galleries)
+- Optimistic update pattern (instant UI feedback)
+- Navigation tracking (prevents "wrong photo" bugs)
+
+**Resources**: `.claude/skills/photo-component-development/`
+- SKILL.md - Complete pattern guide (~2500 lines)
+- README.md - Quick reference
+- resources/pattern-templates.md - Copy-paste ready templates
+
+**Related Documentation**:
+- `.agent/System/photo_labeling_implementation_nov_6_2025.md` - Implementation history
+- `.agent/SOP/photo_labeling_patterns.md` - Step-by-step procedures
+
+---
+
 ### Skill Usage Guidelines
 
 **Skill Hierarchy**:
 1. **Start with claimtech-development** for general feature work
 2. **Invoke supabase-development** when working with database/services
 3. **Invoke assessment-centric-specialist** for assessment workflow features
+4. **Invoke photo-component-development** for photo viewer/editing features
 
 **Skills + .agent Documentation**:
 - **Skills provide HOW** - Patterns, workflows, conventions
@@ -203,6 +233,7 @@ Maintain documentation in `.agent/` directory:
    - Use skill patterns (e.g., supabase-development ServiceClient pattern)
    - Ensure assessment-centric compliance for workflow features
    - Track progress with task management tools
+   - **Use code execution** when appropriate for data processing
 
 5. **Quality Assurance**
    - Verify compliance with skill patterns
@@ -250,13 +281,14 @@ Sub-agents are specialized AI personalities that:
 - **Use specific tools** (Read, Write, Bash, MCP tools)
 - **Follow Skills and Commands** for patterns and workflows
 - **Provide specialized expertise** for specific domains
+- **Can use code execution** for complex data workflows
 
 ### **Active Sub-Agents**
 
 #### 1. **database-expert**
 **Purpose**: Database migrations, RLS policies, schema design, Supabase configurations
 **Auto-invokes on**: migration, database, schema, RLS, policy, SQL, table, index, Supabase
-**Tools**: Read, Write, Bash, Supabase MCP tools
+**Tools**: Read, Write, Bash, Supabase MCP tools, code execution
 **Skills Used**: supabase-development, assessment-centric-specialist
 **Commands Used**: database-migration.md, code-review.md
 
@@ -266,13 +298,14 @@ Sub-agents are specialized AI personalities that:
 - Ensures proper indexing
 - Designs normalized schemas
 - Generates TypeScript types
+- Uses code execution for data analysis
 
 ---
 
 #### 2. **feature-implementer**
 **Purpose**: Complete feature development from requirements to deployment
 **Auto-invokes on**: feature, implement, build, create, add functionality, new component, page, route
-**Tools**: Read, Write, Bash, Supabase MCP tools
+**Tools**: Read, Write, Bash, Supabase MCP tools, code execution
 **Skills Used**: claimtech-development, supabase-development, assessment-centric-specialist
 **Commands Used**: feature-implementation.md, database-migration.md, service-development.md, testing-workflow.md, code-review.md
 
@@ -282,13 +315,14 @@ Sub-agents are specialized AI personalities that:
 - Integrates with Supabase services
 - Ensures role-based access control
 - Coordinates with other sub-agents
+- Uses code execution for complex operations
 
 ---
 
 #### 3. **code-reviewer**
 **Purpose**: Code quality, security, and ClaimTech standards compliance
 **Auto-invokes on**: review, quality, check, standards, security, audit, verify, validate
-**Tools**: Read, Bash
+**Tools**: Read, Bash, code execution
 **Skills Used**: claimtech-development, supabase-development, assessment-centric-specialist
 **Commands Used**: code-review.md
 
@@ -298,13 +332,14 @@ Sub-agents are specialized AI personalities that:
 - Provides weighted scoring (0-10)
 - Identifies issues with severity ratings
 - Verifies acceptance criteria
+- Can analyze code patterns via execution
 
 ---
 
 #### 4. **testing-specialist**
 **Purpose**: Comprehensive testing (manual, unit, E2E, performance, security)
 **Auto-invokes on**: test, testing, verify, validate, E2E, unit test, performance, security, QA
-**Tools**: Read, Write, Bash
+**Tools**: Read, Write, Bash, code execution
 **Skills Used**: claimtech-development, supabase-development, assessment-centric-specialist
 **Commands Used**: testing-workflow.md
 
@@ -314,13 +349,14 @@ Sub-agents are specialized AI personalities that:
 - Writes E2E tests (Playwright)
 - Tests across user roles
 - Verifies accessibility
+- Uses code execution for test data generation
 
 ---
 
 #### 5. **service-builder**
 **Purpose**: Service layer implementation with proper patterns
 **Auto-invokes on**: service, data access, CRUD, business logic, database operations, queries
-**Tools**: Read, Write, Bash, Supabase MCP tools
+**Tools**: Read, Write, Bash, Supabase MCP tools, code execution
 **Skills Used**: supabase-development, claimtech-development
 **Commands Used**: service-development.md
 
@@ -330,13 +366,14 @@ Sub-agents are specialized AI personalities that:
 - Writes business logic and custom queries
 - Ensures type safety with TypeScript
 - Documents with JSDoc
+- Uses code execution for complex queries
 
 ---
 
 #### 6. **assessment-architect**
 **Purpose**: Assessment-centric architecture and stage-based workflow
 **Auto-invokes on**: assessment, request, stage, workflow, pipeline, transition, lifecycle
-**Tools**: Read, Write, Bash, Supabase MCP tools
+**Tools**: Read, Write, Bash, Supabase MCP tools, code execution
 **Skills Used**: assessment-centric-specialist, claimtech-development, supabase-development
 **Commands Used**: feature-implementation.md, database-migration.md
 
@@ -346,13 +383,14 @@ Sub-agents are specialized AI personalities that:
 - Manages assessment lifecycle
 - Enforces one-assessment-per-request
 - Designs idempotent operations
+- Uses code execution for workflow analysis
 
 ---
 
 #### 7. **research-agent**
 **Purpose**: Research documentation, libraries, APIs, and implementation patterns
 **Auto-invokes on**: research, documentation, library, API, how to, example, implementation, best practice, guide
-**Tools**: Read, Write, Context7 MCP, web-search, web-fetch
+**Tools**: Read, Write, Context7 MCP, web-search, web-fetch, code execution
 **Skills Used**: claimtech-development, supabase-development
 **Commands Used**: feature-implementation.md (research phase)
 
@@ -362,6 +400,7 @@ Sub-agents are specialized AI personalities that:
 - Fetches API documentation
 - Finds best practices and patterns
 - Documents research findings
+- Can execute example code for validation
 
 ---
 
@@ -452,7 +491,7 @@ Claude Commands are **specialized instruction files** stored in `.claude/command
 1. Requirements Clarification (5-10 min)
 2. Research & Context Gathering (10-15 min)
 3. Design & Planning (15-20 min)
-4. Implementation (varies) - Invokes other commands/skills
+4. Implementation (varies) - Invokes other commands/skills, may use code execution
 5. Testing (20-40 min) - Uses `testing-workflow.md`
 6. Documentation (10-20 min)
 7. Code Review & Quality Check (10-15 min) - Uses `code-review.md`
@@ -590,7 +629,349 @@ User Request: "Add a comments feature to assessments"
 
 ---
 
-## Best Practices
+## Code Execution
+
+### What is Code Execution?
+
+ClaimTech leverages the **MCP-as-Code-API** pattern, where MCP servers (Supabase, GitHub, Playwright, etc.) are used as TypeScript code APIs rather than individual tool calls. This provides massive token efficiency improvements (88-98% reduction) for multi-step data workflows.
+
+Instead of chaining 5-10+ tool calls in conversation context, Claude writes TypeScript code that executes in an isolated context with access to all MCP servers as importable functions.
+
+### The Pattern
+
+**Traditional Approach (Inefficient)**:
+```
+User: "Analyze assessment completion times by stage"
+
+Claude:
+  → mcp__supabase__list_tables (500 tokens)
+  → mcp__supabase__execute_sql for assessments (500 tokens)
+  → mcp__supabase__execute_sql for stage_history (500 tokens)
+  → Process data in conversation (1000 tokens)
+  → Format response (500 tokens)
+
+Total: ~3000 tokens, 5 API calls, 30 seconds
+```
+
+**Code Execution Approach (Efficient)**:
+```
+User: "Analyze assessment completion times by stage"
+
+Claude:
+  → Write TypeScript code (200 tokens)
+  → Execute code once (100 tokens)
+  → Return formatted results (50 tokens)
+
+Total: ~350 tokens, 1 execution, 5 seconds
+88% token reduction
+```
+
+### Available MCP Servers as Code APIs
+
+ClaimTech has 6 active MCP servers that can be used as TypeScript code APIs:
+
+#### 1. **Supabase API** (`/servers/supabase/`)
+**Capabilities**:
+- Database operations (`executeSQL`, `applyMigration`)
+- Project management (`getProject`, `listProjects`)
+- Edge Functions (`deployFunction`, `invokeFunction`)
+- Branches (`createBranch`, `switchBranch`)
+- Type generation (`generateTypes`)
+- Security audits (`getAdvisors`)
+
+**Example**:
+```typescript
+import { executeSQL } from '/servers/supabase/database';
+
+const assessments = await executeSQL({
+  projectId: process.env.SUPABASE_PROJECT_ID!,
+  query: 'SELECT * FROM assessments WHERE stage = $1',
+  params: ['completed']
+});
+```
+
+#### 2. **GitHub API** (`/servers/github/`)
+**Capabilities**:
+- Repository operations (`getFileContents`, `pushFiles`)
+- Pull requests (`createPR`, `mergePR`, `listPRs`)
+- Issues (`createIssue`, `listIssues`, `updateIssue`)
+- Code search (`searchCode`, `searchRepos`)
+- Branches (`createBranch`, `listBranches`)
+
+**Example**:
+```typescript
+import { createPR } from '/servers/github/pulls';
+
+const pr = await createPR({
+  owner: 'ClaimTech',
+  repo: 'claimtech',
+  title: 'Add comments feature',
+  body: 'Implements comments on assessments',
+  head: 'feature/comments',
+  base: 'main'
+});
+```
+
+#### 3. **Playwright API** (`/servers/playwright/`)
+**Capabilities**:
+- Browser navigation (`navigate`, `click`, `fill`)
+- Element waiting (`waitForSelector`, `waitForNavigation`)
+- Assertions (`expectVisible`, `expectText`)
+- Screenshots (`screenshot`, `fullPageScreenshot`)
+- Network monitoring (`waitForResponse`, `interceptRequest`)
+
+**Example**:
+```typescript
+import { navigate, click, screenshot } from '/servers/playwright/browser';
+
+await navigate('http://localhost:5173/assessments');
+await click('button:has-text("New Assessment")');
+await screenshot('new-assessment-modal.png');
+```
+
+#### 4. **Svelte API** (`/servers/svelte/`)
+**Capabilities**:
+- Component analysis (`analyzeComponent`)
+- Routing guidance (`suggestRoute`)
+- Framework best practices (`checkPatterns`)
+
+#### 5. **Chrome DevTools API** (`/servers/chrome-devtools/`)
+**Capabilities**:
+- Runtime inspection (`evaluateExpression`)
+- Console monitoring (`getConsoleLogs`)
+- Performance profiling (`startProfiling`, `stopProfiling`)
+
+#### 6. **Context7 API** (`/servers/context7/`)
+**Capabilities**:
+- Documentation search (`searchDocs`)
+- Library reference (`getReference`)
+
+### When to Use Code Execution
+
+#### ✅ Use Code Execution When:
+
+1. **Multiple data transformations** needed
+   - Fetch → filter → map → aggregate → format
+   - Example: "Analyze completion times by stage"
+
+2. **Complex filtering/aggregation** required
+   - Custom calculations, statistical analysis
+   - Example: "Calculate average review times by engineer"
+
+3. **Batch processing** many items
+   - Update 10+ records, process 100+ files
+   - Example: "Update all pending assessments with missing photos"
+
+4. **Data analysis** with calculations
+   - Averages, percentages, correlations
+   - Example: "Find bottlenecks in the workflow"
+
+5. **Multi-step workflows** with conditional logic
+   - If/else branching, retry logic, validation
+   - Example: "Validate and update assessments based on criteria"
+
+6. **Report generation** with formatting
+   - Markdown/HTML output, charts, summaries
+   - Example: "Generate monthly performance report"
+
+#### ❌ Use Direct Tool Calls When:
+
+1. **Single operation** (e.g., create one file, read one record)
+2. **Simple CRUD** (e.g., update one record without complex logic)
+3. **Tool-specific features** not exposed in code API
+4. **Immediate feedback** needed (streaming responses)
+
+### Common Patterns
+
+#### Pattern 1: Data Analysis Pipeline
+
+**Scenario**: Analyze assessment completion times by stage
+
+```typescript
+import { executeSQL } from '/servers/supabase/database';
+
+const projectId = process.env.SUPABASE_PROJECT_ID!;
+
+// Fetch completed assessments
+const assessments = await executeSQL({
+  projectId,
+  query: `
+    SELECT id, stage, created_at, stage_history
+    FROM assessments
+    WHERE stage IN ('completed', 'archived')
+      AND created_at >= NOW() - INTERVAL '30 days'
+    ORDER BY updated_at DESC
+    LIMIT 1000
+  `
+});
+
+// Calculate stage durations
+const stageDurations = assessments.map(a => {
+  const history = JSON.parse(a.stage_history || '[]');
+  const durations = {};
+
+  for (let i = 1; i < history.length; i++) {
+    const prev = new Date(history[i-1].timestamp);
+    const curr = new Date(history[i].timestamp);
+    const hours = (curr - prev) / (1000 * 60 * 60);
+    durations[history[i].stage] = hours;
+  }
+
+  return { id: a.id, stages: durations };
+});
+
+// Aggregate statistics
+const stageStats = ['inspection_scheduled', 'inspection_in_progress', 'report_in_progress']
+  .map(stage => {
+    const times = stageDurations
+      .map(d => d.stages[stage])
+      .filter(t => t != null);
+
+    return {
+      stage,
+      count: times.length,
+      avg: times.reduce((a,b) => a+b, 0) / times.length,
+      min: Math.min(...times),
+      max: Math.max(...times)
+    };
+  });
+
+console.log(JSON.stringify(stageStats, null, 2));
+```
+
+#### Pattern 2: Batch Update with Validation
+
+**Scenario**: Update assessments with missing required data
+
+```typescript
+import { executeSQL } from '/servers/supabase/database';
+
+const projectId = process.env.SUPABASE_PROJECT_ID!;
+
+// Fetch assessments needing updates
+const assessments = await executeSQL({
+  projectId,
+  query: `
+    SELECT a.*,
+      COUNT(p.id) as photo_count,
+      COUNT(i.id) as issue_count
+    FROM assessments a
+    LEFT JOIN photos p ON p.assessment_id = a.id
+    LEFT JOIN issues i ON i.assessment_id = a.id AND i.status = 'open'
+    WHERE a.stage = 'pending_review'
+    GROUP BY a.id
+  `
+});
+
+// Validate and update
+const results = { success: [], failed: [], skipped: [] };
+
+for (const a of assessments) {
+  // Validate
+  if (a.photo_count < 5) {
+    results.skipped.push({ id: a.id, reason: 'Not enough photos' });
+    continue;
+  }
+
+  if (a.issue_count > 0) {
+    results.skipped.push({ id: a.id, reason: 'Open issues remain' });
+    continue;
+  }
+
+  // Update
+  try {
+    await executeSQL({
+      projectId,
+      query: `UPDATE assessments SET stage = 'completed' WHERE id = $1`,
+      params: [a.id]
+    });
+    results.success.push(a.id);
+  } catch (error) {
+    results.failed.push({ id: a.id, error: error.message });
+  }
+}
+
+console.log(JSON.stringify(results, null, 2));
+```
+
+#### Pattern 3: Cross-Source Data Correlation
+
+**Scenario**: Correlate GitHub commits with assessment updates
+
+```typescript
+import { executeSQL } from '/servers/supabase/database';
+import { listCommits } from '/servers/github/commits';
+
+const projectId = process.env.SUPABASE_PROJECT_ID!;
+
+// Get recent assessments
+const assessments = await executeSQL({
+  projectId,
+  query: `
+    SELECT id, assessment_number, updated_at
+    FROM assessments
+    WHERE updated_at >= NOW() - INTERVAL '7 days'
+  `
+});
+
+// Get recent commits
+const commits = await listCommits({
+  owner: 'ClaimTech',
+  repo: 'claimtech',
+  since: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
+});
+
+// Correlate
+const correlation = assessments.map(a => {
+  const relatedCommits = commits.filter(c =>
+    c.message.includes(a.assessment_number)
+  );
+
+  return {
+    assessment: a.assessment_number,
+    commits: relatedCommits.length,
+    messages: relatedCommits.map(c => c.message)
+  };
+});
+
+console.log(JSON.stringify(correlation, null, 2));
+```
+
+### Getting Started
+
+**Step 1**: Identify if code execution is appropriate (see decision criteria above)
+
+**Step 2**: Read the [Using Code Executor SOP](`.agent/SOP/using_code_executor.md`) for step-by-step guide
+
+**Step 3**: Choose a pattern from [Code Execution Patterns](`.agent/System/code_execution_patterns.md`)
+
+**Step 4**: Reference [MCP Code API Reference](`.agent/System/mcp_code_api_reference.md`) for API details
+
+**Step 5**: Write TypeScript code using MCP server imports
+
+**Step 6**: Execute code and handle results
+
+### Benefits Summary
+
+- **88-98% token reduction** for multi-step workflows
+- **Single execution** instead of 5-10+ tool calls
+- **5-10x faster** completion times
+- **Type-safe** operations with full TypeScript
+- **Complex logic** in familiar programming patterns
+- **Error handling** with try/catch
+- **Access to all 6 MCP servers** as code APIs
+- **Isolated execution** context (no pollution of conversation)
+
+### Documentation
+
+For comprehensive guides and API reference:
+
+- **[Using Code Executor](`.agent/SOP/using_code_executor.md`)** (500+ lines) - Step-by-step workflow guide with decision tree
+- **[Code Execution Architecture](`.agent/System/code_execution_architecture.md`)** (800+ lines) - Architecture layers and token efficiency analysis
+- **[Code Execution Patterns](`.agent/System/code_execution_patterns.md`)** (600+ lines) - 6 real-world patterns with complete implementations
+- **[MCP Code API Reference](`.agent/System/mcp_code_api_reference.md`)** (1,200+ lines) - Complete API reference for all 6 MCP servers
+
+---
 
 ## Best Practices
 
@@ -616,3 +997,9 @@ User Request: "Add a comments feature to assessments"
    - Ensure agents have complete context
    - Review and integrate agent outputs
    - Maintain project coherence
+
+6. **Use Code Execution When Appropriate**
+   - Multi-step workflows (3+ operations)
+   - Complex data transformations
+   - Batch processing operations
+   - Data analysis and reporting

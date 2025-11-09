@@ -1,7 +1,7 @@
 # ClaimTech Documentation Master Index
 
-**Last Updated**: January 30, 2025
-**Total Documentation**: 29 System docs + 19 SOPs + Task/Historical files
+**Last Updated**: November 9, 2025
+**Total Documentation**: 34 System docs + 21 SOPs + Task/Historical files
 
 ---
 
@@ -25,7 +25,7 @@
 
 ## System Documentation
 
-**📚 [Complete System Docs Index](./system_docs.md)** - 29 files organized by category
+**📚 [Complete System Docs Index](./system_docs.md)** - 34 files organized by category
 
 ### Core Architecture (MUST READ)
 - **[Project Architecture](../System/project_architecture.md)** (977 lines) - Complete tech stack, 10-stage pipeline, security patterns
@@ -39,13 +39,19 @@
 
 ### Development & Tooling
 - **[Development Guide](../System/development_guide.md)** - npm scripts, environment setup
-- **[MCP Setup](../System/mcp_setup.md)** - Supabase MCP for direct DB access
+- **[MCP Setup](../System/mcp_setup.md)** - 6 MCP servers, code execution pattern
 - **[Table Utilities Reference](../System/table_utilities.md)** (540 lines) - UI formatting helpers
-- **[Audit Logging System](../System/audit_logging_system.md)** ⭐ NEW - Complete audit trail documentation
+- **[Audit Logging System](../System/audit_logging_system.md)** - Complete audit trail documentation
+
+### Code Execution (MCP-as-Code-API) ⭐ NEW
+- **[Code Execution Architecture](../System/code_execution_architecture.md)** (800+ lines) - Token efficiency (88-98% reduction), MCP server layers
+- **[MCP Code API Reference](../System/mcp_code_api_reference.md)** (1,200+ lines) - Complete API reference for all 6 MCP servers
+- **[Code Execution Patterns](../System/code_execution_patterns.md)** (600+ lines) - 6 comprehensive patterns for data workflows
 
 ### UI & Loading Patterns
 - **[UI Loading Patterns](../System/ui_loading_patterns.md)** (690 lines) - All 3 loading patterns, complete guide
 - **[Loading State Pattern Documentation](../System/loading_state_pattern_documentation_jan_30_2025.md)** - Latest patterns
+- **[Photo Labeling Implementation](../System/photo_labeling_implementation_nov_6_2025.md)** - Photo editing UI, optimistic updates, keyboard shortcuts
 
 ### Bug Postmortems & Implementation History (17 files)
 - **Recent Critical Fixes** (Jan 2025) - FRC transitions, badge counts, RLS policies
@@ -55,7 +61,7 @@
 
 ## Standard Operating Procedures
 
-**📝 [Complete SOP Index](./sops.md)** - 18 guides organized by category
+**📝 [Complete SOP Index](./sops.md)** - 21 guides organized by category
 
 ### Database Operations
 - **[Adding Database Migrations](../SOP/adding_migration.md)** (543 lines) - Migration workflow, templates
@@ -73,10 +79,14 @@
 - **[Password Reset Flow](../SOP/password_reset_flow.md)** (761 lines) - Two-step reset flow
 
 ### UI & Features
+- **[Photo Labeling Patterns](../SOP/photo_labeling_patterns.md)** - Reusable photo editing patterns, optimistic updates
 - **[Implementing Role-Based Filtering](../SOP/implementing_role_based_filtering.md)** (885 lines) - Engineer vs admin filtering
 - **[Implementing Badge Counts](../SOP/implementing_badge_counts.md)** (803 lines) - Assessment-centric badges
 - **[Creating Components](../SOP/creating-components.md)** (796 lines) - Svelte 5 runes, TypeScript
 - **[Navigation-Based State Transitions](../SOP/navigation_based_state_transitions.md)** (591 lines) - Server-side state changes
+
+### Code Execution & Data Processing ⭐ NEW
+- **[Using Code Executor](../SOP/using_code_executor.md)** (500+ lines) - Step-by-step guide for executing TypeScript code via MCP servers
 
 ### Debugging & Testing
 - Various debugging guides for auth hooks, race conditions, testing patterns
@@ -118,7 +128,7 @@
 ### backend-api-dev
 **Start with**: [Database Quick Ref](./database_quick_ref.md)
 - Then: [SOPs](./sops.md) for services, migrations, RLS
-- **Supabase MCP**: Available for direct DB queries during development
+- **Code Execution**: Use [Using Code Executor](../SOP/using_code_executor.md) for multi-step data workflows
 
 ### system-architect
 **Start with**: [Architecture Quick Ref](./architecture_quick_ref.md)
@@ -144,28 +154,31 @@
 ├── README.md (80 lines) ← You started here
 ├── README/
 │   ├── index.md (THIS FILE) ← Master navigation
-│   ├── system_docs.md ← Index of 28 System/ files
-│   ├── sops.md ← Index of 18 SOP/ files
+│   ├── system_docs.md ← Index of 34 System/ files
+│   ├── sops.md ← Index of 21 SOP/ files
 │   ├── architecture_quick_ref.md ← High-level overview
 │   ├── database_quick_ref.md ← Schema summary
 │   ├── changelog.md ← Recent updates
 │   ├── task_guides.md ← Use-case navigation
 │   └── faq.md ← Common questions
-├── System/ (28 files)
+├── System/ (34 files)
 │   ├── Core Architecture (3 files)
 │   ├── Security & Auth (3 files)
-│   ├── Development Guides (3 files)
-│   ├── UI & Loading Patterns (2 files)
-│   └── Bug Postmortems (17 files)
-├── SOP/ (18 files)
+│   ├── Development Guides (4 files)
+│   ├── Code Execution (3 files) ⭐ NEW
+│   ├── UI & Loading Patterns (3 files)
+│   └── Bug Postmortems (18 files)
+├── SOP/ (21 files)
 │   ├── Database Operations (2 files)
 │   ├── Service & Data Layer (3 files)
 │   ├── Authentication & Security (4 files)
-│   ├── UI & Features (4 files)
-│   └── Debugging & Testing (5 files)
+│   ├── UI & Features (5 files)
+│   ├── Code Execution (1 file) ⭐ NEW
+│   └── Debugging & Testing (6 files)
 └── Tasks/
-    ├── active/ (43 files)
-    ├── historical/ (64 files)
+    ├── active/ (17 files) - Reference docs only
+    ├── completed/ (36 files) - Recently finished tasks
+    ├── historical/ (64 files) - Long-term archive
     ├── future/ (1 file)
     └── scan_reports/
 ```
@@ -197,6 +210,11 @@
 → [SOP Index](./sops.md) (find debugging guide)
 → Specific troubleshooting doc
 
+**"I need to process data efficiently"** ⭐ NEW
+→ [Using Code Executor](../SOP/using_code_executor.md) (decision tree)
+→ [Code Execution Patterns](../System/code_execution_patterns.md) (examples)
+→ [MCP Code API Reference](../System/mcp_code_api_reference.md) (API docs)
+
 ---
 
 ## Keeping Documentation Updated
@@ -215,5 +233,5 @@
 
 ---
 
-**Last Updated**: January 30, 2025
+**Last Updated**: November 9, 2025
 **Maintained by**: ClaimTech Engineering Team
