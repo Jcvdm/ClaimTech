@@ -1,7 +1,7 @@
 # System Documentation Index
 
-**Last Updated**: November 2, 2025
-**Total Files**: 30 System documentation files
+**Last Updated**: November 9, 2025 (Photo Viewer Label Bug - FINAL FIX)
+**Total Files**: 31 System documentation files
 
 ---
 
@@ -163,6 +163,27 @@ Comprehensive system documentation covering architecture, database design, secur
 - **Last Updated**: Jan 30, 2025
 - **Read When**: Need latest loading animation patterns
 - **Note**: Complements ui_loading_patterns.md with implementation analysis
+
+### 3. Photo Labeling Implementation ⭐ CRITICAL FIX (Nov 9, 2025)
+- **File**: [photo_labeling_implementation_nov_6_2025.md](../System/photo_labeling_implementation_nov_6_2025.md)
+- **Size**: ~1000 lines | **Last Updated**: Nov 9, 2025 (FINAL FIX)
+- **Read When**: Working with photo components, implementing optimistic updates, debugging photo navigation, using bigger-picture library
+
+**Contains**:
+- Complete photo labeling feature implementation in PhotoViewer
+- **CRITICAL BUG FIX** (Nov 9): Navigation tracking using correct bigger-picture callback signature
+  - Root cause: Wrong callback signature - was using `container.position` (doesn't exist) instead of `activeItem.i`
+  - Solution: Use `activeItem.i` which contains the current index from bigger-picture library
+  - Impact: Label now updates correctly when scrolling through photos
+- Optimistic update patterns for instant UI feedback
+- Fixed bottom bar UI design
+- Keyboard shortcuts implementation (E to edit, Enter to save, Escape to cancel)
+- Component communication via callbacks (props down, events up)
+- Comprehensive testing guide with manual tests
+- Svelte 5 runes reactivity patterns ($state, $derived)
+- bigger-picture library callback signature documentation
+
+**Key for**: Understanding photo editing UI, optimistic updates, debugging navigation issues, keyboard accessibility patterns, bigger-picture library integration
 
 ---
 

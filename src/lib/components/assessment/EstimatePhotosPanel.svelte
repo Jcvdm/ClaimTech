@@ -181,6 +181,37 @@
 			await onUpdate();
 		}
 	}
+
+	async function handleLabelUpdate(photoId: string, label: string) {
+		console.log('[EstimatePhotosPanel] Label update requested:', {
+			photoId,
+			newLabel: label,
+			currentPhotos: photos.value.map((p) => ({ id: p.id, label: p.label }))
+		});
+
+		try {
+			// IMMEDIATE optimistic update for instant UI feedback
+			photos.update(photoId, { label });
+			console.log('[EstimatePhotosPanel] Optimistic update applied');
+
+			// Update label in database
+			await estimatePhotosService.updatePhotoLabel(photoId, label);
+			console.log('[EstimatePhotosPanel] Database updated');
+
+			// Refresh photos to get updated data (will sync via $effect)
+			await onUpdate();
+			console.log('[EstimatePhotosPanel] Photos refreshed from parent');
+
+			console.log('[EstimatePhotosPanel] Label update complete:', photoId);
+		} catch (error) {
+			console.error('[EstimatePhotosPanel] Error updating label:', error);
+
+			// Revert optimistic update on error
+			await onUpdate();
+
+			throw error; // Re-throw to let PhotoViewer handle error display
+		}
+	}
 </script>
 
 <div class="space-y-6">
@@ -305,5 +336,6 @@
 		startIndex={selectedPhotoIndex}
 		onClose={closePhotoViewer}
 		onDelete={handlePhotoDelete}
+		onLabelUpdate={handleLabelUpdate}
 	/>
 {/if}

@@ -45,7 +45,22 @@
       "WebFetch(domain:bundlephobia.com)",
       "Bash(npm install:*)",
       "Bash(npm run build:*)",
-      "Bash(npm uninstall:*)"
+      "Bash(npm uninstall:*)",
+      "Bash(find:*)",
+      "Bash(dir /s /b EstimatePhotosPanel.svelte PhotoViewer.svelte 2)",
+      "Bash(nul)",
+      "Bash(dir:*)",
+      "Bash(\"C:\\Users\\Jcvdm\\Desktop\\Jaco\\Programming\\sites\\Claimtech\\servers\\_shared\\mcp-bridge.ts\")",
+      "Bash(\"C:\\Users\\Jcvdm\\Desktop\\Jaco\\Programming\\sites\\Claimtech\\servers\\playwright\\browser.ts\")",
+      "Bash(\"C:\\Users\\Jcvdm\\Desktop\\Jaco\\Programming\\sites\\Claimtech\\servers\\playwright\\screenshots.ts\")",
+      "Bash(\"C:\\Users\\Jcvdm\\Desktop\\Jaco\\Programming\\sites\\Claimtech\\servers\\playwright\\testing.ts\")",
+      "Bash(\"C:\\Users\\Jcvdm\\Desktop\\Jaco\\Programming\\sites\\Claimtech\\servers\\playwright\\index.ts\")",
+      "Bash(\"C:\\Users\\Jcvdm\\Desktop\\Jaco\\Programming\\sites\\Claimtech\\servers\\svelte\\diagnostics.ts\")",
+      "Bash(\"C:\\Users\\Jcvdm\\Desktop\\Jaco\\Programming\\sites\\Claimtech\\servers\\chrome\\console.ts\")",
+      "Bash(\"C:\\Users\\Jcvdm\\Desktop\\Jaco\\Programming\\sites\\Claimtech\\servers\\context7\\search.ts\")",
+      "WebFetch(domain:code.claude.com)",
+      "Bash(netstat:*)",
+      "Bash(findstr:*)"
     ],
     "deny": [],
     "ask": []
