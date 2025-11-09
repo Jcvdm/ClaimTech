@@ -467,6 +467,53 @@
 
 ---
 
+## ⚠️ CRITICAL: useOptimisticArray Reactivity Pattern
+
+**IMPORTANT**: When using `useOptimisticArray`, you MUST pass a **getter function**, not a direct prop reference.
+
+### ✅ CORRECT Pattern
+```typescript
+const photos = useOptimisticArray(() => props.photos);
+```
+
+### ❌ WRONG Pattern (Causes Bug)
+```typescript
+const photos = useOptimisticArray(props.photos);  // ❌ Photos won't display after reload
+```
+
+### Why This Matters
+
+**Bug Symptom**: Photos don't display after page reload or tab switch, even though parent has loaded the data from the database.
+
+**Root Cause**: Without the getter function, Svelte 5's `$effect` captures the initial value of `props.photos` (which is `[]` on mount) and doesn't track changes when the parent updates the prop with actual data.
+
+**Solution**: The getter function `() => props.photos` ensures:
+1. The function is called fresh each time
+2. Svelte 5's `$derived.by()` detects when the returned array changes
+3. The `$effect` re-runs and syncs `localArray` with new data
+4. UI updates automatically when parent loads photos
+
+### Implementation Details
+
+The utility uses Svelte 5 runes internally:
+```typescript
+// Inside useOptimisticArray
+const parentArrayValue = $derived.by(() => {
+  return typeof parentArray === 'function'
+    ? parentArray()           // Call getter if function
+    : parentArray;            // Use directly if array
+});
+
+$effect(() => {
+  const currentParent = parentArrayValue;  // Reads $derived value
+  localArray = [...currentParent];         // Syncs when parent changes
+});
+```
+
+**Fixed**: November 9, 2025 - All 5 photo panels updated to use getter functions.
+
+---
+
 ## Template 2: Parent Component (Optimistic Updates)
 
 ```typescript
@@ -483,8 +530,10 @@ interface Props {
 
 let props: Props = $props();
 
-// Use optimistic array
-const photos = useOptimisticArray(props.photos);
+// ⚠️ CRITICAL: Pass getter function () => props.photos for reactivity
+// This ensures the utility tracks changes when parent updates the prop
+// Without the getter, the utility captures the initial value and won't sync
+const photos = useOptimisticArray(() => props.photos);
 
 // Photo viewer state
 let selectedPhotoIndex = $state<number | null>(null);

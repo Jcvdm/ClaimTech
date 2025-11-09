@@ -470,8 +470,9 @@ async function handleLabelUpdate(photoId: string, label: string) {
 ```typescript
 import { useOptimisticArray } from '$lib/utils/useOptimisticArray.svelte';
 
-// In parent component
-const photos = useOptimisticArray(props.photos);
+// ⚠️ CRITICAL: Pass getter function () => props.photos for reactivity
+// This ensures the utility tracks changes when parent updates the prop
+const photos = useOptimisticArray(() => props.photos);
 
 // Optimistic update
 photos.update(photoId, { label: 'New label' });
@@ -487,6 +488,26 @@ const currentPhotos = photos.value;
 ```
 
 **Reactivity**: Updates to `photos.value` automatically trigger UI re-renders.
+
+### ⚠️ CRITICAL: Getter Function Requirement
+
+**ALWAYS pass a getter function** to `useOptimisticArray`:
+
+```typescript
+// ✅ CORRECT - Reactive
+const photos = useOptimisticArray(() => props.photos);
+
+// ❌ WRONG - Not reactive (captures initial value)
+const photos = useOptimisticArray(props.photos);
+```
+
+**Why**: Svelte 5's `$effect` only tracks dependencies that are read inside the effect. The getter function ensures the utility detects when `props.photos` changes (e.g., after data loads from database).
+
+**Bug Symptom**: Without getter function, photos won't display after page reload or tab switch, even though parent has the data.
+
+**Root Cause**: The utility captures the initial empty array `[]` and doesn't sync when parent updates the prop with actual photos.
+
+**Fix Applied**: November 9, 2025 - All 5 photo panels updated to use getter functions. See `.agent/Tasks/completed/OPTIMISTIC_ARRAY_BUG_FIX_RESEARCH_NOV_9_2025.md` for full technical details.
 
 ---
 

@@ -23,7 +23,8 @@
 	const onUpdate = $derived(props.onUpdate);
 
 	// Use optimistic array for immediate UI updates
-	const photos = useOptimisticArray(props.photos);
+	// Pass getter function to ensure reactivity when props.photos changes
+	const photos = useOptimisticArray(() => props.photos);
 
 	let uploading = $state(false);
 	let uploadProgress = $state(0);

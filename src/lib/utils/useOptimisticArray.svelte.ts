@@ -14,32 +14,36 @@
  * ```svelte
  * <script lang="ts">
  *   import { useOptimisticArray } from '$lib/utils/useOptimisticArray.svelte';
- * 
+ *
  *   let props: Props = $props();
- *   const photos = useOptimisticArray(props.photos);
- * 
+ *
+ *   // ⚠️ CRITICAL: Pass getter function () => props.photos for reactivity
+ *   // This ensures the utility tracks changes when parent updates the prop
+ *   // Without the getter, the utility captures the initial value and won't sync
+ *   const photos = useOptimisticArray(() => props.photos);
+ *
  *   async function uploadPhoto(file: File) {
  *     const result = await uploadToStorage(file);
  *     const newPhoto = await createPhotoRecord(result);
- *     
+ *
  *     // Updates UI immediately!
  *     photos.add(newPhoto);
- *     
+ *
  *     // Refresh from parent (will sync via $effect)
  *     await onUpdate();
  *   }
- * 
+ *
  *   async function deletePhoto(id: string) {
  *     // Updates UI immediately!
  *     photos.remove(id);
- *     
+ *
  *     // Delete from database
  *     await deletePhotoRecord(id);
- *     
+ *
  *     // Refresh from parent (will sync via $effect)
  *     await onUpdate();
  *   }
- * 
+ *
  *   // Use in template
  *   {#each photos.value as photo}
  *     <img src={photo.url} />
@@ -62,9 +66,12 @@ export function useOptimisticArray<T extends { id: string }>(
 
 	// Create a derived value that tracks the parent array reactively
 	// This ensures we detect changes even if the array reference stays the same
-	const parentArrayValue = typeof parentArray === 'function' 
-		? $derived(parentArray())
-		: $derived(parentArray);
+	// Using $derived.by() allows conditional logic inside
+	const parentArrayValue = $derived.by(() => {
+		return typeof parentArray === 'function' 
+			? parentArray()
+			: parentArray;
+	});
 
 	// Sync with parent props whenever they change
 	// Using $derived ensures we track the array contents, not just the reference
