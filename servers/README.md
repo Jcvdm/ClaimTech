@@ -1,7 +1,74 @@
-# MCP Servers as Code APIs
+# MCP Server Wrappers - Illustrative Reference Only
+
+**CRITICAL**: This directory contains illustrative TypeScript wrappers that **CANNOT be used in code execution contexts**.
+
+## Why This Directory Exists
+
+This directory serves as:
+- **API Reference**: Documents all 31 MCP operations across 6 servers
+- **Type Safety Examples**: Shows TypeScript interfaces and type definitions
+- **Code Structure**: Demonstrates clean separation of concerns
+- **Educational Resource**: Illustrates ideal client library design
+
+## Why These Cannot Be Used in Code Execution
+
+Code execution via `mcp__ide__executeCode` runs in an **isolated Deno sandbox** that:
+- Cannot access MCP tools or MCP servers
+- Cannot make MCP tool calls
+- Has no MCP client available
+- Can only process data passed as parameters
+
+## Actual Code Execution Pattern (Architecture A)
+
+The correct pattern for code execution is:
+
+### Step 1: Claude Calls MCP Tools to Fetch Data
+
+```typescript
+// Claude calls MCP tools FIRST (before code execution)
+const assessments = await mcp__supabase__execute_sql({
+  project_id: env.SUPABASE_PROJECT_ID,
+  query: 'SELECT * FROM assessments WHERE stage = $1',
+  params: ['completed']
+});
+```
+
+### Step 2: Claude Passes Data to Code Execution for Processing
+
+```typescript
+// Claude embeds data and executes code
+const code = `
+  const assessments = ${JSON.stringify(assessments)};
+
+  // Process data with complex logic
+  const stats = assessments.reduce((acc, a) => {
+    const stage = a.stage;
+    acc[stage] = (acc[stage] || 0) + 1;
+    return acc;
+  }, {});
+
+  console.log('Stage breakdown:', JSON.stringify(stats, null, 2));
+`;
+
+await mcp__ide__executeCode({ code });
+```
+
+**Token Savings**: 73-94% vs traditional multi-tool approach
+
+## Complete Guide
+
+For comprehensive code execution documentation, see:
+- `.agent/SOP/using_code_executor.md` - Step-by-step guide
+- `.agent/System/code_execution_architecture.md` - Architecture overview
+- `.agent/System/code_execution_patterns.md` - Common patterns
+- `.agent/System/mcp_code_api_reference.md` - MCP tool reference
+
+---
+
+## Original Documentation (Illustrative Reference)
 
 **Phase**: 2 - Infrastructure Complete
-**Status**: Ready for Phase 3 (MCP Bridge Connection)
+**Status**: Educational Reference Only
 
 ---
 
@@ -9,18 +76,14 @@
 
 This directory contains TypeScript wrappers for MCP servers, presenting them as importable code APIs. Each wrapper provides type-safe access to MCP tools with consistent error handling and developer-friendly interfaces.
 
+**Note**: These are illustrative examples showing ideal API design. See the warning above for actual code execution usage.
+
 ## Philosophy
 
-**MCP-as-Code-API Pattern**: Instead of manually calling MCP tools with raw parameters, import and use them like any other TypeScript module:
+**MCP-as-Code-API Pattern**: The wrappers demonstrate how MCP tools could be used like TypeScript modules:
 
 ```typescript
-// ❌ Before: Manual MCP tool invocation
-const result = await invokeMCPTool('mcp__supabase__execute_sql', {
-  project_id: 'xyz123',
-  query: 'SELECT * FROM assessments'
-});
-
-// ✅ After: Code API import
+// Illustrative example (cannot be used in code execution)
 import { executeSQL } from '/servers/supabase/database';
 
 const assessments = await executeSQL({
@@ -29,7 +92,7 @@ const assessments = await executeSQL({
 });
 ```
 
-**Benefits**:
+**Benefits of This Design Pattern**:
 - **Type Safety**: Full TypeScript types and IntelliSense
 - **Validation**: Parameter validation before MCP calls
 - **Error Handling**: Consistent error classes across all operations
@@ -75,11 +138,49 @@ const assessments = await executeSQL({
 
 ---
 
-## Usage Examples
+## Usage Examples (Illustrative Only)
 
-### Pattern 1: Data Analysis
+The following examples demonstrate the TypeScript wrapper API design. Remember, these cannot be used in code execution contexts.
+
+### Correct Usage: Architecture A Pattern
+
+For actual code execution, use this pattern:
 
 ```typescript
+// 1. Claude calls MCP tool to fetch data
+const result = await mcp__supabase__execute_sql({
+  project_id: env.SUPABASE_PROJECT_ID,
+  query: `
+    SELECT
+      stage,
+      COUNT(*) as count,
+      AVG(EXTRACT(EPOCH FROM (updated_at - created_at))/3600) as avg_hours
+    FROM assessments
+    WHERE created_at > NOW() - INTERVAL '30 days'
+    GROUP BY stage
+    ORDER BY avg_hours DESC
+  `
+});
+
+// 2. Claude embeds data and processes with code execution
+const code = `
+  const stageStats = ${JSON.stringify(result)};
+
+  console.log('Pipeline Bottlenecks (Last 30 Days):');
+  for (const stat of stageStats) {
+    console.log(\`\${stat.stage}: \${stat.count} items, avg \${stat.avg_hours.toFixed(1)}h\`);
+  }
+`;
+
+await mcp__ide__executeCode({ code });
+```
+
+### Illustrative Pattern: Type-Safe Wrappers
+
+These examples show the wrapper API design (not usable in code execution):
+
+```typescript
+// Illustrative example only - shows ideal API design
 import { executeSQL } from '/servers/supabase/database';
 
 // Analyze assessment pipeline bottlenecks
@@ -89,8 +190,7 @@ const stageStats = await executeSQL({
     SELECT
       stage,
       COUNT(*) as count,
-      AVG(EXTRACT(EPOCH FROM (updated_at - created_at))/3600) as avg_hours,
-      MAX(EXTRACT(EPOCH FROM (updated_at - created_at))/3600) as max_hours
+      AVG(EXTRACT(EPOCH FROM (updated_at - created_at))/3600) as avg_hours
     FROM assessments
     WHERE created_at > NOW() - INTERVAL '30 days'
     GROUP BY stage
@@ -104,65 +204,9 @@ for (const stat of stageStats) {
 }
 ```
 
-### Pattern 2: Batch Operations
-
-```typescript
-import { executeSQL } from '/servers/supabase/database';
-import { pushFiles } from '/servers/github/repo';
-
-// Generate types and commit to repo
-const types = await generateTypes({
-  projectId: process.env.SUPABASE_PROJECT_ID!
-});
-
-await pushFiles({
-  owner: 'claimtech',
-  repo: 'platform',
-  branch: 'dev',
-  files: [
-    {
-      path: 'src/lib/types/database.types.ts',
-      content: types
-    }
-  ],
-  message: 'chore: update database types'
-});
-
-console.log('Database types updated and committed');
-```
-
-### Pattern 3: Cross-Source Analysis
-
-```typescript
-import { executeSQL } from '/servers/supabase/database';
-import { searchCode, listPRs } from '/servers/github';
-
-// Find assessments in 'inspection_scheduled' stage
-const assessments = await executeSQL({
-  projectId: process.env.SUPABASE_PROJECT_ID!,
-  query: `
-    SELECT id, claim_id, stage, created_at
-    FROM assessments
-    WHERE stage = 'inspection_scheduled'
-    AND created_at > NOW() - INTERVAL '7 days'
-  `
-});
-
-// Check for related code changes in recent PRs
-const prs = await listPRs({
-  owner: 'claimtech',
-  repo: 'platform',
-  state: 'closed',
-  perPage: 20
-});
-
-console.log(`${assessments.length} scheduled inspections in last 7 days`);
-console.log(`${prs.length} merged PRs in repository`);
-```
-
 ---
 
-## Available Modules
+## Available Modules (Reference Only)
 
 ### `/servers/supabase` - Database Operations
 
@@ -207,11 +251,12 @@ console.log(`${prs.length} merged PRs in repository`);
 
 ---
 
-## Error Handling
+## Error Handling (Illustrative Pattern)
 
 All operations use consistent error classes:
 
 ```typescript
+// Illustrative example only
 import { executeSQL } from '/servers/supabase/database';
 import { ValidationError, NotFoundError, MCPExecutionError } from '/servers/_shared';
 
@@ -260,57 +305,28 @@ try {
 - Error classes
 - JSDoc documentation with examples
 
-**What Doesn't Work Yet**:
+**What Doesn't Work**:
 - Actual MCP tool calls (throws "MCP Bridge not yet connected")
-- This is expected - Phase 3 will implement the bridge
+- Cannot be used in code execution (runs in isolated Deno sandbox)
 
-### Phase 3: MCP Bridge (Next)
+### Phase 3: Educational Reference (Updated Scope)
 
-**TODO**:
-- Implement `callMCPTool()` in `mcp-bridge.ts`
-- Connect to actual MCP tools via Claude Desktop API
-- Test all wrappers with real MCP calls
-- Implement remaining servers (Playwright, Svelte, Chrome, Context7)
-
----
-
-## Testing (Phase 2)
-
-Currently, all functions throw "MCP Bridge not yet connected" errors. This is expected.
-
-**To verify infrastructure**:
-
-```typescript
-import { executeSQL } from '/servers/supabase/database';
-
-try {
-  await executeSQL({
-    projectId: 'test',
-    query: 'SELECT 1'
-  });
-} catch (error) {
-  console.log(error.message);
-  // Expected: "MCP Bridge not yet connected. Tool: mcp__supabase__execute_sql"
-}
-```
-
-**Phase 3 Testing**:
-Once bridge is connected, all wrappers will call real MCP tools and return actual data.
+This directory now serves as educational reference showing ideal API design patterns. For actual code execution, use Architecture A pattern documented in `.agent/SOP/using_code_executor.md`.
 
 ---
 
 ## Related Documentation
 
-- **API Reference**: `.agent/System/mcp_code_api_reference.md` - Complete API docs
-- **Architecture**: `.agent/System/code_execution_architecture.md` - System overview
-- **Patterns**: `.agent/System/code_execution_patterns.md` - Common recipes
-- **Usage Guide**: `.agent/SOP/using_code_executor.md` - Step-by-step procedures
+- **Code Execution Guide**: `.agent/SOP/using_code_executor.md` - How to actually use code execution
+- **Architecture**: `.agent/System/code_execution_architecture.md` - Architecture A vs B comparison
+- **Patterns**: `.agent/System/code_execution_patterns.md` - Common recipes for Architecture A
+- **MCP Reference**: `.agent/System/mcp_code_api_reference.md` - Complete MCP tool documentation
 
 ---
 
 ## Contributing
 
-When adding new MCP server wrappers:
+When adding new MCP server wrappers (for reference/documentation purposes):
 
 1. Create module in `/servers/[server-name]/`
 2. Add types to `_shared/types.ts` if needed
@@ -340,6 +356,6 @@ export async function navigate(params: { url: string }): Promise<void> {
 
 ---
 
-**Document Version**: 1.0 (Phase 2 Complete)
+**Document Version**: 2.0 (Educational Reference)
 **Last Updated**: November 9, 2025
-**Next Phase**: MCP Bridge Connection (service-builder)
+**Purpose**: Illustrative API design patterns and reference documentation

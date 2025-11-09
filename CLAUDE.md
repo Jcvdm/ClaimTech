@@ -633,9 +633,14 @@ User Request: "Add a comments feature to assessments"
 
 ### What is Code Execution?
 
-ClaimTech leverages the **MCP-as-Code-API** pattern, where MCP servers (Supabase, GitHub, Playwright, etc.) are used as TypeScript code APIs rather than individual tool calls. This provides massive token efficiency improvements (88-98% reduction) for multi-step data workflows.
+ClaimTech uses **Architecture A: Two-Phase Code Execution** for efficient data processing. This pattern achieves 73-94% token reduction for multi-step data workflows.
 
-Instead of chaining 5-10+ tool calls in conversation context, Claude writes TypeScript code that executes in an isolated context with access to all MCP servers as importable functions.
+**CRITICAL**: Code execution runs in an isolated Deno sandbox and **CANNOT call MCP tools directly**. Instead, Claude uses a two-phase approach:
+
+1. **Phase 1**: Claude calls MCP tools to fetch data
+2. **Phase 2**: Claude embeds data in TypeScript code and executes processing logic
+
+This separation provides excellent token efficiency while maintaining the security and isolation benefits of the sandbox.
 
 ### The Pattern
 
@@ -644,142 +649,226 @@ Instead of chaining 5-10+ tool calls in conversation context, Claude writes Type
 User: "Analyze assessment completion times by stage"
 
 Claude:
-  → mcp__supabase__list_tables (500 tokens)
-  → mcp__supabase__execute_sql for assessments (500 tokens)
-  → mcp__supabase__execute_sql for stage_history (500 tokens)
+  → mcp__supabase__execute_sql (500 tokens)
+  → mcp__supabase__execute_sql (500 tokens)
+  → mcp__supabase__execute_sql (500 tokens)
   → Process data in conversation (1000 tokens)
   → Format response (500 tokens)
 
 Total: ~3000 tokens, 5 API calls, 30 seconds
 ```
 
-**Code Execution Approach (Efficient)**:
+**Architecture A: Two-Phase Pattern (Efficient)**:
 ```
 User: "Analyze assessment completion times by stage"
 
-Claude:
-  → Write TypeScript code (200 tokens)
-  → Execute code once (100 tokens)
+Phase 1 - Claude calls MCP tool to fetch data:
+  → mcp__supabase__execute_sql (500 tokens)
+
+Phase 2 - Claude processes in code execution:
+  → Generate processing code with embedded data (200 tokens)
+  → Execute via mcp__ide__executeCode (100 tokens)
   → Return formatted results (50 tokens)
 
-Total: ~350 tokens, 1 execution, 5 seconds
-88% token reduction
+Total: ~850 tokens, 2 operations, 8 seconds
+73% token reduction
 ```
 
-### Available MCP Servers as Code APIs
+**The Two-Phase Pattern**:
 
-ClaimTech has 6 active MCP servers that can be used as TypeScript code APIs:
-
-#### 1. **Supabase API** (`/servers/supabase/`)
-**Capabilities**:
-- Database operations (`executeSQL`, `applyMigration`)
-- Project management (`getProject`, `listProjects`)
-- Edge Functions (`deployFunction`, `invokeFunction`)
-- Branches (`createBranch`, `switchBranch`)
-- Type generation (`generateTypes`)
-- Security audits (`getAdvisors`)
-
-**Example**:
 ```typescript
-import { executeSQL } from '/servers/supabase/database';
+// Phase 1: Fetch Data (Claude calls MCP tool)
+const assessments = await mcp__supabase__execute_sql({
+  project_id: env.SUPABASE_PROJECT_ID,
+  query: `
+    SELECT id, stage, stage_history
+    FROM assessments
+    WHERE created_at >= NOW() - INTERVAL '30 days'
+  `
+});
 
-const assessments = await executeSQL({
-  projectId: process.env.SUPABASE_PROJECT_ID!,
+// Phase 2: Process Data (Claude executes code)
+const code = `
+  const assessments = ${JSON.stringify(assessments)};
+
+  // Calculate stage durations
+  const durations = assessments.map(a => {
+    const history = JSON.parse(a.stage_history || '[]');
+    const stageTimes = {};
+
+    for (let i = 1; i < history.length; i++) {
+      const prev = new Date(history[i-1].timestamp);
+      const curr = new Date(history[i].timestamp);
+      const hours = (curr - prev) / (1000 * 60 * 60);
+      stageTimes[history[i].stage] = hours;
+    }
+
+    return { id: a.id, durations: stageTimes };
+  });
+
+  // Aggregate statistics
+  const stats = ['inspection_scheduled', 'inspection_in_progress', 'report_in_progress']
+    .map(stage => {
+      const times = durations
+        .map(d => d.durations[stage])
+        .filter(t => t != null);
+
+      return {
+        stage,
+        count: times.length,
+        avg: times.reduce((a,b) => a+b, 0) / times.length,
+        min: Math.min(...times),
+        max: Math.max(...times)
+      };
+    });
+
+  console.log('Stage breakdown:', JSON.stringify(stats, null, 2));
+`;
+
+await mcp__ide__executeCode({ code });
+```
+
+### Available MCP Servers for Data Fetching
+
+**Important**: These MCP servers are called BY Claude in Phase 1 to fetch data. They are NOT imported or called FROM code execution.
+
+ClaimTech has 6 active MCP servers that Claude uses to fetch data:
+
+#### 1. **Supabase** - Database Operations
+**Claude calls these tools in Phase 1**:
+- `mcp__supabase__execute_sql` - Run SQL queries
+- `mcp__supabase__apply_migration` - Deploy migrations
+- `mcp__supabase__list_tables` - Schema inspection
+- `mcp__supabase__get_project` - Project details
+
+**Example - Phase 1 (Fetch)**:
+```typescript
+// Claude calls this MCP tool
+const assessments = await mcp__supabase__execute_sql({
+  project_id: env.SUPABASE_PROJECT_ID,
   query: 'SELECT * FROM assessments WHERE stage = $1',
   params: ['completed']
 });
 ```
 
-#### 2. **GitHub API** (`/servers/github/`)
-**Capabilities**:
-- Repository operations (`getFileContents`, `pushFiles`)
-- Pull requests (`createPR`, `mergePR`, `listPRs`)
-- Issues (`createIssue`, `listIssues`, `updateIssue`)
-- Code search (`searchCode`, `searchRepos`)
-- Branches (`createBranch`, `listBranches`)
-
-**Example**:
+**Example - Phase 2 (Process)**:
 ```typescript
-import { createPR } from '/servers/github/pulls';
+// Claude generates code with data embedded
+const code = `
+  const assessments = ${JSON.stringify(assessments)};
 
-const pr = await createPR({
+  // Process data
+  const stats = assessments.reduce((acc, a) => {
+    acc[a.stage] = (acc[a.stage] || 0) + 1;
+    return acc;
+  }, {});
+
+  console.log('Stage breakdown:', JSON.stringify(stats, null, 2));
+`;
+
+await mcp__ide__executeCode({ code });
+```
+
+#### 2. **GitHub** - Repository Operations
+**Claude calls these tools in Phase 1**:
+- `mcp__github__get_file_contents` - Read files
+- `mcp__github__list_commits` - Commit history
+- `mcp__github__search_code` - Code search
+- `mcp__github__list_issues` - Issue tracking
+
+**Example - Phase 1 (Fetch)**:
+```typescript
+// Claude calls MCP tool
+const commits = await mcp__github__list_commits({
   owner: 'ClaimTech',
   repo: 'claimtech',
-  title: 'Add comments feature',
-  body: 'Implements comments on assessments',
-  head: 'feature/comments',
-  base: 'main'
+  since: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
 });
 ```
 
-#### 3. **Playwright API** (`/servers/playwright/`)
-**Capabilities**:
-- Browser navigation (`navigate`, `click`, `fill`)
-- Element waiting (`waitForSelector`, `waitForNavigation`)
-- Assertions (`expectVisible`, `expectText`)
-- Screenshots (`screenshot`, `fullPageScreenshot`)
-- Network monitoring (`waitForResponse`, `interceptRequest`)
-
-**Example**:
+**Example - Phase 2 (Process)**:
 ```typescript
-import { navigate, click, screenshot } from '/servers/playwright/browser';
+// Claude processes commit data
+const code = `
+  const commits = ${JSON.stringify(commits)};
 
-await navigate('http://localhost:5173/assessments');
-await click('button:has-text("New Assessment")');
-await screenshot('new-assessment-modal.png');
+  const analysis = commits.reduce((acc, c) => {
+    const author = c.commit.author.name;
+    acc[author] = (acc[author] || 0) + 1;
+    return acc;
+  }, {});
+
+  console.log('Commits by author:', JSON.stringify(analysis, null, 2));
+`;
+
+await mcp__ide__executeCode({ code });
 ```
 
-#### 4. **Svelte API** (`/servers/svelte/`)
-**Capabilities**:
-- Component analysis (`analyzeComponent`)
-- Routing guidance (`suggestRoute`)
-- Framework best practices (`checkPatterns`)
+#### 3. **Playwright** - Browser Automation
+**Claude calls these tools**:
+- `mcp__playwright__navigate` - Navigate pages
+- `mcp__playwright__screenshot` - Capture screenshots
+- Used for E2E testing, not typically in code execution workflows
 
-#### 5. **Chrome DevTools API** (`/servers/chrome-devtools/`)
-**Capabilities**:
-- Runtime inspection (`evaluateExpression`)
-- Console monitoring (`getConsoleLogs`)
-- Performance profiling (`startProfiling`, `stopProfiling`)
+#### 4. **Svelte** - Framework Guidance
+**Claude calls these tools**:
+- `mcp__svelte__analyze_component` - Component analysis
+- Used for development guidance, not data processing
 
-#### 6. **Context7 API** (`/servers/context7/`)
-**Capabilities**:
-- Documentation search (`searchDocs`)
-- Library reference (`getReference`)
+#### 5. **Chrome DevTools** - Debugging
+**Claude calls these tools**:
+- `mcp__chrome__evaluate_expression` - Runtime inspection
+- Used for debugging, not data workflows
+
+#### 6. **Context7** - Documentation
+**Claude calls these tools**:
+- `mcp__context7__search_docs` - Search documentation
+- Used for research, not data processing
 
 ### When to Use Code Execution
 
+**Important**: Code execution is for DATA PROCESSING, not data fetching. Always fetch data with MCP tools first (Phase 1), then process with code execution (Phase 2).
+
 #### ✅ Use Code Execution When:
 
-1. **Multiple data transformations** needed
-   - Fetch → filter → map → aggregate → format
-   - Example: "Analyze completion times by stage"
+1. **Complex data transformations** after fetching
+   - Multiple map/filter/reduce operations
+   - Example: "Process 100 assessments with validation logic"
+   - Pattern: Fetch with MCP → Transform in code
 
-2. **Complex filtering/aggregation** required
-   - Custom calculations, statistical analysis
-   - Example: "Calculate average review times by engineer"
+2. **Data analysis** with calculations
+   - Averages, statistics, correlations, percentages
+   - Example: "Calculate completion times by stage from stage_history JSON"
+   - Pattern: Fetch assessments with MCP → Calculate in code
 
-3. **Batch processing** many items
-   - Update 10+ records, process 100+ files
-   - Example: "Update all pending assessments with missing photos"
+3. **Report generation** with formatting
+   - Markdown/HTML output, tables, charts
+   - Example: "Generate monthly performance report with stage breakdown"
+   - Pattern: Fetch data with MCP → Format in code
 
-4. **Data analysis** with calculations
-   - Averages, percentages, correlations
-   - Example: "Find bottlenecks in the workflow"
+4. **Cross-source correlation** (combining multiple MCP results)
+   - Joining data from different queries
+   - Example: "Correlate GitHub commits with assessment updates"
+   - Pattern: Fetch from GitHub MCP + Supabase MCP → Correlate in code
 
-5. **Multi-step workflows** with conditional logic
-   - If/else branching, retry logic, validation
-   - Example: "Validate and update assessments based on criteria"
+5. **JSON parsing and aggregation**
+   - Processing JSONB columns, nested data structures
+   - Example: "Analyze stage_history to find average time per stage"
+   - Pattern: Fetch JSON data with MCP → Parse and aggregate in code
 
-6. **Report generation** with formatting
-   - Markdown/HTML output, charts, summaries
-   - Example: "Generate monthly performance report"
+6. **Batch validation logic**
+   - Validate 10+ records with complex rules
+   - Example: "Find assessments ready for completion (photos >= 5, no open issues)"
+   - Pattern: Fetch assessments with MCP → Validate in code
 
-#### ❌ Use Direct Tool Calls When:
+**Decision Rule**: If you need to transform, analyze, or format data AFTER fetching it, use Architecture A (MCP fetch → code process).
 
-1. **Single operation** (e.g., create one file, read one record)
-2. **Simple CRUD** (e.g., update one record without complex logic)
-3. **Tool-specific features** not exposed in code API
-4. **Immediate feedback** needed (streaming responses)
+#### ❌ Don't Use Code Execution When:
+
+1. **Simple single query** - Use MCP tool directly, no processing needed
+2. **Data already in desired format** - MCP tools return structured data
+3. **Need additional queries** based on results - Code cannot call MCP tools
+4. **Data too large** to embed in code - Filter with SQL or batch process
 
 ### Common Patterns
 
@@ -787,14 +876,11 @@ await screenshot('new-assessment-modal.png');
 
 **Scenario**: Analyze assessment completion times by stage
 
+**Phase 1: Fetch Data with MCP**
 ```typescript
-import { executeSQL } from '/servers/supabase/database';
-
-const projectId = process.env.SUPABASE_PROJECT_ID!;
-
-// Fetch completed assessments
-const assessments = await executeSQL({
-  projectId,
+// Claude calls MCP tool to fetch data
+const assessments = await mcp__supabase__execute_sql({
+  project_id: env.SUPABASE_PROJECT_ID,
   query: `
     SELECT id, stage, created_at, stage_history
     FROM assessments
@@ -804,109 +890,155 @@ const assessments = await executeSQL({
     LIMIT 1000
   `
 });
-
-// Calculate stage durations
-const stageDurations = assessments.map(a => {
-  const history = JSON.parse(a.stage_history || '[]');
-  const durations = {};
-
-  for (let i = 1; i < history.length; i++) {
-    const prev = new Date(history[i-1].timestamp);
-    const curr = new Date(history[i].timestamp);
-    const hours = (curr - prev) / (1000 * 60 * 60);
-    durations[history[i].stage] = hours;
-  }
-
-  return { id: a.id, stages: durations };
-});
-
-// Aggregate statistics
-const stageStats = ['inspection_scheduled', 'inspection_in_progress', 'report_in_progress']
-  .map(stage => {
-    const times = stageDurations
-      .map(d => d.stages[stage])
-      .filter(t => t != null);
-
-    return {
-      stage,
-      count: times.length,
-      avg: times.reduce((a,b) => a+b, 0) / times.length,
-      min: Math.min(...times),
-      max: Math.max(...times)
-    };
-  });
-
-console.log(JSON.stringify(stageStats, null, 2));
 ```
 
-#### Pattern 2: Batch Update with Validation
-
-**Scenario**: Update assessments with missing required data
-
+**Phase 2: Process Data with Code Execution**
 ```typescript
-import { executeSQL } from '/servers/supabase/database';
+// Claude generates processing code with embedded data
+const code = `
+  const assessments = ${JSON.stringify(assessments)};
 
-const projectId = process.env.SUPABASE_PROJECT_ID!;
+  // Calculate stage durations
+  const stageDurations = assessments.map(a => {
+    const history = JSON.parse(a.stage_history || '[]');
+    const durations = {};
 
-// Fetch assessments needing updates
-const assessments = await executeSQL({
-  projectId,
+    for (let i = 1; i < history.length; i++) {
+      const prev = new Date(history[i-1].timestamp);
+      const curr = new Date(history[i].timestamp);
+      const hours = (curr - prev) / (1000 * 60 * 60);
+      durations[history[i].stage] = hours;
+    }
+
+    return { id: a.id, stages: durations };
+  });
+
+  // Aggregate statistics
+  const stageStats = ['inspection_scheduled', 'inspection_in_progress', 'report_in_progress']
+    .map(stage => {
+      const times = stageDurations
+        .map(d => d.stages[stage])
+        .filter(t => t != null);
+
+      return {
+        stage,
+        count: times.length,
+        avg: times.length > 0 ? times.reduce((a,b) => a+b, 0) / times.length : 0,
+        min: times.length > 0 ? Math.min(...times) : 0,
+        max: times.length > 0 ? Math.max(...times) : 0
+      };
+    });
+
+  console.log(JSON.stringify(stageStats, null, 2));
+`;
+
+// Claude executes processing code
+await mcp__ide__executeCode({ code });
+```
+
+**Token Efficiency**:
+- Traditional (5 separate MCP calls): ~3000 tokens
+- Architecture A (1 MCP + 1 code): ~850 tokens
+- **Savings: 73%**
+
+#### Pattern 2: Batch Validation
+
+**Scenario**: Find assessments ready for completion (with validation logic)
+
+**Phase 1: Fetch Data with MCP**
+```typescript
+// Claude calls MCP tool to fetch assessments with related counts
+const assessments = await mcp__supabase__execute_sql({
+  project_id: env.SUPABASE_PROJECT_ID,
   query: `
     SELECT a.*,
-      COUNT(p.id) as photo_count,
-      COUNT(i.id) as issue_count
+      COUNT(DISTINCT p.id) as photo_count,
+      COUNT(DISTINCT CASE WHEN i.status = 'open' THEN i.id END) as open_issue_count
     FROM assessments a
     LEFT JOIN photos p ON p.assessment_id = a.id
-    LEFT JOIN issues i ON i.assessment_id = a.id AND i.status = 'open'
+    LEFT JOIN issues i ON i.assessment_id = a.id
     WHERE a.stage = 'pending_review'
     GROUP BY a.id
   `
 });
-
-// Validate and update
-const results = { success: [], failed: [], skipped: [] };
-
-for (const a of assessments) {
-  // Validate
-  if (a.photo_count < 5) {
-    results.skipped.push({ id: a.id, reason: 'Not enough photos' });
-    continue;
-  }
-
-  if (a.issue_count > 0) {
-    results.skipped.push({ id: a.id, reason: 'Open issues remain' });
-    continue;
-  }
-
-  // Update
-  try {
-    await executeSQL({
-      projectId,
-      query: `UPDATE assessments SET stage = 'completed' WHERE id = $1`,
-      params: [a.id]
-    });
-    results.success.push(a.id);
-  } catch (error) {
-    results.failed.push({ id: a.id, error: error.message });
-  }
-}
-
-console.log(JSON.stringify(results, null, 2));
 ```
+
+**Phase 2: Process Validation with Code Execution**
+```typescript
+// Claude generates validation code with embedded data
+const code = `
+  const assessments = ${JSON.stringify(assessments)};
+
+  // Validate assessments
+  const results = {
+    ready: [],
+    notReady: [],
+    reasons: {}
+  };
+
+  for (const a of assessments) {
+    const reasons = [];
+
+    // Validation rules
+    if (a.photo_count < 5) {
+      reasons.push('Needs ' + (5 - a.photo_count) + ' more photos');
+    }
+
+    if (a.open_issue_count > 0) {
+      reasons.push(a.open_issue_count + ' open issues remain');
+    }
+
+    if (!a.engineer_id) {
+      reasons.push('No engineer assigned');
+    }
+
+    // Categorize
+    if (reasons.length === 0) {
+      results.ready.push(a.id);
+    } else {
+      results.notReady.push(a.id);
+      results.reasons[a.id] = reasons;
+    }
+  }
+
+  // Summary report
+  const summary = {
+    total: assessments.length,
+    ready: results.ready.length,
+    notReady: results.notReady.length,
+    readyIds: results.ready,
+    notReadyDetails: results.notReady.map(id => ({
+      id,
+      reasons: results.reasons[id]
+    }))
+  };
+
+  console.log(JSON.stringify(summary, null, 2));
+`;
+
+// Claude executes validation code
+await mcp__ide__executeCode({ code });
+```
+
+**Note**: For batch UPDATES (not just validation), you would:
+1. Phase 1: Fetch data with MCP
+2. Phase 2: Validate in code execution (identify which to update)
+3. Phase 3: Update via MCP (loop through IDs from Phase 2)
+
+**Token Efficiency**:
+- Traditional (10+ separate MCP calls for validation): ~8000 tokens
+- Architecture A (1 MCP fetch + 1 code validation): ~1200 tokens
+- **Savings: 85%**
 
 #### Pattern 3: Cross-Source Data Correlation
 
 **Scenario**: Correlate GitHub commits with assessment updates
 
+**Phase 1: Fetch Data from Multiple MCP Sources**
 ```typescript
-import { executeSQL } from '/servers/supabase/database';
-import { listCommits } from '/servers/github/commits';
-
-const projectId = process.env.SUPABASE_PROJECT_ID!;
-
-// Get recent assessments
-const assessments = await executeSQL({
-  projectId,
+// Claude calls Supabase MCP tool
+const assessments = await mcp__supabase__execute_sql({
+  project_id: env.SUPABASE_PROJECT_ID,
   query: `
     SELECT id, assessment_number, updated_at
     FROM assessments
@@ -914,53 +1046,104 @@ const assessments = await executeSQL({
   `
 });
 
-// Get recent commits
-const commits = await listCommits({
+// Claude calls GitHub MCP tool
+const commits = await mcp__github__list_commits({
   owner: 'ClaimTech',
   repo: 'claimtech',
   since: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
 });
-
-// Correlate
-const correlation = assessments.map(a => {
-  const relatedCommits = commits.filter(c =>
-    c.message.includes(a.assessment_number)
-  );
-
-  return {
-    assessment: a.assessment_number,
-    commits: relatedCommits.length,
-    messages: relatedCommits.map(c => c.message)
-  };
-});
-
-console.log(JSON.stringify(correlation, null, 2));
 ```
+
+**Phase 2: Correlate Data with Code Execution**
+```typescript
+// Claude generates correlation code with both datasets embedded
+const code = `
+  const assessments = ${JSON.stringify(assessments)};
+  const commits = ${JSON.stringify(commits)};
+
+  // Correlate commits with assessments
+  const correlation = assessments.map(a => {
+    const relatedCommits = commits.filter(c =>
+      c.commit.message.includes(a.assessment_number)
+    );
+
+    return {
+      assessment: a.assessment_number,
+      updated_at: a.updated_at,
+      commit_count: relatedCommits.length,
+      commit_messages: relatedCommits.map(c => c.commit.message),
+      authors: [...new Set(relatedCommits.map(c => c.commit.author.name))]
+    };
+  });
+
+  // Filter to assessments with related commits
+  const withCommits = correlation.filter(c => c.commit_count > 0);
+
+  // Summary statistics
+  const summary = {
+    total_assessments: assessments.length,
+    assessments_with_commits: withCommits.length,
+    total_commits: commits.length,
+    correlation_details: withCommits
+  };
+
+  console.log(JSON.stringify(summary, null, 2));
+`;
+
+// Claude executes correlation code
+await mcp__ide__executeCode({ code });
+```
+
+**Token Efficiency**:
+- Traditional (separate fetches + in-conversation correlation): ~6000 tokens
+- Architecture A (2 MCP fetches + 1 code correlation): ~1550 tokens
+- **Savings: 74%**
 
 ### Getting Started
 
 **Step 1**: Identify if code execution is appropriate (see decision criteria above)
+   - Need to process, transform, or analyze data AFTER fetching it
+   - Data is not too large to embed in code (< 1000 records typically)
 
-**Step 2**: Read the [Using Code Executor SOP](`.agent/SOP/using_code_executor.md`) for step-by-step guide
+**Step 2**: Read the [Using Code Executor SOP](`.agent/SOP/using_code_executor.md`) for complete 5-phase workflow
 
 **Step 3**: Choose a pattern from [Code Execution Patterns](`.agent/System/code_execution_patterns.md`)
+   - Pattern 1: Data Analysis Pipeline
+   - Pattern 2: Batch Validation
+   - Pattern 3: Cross-Source Correlation
 
-**Step 4**: Reference [MCP Code API Reference](`.agent/System/mcp_code_api_reference.md`) for API details
+**Step 4**: Execute the Two-Phase Pattern:
 
-**Step 5**: Write TypeScript code using MCP server imports
+**Phase 1 - Fetch Data**: Call MCP tools to get data
+```typescript
+const data = await mcp__supabase__execute_sql({
+  project_id: env.SUPABASE_PROJECT_ID,
+  query: 'SELECT * FROM table WHERE condition'
+});
+```
 
-**Step 6**: Execute code and handle results
+**Phase 2 - Process Data**: Generate and execute processing code
+```typescript
+const code = `
+  const data = ${JSON.stringify(data)};
+  // Processing logic here
+  console.log(JSON.stringify(result, null, 2));
+`;
+await mcp__ide__executeCode({ code });
+```
+
+**Step 5**: Review results and iterate if needed
 
 ### Benefits Summary
 
-- **88-98% token reduction** for multi-step workflows
-- **Single execution** instead of 5-10+ tool calls
+- **73-94% token reduction** for multi-step workflows
+- **Two-phase approach** (MCP fetch → code process) instead of 5-10+ tool calls
 - **5-10x faster** completion times
-- **Type-safe** operations with full TypeScript
-- **Complex logic** in familiar programming patterns
-- **Error handling** with try/catch
-- **Access to all 6 MCP servers** as code APIs
-- **Isolated execution** context (no pollution of conversation)
+- **Type-safe** operations with full TypeScript in code execution
+- **Complex processing logic** in familiar programming patterns
+- **Error handling** with try/catch in code execution
+- **Secure** - Code execution is isolated, cannot access MCP tools or credentials
+- **Clear separation** - MCP for data access, code for processing
 
 ### Documentation
 
