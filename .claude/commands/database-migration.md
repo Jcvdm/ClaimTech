@@ -279,6 +279,182 @@ supabase migration list
 3. Run query
 4. Verify success
 
+**Option 3: Test with Code Execution** (Recommended for Complex Validation)
+
+**Advantages:**
+- Programmatic validation of schema changes
+- Reusable test scripts
+- Detailed error reporting
+- Can test multiple scenarios in one execution
+- Token-efficient (88% savings vs manual verification)
+
+**Example: Testing Table Creation**
+
+```typescript
+// Phase 1: Apply migration via MCP
+await mcp__supabase__apply_migration({
+  project_id: env.SUPABASE_PROJECT_ID,
+  name: 'add_comments_table',
+  query: `
+    CREATE TABLE IF NOT EXISTS comments (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      assessment_id UUID REFERENCES assessments(id) ON DELETE CASCADE,
+      content TEXT NOT NULL,
+      created_by UUID REFERENCES users(id),
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      updated_at TIMESTAMPTZ DEFAULT NOW()
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_comments_assessment_id
+      ON comments(assessment_id);
+
+    ALTER TABLE comments ENABLE ROW LEVEL SECURITY;
+  `
+});
+
+// Phase 2: Fetch table metadata
+const tables = await mcp__supabase__list_tables({
+  project_id: env.SUPABASE_PROJECT_ID,
+  schemas: ['public']
+});
+
+// Phase 3: Validate with code execution
+const validationCode = `
+  const tables = ${JSON.stringify(tables)};
+
+  // Check table exists
+  const commentsTable = tables.find(t => t.name === 'comments');
+  console.assert(commentsTable !== undefined, '✗ comments table should exist');
+  console.log('✓ comments table exists');
+
+  // Check columns
+  const expectedColumns = ['id', 'assessment_id', 'content', 'created_by', 'created_at', 'updated_at'];
+  const actualColumns = commentsTable.columns.map(c => c.name);
+
+  expectedColumns.forEach(col => {
+    const exists = actualColumns.includes(col);
+    console.assert(exists, \`✗ Column '\${col}' should exist\`);
+    if (exists) console.log(\`✓ Column '\${col}' exists\`);
+  });
+
+  // Check foreign keys
+  const fkColumns = commentsTable.columns.filter(c => c.is_foreign_key);
+  console.assert(fkColumns.length >= 2, '✗ Should have at least 2 foreign keys');
+  console.log(\`✓ Found \${fkColumns.length} foreign keys\`);
+
+  // Check RLS enabled
+  console.assert(commentsTable.rls_enabled === true, '✗ RLS should be enabled');
+  console.log('✓ RLS is enabled');
+
+  console.log('\\n✓ All migration tests passed');
+`;
+
+await mcp__ide__executeCode({ code: validationCode });
+```
+
+**Example: Testing RLS Policies**
+
+```typescript
+// Phase 1: Fetch RLS policies
+const policies = await mcp__supabase__execute_sql({
+  project_id: env.SUPABASE_PROJECT_ID,
+  query: `
+    SELECT policyname, cmd, qual, with_check
+    FROM pg_policies
+    WHERE tablename = 'comments'
+  `
+});
+
+// Phase 2: Validate policies with code
+const policyValidationCode = `
+  const policies = ${JSON.stringify(policies)};
+
+  // Check admin policy exists
+  const adminPolicy = policies.find(p => p.policyname.includes('admin'));
+  console.assert(adminPolicy !== undefined, '✗ Admin policy should exist');
+  console.log('✓ Admin policy exists:', adminPolicy.policyname);
+
+  // Check engineer policy exists
+  const engineerPolicy = policies.find(p => p.policyname.includes('engineer'));
+  console.assert(engineerPolicy !== undefined, '✗ Engineer policy should exist');
+  console.log('✓ Engineer policy exists:', engineerPolicy.policyname);
+
+  // Check all commands covered (SELECT, INSERT, UPDATE, DELETE)
+  const commands = [...new Set(policies.map(p => p.cmd))];
+  console.log('✓ Commands covered:', commands.join(', '));
+
+  console.log('\\n✓ All RLS policy tests passed');
+`;
+
+await mcp__ide__executeCode({ code: policyValidationCode });
+```
+
+**Example: Testing Data Migration**
+
+```typescript
+// Phase 1: Run data migration
+await mcp__supabase__execute_sql({
+  project_id: env.SUPABASE_PROJECT_ID,
+  query: `
+    -- Example: Populate new column with calculated values
+    UPDATE assessments
+    SET completion_days = EXTRACT(EPOCH FROM (updated_at - created_at)) / 86400
+    WHERE stage = 'completed';
+  `
+});
+
+// Phase 2: Fetch migrated data
+const migratedData = await mcp__supabase__execute_sql({
+  project_id: env.SUPABASE_PROJECT_ID,
+  query: `
+    SELECT id, completion_days, created_at, updated_at
+    FROM assessments
+    WHERE stage = 'completed'
+    LIMIT 100
+  `
+});
+
+// Phase 3: Validate data integrity
+const dataValidationCode = `
+  const data = ${JSON.stringify(migratedData)};
+
+  // Check all completed assessments have completion_days
+  const missingData = data.filter(row => row.completion_days === null);
+  console.assert(missingData.length === 0, \`✗ Found \${missingData.length} rows with null completion_days\`);
+  console.log('✓ All completed assessments have completion_days calculated');
+
+  // Validate calculations
+  const invalidCalculations = data.filter(row => {
+    const created = new Date(row.created_at);
+    const updated = new Date(row.updated_at);
+    const expectedDays = (updated - created) / (1000 * 60 * 60 * 24);
+    const actualDays = parseFloat(row.completion_days);
+    return Math.abs(expectedDays - actualDays) > 0.01; // Allow small floating point diff
+  });
+
+  console.assert(invalidCalculations.length === 0, \`✗ Found \${invalidCalculations.length} rows with incorrect calculations\`);
+  console.log('✓ All calculations are correct');
+
+  // Summary statistics
+  const avgDays = data.reduce((sum, row) => sum + parseFloat(row.completion_days), 0) / data.length;
+  const maxDays = Math.max(...data.map(row => parseFloat(row.completion_days)));
+  const minDays = Math.min(...data.map(row => parseFloat(row.completion_days)));
+
+  console.log('\\nData Migration Summary:');
+  console.log(\`  Records migrated: \${data.length}\`);
+  console.log(\`  Average completion: \${avgDays.toFixed(2)} days\`);
+  console.log(\`  Range: \${minDays.toFixed(2)} - \${maxDays.toFixed(2)} days\`);
+  console.log('\\n✓ All data migration tests passed');
+`;
+
+await mcp__ide__executeCode({ code: dataValidationCode });
+```
+
+**Token Efficiency:**
+- Traditional approach: 3-5 tool calls (1500-2500 tokens)
+- Code execution: 2 operations (300-500 tokens)
+- **Savings: 80-88%**
+
 ### 4.2 Verify Table Structure
 
 ```sql

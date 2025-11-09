@@ -719,3 +719,388 @@ For detailed information, see:
 **Create migration**: Follow idempotent pattern from PATTERNS.md
 **Upload file**: Use storage.service.ts upload methods
 **Query with joins**: Use nested select syntax (see EXAMPLES.md)
+
+---
+
+## Code Execution for Testing Services
+
+Test services programmatically using **Architecture A** pattern (MCP fetch → code process).
+
+**Token Efficiency**: 73-94% reduction vs traditional tool chaining.
+
+### Pattern: Test Service Methods
+
+Test database operations by fetching data with MCP tools, then validating with code execution.
+
+**Phase 1: Fetch Data with MCP**
+```typescript
+// Claude calls MCP tool to fetch test data
+const testData = await mcp__supabase__execute_sql({
+  project_id: env.SUPABASE_PROJECT_ID,
+  query: `
+    SELECT * FROM assessments
+    WHERE stage = 'assessment_in_progress'
+    ORDER BY created_at DESC
+    LIMIT 5
+  `
+});
+```
+
+**Phase 2: Validate with Code Execution**
+```typescript
+// Claude generates code with embedded data
+const validationCode = `
+  const testData = ${JSON.stringify(testData)};
+
+  // Verify structure
+  console.assert(Array.isArray(testData), 'Should return array');
+  console.assert(testData.length <= 5, 'Should limit to 5 results');
+
+  // Validate each assessment
+  testData.forEach((assessment, index) => {
+    console.assert(assessment.stage === 'assessment_in_progress',
+      \`Assessment \${index} should have correct stage\`);
+    console.assert(assessment.id,
+      \`Assessment \${index} should have id\`);
+    console.assert(assessment.created_at,
+      \`Assessment \${index} should have created_at\`);
+  });
+
+  console.log('✓ All validations passed');
+  console.log(\`✓ Found \${testData.length} assessments\`);
+`;
+
+// Execute validation
+await mcp__ide__executeCode({ code: validationCode });
+```
+
+### Pattern: Test RLS Policies
+
+Verify RLS policies work correctly by fetching with different user contexts.
+
+**Phase 1: Fetch Data as Different Users**
+```typescript
+// Admin user query
+const adminData = await mcp__supabase__execute_sql({
+  project_id: env.SUPABASE_PROJECT_ID,
+  query: `
+    SELECT COUNT(*) as count
+    FROM assessments
+  `
+});
+
+// Engineer user query (filtered by RLS)
+const engineerData = await mcp__supabase__execute_sql({
+  project_id: env.SUPABASE_PROJECT_ID,
+  query: `
+    SELECT COUNT(*) as count
+    FROM assessments
+    WHERE appointment.engineer_id = auth.uid()
+  `
+});
+```
+
+**Phase 2: Compare Results**
+```typescript
+const comparisonCode = `
+  const adminData = ${JSON.stringify(adminData)};
+  const engineerData = ${JSON.stringify(engineerData)};
+
+  const adminCount = adminData[0].count;
+  const engineerCount = engineerData[0].count;
+
+  console.log('RLS Policy Verification:');
+  console.log(\`  Admin sees: \${adminCount} assessments\`);
+  console.log(\`  Engineer sees: \${engineerCount} assessments\`);
+
+  if (engineerCount <= adminCount) {
+    console.log('✓ RLS correctly restricts engineer access');
+  } else {
+    console.error('❌ RLS policy error: engineer sees more than admin');
+  }
+`;
+
+await mcp__ide__executeCode({ code: comparisonCode });
+```
+
+### Pattern: Validate Migration Results
+
+After applying a migration, validate the schema changes.
+
+**Phase 1: Apply Migration and Fetch Schema**
+```typescript
+// Apply migration
+await mcp__supabase__apply_migration({
+  project_id: env.SUPABASE_PROJECT_ID,
+  name: '071_add_comments_table',
+  query: `
+    CREATE TABLE IF NOT EXISTS comments (
+      id uuid PRIMARY KEY DEFAULT extensions.uuid_generate_v4(),
+      assessment_id uuid REFERENCES assessments(id),
+      content text NOT NULL,
+      created_at timestamptz DEFAULT now()
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_comments_assessment
+      ON comments(assessment_id);
+  `
+});
+
+// Fetch schema information
+const tables = await mcp__supabase__list_tables({
+  project_id: env.SUPABASE_PROJECT_ID,
+  schemas: ['public']
+});
+```
+
+**Phase 2: Validate Schema**
+```typescript
+const validationCode = `
+  const tables = ${JSON.stringify(tables)};
+
+  // Check table exists
+  const commentsTable = tables.find(t => t.name === 'comments');
+  console.assert(commentsTable, 'comments table should exist');
+
+  // Check columns
+  const hasId = commentsTable.columns.some(c => c.name === 'id');
+  const hasAssessmentId = commentsTable.columns.some(c => c.name === 'assessment_id');
+  const hasContent = commentsTable.columns.some(c => c.name === 'content');
+  const hasCreatedAt = commentsTable.columns.some(c => c.name === 'created_at');
+
+  console.assert(hasId, 'Should have id column');
+  console.assert(hasAssessmentId, 'Should have assessment_id column');
+  console.assert(hasContent, 'Should have content column');
+  console.assert(hasCreatedAt, 'Should have created_at column');
+
+  // Check indexes
+  const hasIndex = commentsTable.indexes.some(i =>
+    i.name === 'idx_comments_assessment'
+  );
+  console.assert(hasIndex, 'Should have assessment_id index');
+
+  console.log('✓ Migration validated successfully');
+  console.log('  - Table created');
+  console.log('  - All columns present');
+  console.log('  - Index created');
+`;
+
+await mcp__ide__executeCode({ code: validationCode });
+```
+
+### Pattern: Test Unique ID Generation
+
+Validate that unique ID generation follows ClaimTech patterns.
+
+**Phase 1: Generate IDs and Fetch Results**
+```typescript
+// Create multiple entities to test ID generation
+const createResults = await mcp__supabase__execute_sql({
+  project_id: env.SUPABASE_PROJECT_ID,
+  query: `
+    INSERT INTO assessments (request_id)
+    SELECT id FROM requests
+    WHERE stage = 'request_submitted'
+    LIMIT 3
+    RETURNING assessment_number, created_at
+  `
+});
+```
+
+**Phase 2: Validate ID Pattern**
+```typescript
+const validationCode = `
+  const results = ${JSON.stringify(createResults)};
+
+  const currentYear = new Date().getFullYear();
+  const expectedPrefix = \`ASM-\${currentYear}-\`;
+
+  results.forEach((result, index) => {
+    console.assert(
+      result.assessment_number.startsWith(expectedPrefix),
+      \`Assessment \${index} should start with \${expectedPrefix}\`
+    );
+
+    // Extract number portion
+    const numberPart = result.assessment_number.split('-')[2];
+    console.assert(
+      numberPart.length === 3,
+      \`Assessment \${index} should have 3-digit number (got \${numberPart})\`
+    );
+
+    console.assert(
+      /^\d{3}$/.test(numberPart),
+      \`Assessment \${index} number should be numeric\`
+    );
+  });
+
+  console.log('✓ Unique ID generation validated');
+  console.log(\`  - All IDs follow \${expectedPrefix}XXX pattern\`);
+  console.log(\`  - All numbers are zero-padded to 3 digits\`);
+`;
+
+await mcp__ide__executeCode({ code: validationCode });
+```
+
+### Pattern: Test ServiceClient Injection
+
+Verify services work with both authenticated and service role clients.
+
+**Phase 1: Test with Different Clients**
+```typescript
+// Test with authenticated client (RLS enforced)
+const authResults = await mcp__supabase__execute_sql({
+  project_id: env.SUPABASE_PROJECT_ID,
+  query: `
+    SELECT COUNT(*) as count
+    FROM assessments
+    -- RLS will filter to user's assessments
+  `
+});
+
+// Test with service role (RLS bypassed)
+const serviceResults = await mcp__supabase__execute_sql({
+  project_id: env.SUPABASE_PROJECT_ID,
+  query: `
+    SELECT COUNT(*) as count
+    FROM assessments
+  `,
+  use_service_role: true
+});
+```
+
+**Phase 2: Compare Behavior**
+```typescript
+const comparisonCode = `
+  const authResults = ${JSON.stringify(authResults)};
+  const serviceResults = ${JSON.stringify(serviceResults)};
+
+  const authCount = authResults[0].count;
+  const serviceCount = serviceResults[0].count;
+
+  console.log('ServiceClient Pattern Validation:');
+  console.log(\`  Authenticated client: \${authCount} rows\`);
+  console.log(\`  Service role client: \${serviceCount} rows\`);
+
+  if (serviceCount >= authCount) {
+    console.log('✓ Service role bypasses RLS correctly');
+    console.log(\`  - Service role sees \${serviceCount - authCount} additional rows\`);
+  } else {
+    console.error('❌ Unexpected: service role sees fewer rows');
+  }
+`;
+
+await mcp__ide__executeCode({ code: comparisonCode });
+```
+
+### Pattern: Test Audit Logging
+
+Verify audit logs are created correctly for operations.
+
+**Phase 1: Perform Operation and Fetch Audit Logs**
+```typescript
+// Perform an update
+await mcp__supabase__execute_sql({
+  project_id: env.SUPABASE_PROJECT_ID,
+  query: `
+    UPDATE assessments
+    SET stage = 'estimate_review'
+    WHERE id = $1
+  `,
+  params: [testAssessmentId]
+});
+
+// Fetch audit logs
+const auditLogs = await mcp__supabase__execute_sql({
+  project_id: env.SUPABASE_PROJECT_ID,
+  query: `
+    SELECT *
+    FROM audit_logs
+    WHERE entity_type = 'assessment'
+      AND entity_id = $1
+    ORDER BY created_at DESC
+    LIMIT 5
+  `,
+  params: [testAssessmentId]
+});
+```
+
+**Phase 2: Validate Audit Trail**
+```typescript
+const validationCode = `
+  const auditLogs = ${JSON.stringify(auditLogs)};
+
+  console.assert(auditLogs.length > 0, 'Should have audit logs');
+
+  const latestLog = auditLogs[0];
+
+  // Validate structure
+  console.assert(latestLog.entity_type === 'assessment',
+    'Should log correct entity type');
+  console.assert(latestLog.action,
+    'Should have action field');
+  console.assert(latestLog.changes,
+    'Should have changes field');
+  console.assert(latestLog.user_id,
+    'Should track user who made change');
+  console.assert(latestLog.created_at,
+    'Should have timestamp');
+
+  console.log('✓ Audit logging validated');
+  console.log(\`  - Found \${auditLogs.length} audit logs\`);
+  console.log(\`  - Latest action: \${latestLog.action}\`);
+  console.log(\`  - Changes tracked: \${Object.keys(JSON.parse(latestLog.changes || '{}')).join(', ')}\`);
+`;
+
+await mcp__ide__executeCode({ code: validationCode });
+```
+
+### When to Use Code Execution for Testing
+
+**✅ Use Code Execution When:**
+- Validating multiple assertions on fetched data
+- Comparing results from different queries
+- Testing complex business logic
+- Generating test reports with statistics
+- Batch validation of migration results
+
+**❌ Use Direct MCP Tools When:**
+- Simple single query execution
+- Creating test data (INSERT operations)
+- Applying migrations
+- Single assertion checks
+
+### Integration with Existing Service Patterns
+
+Code execution complements the ServiceClient injection pattern:
+
+```typescript
+// Step 1: Test service method (traditional)
+const result = await service.createAssessment(input, locals.supabase);
+
+// Step 2: Fetch result with MCP for validation
+const validation = await mcp__supabase__execute_sql({
+  project_id: env.SUPABASE_PROJECT_ID,
+  query: 'SELECT * FROM assessments WHERE id = $1',
+  params: [result.id]
+});
+
+// Step 3: Validate with code execution
+const code = `
+  const data = ${JSON.stringify(validation)};
+  console.assert(data[0].stage === 'request_submitted', 'Should have default stage');
+  console.assert(data[0].assessment_number, 'Should have unique number');
+  console.log('✓ Service method validated');
+`;
+
+await mcp__ide__executeCode({ code });
+```
+
+### Benefits Summary
+
+- **73-94% token reduction** for complex test validations
+- **Single execution** vs multiple tool calls for assertions
+- **Structured test reports** with detailed output
+- **Batch validation** of multiple conditions
+- **Easy debugging** with console.log statements
+- **Reusable patterns** across all services

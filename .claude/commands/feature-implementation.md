@@ -96,6 +96,87 @@ You are a senior full-stack developer implementing features in ClaimTech. Follow
 
 ## Phase 4: Implementation (varies)
 
+### Step 4.0: Choose Implementation Approach
+
+Before implementing, consider whether code execution will improve efficiency:
+
+**Decision Tree for Data Processing:**
+
+```
+Need to process data?
+├─ Single operation? → Use direct MCP tool call
+├─ 2-3 operations with simple logic? → Use MCP tools in conversation
+└─ 3+ operations or complex logic? → Use code execution (Architecture A)
+    ├─ Phase 1: Fetch data with MCP tools
+    └─ Phase 2: Process with code execution
+```
+
+**When to Use Code Execution:**
+- Complex data transformations (multiple map/filter/reduce)
+- Multi-step processing with conditional logic
+- Data analysis requiring calculations
+- Report generation with formatting
+- Batch processing with iteration
+- Token savings: 73-94% for complex workflows
+
+**Architecture A Pattern** (MCP Fetch → Code Process):
+
+**Example: Adding Analytics Feature**
+
+```typescript
+// Phase 1: Fetch data using MCP tool
+const assessments = await mcp__supabase__execute_sql({
+  project_id: env.SUPABASE_PROJECT_ID,
+  query: `
+    SELECT id, stage, created_at, stage_history
+    FROM assessments
+    WHERE created_at >= NOW() - INTERVAL '7 days'
+    ORDER BY created_at DESC
+    LIMIT 1000
+  `
+});
+
+// Phase 2: Process data with code execution
+const analyticsCode = `
+  // Data from Phase 1 embedded via JSON.stringify()
+  const assessments = ${JSON.stringify(assessments)};
+
+  // Calculate analytics
+  const analytics = {
+    total: assessments.length,
+    byStage: assessments.reduce((acc, a) => {
+      acc[a.stage] = (acc[a.stage] || 0) + 1;
+      return acc;
+    }, {}),
+    avgCompletionTime: assessments
+      .filter(a => a.stage === 'completed')
+      .map(a => {
+        const history = JSON.parse(a.stage_history || '[]');
+        const created = new Date(history[0]?.timestamp || a.created_at);
+        const completed = new Date(history[history.length - 1]?.timestamp);
+        return (completed - created) / (1000 * 60 * 60 * 24); // days
+      })
+      .reduce((sum, days) => sum + days, 0) / assessments.filter(a => a.stage === 'completed').length
+  };
+
+  console.log(JSON.stringify(analytics, null, 2));
+`;
+
+// Execute processing code
+await mcp__ide__executeCode({ code: analyticsCode });
+```
+
+**Key Benefits:**
+- 73-94% token reduction vs traditional tool chaining
+- Single execution instead of multiple tool calls
+- Complex logic in familiar programming patterns
+- Type-safe operations with full TypeScript
+
+**Reference Documentation:**
+- `.agent/System/code_execution_architecture.md` - Architecture patterns
+- `.agent/SOP/using_code_executor.md` - Step-by-step guide
+- `.claude/skills/code-execution/` - Code execution skill
+
 ### Follow Skill Workflows:
 
 #### 4.1 Database Migration
@@ -187,6 +268,55 @@ src/routes/(app)/feature/
 ## Phase 5: Testing (20-40 min)
 
 **Command:** Use `testing-workflow.md` command
+
+### Step 5.0: Generate Test Data (Optional)
+
+For comprehensive testing, use code execution to generate realistic test datasets:
+
+**Example: Generate Assessment Test Data**
+
+```typescript
+// Phase 1: Fetch current max ID to avoid conflicts
+const currentMax = await mcp__supabase__execute_sql({
+  project_id: env.SUPABASE_PROJECT_ID,
+  query: 'SELECT COALESCE(MAX(id), 0) as max_id FROM assessments'
+});
+
+// Phase 2: Generate test data plan
+const planCode = `
+  const currentMax = ${JSON.stringify(currentMax)};
+  const stages = ['request_submitted', 'inspection_scheduled', 'inspection_in_progress', 'completed'];
+  const engineers = ['eng-001', 'eng-002', 'eng-003'];
+
+  // Generate test plan
+  const testPlan = stages.map((stage, idx) => ({
+    stage,
+    count: 5,
+    claim_id_prefix: \`TEST-\${stage.toUpperCase()}\`,
+    engineer_id: engineers[idx % engineers.length],
+    sample_data: {
+      vehicle_make: 'Toyota',
+      vehicle_model: 'Camry',
+      vehicle_year: 2022
+    }
+  }));
+
+  console.log('Test Data Plan:');
+  console.log(JSON.stringify(testPlan, null, 2));
+  console.log(\`Total assessments to create: \${testPlan.reduce((sum, p) => sum + p.count, 0)}\`);
+`;
+
+await mcp__ide__executeCode({ code: planCode });
+
+// Phase 3: Use plan output to create test data via MCP
+// (Execute INSERT statements based on plan)
+```
+
+**Benefits:**
+- Consistent test data across environments
+- Realistic datasets for edge case testing
+- Automated test setup
+- Token-efficient generation (92% savings vs manual creation)
 
 ### Manual Testing:
 

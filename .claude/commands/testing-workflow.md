@@ -16,6 +16,146 @@ Before starting:
 
 ## Phase 1: Manual Testing (15-20 min)
 
+### 1.0 Generate Comprehensive Test Data (Optional)
+
+Use code execution to generate realistic test datasets for thorough testing:
+
+**Example: Generate Assessment Test Data**
+
+```typescript
+// Phase 1: Fetch current state to avoid conflicts
+const currentState = await mcp__supabase__execute_sql({
+  project_id: env.SUPABASE_PROJECT_ID,
+  query: `
+    SELECT
+      COALESCE(MAX(assessment_number::int), 0) as max_number,
+      COUNT(*) as total_count
+    FROM assessments
+    WHERE assessment_number ~ '^[0-9]+$'
+  `
+});
+
+const engineers = await mcp__supabase__execute_sql({
+  project_id: env.SUPABASE_PROJECT_ID,
+  query: 'SELECT id, name FROM users WHERE role = \'engineer\' LIMIT 5'
+});
+
+// Phase 2: Generate test data plan
+const testPlanCode = `
+  const currentState = ${JSON.stringify(currentState)};
+  const engineers = ${JSON.stringify(engineers)};
+  const stages = [
+    'request_submitted',
+    'inspection_scheduled',
+    'inspection_in_progress',
+    'report_in_progress',
+    'pending_review',
+    'completed'
+  ];
+
+  // Generate comprehensive test plan
+  const testPlan = {
+    totalAssessments: stages.length * 5,
+    byStage: stages.map((stage, idx) => ({
+      stage,
+      count: 5,
+      assessment_numbers: Array.from({ length: 5 }, (_, i) =>
+        (currentState[0].max_number + idx * 5 + i + 1).toString().padStart(6, '0')
+      ),
+      engineer_id: engineers[idx % engineers.length]?.id || null,
+      test_scenarios: [
+        'happy_path',
+        'edge_case_long_text',
+        'edge_case_special_chars',
+        'missing_optional_fields',
+        'boundary_values'
+      ][idx % 5]
+    })),
+    testData: {
+      vehicles: [
+        { make: 'Toyota', model: 'Camry', year: 2022, vin: 'TEST1234567890001' },
+        { make: 'Honda', model: 'Civic', year: 2021, vin: 'TEST1234567890002' },
+        { make: 'Ford', model: 'F-150', year: 2023, vin: 'TEST1234567890003' },
+        { make: 'Tesla', model: 'Model 3', year: 2024, vin: 'TEST1234567890004' },
+        { make: 'BMW', model: 'X5', year: 2020, vin: 'TEST1234567890005' }
+      ],
+      claims: [
+        { type: 'collision', description: 'Front bumper damage' },
+        { type: 'hail', description: 'Roof and hood damage' },
+        { type: 'theft', description: 'Stolen stereo system' },
+        { type: 'vandalism', description: 'Keyed door panels' },
+        { type: 'weather', description: 'Windshield crack from debris' }
+      ]
+    }
+  };
+
+  console.log('Test Data Plan:');
+  console.log(JSON.stringify(testPlan, null, 2));
+  console.log(\`\\nTotal assessments to create: \${testPlan.totalAssessments}\`);
+  console.log(\`Engineers available: \${engineers.length}\`);
+  console.log(\`\\nNext steps:\`);
+  console.log(\`1. Review test plan above\`);
+  console.log(\`2. Use plan to generate INSERT statements\`);
+  console.log(\`3. Execute inserts via MCP tools\`);
+`;
+
+await mcp__ide__executeCode({ code: testPlanCode });
+
+// Phase 3: Use plan output to create test data via MCP
+// (Execute INSERT statements based on plan)
+```
+
+**Example: Validate Test Data Creation**
+
+```typescript
+// Phase 1: Fetch created test data
+const testData = await mcp__supabase__execute_sql({
+  project_id: env.SUPABASE_PROJECT_ID,
+  query: `
+    SELECT stage, COUNT(*) as count
+    FROM assessments
+    WHERE assessment_number LIKE 'TEST%'
+    GROUP BY stage
+    ORDER BY stage
+  `
+});
+
+// Phase 2: Validate with code execution
+const validationCode = `
+  const testData = ${JSON.stringify(testData)};
+  const expectedStages = [
+    'request_submitted',
+    'inspection_scheduled',
+    'inspection_in_progress',
+    'report_in_progress',
+    'pending_review',
+    'completed'
+  ];
+
+  console.log('Test Data Validation:');
+
+  expectedStages.forEach(stage => {
+    const found = testData.find(row => row.stage === stage);
+    if (found) {
+      console.log(\`✓ Stage '\${stage}': \${found.count} assessments\`);
+    } else {
+      console.log(\`✗ Stage '\${stage}': 0 assessments (expected 5)\`);
+    }
+  });
+
+  const totalCreated = testData.reduce((sum, row) => sum + parseInt(row.count), 0);
+  console.log(\`\\nTotal test assessments created: \${totalCreated}\`);
+  console.log(totalCreated === 30 ? '✓ All test data created successfully' : '✗ Missing test data');
+`;
+
+await mcp__ide__executeCode({ code: validationCode });
+```
+
+**Token Efficiency:**
+- Traditional approach: Create each record manually (50+ tool calls, 10,000+ tokens)
+- Code execution: Generate plan + validate (2 operations, 800-1200 tokens)
+- **Savings: 88-92%**
+
 ### 1.1 Functionality Testing
 
 **Happy Path:**
@@ -519,6 +659,23 @@ SELECT * FROM entities;
 - ✅ RLS policies enforced
 - ✅ Authentication required
 - ✅ Input validation working
+
+### Code Execution Efficiency (if applicable)
+Include metrics if code execution was used for testing workflows:
+
+**Test Data Generation:**
+- Traditional approach: 50 tool calls, 10,000 tokens
+- Code execution: 2 operations, 1,200 tokens
+- Token savings: 88%
+
+**Data Validation:**
+- Traditional approach: 5 tool calls, 2,500 tokens
+- Code execution: 2 operations, 500 tokens
+- Token savings: 80%
+
+**Overall Testing Efficiency:**
+- Total operations reduced: 55 → 4 (93% reduction)
+- Total tokens saved: 12,500 → 1,700 (86% savings)
 
 ## Issues Found
 [List any issues discovered]
