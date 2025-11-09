@@ -1,10 +1,11 @@
 # Photo Labeling Feature Implementation
 
-**Date**: November 6, 2025 (Designed) | November 9, 2025 (Implemented & Fixed)
-**Status**: ✅ COMPLETE - Fully implemented with Svelte 5 reactivity fix applied
-**Components**: PhotoViewer, EstimatePhotosPanel
+**Date**: November 6, 2025 (Designed) | November 9, 2025 (Implemented & Fixed) | November 9, 2025 (Standardized)
+**Status**: ✅ COMPLETE - Fully implemented with Svelte 5 reactivity fix applied + standardized across all photo panels
+**Components**: PhotoViewer, EstimatePhotosPanel, PreIncidentPhotosPanel, AdditionalsPhotosPanel
 **Related**: [ui_loading_patterns.md](./ui_loading_patterns.md), [project_architecture.md](./project_architecture.md)
 **Bug Fixed**: Label not updating when scrolling through photos (Svelte 5 nested property reactivity issue)
+**Latest Update**: Standardized photo viewer pattern across all photo panels (PreIncident, Additionals now use PhotoViewer)
 
 ---
 
@@ -33,6 +34,84 @@
    - **First Attempt**: Tried `container.position` but container is a DOM element, not an object with position
    - **CORRECT Solution**: Use `activeItem.i` which contains the current index from bigger-picture library
    - **Impact**: This was preventing `currentIndex` from updating, so the reactivity chain never fired
+
+---
+
+## ✅ Photo Viewer Standardization (November 9, 2025)
+
+**COMPLETE** - Standardized photo viewer pattern across all photo panels in the application.
+
+### Changes Made
+
+#### 1. **PhotoViewer Component Enhancement**
+- Made PhotoViewer generic to accept all photo types (EstimatePhoto, PreIncidentEstimatePhoto, AdditionalsPhoto)
+- Added union type: `type Photo = EstimatePhoto | PreIncidentEstimatePhoto | AdditionalsPhoto`
+- All three types have identical structure: `id`, `photo_url`, `photo_path`, `label`, `display_order`, `created_at`, `updated_at`
+
+#### 2. **PreIncidentPhotosPanel Migration**
+- **Before**: Used Dialog modal with manual zoom controls (200+ lines of modal code)
+- **After**: Uses PhotoViewer component with bigger-picture library
+- **Removed**: Modal state variables, zoom functions, keyboard navigation handlers
+- **Added**: PhotoViewer integration with optimistic updates
+- **Result**: Consistent fullscreen viewing experience, reduced code duplication
+
+#### 3. **AdditionalsPhotosPanel Migration**
+- **Before**: Used Dialog modal with manual zoom controls (identical to PreIncident)
+- **After**: Uses PhotoViewer component with bigger-picture library
+- **Removed**: Modal state variables, zoom functions, keyboard navigation handlers
+- **Added**: PhotoViewer integration with optimistic updates
+- **Result**: Consistent fullscreen viewing experience, reduced code duplication
+
+#### 4. **Service Layer**
+- ✅ PreIncidentEstimatePhotosService already had `updatePhotoLabel()` method
+- ✅ AdditionalsPhotosService already had `updatePhotoLabel()` method
+- No changes needed - services were already complete
+
+### Benefits
+
+1. **Consistent UX**: All photo panels now use the same fullscreen viewer
+2. **Better User Experience**: Fullscreen immersive viewing vs constrained modal
+3. **Keyboard Shortcuts**: E to edit, Enter to save, Escape to cancel, arrow keys to navigate
+4. **Optimistic Updates**: Instant UI feedback for label edits and deletions
+5. **Code Reduction**: ~400 lines of duplicate modal code removed
+6. **Maintainability**: Single PhotoViewer component to maintain instead of three different implementations
+
+### Files Modified
+
+1. **src/lib/components/photo-viewer/PhotoViewer.svelte**
+   - Added generic Photo type union
+   - Updated Props interface to accept Photo[]
+
+2. **src/lib/components/assessment/PreIncidentPhotosPanel.svelte**
+   - Removed Dialog imports
+   - Removed modal state variables (tempLabel, modalSize, photoZoom)
+   - Removed zoom functions (zoomIn, zoomOut, resetZoom)
+   - Removed modal functions (openPhotoModal, closePhotoModal, previousPhoto, nextPhoto)
+   - Removed keyboard navigation handler
+   - Replaced 140+ lines of modal code with PhotoViewer component
+   - Added handlePhotoDelete and handleLabelUpdate functions
+   - Added openPhotoViewer and closePhotoViewer functions
+
+3. **src/lib/components/assessment/AdditionalsPhotosPanel.svelte**
+   - Removed Dialog imports
+   - Removed modal state variables (tempLabel, modalSize, photoZoom)
+   - Removed zoom functions (zoomIn, zoomOut, resetZoom)
+   - Removed modal functions (openPhotoModal, closePhotoModal, previousPhoto, nextPhoto)
+   - Removed keyboard navigation handler
+   - Replaced 100+ lines of modal code with PhotoViewer component
+   - Added handlePhotoDelete and handleLabelUpdate functions
+   - Added openPhotoViewer and closePhotoViewer functions
+
+### Testing Checklist
+
+- [ ] EstimatePhotosPanel: Upload, view, navigate, edit labels, delete
+- [ ] PreIncidentPhotosPanel: Upload, view, navigate, edit labels, delete
+- [ ] AdditionalsPhotosPanel: Upload, view, navigate, edit labels, delete
+- [ ] Cross-browser: Chrome, Firefox, Safari
+- [ ] Responsive: Desktop, tablet, mobile
+- [ ] Keyboard shortcuts: E, Enter, Escape, arrow keys
+- [ ] Optimistic updates: Instant UI feedback
+- [ ] Error handling: Network failures, permission errors
 
 ---
 

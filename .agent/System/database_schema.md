@@ -416,13 +416,43 @@ Vehicle identification details and photos (1:1 with assessments).
 - `overall_condition` (TEXT, CHECK: 'excellent' | 'very_good' | 'good' | 'fair' | 'poor' | 'very_poor')
 - `vehicle_color` (TEXT)
 
-**Standard 360° Photos:**
-- `front_photo_url`, `front_left_photo_url`, `left_photo_url`
-- `rear_left_photo_url`, `rear_photo_url`, `rear_right_photo_url`
-- `right_photo_url`, `front_right_photo_url`
+**Legacy Photo Columns (REMOVED in Migration 081):**
+- ~~`front_photo_url`, `front_left_photo_url`, `left_photo_url`~~
+- ~~`rear_left_photo_url`, `rear_photo_url`, `rear_right_photo_url`~~
+- ~~`right_photo_url`, `front_right_photo_url`~~
+- ~~`additional_photos` (JSONB)~~
 
-**Additional Photos:**
-- `additional_photos` (JSONB, DEFAULT '[]') - Array of photo URLs
+**Note:** All exterior photos are now managed through the `assessment_exterior_360_photos` table using the unified photo panel pattern.
+
+---
+
+### `assessment_exterior_360_photos`
+Exterior 360-degree photos for assessments (1:N with assessments). Created in Migration 079 (Jan 2025) to replace legacy photo URL columns in `assessment_360_exterior`.
+
+**Architecture:** Unified photo panel pattern - single table for all exterior photos with upload zone and gallery in one component.
+
+**Columns:**
+- `id` (UUID, PK, DEFAULT gen_random_uuid())
+- `assessment_id` (UUID, FK → assessments, ON DELETE CASCADE, NOT NULL)
+- `photo_url` (TEXT, NOT NULL) - Public URL of the photo in Supabase Storage
+- `photo_path` (TEXT, NOT NULL) - Storage path of the photo for deletion
+- `label` (TEXT) - Optional label/description for the photo (e.g., "Close-up of damage", "Wheel detail")
+- `display_order` (INTEGER, DEFAULT 0) - Order for displaying photos (0-based)
+- `created_at` (TIMESTAMPTZ, NOT NULL, DEFAULT NOW())
+- `updated_at` (TIMESTAMPTZ, NOT NULL, DEFAULT NOW())
+
+**Indexes:**
+- `idx_exterior_360_photos_assessment_id` on `assessment_id`
+- `idx_exterior_360_photos_display_order` on `(assessment_id, display_order)`
+
+**RLS:** ✅ ENABLED - Policy: "Allow all operations for authenticated users"
+
+**Related Components:**
+- `Exterior360PhotosPanel.svelte` - Unified photo upload/gallery component
+- `exterior-360-photos.service.ts` - CRUD service layer
+- `Exterior360Tab.svelte` - Main tab component (legacy 8-position panel removed)
+
+**Validation:** Requires at least 4 exterior photos (replaces old requirement of front, rear, left, right positions)
 
 ---
 

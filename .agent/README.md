@@ -1,7 +1,7 @@
 # ClaimTech Documentation
 
 **Project**: ClaimTech (SVA - SvelteKit Validation App)
-**Last Updated**: November 6, 2025 (Updated: Photo Labeling Feature + Critical Bug Fixes)
+**Last Updated**: January 2025 (Unified Photo Panel Pattern)
 
 ---
 

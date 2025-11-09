@@ -1,7 +1,7 @@
 # System Documentation Index
 
-**Last Updated**: November 9, 2025 (Photo Viewer Label Bug - FINAL FIX)
-**Total Files**: 31 System documentation files
+**Last Updated**: January 2025 (Unified Photo Panel Pattern)
+**Total Files**: 32 System documentation files
 
 ---
 
@@ -37,7 +37,7 @@ Comprehensive system documentation covering architecture, database design, secur
 - **Read When**: Adding/modifying tables, understanding relationships, debugging RLS, writing queries
 
 **Contains**:
-- All 28 tables with columns, types, constraints
+- All 31 tables with columns, types, constraints
 - Relationships & foreign keys
 - RLS policies (100% coverage achieved)
 - Indexes & performance optimization
@@ -184,6 +184,31 @@ Comprehensive system documentation covering architecture, database design, secur
 - bigger-picture library callback signature documentation
 
 **Key for**: Understanding photo editing UI, optimistic updates, debugging navigation issues, keyboard accessibility patterns, bigger-picture library integration
+
+---
+
+### 4. Unified Photo Panel Pattern ⭐ NEW (Jan 2025)
+- **File**: [unified_photo_panel_pattern.md](../System/unified_photo_panel_pattern.md)
+- **Size**: ~400 lines | **Last Updated**: Jan 2025
+- **Read When**: Implementing photo upload components, understanding photo panel architecture, migrating from legacy photo systems
+
+**Contains**:
+- Single-card layout pattern (upload zone + gallery in one component)
+- Conditional rendering (empty state vs. with photos)
+- Component architecture and props interface
+- Database table structure for all photo panels
+- Migration patterns from legacy systems (8-position exterior, interior photo columns)
+- Validation updates (photos array parameter pattern)
+- Implementation examples for all 5 photo panel types
+
+**Implemented in**:
+- `InteriorPhotosPanel.svelte`
+- `EstimatePhotosPanel.svelte`
+- `PreIncidentPhotosPanel.svelte`
+- `AdditionalsPhotosPanel.svelte`
+- `Exterior360PhotosPanel.svelte`
+
+**Related**: [Photo Labeling Patterns](../SOP/photo_labeling_patterns.md), [Database Schema](../System/database_schema.md)
 
 ---
 

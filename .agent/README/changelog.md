@@ -1,6 +1,51 @@
 # Changelog - Recent Updates
 
-**Last Updated**: November 2, 2025 (Client T&Cs Implementation)
+**Last Updated**: January 2025 (Unified Photo Panel Pattern)
+
+---
+
+## January 2025
+
+### 🎨 Unified Photo Panel Pattern Implementation
+- **FEATURE**: Consolidated all photo upload/gallery components into single-card unified pattern
+- **IMPACT**: Cleaner UI, consistent UX across all photo sections, easier maintenance
+- **CHANGES**:
+  - **Exterior 360 Photos**: Removed legacy 8-position photo upload system
+    - Removed `front_photo_url`, `front_left_photo_url`, `left_photo_url`, etc. columns
+    - Created new `assessment_exterior_360_photos` table (Migration 079)
+    - Removed old photo columns from `assessment_360_exterior` (Migration 081)
+    - Updated `Exterior360Tab.svelte` to use unified `Exterior360PhotosPanel`
+  - **All Photo Panels**: Standardized to single-card layout
+    - Empty state: Large centered upload zone
+    - With photos: Compact upload zone as first grid item + photo gallery
+    - Dynamic titles: "Section Name" when empty, "Section Name (N)" when photos exist
+- **VALIDATION UPDATES**:
+  - `validateExterior360()` now accepts `exterior360Photos` array parameter
+  - Requires at least 4 exterior photos (replaces old front/rear/left/right requirement)
+  - Follows same pattern as `validateInteriorMechanical()` with photos array
+- **COMPONENTS AFFECTED**:
+  - `InteriorPhotosPanel.svelte` - Already unified
+  - `EstimatePhotosPanel.svelte` - Already unified
+  - `PreIncidentPhotosPanel.svelte` - Already unified
+  - `AdditionalsPhotosPanel.svelte` - Already unified
+  - `Exterior360PhotosPanel.svelte` - NEW unified component
+  - `Exterior360Tab.svelte` - Removed legacy 8-position panel
+- **DATABASE**:
+  - New table: `assessment_exterior_360_photos` (Migration 079)
+  - Removed columns: 8 photo URL columns + `additional_photos` JSONB (Migration 081)
+- **DOCUMENTATION**:
+  - Created `unified_photo_panel_pattern.md` - Complete pattern documentation
+  - Updated `database_schema.md` - New table and removed columns
+  - Updated validation documentation
+- **FILES**:
+  - `src/lib/components/assessment/Exterior360Tab.svelte` - Removed legacy panel
+  - `src/lib/components/assessment/Exterior360PhotosPanel.svelte` - NEW unified component
+  - `src/lib/services/exterior-360-photos.service.ts` - NEW service
+  - `src/lib/utils/validation.ts` - Updated validation signature
+  - `src/lib/types/assessment.ts` - Added Exterior360Photo types
+  - `supabase/migrations/079_create_assessment_exterior_360_photos.sql` - NEW
+  - `supabase/migrations/080_check_redundant_exterior_photo_fields.sql` - Diagnostic queries
+  - `supabase/migrations/081_remove_redundant_exterior_photo_columns.sql` - Cleanup migration
 
 ---
 
