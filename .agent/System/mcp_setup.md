@@ -120,6 +120,152 @@ Model Context Protocol (MCP) is a standard for connecting AI assistants to exter
 
 ---
 
+## Enhanced MCP Servers (Recommended Additions)
+
+#### 7. Files MCP
+**Purpose**: Enhanced code navigation and file operations
+
+```json
+"files": {
+  "command": "npx",
+  "args": ["-y", "@modelcontextprotocol/server-files"],
+  "env": {
+    "ALLOWED_DIRECTORIES": "C:\\Users\\Jcvdm\\Desktop\\Jaco\\Programming\\sites\\Claimtech"
+  }
+}
+```
+
+**Capabilities**:
+- Quick file search and navigation
+- Surgical code editing
+- Symbol finding across codebase
+- Safe file operations with directory restrictions
+
+**Use Cases**:
+- Find and edit code with precision
+- Navigate large codebases efficiently
+- Locate symbols across multiple files
+
+---
+
+#### 8. SQLite MCP
+**Purpose**: Local database testing and development
+
+```json
+"sqlite": {
+  "command": "npx",
+  "args": ["-y", "@modelcontextprotocol/server-sqlite", "--db-path", "./dev.db"]
+}
+```
+
+**Capabilities**:
+- Local database operations
+- Development testing
+- Schema exploration
+- Query execution
+
+**Use Cases**:
+- Test database operations locally
+- Prototype schema changes
+- Development database management
+
+---
+
+#### 9. Memory-Plus MCP
+**Purpose**: Persistent AI memory across sessions
+
+```json
+"memory-plus": {
+  "command": "npx",
+  "args": ["-y", "memory-plus-mcp"]
+}
+```
+
+**Capabilities**:
+- Store persistent memories
+- Cross-session context retention
+- RAG-based memory retrieval
+- Perfect for multiple AI coders
+
+**Use Cases**:
+- Remember project context across sessions
+- Store important decisions and patterns
+- Maintain continuity with multiple AI assistants
+
+---
+
+#### 10. Time MCP
+**Purpose**: Time and date utilities
+
+```json
+"time": {
+  "command": "npx",
+  "args": ["-y", "@modelcontextprotocol/server-time"]
+}
+```
+
+**Capabilities**:
+- Natural language time parsing
+- Timezone conversions
+- Date calculations
+- Multiple format support
+
+**Use Cases**:
+- Handle time-based calculations
+- Convert between timezones
+- Parse natural language dates
+
+---
+
+#### 11. Calculator MCP
+**Purpose**: Precise numerical calculations
+
+```json
+"calculator": {
+  "command": "npx",
+  "args": ["-y", "@modelcontextprotocol/server-calculator"]
+}
+```
+
+**Capabilities**:
+- Mathematical calculations
+- Precise numerical operations
+- Complex expressions
+- Scientific calculations
+
+**Use Cases**:
+- Perform precise calculations
+- Handle complex mathematical operations
+- Avoid floating-point errors
+
+---
+
+#### 12. Brave Search MCP
+**Purpose**: Web search capabilities
+
+```json
+"brave-search": {
+  "command": "npx",
+  "args": ["-y", "@modelcontextprotocol/server-brave-search"],
+  "env": {
+    "BRAVE_API_KEY": "your-brave-api-key-here"
+  }
+}
+```
+
+**Capabilities**:
+- Web search functionality
+- Real-time information retrieval
+- Search result analysis
+- Privacy-focused search
+
+**Use Cases**:
+- Research latest technologies
+- Find documentation and examples
+- Get real-time information
+
+---
+
 ## Code Execution Pattern (Preferred)
 
 ### Overview

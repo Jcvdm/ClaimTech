@@ -1,0 +1,60 @@
+{
+  "mcpServers": {
+    "supabase": {
+      "url": "https://mcp.supabase.com/mcp"
+    },
+    "github": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-github"],
+      "env": {
+        "GITHUB_PERSONAL_ACCESS_TOKEN": "***"
+      }
+    },
+    "@executeautomation-playwright-mcp-server": {
+      "command": "npx",
+      "args": ["-y", "@executeautomation/playwright-mcp-server"]
+    },
+    "svelte": {
+      "command": "npx",
+      "args": ["-y", "@executeautomation/svelte-mcp-server"]
+    },
+    "chrome-devtools": {
+      "command": "npx",
+      "args": ["-y", "chrome-devtools-mcp@latest"]
+    },
+    "context7": {
+      "command": "npx",
+      "args": ["-y", "@upstash/context7-mcp"]
+    },
+    "files": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-files"],
+      "env": {
+        "ALLOWED_DIRECTORIES": "C:\\Users\\Jcvdm\\Desktop\\Jaco\\Programming\\sites\\Claimtech"
+      }
+    },
+    "sqlite": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-sqlite", "--db-path", "./dev.db"]
+    },
+    "memory-plus": {
+      "command": "npx",
+      "args": ["-y", "memory-plus-mcp"]
+    },
+    "time": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-time"]
+    },
+    "calculator": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-calculator"]
+    },
+    "brave-search": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-brave-search"],
+      "env": {
+        "BRAVE_API_KEY": "your-brave-api-key-here"
+      }
+    }
+  }
+}

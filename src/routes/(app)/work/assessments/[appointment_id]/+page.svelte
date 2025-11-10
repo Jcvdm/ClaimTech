@@ -30,6 +30,7 @@
 	import { preIncidentEstimatePhotosService } from '$lib/services/pre-incident-estimate-photos.service';
 	import { interiorPhotosService } from '$lib/services/interior-photos.service';
 	import { exterior360PhotosService } from '$lib/services/exterior-360-photos.service';
+	import { tyrePhotosService } from '$lib/services/tyre-photos.service';
 	import { vehicleValuesService } from '$lib/services/vehicle-values.service';
 	import { documentGenerationService } from '$lib/services/document-generation.service';
 	import { assessmentNotesService } from '$lib/services/assessment-notes.service';
@@ -772,6 +773,12 @@
 			}}
 			onRegisterSave={(saveFn) => {
 				tyresTabSaveFn = saveFn;
+			}}
+			onPhotosUpdate={async () => {
+				// Reload tyre photos from database
+				const updatedPhotos = await tyrePhotosService.getPhotosByAssessment(data.assessment.id);
+				// Update local state (triggers reactivity)
+				data.tyrePhotos = updatedPhotos;
 			}}
 		/>
 	{:else if currentTab === 'damage'}

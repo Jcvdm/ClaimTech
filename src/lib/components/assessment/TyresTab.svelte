@@ -19,9 +19,10 @@
 		onDeleteTyre: (id: string) => void;
 		onNotesUpdate?: () => Promise<void>;
 		onRegisterSave?: (saveFn: () => Promise<void>) => void; // Expose save function to parent for auto-save on tab change
+		onPhotosUpdate?: () => Promise<void>; // Refresh photos from database after upload/delete/label update
 	}
 
-	let { tyres: tyresProp, tyrePhotos: tyrePhotosProp, assessmentId, onUpdateTyre, onAddTyre, onDeleteTyre, onNotesUpdate, onRegisterSave }: Props = $props();
+	let { tyres: tyresProp, tyrePhotos: tyrePhotosProp, assessmentId, onUpdateTyre, onAddTyre, onDeleteTyre, onNotesUpdate, onRegisterSave, onPhotosUpdate }: Props = $props();
 
 	// Make tyres reactive to prop changes
 	const tyres = $derived(tyresProp);
@@ -40,14 +41,16 @@
 	});
 
 	// Handle photo updates for a specific tyre
-	function handleTyrePhotosUpdate(tyreId: string, updatedPhotos: TyrePhoto[]) {
-		// Update local state
+	async function handleTyrePhotosUpdate(tyreId: string, updatedPhotos: TyrePhoto[]) {
+		// Update local state immediately (optimistic update)
 		tyrePhotosMap.set(tyreId, updatedPhotos);
 		tyrePhotosMap = new Map(tyrePhotosMap);
 
-		// Notify parent with updated photos (direct state update pattern)
-		// Parent will update data.tyrePhotos which triggers reactivity
-		onUpdateTyre(tyreId, {});
+		// Notify parent to refresh photos from database
+		// This ensures data.tyrePhotos is updated for future tab switches
+		if (onPhotosUpdate) {
+			await onPhotosUpdate();
+		}
 	}
 
 	// Validation for warning banner
