@@ -66,6 +66,7 @@
 	let estimateTabSaveFn: (() => Promise<void>) | null = null;
 	let preIncidentEstimateTabSaveFn: (() => Promise<void>) | null = null;
 	let tyresTabSaveFn: (() => Promise<void>) | null = null;
+	let damageTabSaveFn: (() => Promise<void>) | null = null;
 
 	async function handleTabChange(tabId: string) {
 		// Auto-save current tab if leaving it with unsaved changes
@@ -75,6 +76,8 @@
 			await preIncidentEstimateTabSaveFn();
 		} else if (currentTab === 'tyres' && tyresTabSaveFn) {
 			await tyresTabSaveFn();
+		} else if (currentTab === 'damage' && damageTabSaveFn) {
+			await damageTabSaveFn();
 		}
 
 		// Auto-save before switching tabs
@@ -115,6 +118,8 @@
 			await preIncidentEstimateTabSaveFn();
 		} else if (currentTab === 'tyres' && tyresTabSaveFn) {
 			await tyresTabSaveFn();
+		} else if (currentTab === 'damage' && damageTabSaveFn) {
+			await damageTabSaveFn();
 		}
 		goto(`/work/appointments/${data.appointment.id}`);
 	}
@@ -715,6 +720,8 @@
 			inspection={data.inspection}
 			request={data.request}
 			client={data.client}
+			vehicleIdentification={data.vehicleIdentification}
+			interiorMechanical={data.interiorMechanical}
 		/>
 	{:else if currentTab === 'identification'}
 		<VehicleIdentificationTab
@@ -786,12 +793,17 @@
 			damageRecord={data.damageRecord}
 			assessmentId={data.assessment.id}
 			onUpdateDamage={handleUpdateDamage}
+			onRegisterSave={(saveFn) => {
+				damageTabSaveFn = saveFn;
+			}}
 		/>
 	{:else if currentTab === 'values'}
 		<VehicleValuesTab
 			data={data.vehicleValues}
 			assessmentId={data.assessment.id}
 			client={data.client}
+			vehicleIdentification={data.vehicleIdentification}
+			interiorMechanical={data.interiorMechanical}
 			requestInfo={{
 				request_number: data.request?.request_number,
 				claim_number: data.request?.claim_number,
@@ -800,6 +812,7 @@
 				vehicle_model: data.request?.vehicle_model,
 				vehicle_year: data.request?.vehicle_year,
 				vehicle_vin: data.request?.vehicle_vin,
+				vehicle_registration: data.request?.vehicle_registration,
 				vehicle_mileage: data.request?.vehicle_mileage
 			}}
 			onUpdate={handleUpdateVehicleValues}

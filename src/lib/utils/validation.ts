@@ -78,8 +78,10 @@ export function validateInteriorMechanical(data: any, interiorPhotos: any[] = []
 
 /**
  * Validate Tyres tab
+ * Requires at least 1 photo per tyre
+ * Condition and tread depth are optional
  */
-export function validateTyres(tyres: any[]): TabValidation {
+export function validateTyres(tyres: any[], tyrePhotosMap?: Map<string, any[]>): TabValidation {
 	const missingFields: string[] = [];
 
 	if (!tyres || tyres.length === 0) {
@@ -91,12 +93,17 @@ export function validateTyres(tyres: any[]): TabValidation {
 		};
 	}
 
-	// Check each tyre has minimum required fields
+	// Check each tyre has at least 1 photo
 	tyres.forEach((tyre, index) => {
 		const tyreLabel = tyre.position_label || `Tyre ${index + 1}`;
-		
-		if (!tyre.condition) missingFields.push(`${tyreLabel}: Condition`);
-		if (!tyre.tread_depth_mm) missingFields.push(`${tyreLabel}: Tread Depth`);
+
+		// Photo requirement check
+		if (tyrePhotosMap) {
+			const photos = tyrePhotosMap.get(tyre.id) || [];
+			if (photos.length === 0) {
+				missingFields.push(`${tyreLabel}: At least 1 photo required`);
+			}
+		}
 	});
 
 	return {
@@ -108,24 +115,28 @@ export function validateTyres(tyres: any[]): TabValidation {
 
 /**
  * Validate Damage tab
+ * Requires: matches_description (Yes/No), severity
+ * Note: damage_area and damage_type are NOT NULL in database, always have default values
  */
 export function validateDamage(damageRecords: any[]): TabValidation {
 	const missingFields: string[] = [];
 
-	// Check if matches_description is set
+	// Check if matches_description is set (user must explicitly choose Yes/No)
 	if (damageRecords.length > 0) {
 		const firstRecord = damageRecords[0];
 		if (firstRecord.matches_description === null || firstRecord.matches_description === undefined) {
 			missingFields.push('Damage matches description (Yes/No)');
 		}
-	}
 
-	// Check each damage record has required fields
-	damageRecords.forEach((record, index) => {
-		if (!record.damage_area) missingFields.push(`Damage ${index + 1}: Area`);
-		if (!record.damage_type) missingFields.push(`Damage ${index + 1}: Type`);
-		if (!record.severity) missingFields.push(`Damage ${index + 1}: Severity`);
-	});
+		// Check severity is set (explicit null/undefined/empty check, not falsy)
+		if (
+			firstRecord.severity === null ||
+			firstRecord.severity === undefined ||
+			firstRecord.severity === ''
+		) {
+			missingFields.push('Severity');
+		}
+	}
 
 	return {
 		tabId: 'damage',
@@ -144,17 +155,27 @@ export function validateAssessment(assessmentData: {
 	interiorPhotos?: any[];
 	exterior360Photos?: any[];
 	tyres: any[];
+	tyrePhotos?: any[];
 	damageRecords: any[];
 }): ValidationResult {
+	// Build tyrePhotosMap from tyrePhotos array
+	const tyrePhotosMap = new Map<string, any[]>();
+	if (assessmentData.tyrePhotos) {
+		assessmentData.tyres.forEach(tyre => {
+			const photos = assessmentData.tyrePhotos?.filter(p => p.tyre_id === tyre.id) || [];
+			tyrePhotosMap.set(tyre.id, photos);
+		});
+	}
+
 	const validations = [
 		validateVehicleIdentification(assessmentData.vehicleIdentification),
 		validateExterior360(assessmentData.exterior360, assessmentData.exterior360Photos || []),
 		validateInteriorMechanical(assessmentData.interiorMechanical, assessmentData.interiorPhotos || []),
-		validateTyres(assessmentData.tyres),
+		validateTyres(assessmentData.tyres, tyrePhotosMap),
 		validateDamage(assessmentData.damageRecords)
 	];
 
-	const allErrors = validations.flatMap(v => 
+	const allErrors = validations.flatMap(v =>
 		v.missingFields.map(field => `${v.tabId}: ${field}`)
 	);
 
@@ -272,9 +293,19 @@ export function validateVehicleValues(vehicleValues: any): TabValidation {
 		missingFields.push('Valuation source is required');
 	}
 
+	// Required: Source code
+	if (!vehicleValues.sourced_code) {
+		missingFields.push('Source code is required');
+	}
+
 	// Required: Sourced date
 	if (!vehicleValues.sourced_date) {
 		missingFields.push('Sourced date is required');
+	}
+
+	// Required: Warranty status
+	if (!vehicleValues.warranty_status) {
+		missingFields.push('Warranty status is required');
 	}
 
 	// Required: PDF proof
@@ -299,16 +330,26 @@ export function getTabCompletionStatus(assessmentData: {
 	interiorPhotos?: any[];
 	exterior360Photos?: any[];
 	tyres: any[];
+	tyrePhotos?: any[];
 	damageRecord: any;
 	vehicleValues: any;
 	preIncidentEstimate: any;
 	estimate: any;
 }): TabValidation[] {
+	// Build tyrePhotosMap from tyrePhotos array
+	const tyrePhotosMap = new Map<string, any[]>();
+	if (assessmentData.tyrePhotos) {
+		assessmentData.tyres.forEach(tyre => {
+			const photos = assessmentData.tyrePhotos?.filter(p => p.tyre_id === tyre.id) || [];
+			tyrePhotosMap.set(tyre.id, photos);
+		});
+	}
+
 	return [
 		validateVehicleIdentification(assessmentData.vehicleIdentification),
 		validateExterior360(assessmentData.exterior360, assessmentData.exterior360Photos || []),
 		validateInteriorMechanical(assessmentData.interiorMechanical, assessmentData.interiorPhotos || []),
-		validateTyres(assessmentData.tyres),
+		validateTyres(assessmentData.tyres, tyrePhotosMap),
 		validateDamage(assessmentData.damageRecord ? [assessmentData.damageRecord] : []),
 		validateVehicleValues(assessmentData.vehicleValues),
 		validatePreIncidentEstimate(assessmentData.preIncidentEstimate),

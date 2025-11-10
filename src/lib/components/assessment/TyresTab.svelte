@@ -53,9 +53,9 @@
 		}
 	}
 
-	// Validation for warning banner
+	// Validation for warning banner - pass tyrePhotosMap for photo requirement check
 	const validation = $derived.by(() => {
-		return validateTyres(tyres);
+		return validateTyres(tyres, tyrePhotosMap);
 	});
 
 	// Track dirty state for auto-save on tab change

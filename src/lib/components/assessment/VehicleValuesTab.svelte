@@ -26,6 +26,8 @@
 		data: VehicleValues | null;
 		assessmentId: string;
 		client: Client | null;
+		vehicleIdentification: VehicleIdentification | null;
+		interiorMechanical: InteriorMechanical | null;
 		requestInfo?: {
 			request_number?: string;
 			claim_number?: string | null;
@@ -34,6 +36,7 @@
 			vehicle_model?: string | null;
 			vehicle_year?: number | null;
 			vehicle_vin?: string | null;
+			vehicle_registration?: string | null;
 			vehicle_mileage?: number | null;
 		};
 		onUpdate: (data: Partial<VehicleValues>) => void;
@@ -46,6 +49,8 @@
 	const data = $derived(props.data);
 	const assessmentId = $derived(props.assessmentId);
 	const client = $derived(props.client);
+	const vehicleIdentification = $derived(props.vehicleIdentification);
+	const interiorMechanical = $derived(props.interiorMechanical);
 	const requestInfo = $derived(props.requestInfo);
 	const onUpdate = $derived(props.onUpdate);
 
@@ -327,7 +332,9 @@
 			market_value: marketValue,
 			retail_value: retailValue,
 			sourced_from: sourcedFrom,
+			sourced_code: sourcedCode,
 			sourced_date: sourcedDate,
+			warranty_status: warrantyStatus,
 			valuation_pdf_url: valuationPdfUrl
 		});
 	});
@@ -336,7 +343,8 @@
 <div class="space-y-6">
 	<!-- Warning Banner -->
 	<RequiredFieldsWarning missingFields={validation.missingFields} />
-	<!-- Section 1: Vehicle & Source Information -->
+	<!-- Section 1: Vehicle & Request Information -->
+	<!-- Shows current assessment data with fallback to original request data -->
 	{#if requestInfo}
 		<Card class="bg-blue-50 p-6">
 			<h3 class="mb-4 text-lg font-semibold text-gray-900">Vehicle & Request Information</h3>
@@ -361,28 +369,50 @@
 			<div class="mt-4 grid gap-4 md:grid-cols-4">
 				<div>
 					<p class="text-sm text-gray-600">Make</p>
-					<p class="font-medium text-gray-900">{requestInfo.vehicle_make || 'N/A'}</p>
+					<!-- Prefer assessment data over request data (fallback pattern) -->
+					<p class="font-medium text-gray-900">
+						{vehicleIdentification?.vehicle_make || requestInfo.vehicle_make || 'N/A'}
+					</p>
 				</div>
 				<div>
 					<p class="text-sm text-gray-600">Model</p>
-					<p class="font-medium text-gray-900">{requestInfo.vehicle_model || 'N/A'}</p>
+					<!-- Prefer assessment data over request data (fallback pattern) -->
+					<p class="font-medium text-gray-900">
+						{vehicleIdentification?.vehicle_model || requestInfo.vehicle_model || 'N/A'}
+					</p>
 				</div>
 				<div>
 					<p class="text-sm text-gray-600">Year</p>
-					<p class="font-medium text-gray-900">{requestInfo.vehicle_year || 'N/A'}</p>
+					<!-- Prefer assessment data over request data (fallback pattern) -->
+					<p class="font-medium text-gray-900">
+						{vehicleIdentification?.vehicle_year || requestInfo.vehicle_year || 'N/A'}
+					</p>
 				</div>
 				<div>
 					<p class="text-sm text-gray-600">Mileage</p>
+					<!-- Prefer interior mechanical data over request data (fallback pattern) -->
 					<p class="font-medium text-gray-900">
-						{requestInfo.vehicle_mileage
-							? requestInfo.vehicle_mileage.toLocaleString() + ' km'
-							: 'N/A'}
+						{interiorMechanical?.mileage_reading
+							? interiorMechanical.mileage_reading.toLocaleString() + ' km'
+							: requestInfo.vehicle_mileage
+								? requestInfo.vehicle_mileage.toLocaleString() + ' km'
+								: 'N/A'}
 					</p>
 				</div>
 			</div>
 			<div class="mt-4">
 				<p class="text-sm text-gray-600">VIN</p>
-				<p class="font-medium text-gray-900">{requestInfo.vehicle_vin || 'N/A'}</p>
+				<!-- Prefer assessment data over request data (fallback pattern) -->
+				<p class="font-medium text-gray-900">
+					{vehicleIdentification?.vin_number || requestInfo.vehicle_vin || 'N/A'}
+				</p>
+			</div>
+			<div class="mt-4">
+				<p class="text-sm text-gray-600">Registration</p>
+				<!-- Prefer assessment data over request data (fallback pattern) -->
+				<p class="font-medium text-gray-900">
+					{vehicleIdentification?.registration_number || requestInfo.vehicle_registration || 'N/A'}
+				</p>
 			</div>
 		</Card>
 	{/if}
@@ -408,6 +438,8 @@
 				type="text"
 				bind:value={sourcedCode}
 				placeholder="e.g., 22035630"
+				required
+				oninput={debouncedSave}
 			/>
 		</div>
 		<div class="mt-4 grid gap-4 md:grid-cols-2">
@@ -440,6 +472,8 @@
 				type="select"
 				bind:value={warrantyStatus}
 				placeholder="Select status..."
+				required
+				onchange={debouncedSave}
 				options={[
 					{ value: 'active', label: 'Active' },
 					{ value: 'expired', label: 'Expired' },

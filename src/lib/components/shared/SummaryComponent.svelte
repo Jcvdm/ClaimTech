@@ -33,6 +33,10 @@
 		estimate?: Estimate | null;
 		preIncidentEstimate?: Estimate | null;
 
+		// Vehicle identification and interior mechanical data for comprehensive panel
+		vehicleIdentification?: any | null;
+		interiorMechanical?: any | null;
+
 		// Display options
 		showAssessmentData?: boolean;
 	}
@@ -45,6 +49,8 @@
 		vehicleValues = null,
 		estimate = null,
 		preIncidentEstimate = null,
+		vehicleIdentification = null,
+		interiorMechanical = null,
 		showAssessmentData = false
 	}: Props = $props();
 
@@ -173,43 +179,83 @@
 		{/if}
 	</Card>
 
-	<!-- Vehicle Information -->
-	<Card class="p-4">
-		<h3 class="mb-3 text-sm font-semibold text-gray-900">Vehicle Information</h3>
-		<dl class="grid gap-3 text-sm">
-			{#if derivedRequest || derivedInspection}
-				{@const vehicleMake = derivedRequest?.vehicle_make || derivedInspection?.vehicle_make}
-				{@const vehicleModel = derivedRequest?.vehicle_model || derivedInspection?.vehicle_model}
-				{@const vehicleYear = derivedRequest?.vehicle_year || derivedInspection?.vehicle_year}
-				{@const vehicleReg = derivedRequest?.vehicle_registration || derivedInspection?.vehicle_registration}
-				{@const vehicleVin = derivedRequest?.vehicle_vin || derivedInspection?.vehicle_vin}
+	<!-- Vehicle & Request Information -->
+	<Card class="bg-blue-50 p-6">
+		<h3 class="mb-4 text-lg font-semibold text-gray-900">Vehicle & Request Information</h3>
 
-				<div class="grid grid-cols-3 gap-2">
-					<dt class="font-medium text-gray-500">Vehicle:</dt>
-					<dd class="col-span-2 text-gray-900">
-						{vehicleMake || '-'}
-						{vehicleModel || ''}
-						{#if vehicleYear}
-							({vehicleYear})
-						{/if}
-					</dd>
-				</div>
-				{#if vehicleReg}
-					<div class="grid grid-cols-3 gap-2">
-						<dt class="font-medium text-gray-500">Registration:</dt>
-						<dd class="col-span-2 text-gray-900">{vehicleReg}</dd>
-					</div>
-				{/if}
-				{#if vehicleVin}
-					<div class="grid grid-cols-3 gap-2">
-						<dt class="font-medium text-gray-500">VIN:</dt>
-						<dd class="col-span-2 font-mono text-xs text-gray-900">
-							{vehicleVin}
-						</dd>
-					</div>
-				{/if}
-			{/if}
-		</dl>
+		<!-- Row 1: Report No., Insurer, Date of Loss -->
+		<div class="grid gap-4 md:grid-cols-3">
+			<div>
+				<p class="text-sm text-gray-600">Report No.</p>
+				<p class="font-medium text-gray-900">{derivedRequest?.request_number || 'N/A'}</p>
+			</div>
+			<div>
+				<p class="text-sm text-gray-600">Insurer</p>
+				<p class="font-medium text-gray-900">{derivedClient?.name || 'N/A'}</p>
+			</div>
+			<div>
+				<p class="text-sm text-gray-600">Date of Loss</p>
+				<p class="font-medium text-gray-900">
+					{derivedRequest?.date_of_loss
+						? new Date(derivedRequest.date_of_loss).toLocaleDateString()
+						: 'N/A'}
+				</p>
+			</div>
+		</div>
+
+		<!-- Row 2: Make, Model, Year, Mileage -->
+		<div class="mt-4 grid gap-4 md:grid-cols-4">
+			<div>
+				<p class="text-sm text-gray-600">Make</p>
+				<!-- Prefer assessment data over request data (fallback pattern) -->
+				<p class="font-medium text-gray-900">
+					{vehicleIdentification?.vehicle_make || derivedRequest?.vehicle_make || 'N/A'}
+				</p>
+			</div>
+			<div>
+				<p class="text-sm text-gray-600">Model</p>
+				<!-- Prefer assessment data over request data (fallback pattern) -->
+				<p class="font-medium text-gray-900">
+					{vehicleIdentification?.vehicle_model || derivedRequest?.vehicle_model || 'N/A'}
+				</p>
+			</div>
+			<div>
+				<p class="text-sm text-gray-600">Year</p>
+				<!-- Prefer assessment data over request data (fallback pattern) -->
+				<p class="font-medium text-gray-900">
+					{vehicleIdentification?.vehicle_year || derivedRequest?.vehicle_year || 'N/A'}
+				</p>
+			</div>
+			<div>
+				<p class="text-sm text-gray-600">Mileage</p>
+				<!-- Prefer interior mechanical data over request data (fallback pattern) -->
+				<p class="font-medium text-gray-900">
+					{interiorMechanical?.mileage_reading
+						? interiorMechanical.mileage_reading.toLocaleString() + ' km'
+						: derivedRequest?.vehicle_mileage
+							? derivedRequest.vehicle_mileage.toLocaleString() + ' km'
+							: 'N/A'}
+				</p>
+			</div>
+		</div>
+
+		<!-- Row 3: VIN -->
+		<div class="mt-4">
+			<p class="text-sm text-gray-600">VIN</p>
+			<!-- Prefer assessment data over request data (fallback pattern) -->
+			<p class="font-medium text-gray-900">
+				{vehicleIdentification?.vin_number || derivedRequest?.vehicle_vin || 'N/A'}
+			</p>
+		</div>
+
+		<!-- Row 4: Registration -->
+		<div class="mt-4">
+			<p class="text-sm text-gray-600">Registration</p>
+			<!-- Prefer assessment data over request data (fallback pattern) -->
+			<p class="font-medium text-gray-900">
+				{vehicleIdentification?.registration_number || derivedRequest?.vehicle_registration || 'N/A'}
+			</p>
+		</div>
 	</Card>
 
 	<!-- Assessment Data (only shown when showAssessmentData is true) -->

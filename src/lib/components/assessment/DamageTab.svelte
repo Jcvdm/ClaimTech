@@ -14,6 +14,7 @@
 		damageRecord: DamageRecord | null;
 		assessmentId: string;
 		onUpdateDamage: (data: Partial<DamageRecord>) => void;
+		onRegisterSave?: (saveFn: () => Promise<void>) => void; // Expose save function to parent for auto-save on tab change
 	}
 
 	// Make props reactive using $derived pattern
@@ -23,6 +24,7 @@
 	const damageRecord = $derived(props.damageRecord);
 	const assessmentId = $derived(props.assessmentId);
 	const onUpdateDamage = $derived(props.onUpdateDamage);
+	const onRegisterSave = $derived(props.onRegisterSave);
 
 	// Initialize localStorage draft for critical fields
 	const mismatchNotesDraft = useDraft(`assessment-${assessmentId}-mismatch-notes`);
@@ -90,13 +92,13 @@
 	// Create debounced save functions (saves 2 seconds after user stops typing)
 	const debouncedSaveMismatch = debounce((notes: string) => {
 		saveMismatchDrafts(notes); // Save to localStorage
-		onUpdateDamage({ mismatch_notes: notes }); // Save to database
+		handleUpdateDamageWithDirty({ mismatch_notes: notes }); // Save to database
 		mismatchNotesDraft.clear(); // Clear after successful save
 	}, 2000);
 
 	const debouncedSaveDamageDescription = debounce((description: string) => {
 		saveDamageDescriptionDrafts(description); // Save to localStorage
-		onUpdateDamage({ damage_description: description }); // Save to database
+		handleUpdateDamageWithDirty({ damage_description: description }); // Save to database
 		damageDescriptionDraft.clear(); // Clear after successful save
 	}, 2000);
 
@@ -114,6 +116,36 @@
 	// Validation for warning banner
 	const validation = $derived.by(() => {
 		return validateDamage(damageRecord ? [damageRecord] : []);
+	});
+
+	// Track dirty state for auto-save on tab change
+	let dirty = $state(false);
+	let saving = $state(false);
+
+	// Update handler that marks dirty and saves
+	function handleUpdateDamageWithDirty(updateData: Partial<DamageRecord>) {
+		dirty = true;
+		onUpdateDamage(updateData);
+	}
+
+	// Save all pending changes (for auto-save on tab change)
+	async function saveAll() {
+		if (!dirty) return;
+		saving = true;
+		try {
+			// All changes have already been saved via onUpdateDamage calls
+			// This just marks the dirty flag as clean
+			dirty = false;
+		} finally {
+			saving = false;
+		}
+	}
+
+	// Register save function with parent on mount
+	$effect(() => {
+		if (onRegisterSave) {
+			onRegisterSave(saveAll);
+		}
 	});
 </script>
 
@@ -138,7 +170,7 @@
 					variant={matchesDescription === true ? 'default' : 'outline'}
 					onclick={() => {
 						matchesDescription = true;
-						onUpdateDamage({ matches_description: true });
+						handleUpdateDamageWithDirty({ matches_description: true });
 					}}
 				>
 					Yes, Matches
@@ -147,7 +179,7 @@
 					variant={matchesDescription === false ? 'default' : 'outline'}
 					onclick={() => {
 						matchesDescription = false;
-						onUpdateDamage({ matches_description: false });
+						handleUpdateDamageWithDirty({ matches_description: false });
 					}}
 				>
 					No, Does Not Match
@@ -186,7 +218,7 @@
 						value={damageArea}
 						onchange={(value: string) => {
 							damageArea = value;
-							onUpdateDamage({
+							handleUpdateDamageWithDirty({
 								damage_area: (value || undefined) as DamageArea
 							});
 						}}
@@ -203,7 +235,7 @@
 						value={damageType}
 						onchange={(value: string) => {
 							damageType = value;
-							onUpdateDamage({
+							handleUpdateDamageWithDirty({
 								damage_type: (value || undefined) as DamageType
 							});
 						}}
@@ -219,7 +251,7 @@
 					value={severity}
 					onchange={(value: string) => {
 						severity = value;
-						onUpdateDamage({
+						handleUpdateDamageWithDirty({
 							severity: (value || undefined) as DamageSeverity
 						});
 					}}
@@ -230,6 +262,7 @@
 						{ value: 'severe', label: 'Severe' },
 						{ value: 'total_loss', label: 'Total Loss' }
 					]}
+					required
 				/>
 
 				<FormField
@@ -240,7 +273,7 @@
 					oninput={(e: Event) => {
 						const value = parseFloat((e.target as HTMLInputElement).value);
 						estimatedRepairDurationDays = value;
-						onUpdateDamage({
+						handleUpdateDamageWithDirty({
 							estimated_repair_duration_days: value
 						});
 					}}
@@ -256,7 +289,7 @@
 					oninput={(e: Event) => {
 						const value = (e.target as HTMLTextAreaElement).value;
 						locationDescription = value;
-						onUpdateDamage({
+						handleUpdateDamageWithDirty({
 							location_description: value
 						});
 					}}

@@ -17,6 +17,8 @@
 		inspection: Inspection | null;
 		request: Request | null;
 		client: Client | null;
+		vehicleIdentification: any | null;
+		interiorMechanical: any | null;
 	}
 
 	// Make props reactive using $derived pattern
@@ -30,6 +32,8 @@
 	const inspection = $derived(props.inspection);
 	const request = $derived(props.request);
 	const client = $derived(props.client);
+	const vehicleIdentification = $derived(props.vehicleIdentification);
+	const interiorMechanical = $derived(props.interiorMechanical);
 </script>
 
 <div class="space-y-6">
@@ -47,6 +51,8 @@
 			{vehicleValues}
 			{estimate}
 			{preIncidentEstimate}
+			{vehicleIdentification}
+			{interiorMechanical}
 			showAssessmentData={true}
 		/>
 	</div>
