@@ -282,64 +282,46 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
 	yield { status: 'processing', progress: 45, message: 'Converting tyre photos...' };
 
-	// Tire & Rim Photos - PARALLEL conversion
-	if (tyres && tyres.length > 0) {
-		const tyrePhotoPromises = [];
+	// Tire & Rim Photos - Fetch from new assessment_tyre_photos table
+	const { data: tyrePhotosData } = await locals.supabase
+		.from('assessment_tyre_photos')
+		.select(`
+			*,
+			assessment_tyres!inner(position, position_label, tyre_make, tyre_size, condition, tread_depth_mm)
+		`)
+		.eq('assessment_id', assessmentId)
+		.order('display_order', { ascending: true });
 
-		for (const tyre of tyres) {
+	if (tyrePhotosData && tyrePhotosData.length > 0) {
+		const tyrePhotoPromises = tyrePhotosData.map(async (photo: any) => {
+			const tyre = photo.assessment_tyres;
 			const positionLabel = tyre.position_label || tyre.position;
 			const tyreInfo = `${tyre.tyre_make || ''} ${tyre.tyre_size || ''}`.trim();
 			const condition = tyre.condition
 				? tyre.condition.charAt(0).toUpperCase() + tyre.condition.slice(1)
 				: 'N/A';
 			const treadDepth = tyre.tread_depth_mm ? `${tyre.tread_depth_mm}mm` : '';
+			const label = photo.label || 'Photo';
 
-			if (tyre.face_photo_url) {
-				tyrePhotoPromises.push(
-					convertProxyUrlToDataUrl(tyre.face_photo_url, locals).then(dataUrl =>
-						dataUrl ? {
-							url: dataUrl,
-							caption: `${positionLabel} - Face View - ${tyreInfo} - ${condition} ${treadDepth}`.trim()
-						} : null
-					)
-				);
-			}
-			if (tyre.tread_photo_url) {
-				tyrePhotoPromises.push(
-					convertProxyUrlToDataUrl(tyre.tread_photo_url, locals).then(dataUrl =>
-						dataUrl ? {
-							url: dataUrl,
-							caption: `${positionLabel} - Tread View - ${tyreInfo} - ${condition} ${treadDepth}`.trim()
-						} : null
-					)
-				);
-			}
-			if (tyre.measurement_photo_url) {
-				tyrePhotoPromises.push(
-					convertProxyUrlToDataUrl(tyre.measurement_photo_url, locals).then(dataUrl =>
-						dataUrl ? {
-							url: dataUrl,
-							caption: `${positionLabel} - Measurement - ${tyreInfo} - ${condition} ${treadDepth}`.trim()
-						} : null
-					)
-				);
-			}
-		}
+			const dataUrl = await convertProxyUrlToDataUrl(photo.photo_url, locals);
+			return dataUrl ? {
+				url: dataUrl,
+				caption: `${positionLabel} - ${label} - ${tyreInfo} - ${condition} ${treadDepth}`.trim()
+			} : null;
+		});
 
-		const tyrePhotos = (await Promise.all(tyrePhotoPromises)).filter(p => p !== null);
-		console.log('Total tyre photos collected:', tyrePhotos.length);
+		const convertedTyrePhotos = (await Promise.all(tyrePhotoPromises)).filter(p => p !== null);
+		console.log('Total tyre photos collected:', convertedTyrePhotos.length);
 
-		if (tyrePhotos.length > 0) {
+		if (convertedTyrePhotos.length > 0) {
 			sections.push({
 				title: 'Tires & Rims',
-				photos: tyrePhotos
+				photos: convertedTyrePhotos
 			});
 			console.log('Tires & Rims section added to PDF');
-		} else {
-			console.log('No tyre photos found (all photo URLs are null)');
 		}
 	} else {
-		console.log('No tyre data found in database');
+		console.log('No tyre photos found');
 	}
 
 	yield { status: 'processing', progress: 50, message: 'Converting damage and pre-incident photos...' };

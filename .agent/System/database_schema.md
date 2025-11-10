@@ -469,14 +469,41 @@ Individual tyre inspection records (1:N with assessments).
 - `tyre_make`, `tyre_size`, `load_index`, `speed_rating`
 - `tread_depth_mm` (DECIMAL)
 - `condition` (TEXT, CHECK: 'excellent' | 'good' | 'fair' | 'poor' | 'replace')
-
-**Documentation (three photos per tyre):**
-- `face_photo_url` (TEXT) - Photo of tyre face
-- `tread_photo_url` (TEXT) - Photo of tyre tread
-- `measurement_photo_url` (TEXT) - Photo of tread depth measurement
 - `notes` (TEXT)
 
+**Photos:** See `assessment_tyre_photos` table (unlimited photos per tyre)
+
 **Index:** `idx_assessment_tyres_assessment` on `assessment_id`
+
+**Related Components:**
+- `TyrePhotosPanel.svelte` - Photo upload/gallery component
+- `tyre-photos.service.ts` - CRUD service layer
+- `TyresTab.svelte` - Main tab component
+
+---
+
+### `assessment_tyre_photos`
+Photos for individual tyres (1:N with assessment_tyres). Follows unified photo panel pattern.
+
+**Columns:**
+- `id` (UUID, PK)
+- `tyre_id` (UUID, FK → assessment_tyres, NOT NULL, ON DELETE CASCADE)
+- `assessment_id` (UUID, FK → assessments, NOT NULL, ON DELETE CASCADE)
+- `photo_url` (TEXT, NOT NULL) - URL to the photo in storage
+- `photo_path` (TEXT, NOT NULL) - Path to the photo in storage
+- `label` (TEXT) - Photo label (e.g., 'Face/Sidewall', 'Tread Pattern', 'Measurement', 'Damage')
+- `display_order` (INTEGER, DEFAULT 0) - Order for displaying photos in gallery
+- `created_at` (TIMESTAMPTZ, DEFAULT NOW())
+- `updated_at` (TIMESTAMPTZ, DEFAULT NOW())
+
+**Indexes:**
+- `idx_assessment_tyre_photos_tyre` on `tyre_id`
+- `idx_assessment_tyre_photos_assessment` on `assessment_id`
+- `idx_assessment_tyre_photos_display_order` on `(tyre_id, display_order)`
+
+**RLS:** ✅ ENABLED - Policy: "Allow all operations for authenticated users"
+
+**Triggers:** `update_assessment_tyre_photos_updated_at` - Auto-updates `updated_at` on modification
 
 ---
 

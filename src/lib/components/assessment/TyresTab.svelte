@@ -2,16 +2,17 @@
 	import { Card } from '$lib/components/ui/card';
 	import { Button } from '$lib/components/ui/button';
 	import FormField from '$lib/components/forms/FormField.svelte';
-	import PhotoUpload from '$lib/components/forms/PhotoUpload.svelte';
+	import TyrePhotosPanel from './TyrePhotosPanel.svelte';
 	import RequiredFieldsWarning from './RequiredFieldsWarning.svelte';
 	import { Plus, Trash2, Send, Calculator } from 'lucide-svelte';
 	import * as Dialog from '$lib/components/ui/dialog';
-	import type { Tyre } from '$lib/types/assessment';
+	import type { Tyre, TyrePhoto } from '$lib/types/assessment';
 	import { validateTyres } from '$lib/utils/validation';
 	import { assessmentNotesService } from '$lib/services/assessment-notes.service';
 
 	interface Props {
 		tyres: Tyre[];
+		tyrePhotos: TyrePhoto[];
 		assessmentId: string;
 		onUpdateTyre: (id: string, data: Partial<Tyre>) => void;
 		onAddTyre: () => void;
@@ -19,51 +20,33 @@
 		onNotesUpdate?: () => Promise<void>;
 	}
 
-	let { tyres: tyresProp, assessmentId, onUpdateTyre, onAddTyre, onDeleteTyre, onNotesUpdate }: Props = $props();
+	let { tyres: tyresProp, tyrePhotos: tyrePhotosProp, assessmentId, onUpdateTyre, onAddTyre, onDeleteTyre, onNotesUpdate }: Props = $props();
 
 	// Make tyres reactive to prop changes
 	const tyres = $derived(tyresProp);
 
-	// Local state for tyre photos (for immediate UI updates)
-	// Map of tyre ID to photo URLs
-	let tyrePhotos = $state<Map<string, { face?: string; tread?: string; measurement?: string }>>(new Map());
+	// Local state for tyre photos (Map of tyre ID to photos array)
+	let tyrePhotosMap = $state<Map<string, TyrePhoto[]>>(new Map());
 
-	// Initialize photo state from tyres prop
+	// Initialize photos from props
 	$effect(() => {
-		const newPhotos = new Map<string, { face?: string; tread?: string; measurement?: string }>();
+		const newMap = new Map<string, TyrePhoto[]>();
 		tyres.forEach(tyre => {
-			newPhotos.set(tyre.id, {
-				face: tyre.face_photo_url || undefined,
-				tread: tyre.tread_photo_url || undefined,
-				measurement: tyre.measurement_photo_url || undefined
-			});
+			const photos = tyrePhotosProp.filter(p => p.tyre_id === tyre.id);
+			newMap.set(tyre.id, photos);
 		});
-		tyrePhotos = newPhotos;
+		tyrePhotosMap = newMap;
 	});
 
-	// Get photo URL for a tyre
-	function getPhotoUrl(tyreId: string, type: 'face' | 'tread' | 'measurement'): string {
-		return tyrePhotos.get(tyreId)?.[type] || '';
-	}
+	// Handle photo updates for a specific tyre
+	function handleTyrePhotosUpdate(tyreId: string, updatedPhotos: TyrePhoto[]) {
+		// Update local state
+		tyrePhotosMap.set(tyreId, updatedPhotos);
+		tyrePhotosMap = new Map(tyrePhotosMap);
 
-	// Update photo URL locally and persist to database
-	function updatePhotoUrl(tyreId: string, type: 'face' | 'tread' | 'measurement', url: string | null) {
-		// Update local state immediately for instant UI feedback
-		const current = tyrePhotos.get(tyreId) || {};
-		tyrePhotos.set(tyreId, {
-			...current,
-			[type]: url || undefined
-		});
-		// Force reactivity
-		tyrePhotos = new Map(tyrePhotos);
-
-		// Persist to database
-		const updateData: Partial<Tyre> = {};
-		if (type === 'face') updateData.face_photo_url = url;
-		else if (type === 'tread') updateData.tread_photo_url = url;
-		else if (type === 'measurement') updateData.measurement_photo_url = url;
-
-		onUpdateTyre(tyreId, updateData);
+		// Notify parent with updated photos (direct state update pattern)
+		// Parent will update data.tyrePhotos which triggers reactivity
+		onUpdateTyre(tyreId, {});
 	}
 
 	// Validation for warning banner
@@ -291,46 +274,16 @@ Betterment to Charge: ${calculatedBetterment.betterment.toFixed(1)}%`;
 
 					<!-- Right Column: Photos & Notes -->
 					<div class="space-y-4">
-						<!-- Tyre Photos Grid -->
+						<!-- Tyre Photos Panel -->
 						<div>
 							<p class="mb-2 block text-sm font-medium text-gray-700">Tyre Photos</p>
-							<div class="grid gap-3 md:grid-cols-3">
-								<!-- Face Photo -->
-								<PhotoUpload
-									value={getPhotoUrl(tyre.id, 'face')}
-									label="Face/Sidewall"
-									{assessmentId}
-									category="tyres"
-									subcategory={`${tyre.position}_face`}
-									onUpload={(url) => updatePhotoUrl(tyre.id, 'face', url)}
-									onRemove={() => updatePhotoUrl(tyre.id, 'face', null)}
-									height="h-32"
-								/>
-
-								<!-- Tread Photo -->
-								<PhotoUpload
-									value={getPhotoUrl(tyre.id, 'tread')}
-									label="Tread Pattern"
-									{assessmentId}
-									category="tyres"
-									subcategory={`${tyre.position}_tread`}
-									onUpload={(url) => updatePhotoUrl(tyre.id, 'tread', url)}
-									onRemove={() => updatePhotoUrl(tyre.id, 'tread', null)}
-									height="h-32"
-								/>
-
-								<!-- Measurement Photo -->
-								<PhotoUpload
-									value={getPhotoUrl(tyre.id, 'measurement')}
-									label="Measurement"
-									{assessmentId}
-									category="tyres"
-									subcategory={`${tyre.position}_measurement`}
-									onUpload={(url) => updatePhotoUrl(tyre.id, 'measurement', url)}
-									onRemove={() => updatePhotoUrl(tyre.id, 'measurement', null)}
-									height="h-32"
-								/>
-							</div>
+							<TyrePhotosPanel
+								tyreId={tyre.id}
+								{assessmentId}
+								tyrePosition={tyre.position}
+								photos={tyrePhotosMap.get(tyre.id) || []}
+								onPhotosUpdate={(updatedPhotos) => handleTyrePhotosUpdate(tyre.id, updatedPhotos)}
+							/>
 						</div>
 
 						<div class="space-y-2">

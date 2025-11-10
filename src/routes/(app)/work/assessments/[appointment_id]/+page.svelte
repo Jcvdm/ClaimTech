@@ -755,6 +755,7 @@
 	{:else if currentTab === 'tyres'}
 		<TyresTab
 			tyres={data.tyres}
+			tyrePhotos={data.tyrePhotos}
 			assessmentId={data.assessment.id}
 			onUpdateTyre={handleUpdateTyre}
 			onAddTyre={handleAddTyre}

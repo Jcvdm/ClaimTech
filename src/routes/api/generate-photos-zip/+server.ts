@@ -277,33 +277,28 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 				}
 			}
 
-			// Collect Tire & Rim Photos
-			if (tyres && tyres.length > 0) {
-				photoCounter = 1;
-				for (const tyre of tyres) {
-					const position = (tyre.position_label || tyre.position).replace(/\s+/g, '_');
+			// Collect Tire & Rim Photos from new assessment_tyre_photos table
+			const { data: tyrePhotosData } = await locals.supabase
+				.from('assessment_tyre_photos')
+				.select(`
+					*,
+					assessment_tyres!inner(position, position_label)
+				`)
+				.eq('assessment_id', assessmentId)
+				.order('display_order', { ascending: true });
 
-					if (tyre.face_photo_url) {
-						photoTasks.push({
-							url: tyre.face_photo_url,
-							folder: '04_Tires_and_Rims',
-							filename: `${photoCounter++}_${position}_Face.jpg`
-						});
-					}
-					if (tyre.tread_photo_url) {
-						photoTasks.push({
-							url: tyre.tread_photo_url,
-							folder: '04_Tires_and_Rims',
-							filename: `${photoCounter++}_${position}_Tread.jpg`
-						});
-					}
-					if (tyre.measurement_photo_url) {
-						photoTasks.push({
-							url: tyre.measurement_photo_url,
-							folder: '04_Tires_and_Rims',
-							filename: `${photoCounter++}_${position}_Measurement.jpg`
-						});
-					}
+			if (tyrePhotosData && tyrePhotosData.length > 0) {
+				photoCounter = 1;
+				for (const photo of tyrePhotosData) {
+					const tyre = photo.assessment_tyres;
+					const position = (tyre.position_label || tyre.position).replace(/\s+/g, '_');
+					const label = (photo.label || 'Photo').replace(/\s+/g, '_');
+
+					photoTasks.push({
+						url: photo.photo_url,
+						folder: '04_Tires_and_Rims',
+						filename: `${photoCounter++}_${position}_${label}.jpg`
+					});
 				}
 			}
 

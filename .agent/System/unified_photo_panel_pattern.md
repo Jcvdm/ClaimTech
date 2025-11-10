@@ -16,6 +16,7 @@ The unified photo panel pattern consolidates photo upload and gallery display in
 - `PreIncidentPhotosPanel.svelte` - Pre-incident estimate photos
 - `AdditionalsPhotosPanel.svelte` - Additional photos
 - `Exterior360PhotosPanel.svelte` - Exterior 360-degree photos
+- `TyrePhotosPanel.svelte` - Tyre photos (per-tyre panels, unlimited photos)
 
 ---
 

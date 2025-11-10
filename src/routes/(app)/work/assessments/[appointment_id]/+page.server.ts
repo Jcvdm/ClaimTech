@@ -14,6 +14,7 @@ import { preIncidentEstimateService } from '$lib/services/pre-incident-estimate.
 import { preIncidentEstimatePhotosService } from '$lib/services/pre-incident-estimate-photos.service';
 import { interiorPhotosService } from '$lib/services/interior-photos.service';
 import { exterior360PhotosService } from '$lib/services/exterior-360-photos.service';
+import { tyrePhotosService } from '$lib/services/tyre-photos.service';
 import { assessmentNotesService } from '$lib/services/assessment-notes.service';
 import { appointmentService } from '$lib/services/appointment.service';
 import { inspectionService } from '$lib/services/inspection.service';
@@ -156,6 +157,9 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 		// Load exterior 360 additional photos for assessment
 		const exterior360Photos = await exterior360PhotosService.getPhotosByAssessment(assessment.id);
 
+		// Load tyre photos for assessment
+		const tyrePhotos = await tyrePhotosService.getPhotosByAssessment(assessment.id, locals.supabase);
+
 		// Load client for write-off percentages
 		const client = request ? await clientService.getClient(request.client_id, locals.supabase) : null;
 
@@ -169,6 +173,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 			interiorPhotos,
 			exterior360Photos,
 			tyres,
+			tyrePhotos,
 			damageRecord,
 			vehicleValues: finalVehicleValues,
 			preIncidentEstimate: finalPreIncidentEstimate,

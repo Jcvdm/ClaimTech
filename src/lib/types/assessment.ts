@@ -213,12 +213,37 @@ export interface Tyre {
 	speed_rating?: string | null;
 	tread_depth_mm?: number | null;
 	condition?: TyreCondition | null;
-	face_photo_url?: string | null;
-	tread_photo_url?: string | null;
-	measurement_photo_url?: string | null;
 	notes?: string | null;
 	created_at: string;
 	updated_at: string;
+}
+
+// Tyre photo interface
+export interface TyrePhoto {
+	id: string;
+	tyre_id: string;
+	assessment_id: string;
+	photo_url: string;
+	photo_path: string;
+	label?: string | null;
+	display_order: number;
+	created_at: string;
+	updated_at: string;
+}
+
+// Tyre photo input interfaces
+export interface CreateTyrePhotoInput {
+	tyre_id: string;
+	assessment_id: string;
+	photo_url: string;
+	photo_path: string;
+	label?: string;
+	display_order?: number;
+}
+
+export interface UpdateTyrePhotoInput {
+	label?: string;
+	display_order?: number;
 }
 
 // Damage record interface
