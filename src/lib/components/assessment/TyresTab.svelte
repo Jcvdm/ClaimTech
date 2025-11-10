@@ -18,9 +18,10 @@
 		onAddTyre: () => void;
 		onDeleteTyre: (id: string) => void;
 		onNotesUpdate?: () => Promise<void>;
+		onRegisterSave?: (saveFn: () => Promise<void>) => void; // Expose save function to parent for auto-save on tab change
 	}
 
-	let { tyres: tyresProp, tyrePhotos: tyrePhotosProp, assessmentId, onUpdateTyre, onAddTyre, onDeleteTyre, onNotesUpdate }: Props = $props();
+	let { tyres: tyresProp, tyrePhotos: tyrePhotosProp, assessmentId, onUpdateTyre, onAddTyre, onDeleteTyre, onNotesUpdate, onRegisterSave }: Props = $props();
 
 	// Make tyres reactive to prop changes
 	const tyres = $derived(tyresProp);
@@ -52,6 +53,36 @@
 	// Validation for warning banner
 	const validation = $derived.by(() => {
 		return validateTyres(tyres);
+	});
+
+	// Track dirty state for auto-save on tab change
+	let dirty = $state(false);
+	let saving = $state(false);
+
+	// Update handler that marks dirty and saves
+	function handleUpdateTyreWithDirty(id: string, data: Partial<Tyre>) {
+		dirty = true;
+		onUpdateTyre(id, data);
+	}
+
+	// Save all pending changes (for auto-save on tab change)
+	async function saveAll() {
+		if (!dirty) return;
+		saving = true;
+		try {
+			// All changes have already been saved via onUpdateTyre calls
+			// This just marks the dirty flag as clean
+			dirty = false;
+		} finally {
+			saving = false;
+		}
+	}
+
+	// Register save function with parent on mount
+	$effect(() => {
+		if (onRegisterSave) {
+			onRegisterSave(saveAll);
+		}
 	});
 
 	// Betterment calculator modal state
@@ -203,7 +234,7 @@ Betterment to Charge: ${calculatedBetterment.betterment.toFixed(1)}%`;
 							name={`tyre_make_${tyre.id}`}
 							type="text"
 							value={tyre.tyre_make || ''}
-							onchange={(value) => onUpdateTyre(tyre.id, { tyre_make: value || undefined })}
+							onchange={(value) => handleUpdateTyreWithDirty(tyre.id, { tyre_make: value || undefined })}
 							placeholder="e.g., Michelin, Bridgestone"
 						/>
 						<FormField
@@ -211,7 +242,7 @@ Betterment to Charge: ${calculatedBetterment.betterment.toFixed(1)}%`;
 							name={`tyre_size_${tyre.id}`}
 							type="text"
 							value={tyre.tyre_size || ''}
-							onchange={(value) => onUpdateTyre(tyre.id, { tyre_size: value || undefined })}
+							onchange={(value) => handleUpdateTyreWithDirty(tyre.id, { tyre_size: value || undefined })}
 							placeholder="e.g., 205/55R16"
 						/>
 						<div class="grid grid-cols-2 gap-4">
@@ -220,7 +251,7 @@ Betterment to Charge: ${calculatedBetterment.betterment.toFixed(1)}%`;
 								name={`load_index_${tyre.id}`}
 								type="text"
 								value={tyre.load_index || ''}
-								onchange={(value) => onUpdateTyre(tyre.id, { load_index: value || undefined })}
+								onchange={(value) => handleUpdateTyreWithDirty(tyre.id, { load_index: value || undefined })}
 								placeholder="e.g., 91"
 							/>
 							<FormField
@@ -228,7 +259,7 @@ Betterment to Charge: ${calculatedBetterment.betterment.toFixed(1)}%`;
 								name={`speed_rating_${tyre.id}`}
 								type="text"
 								value={tyre.speed_rating || ''}
-								onchange={(value) => onUpdateTyre(tyre.id, { speed_rating: value || undefined })}
+								onchange={(value) => handleUpdateTyreWithDirty(tyre.id, { speed_rating: value || undefined })}
 								placeholder="e.g., V"
 							/>
 						</div>
@@ -239,7 +270,7 @@ Betterment to Charge: ${calculatedBetterment.betterment.toFixed(1)}%`;
 									name={`tread_depth_${tyre.id}`}
 									type="number"
 									value={tyre.tread_depth_mm?.toString() || ''}
-									onchange={(value) => onUpdateTyre(tyre.id, { tread_depth_mm: parseFloat(value) || 0 })}
+									onchange={(value) => handleUpdateTyreWithDirty(tyre.id, { tread_depth_mm: parseFloat(value) || 0 })}
 									placeholder="e.g., 5.5"
 									step="0.1"
 								/>
@@ -260,7 +291,7 @@ Betterment to Charge: ${calculatedBetterment.betterment.toFixed(1)}%`;
 							name={`condition_${tyre.id}`}
 							type="select"
 							value={tyre.condition || ''}
-							onchange={(value) => onUpdateTyre(tyre.id, { condition: (value || undefined) as any })}
+							onchange={(value) => handleUpdateTyreWithDirty(tyre.id, { condition: (value || undefined) as any })}
 							options={[
 								{ value: '', label: 'Select condition' },
 								{ value: 'excellent', label: 'Excellent' },
@@ -292,7 +323,7 @@ Betterment to Charge: ${calculatedBetterment.betterment.toFixed(1)}%`;
 								name={`notes_${tyre.id}`}
 								type="textarea"
 								value={tyre.notes || ''}
-								onchange={(value) => onUpdateTyre(tyre.id, { notes: value || undefined })}
+								onchange={(value) => handleUpdateTyreWithDirty(tyre.id, { notes: value || undefined })}
 								placeholder="Any damage, wear patterns, or observations..."
 								rows={3}
 							/>

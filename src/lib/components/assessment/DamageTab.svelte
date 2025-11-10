@@ -2,7 +2,6 @@
 	import { Card } from '$lib/components/ui/card';
 	import { Button } from '$lib/components/ui/button';
 	import FormField from '$lib/components/forms/FormField.svelte';
-	import PhotoUpload from '$lib/components/forms/PhotoUpload.svelte';
 	import RequiredFieldsWarning from './RequiredFieldsWarning.svelte';
 	import { CheckCircle2 } from 'lucide-svelte';
 	import { debounce } from '$lib/utils/useUnsavedChanges.svelte';
@@ -39,7 +38,6 @@
 	let estimatedRepairDurationDays = $state(damageRecord?.estimated_repair_duration_days || null);
 	let locationDescription = $state(damageRecord?.location_description || '');
 	let affectedPanels = $state<string[]>(damageRecord?.affected_panels || []);
-	let photos = $state<Array<{ url: string; description: string; panel?: string }>>(damageRecord?.photos || []);
 
 	// Sync local state with damageRecord prop when it changes (after save)
 	$effect(() => {
@@ -64,7 +62,6 @@
 			}
 			if (damageRecord.location_description) locationDescription = damageRecord.location_description;
 			if (damageRecord.affected_panels) affectedPanels = damageRecord.affected_panels;
-			if (damageRecord.photos) photos = damageRecord.photos;
 		}
 	});
 
@@ -280,48 +277,6 @@
 					placeholder="Detailed description of the damage..."
 					rows={3}
 				/>
-
-				<div>
-					<h4 class="mb-2 text-sm font-medium text-gray-700">Damage Photos</h4>
-					<div class="grid gap-4 md:grid-cols-4">
-						{#each photos as photo, photoIndex (photo.url)}
-							<div class="relative bg-gray-100 rounded-lg flex items-center justify-center">
-								<img
-									src={photo.url}
-									alt={photo.description || 'Damage photo'}
-									class="h-32 w-full rounded-lg object-contain"
-								/>
-								<Button
-									size="sm"
-									variant="outline"
-									class="absolute right-2 top-2 bg-white"
-									onclick={() => {
-										const newPhotos = [...photos];
-										newPhotos.splice(photoIndex, 1);
-										photos = newPhotos;
-										onUpdateDamage({ photos: newPhotos });
-									}}
-								>
-									Remove
-								</Button>
-							</div>
-						{/each}
-
-						<PhotoUpload
-							value=""
-							label=""
-							{assessmentId}
-							category="damage"
-							subcategory="damage_record"
-							onUpload={(url) => {
-								const newPhotos = [...photos, { url, description: '' }];
-								photos = newPhotos;
-								onUpdateDamage({ photos: newPhotos });
-							}}
-							height="h-32"
-						/>
-					</div>
-				</div>
 			</div>
 		</Card>
 	{/if}

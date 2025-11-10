@@ -64,6 +64,7 @@
 	// Store reference to tab save functions for auto-save on tab change
 	let estimateTabSaveFn: (() => Promise<void>) | null = null;
 	let preIncidentEstimateTabSaveFn: (() => Promise<void>) | null = null;
+	let tyresTabSaveFn: (() => Promise<void>) | null = null;
 
 	async function handleTabChange(tabId: string) {
 		// Auto-save current tab if leaving it with unsaved changes
@@ -71,6 +72,8 @@
 			await estimateTabSaveFn();
 		} else if (currentTab === 'pre-incident' && preIncidentEstimateTabSaveFn) {
 			await preIncidentEstimateTabSaveFn();
+		} else if (currentTab === 'tyres' && tyresTabSaveFn) {
+			await tyresTabSaveFn();
 		}
 
 		// Auto-save before switching tabs
@@ -109,6 +112,8 @@
 			await estimateTabSaveFn();
 		} else if (currentTab === 'pre-incident' && preIncidentEstimateTabSaveFn) {
 			await preIncidentEstimateTabSaveFn();
+		} else if (currentTab === 'tyres' && tyresTabSaveFn) {
+			await tyresTabSaveFn();
 		}
 		goto(`/work/appointments/${data.appointment.id}`);
 	}
@@ -764,6 +769,9 @@
 				// Reload notes from database and update local state
 				const updatedNotes = await assessmentNotesService.getNotesByAssessment(data.assessment.id);
 				notes = updatedNotes; // Update local state to trigger reactivity
+			}}
+			onRegisterSave={(saveFn) => {
+				tyresTabSaveFn = saveFn;
 			}}
 		/>
 	{:else if currentTab === 'damage'}
