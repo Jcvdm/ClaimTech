@@ -1,4 +1,5 @@
 import { supabase } from '$lib/supabase';
+import type { ServiceClient } from '$lib/types';
 import type {
 	VehicleIdentification,
 	CreateVehicleIdentificationInput,
@@ -10,8 +11,9 @@ export class VehicleIdentificationService {
 	/**
 	 * Create vehicle identification record
 	 */
-	async create(input: CreateVehicleIdentificationInput): Promise<VehicleIdentification> {
-		const { data, error } = await supabase
+	async create(input: CreateVehicleIdentificationInput, client?: ServiceClient): Promise<VehicleIdentification> {
+		const db = client ?? supabase;
+		const { data, error } = await db
 			.from('assessment_vehicle_identification')
 			.insert(input)
 			.select()
@@ -29,7 +31,7 @@ export class VehicleIdentificationService {
 				entity_id: data.id,
 				action: 'created',
 				metadata: { assessment_id: input.assessment_id }
-			});
+			}, client);
 		} catch (auditError) {
 			console.error('Error logging audit change:', auditError);
 		}
@@ -40,8 +42,9 @@ export class VehicleIdentificationService {
 	/**
 	 * Get vehicle identification by assessment ID
 	 */
-	async getByAssessment(assessmentId: string): Promise<VehicleIdentification | null> {
-		const { data, error } = await supabase
+	async getByAssessment(assessmentId: string, client?: ServiceClient): Promise<VehicleIdentification | null> {
+		const db = client ?? supabase;
+		const { data, error } = await db
 			.from('assessment_vehicle_identification')
 			.select('*')
 			.eq('assessment_id', assessmentId)
@@ -60,14 +63,16 @@ export class VehicleIdentificationService {
 	 */
 	async update(
 		assessmentId: string,
-		input: UpdateVehicleIdentificationInput
+		input: UpdateVehicleIdentificationInput,
+		client?: ServiceClient
 	): Promise<VehicleIdentification> {
+		const db = client ?? supabase;
 		// Convert undefined to null for Supabase (defensive programming)
 		const cleanedInput = Object.fromEntries(
 			Object.entries(input).map(([key, value]) => [key, value === undefined ? null : value])
 		) as UpdateVehicleIdentificationInput;
 
-		const { data, error} = await supabase
+		const { data, error} = await db
 			.from('assessment_vehicle_identification')
 			.update(cleanedInput)
 			.eq('assessment_id', assessmentId)
@@ -89,7 +94,7 @@ export class VehicleIdentificationService {
 				metadata: {
 					fields_updated: fieldsUpdated
 				}
-			});
+			}, client);
 		} catch (auditError) {
 			console.error('Error logging audit change:', auditError);
 		}
@@ -102,14 +107,15 @@ export class VehicleIdentificationService {
 	 */
 	async upsert(
 		assessmentId: string,
-		input: UpdateVehicleIdentificationInput
+		input: UpdateVehicleIdentificationInput,
+		client?: ServiceClient
 	): Promise<VehicleIdentification> {
-		const existing = await this.getByAssessment(assessmentId);
+		const existing = await this.getByAssessment(assessmentId, client);
 
 		if (existing) {
-			return this.update(assessmentId, input);
+			return this.update(assessmentId, input, client);
 		} else {
-			return this.create({ assessment_id: assessmentId, ...input });
+			return this.create({ assessment_id: assessmentId, ...input }, client);
 		}
 	}
 }

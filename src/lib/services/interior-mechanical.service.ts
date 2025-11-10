@@ -1,4 +1,5 @@
 import { supabase } from '$lib/supabase';
+import type { ServiceClient } from '$lib/types';
 import type {
 	InteriorMechanical,
 	CreateInteriorMechanicalInput,
@@ -10,8 +11,9 @@ export class InteriorMechanicalService {
 	/**
 	 * Create interior/mechanical record
 	 */
-	async create(input: CreateInteriorMechanicalInput): Promise<InteriorMechanical> {
-		const { data, error } = await supabase
+	async create(input: CreateInteriorMechanicalInput, client?: ServiceClient): Promise<InteriorMechanical> {
+		const db = client ?? supabase;
+		const { data, error } = await db
 			.from('assessment_interior_mechanical')
 			.insert(input)
 			.select()
@@ -29,7 +31,7 @@ export class InteriorMechanicalService {
 				entity_id: data.id,
 				action: 'created',
 				metadata: { assessment_id: input.assessment_id }
-			});
+			}, client);
 		} catch (auditError) {
 			console.error('Error logging audit change:', auditError);
 		}
@@ -40,8 +42,9 @@ export class InteriorMechanicalService {
 	/**
 	 * Get interior/mechanical by assessment ID
 	 */
-	async getByAssessment(assessmentId: string): Promise<InteriorMechanical | null> {
-		const { data, error } = await supabase
+	async getByAssessment(assessmentId: string, client?: ServiceClient): Promise<InteriorMechanical | null> {
+		const db = client ?? supabase;
+		const { data, error } = await db
 			.from('assessment_interior_mechanical')
 			.select('*')
 			.eq('assessment_id', assessmentId)
@@ -60,14 +63,16 @@ export class InteriorMechanicalService {
 	 */
 	async update(
 		assessmentId: string,
-		input: UpdateInteriorMechanicalInput
+		input: UpdateInteriorMechanicalInput,
+		client?: ServiceClient
 	): Promise<InteriorMechanical> {
+		const db = client ?? supabase;
 		// Convert undefined to null for Supabase (defensive programming)
 		const cleanedInput = Object.fromEntries(
 			Object.entries(input).map(([key, value]) => [key, value === undefined ? null : value])
 		) as UpdateInteriorMechanicalInput;
 
-		const { data, error } = await supabase
+		const { data, error } = await db
 			.from('assessment_interior_mechanical')
 			.update(cleanedInput)
 			.eq('assessment_id', assessmentId)
@@ -89,7 +94,7 @@ export class InteriorMechanicalService {
 				metadata: {
 					fields_updated: fieldsUpdated
 				}
-			});
+			}, client);
 		} catch (auditError) {
 			console.error('Error logging audit change:', auditError);
 		}
@@ -102,14 +107,15 @@ export class InteriorMechanicalService {
 	 */
 	async upsert(
 		assessmentId: string,
-		input: UpdateInteriorMechanicalInput
+		input: UpdateInteriorMechanicalInput,
+		client?: ServiceClient
 	): Promise<InteriorMechanical> {
-		const existing = await this.getByAssessment(assessmentId);
+		const existing = await this.getByAssessment(assessmentId, client);
 
 		if (existing) {
-			return this.update(assessmentId, input);
+			return this.update(assessmentId, input, client);
 		} else {
-			return this.create({ assessment_id: assessmentId, ...input });
+			return this.create({ assessment_id: assessmentId, ...input }, client);
 		}
 	}
 }

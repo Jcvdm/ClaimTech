@@ -1,4 +1,5 @@
 import { supabase } from '$lib/supabase';
+import type { ServiceClient } from '$lib/types';
 import type {
 	DamagePhoto,
 	CreateDamagePhotoInput,
@@ -12,8 +13,9 @@ class DamagePhotosService {
 	/**
 	 * Get all photos for an assessment
 	 */
-	async getPhotosByAssessment(assessmentId: string): Promise<DamagePhoto[]> {
-		const { data, error } = await supabase
+	async getPhotosByAssessment(assessmentId: string, client?: ServiceClient): Promise<DamagePhoto[]> {
+		const db = client ?? supabase;
+		const { data, error } = await db
 			.from('assessment_damage_photos')
 			.select('*')
 			.eq('assessment_id', assessmentId)
@@ -31,8 +33,9 @@ class DamagePhotosService {
 	/**
 	 * Create a new photo
 	 */
-	async createPhoto(input: CreateDamagePhotoInput): Promise<DamagePhoto> {
-		const { data, error } = await supabase
+	async createPhoto(input: CreateDamagePhotoInput, client?: ServiceClient): Promise<DamagePhoto> {
+		const db = client ?? supabase;
+		const { data, error } = await db
 			.from('assessment_damage_photos')
 			.insert({
 				assessment_id: input.assessment_id,
@@ -58,9 +61,11 @@ class DamagePhotosService {
 	 */
 	async updatePhoto(
 		photoId: string,
-		input: UpdateDamagePhotoInput
+		input: UpdateDamagePhotoInput,
+		client?: ServiceClient
 	): Promise<DamagePhoto> {
-		const { data, error } = await supabase
+		const db = client ?? supabase;
+		const { data, error } = await db
 			.from('assessment_damage_photos')
 			.update({
 				label: input.label,
@@ -82,22 +87,23 @@ class DamagePhotosService {
 	/**
 	 * Update a photo's label only
 	 */
-	async updatePhotoLabel(photoId: string, label: string): Promise<DamagePhoto> {
-		return this.updatePhoto(photoId, { label });
+	async updatePhotoLabel(photoId: string, label: string, client?: ServiceClient): Promise<DamagePhoto> {
+		return this.updatePhoto(photoId, { label }, client);
 	}
 
 	/**
 	 * Update a photo's panel only
 	 */
-	async updatePhotoPanel(photoId: string, panel: string): Promise<DamagePhoto> {
-		return this.updatePhoto(photoId, { panel });
+	async updatePhotoPanel(photoId: string, panel: string, client?: ServiceClient): Promise<DamagePhoto> {
+		return this.updatePhoto(photoId, { panel }, client);
 	}
 
 	/**
 	 * Delete a photo
 	 */
-	async deletePhoto(photoId: string): Promise<void> {
-		const { error } = await supabase
+	async deletePhoto(photoId: string, client?: ServiceClient): Promise<void> {
+		const db = client ?? supabase;
+		const { error } = await db
 			.from('assessment_damage_photos')
 			.delete()
 			.eq('id', photoId);
@@ -111,10 +117,11 @@ class DamagePhotosService {
 	/**
 	 * Reorder photos for an assessment
 	 */
-	async reorderPhotos(assessmentId: string, photoIds: string[]): Promise<void> {
+	async reorderPhotos(assessmentId: string, photoIds: string[], client?: ServiceClient): Promise<void> {
+		const db = client ?? supabase;
 		// Update display_order for each photo based on its position in the array
 		const updates = photoIds.map((photoId, index) =>
-			supabase
+			db
 				.from('assessment_damage_photos')
 				.update({ display_order: index })
 				.eq('id', photoId)
@@ -134,8 +141,9 @@ class DamagePhotosService {
 	/**
 	 * Get next display order for a new photo
 	 */
-	async getNextDisplayOrder(assessmentId: string): Promise<number> {
-		const { data, error } = await supabase
+	async getNextDisplayOrder(assessmentId: string, client?: ServiceClient): Promise<number> {
+		const db = client ?? supabase;
+		const { data, error } = await db
 			.from('assessment_damage_photos')
 			.select('display_order')
 			.eq('assessment_id', assessmentId)

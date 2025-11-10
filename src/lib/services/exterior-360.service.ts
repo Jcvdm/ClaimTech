@@ -1,4 +1,5 @@
 import { supabase } from '$lib/supabase';
+import type { ServiceClient } from '$lib/types';
 import type {
 	Exterior360,
 	CreateExterior360Input,
@@ -10,8 +11,9 @@ export class Exterior360Service {
 	/**
 	 * Create 360 exterior record
 	 */
-	async create(input: CreateExterior360Input): Promise<Exterior360> {
-		const { data, error } = await supabase
+	async create(input: CreateExterior360Input, client?: ServiceClient): Promise<Exterior360> {
+		const db = client ?? supabase;
+		const { data, error } = await db
 			.from('assessment_360_exterior')
 			.insert(input)
 			.select()
@@ -29,7 +31,7 @@ export class Exterior360Service {
 				entity_id: data.id,
 				action: 'created',
 				metadata: { assessment_id: input.assessment_id }
-			});
+			}, client);
 		} catch (auditError) {
 			console.error('Error logging audit change:', auditError);
 		}
@@ -40,8 +42,9 @@ export class Exterior360Service {
 	/**
 	 * Get 360 exterior by assessment ID
 	 */
-	async getByAssessment(assessmentId: string): Promise<Exterior360 | null> {
-		const { data, error } = await supabase
+	async getByAssessment(assessmentId: string, client?: ServiceClient): Promise<Exterior360 | null> {
+		const db = client ?? supabase;
+		const { data, error } = await db
 			.from('assessment_360_exterior')
 			.select('*')
 			.eq('assessment_id', assessmentId)
@@ -58,13 +61,14 @@ export class Exterior360Service {
 	/**
 	 * Update 360 exterior
 	 */
-	async update(assessmentId: string, input: UpdateExterior360Input): Promise<Exterior360> {
+	async update(assessmentId: string, input: UpdateExterior360Input, client?: ServiceClient): Promise<Exterior360> {
+		const db = client ?? supabase;
 		// Convert undefined to null for Supabase (defensive programming)
 		const cleanedInput = Object.fromEntries(
 			Object.entries(input).map(([key, value]) => [key, value === undefined ? null : value])
 		) as UpdateExterior360Input;
 
-		const { data, error } = await supabase
+		const { data, error } = await db
 			.from('assessment_360_exterior')
 			.update(cleanedInput)
 			.eq('assessment_id', assessmentId)
@@ -86,7 +90,7 @@ export class Exterior360Service {
 				metadata: {
 					fields_updated: fieldsUpdated
 				}
-			});
+			}, client);
 		} catch (auditError) {
 			console.error('Error logging audit change:', auditError);
 		}
@@ -97,13 +101,13 @@ export class Exterior360Service {
 	/**
 	 * Upsert 360 exterior (create or update)
 	 */
-	async upsert(assessmentId: string, input: UpdateExterior360Input): Promise<Exterior360> {
-		const existing = await this.getByAssessment(assessmentId);
+	async upsert(assessmentId: string, input: UpdateExterior360Input, client?: ServiceClient): Promise<Exterior360> {
+		const existing = await this.getByAssessment(assessmentId, client);
 
 		if (existing) {
-			return this.update(assessmentId, input);
+			return this.update(assessmentId, input, client);
 		} else {
-			return this.create({ assessment_id: assessmentId, ...input });
+			return this.create({ assessment_id: assessmentId, ...input }, client);
 		}
 	}
 }

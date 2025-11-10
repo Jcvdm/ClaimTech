@@ -1,4 +1,4 @@
-import { BaseService } from './base.service';
+import { supabase } from '$lib/supabase';
 import type { ServiceClient } from '$lib/types';
 import type { TyrePhoto, CreateTyrePhotoInput, UpdateTyrePhotoInput } from '$lib/types/assessment';
 import { auditService } from './audit.service';
@@ -7,14 +7,14 @@ import { auditService } from './audit.service';
  * Service for managing tyre photos
  * Follows unified photo panel pattern with ServiceClient injection
  */
-class TyrePhotosService extends BaseService {
+class TyrePhotosService {
 	/**
 	 * Get all photos for a specific tyre
 	 */
 	async getPhotosByTyre(tyreId: string, client?: ServiceClient): Promise<TyrePhoto[]> {
-		const supabase = client || this.getClient();
+		const db = client ?? supabase;
 
-		const { data, error } = await supabase
+		const { data, error } = await db
 			.from('assessment_tyre_photos')
 			.select('*')
 			.eq('tyre_id', tyreId)
@@ -28,9 +28,9 @@ class TyrePhotosService extends BaseService {
 	 * Get all photos for an assessment (all tyres)
 	 */
 	async getPhotosByAssessment(assessmentId: string, client?: ServiceClient): Promise<TyrePhoto[]> {
-		const supabase = client || this.getClient();
+		const db = client ?? supabase;
 
-		const { data, error } = await supabase
+		const { data, error } = await db
 			.from('assessment_tyre_photos')
 			.select('*')
 			.eq('assessment_id', assessmentId)
@@ -44,12 +44,12 @@ class TyrePhotosService extends BaseService {
 	 * Create a new tyre photo
 	 */
 	async createPhoto(input: CreateTyrePhotoInput, client?: ServiceClient): Promise<TyrePhoto> {
-		const supabase = client || this.getClient();
+		const db = client ?? supabase;
 
 		// Get next display order
 		const displayOrder = input.display_order ?? (await this.getNextDisplayOrder(input.tyre_id, client));
 
-		const { data, error } = await supabase
+		const { data, error } = await db
 			.from('assessment_tyre_photos')
 			.insert({
 				...input,
@@ -82,16 +82,16 @@ class TyrePhotosService extends BaseService {
 		updates: UpdateTyrePhotoInput,
 		client?: ServiceClient
 	): Promise<TyrePhoto> {
-		const supabase = client || this.getClient();
+		const db = client ?? supabase;
 
 		// Get old data for audit
-		const { data: oldData } = await supabase
+		const { data: oldData } = await db
 			.from('assessment_tyre_photos')
 			.select('*')
 			.eq('id', id)
 			.single();
 
-		const { data, error } = await supabase
+		const { data, error } = await db
 			.from('assessment_tyre_photos')
 			.update(updates)
 			.eq('id', id)
@@ -117,16 +117,16 @@ class TyrePhotosService extends BaseService {
 	 * Delete a tyre photo
 	 */
 	async deletePhoto(id: string, assessmentId: string, client?: ServiceClient): Promise<void> {
-		const supabase = client || this.getClient();
+		const db = client ?? supabase;
 
 		// Get data for audit before deletion
-		const { data: oldData } = await supabase
+		const { data: oldData } = await db
 			.from('assessment_tyre_photos')
 			.select('*')
 			.eq('id', id)
 			.single();
 
-		const { error } = await supabase
+		const { error } = await db
 			.from('assessment_tyre_photos')
 			.delete()
 			.eq('id', id);
@@ -148,9 +148,9 @@ class TyrePhotosService extends BaseService {
 	 * Get next display order for a tyre
 	 */
 	private async getNextDisplayOrder(tyreId: string, client?: ServiceClient): Promise<number> {
-		const supabase = client || this.getClient();
+		const db = client ?? supabase;
 
-		const { data, error } = await supabase
+		const { data, error } = await db
 			.from('assessment_tyre_photos')
 			.select('display_order')
 			.eq('tyre_id', tyreId)

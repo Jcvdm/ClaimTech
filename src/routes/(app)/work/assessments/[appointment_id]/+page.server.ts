@@ -152,10 +152,10 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 			: [];
 
 		// Load interior photos for assessment
-		const interiorPhotos = await interiorPhotosService.getPhotosByAssessment(assessment.id);
+		const interiorPhotos = await interiorPhotosService.getPhotosByAssessment(assessment.id, locals.supabase);
 
 		// Load exterior 360 additional photos for assessment
-		const exterior360Photos = await exterior360PhotosService.getPhotosByAssessment(assessment.id);
+		const exterior360Photos = await exterior360PhotosService.getPhotosByAssessment(assessment.id, locals.supabase);
 
 		// Load tyre photos for assessment
 		const tyrePhotos = await tyrePhotosService.getPhotosByAssessment(assessment.id, locals.supabase);
