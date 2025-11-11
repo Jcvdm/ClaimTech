@@ -1,6 +1,65 @@
 # Changelog - Recent Updates
 
-**Last Updated**: November 9, 2025 (Photo Panel Display Fix)
+**Last Updated**: November 11, 2025 (Bug Fixes #3 & #4)
+
+---
+
+## November 11, 2025
+
+### ✅ Bug #4 Fix - Estimate Description Field Editing
+- **ISSUE**: Description field in EstimateTab line items was not editable after creation
+  - Users could add line items successfully
+  - Description field appeared locked/read-only
+  - Other fields (Part Price, S&A, Labour, Paint, Outwork) were editable
+- **ROOT CAUSE**: Svelte 4 to Svelte 5 syntax migration issue
+  - Line 884 used `on:blur` (Svelte 4 syntax) instead of `onblur` (Svelte 5 syntax)
+  - Svelte 5 doesn't recognize `on:blur` directive
+  - Blur handler never fired, preventing proper field updates
+- **SOLUTION**: Changed event handler syntax on line 884
+  - Changed `on:blur` to `onblur` (removed colon)
+  - Single-character fix, no breaking changes
+- **IMPLEMENTATION**:
+  - File: `src/lib/components/assessment/EstimateTab.svelte` (line 884)
+  - Pattern: Now matches PreIncidentEstimateTab and Svelte 5 syntax
+- **VERIFICATION**:
+  - ✅ Description field is editable after line item creation
+  - ✅ Text updates as user types (oninput handler)
+  - ✅ Blur handler fires when user tabs away
+  - ✅ Changes persist after save
+- **DOCUMENTATION**:
+  - Context Report: `.augment/context_reports/BUG_4_ESTIMATE_DESCRIPTION_EDIT_CONTEXT.md`
+  - Implementation Plan: `.augment/fixes/BUG_4_IMPLEMENTATION_PLAN.md`
+  - Fix Summary: `.augment/fixes/BUG_4_FIX_SUMMARY.md`
+  - Completion Report: `.augment/fixes/BUG_4_COMPLETE.md`
+
+### ✅ Bug #3 Fix - Vehicle Values PDF Upload Persistence
+- **ISSUE**: PDF uploads to Vehicle Values tab were not persisting to database
+  - Upload completed successfully to storage
+  - Validation badge showed "PDF required" even after upload
+  - PDF disappeared when navigating away from tab
+  - Data loss on page reload
+- **ROOT CAUSE**: Missing auto-save after PDF upload
+  - `handlePdfUpload()` updated local state but didn't call `handleSave()`
+  - PDF only saved if user triggered debounced save by typing in another field
+  - When navigating away, `$effect()` sync overwrote local state with database values (empty)
+- **SOLUTION**: Added `handleSave()` calls after PDF operations
+  - Added `handleSave()` in `handlePdfUpload()` (line 322)
+  - Added `handleSave()` in `handlePdfRemove()` (line 329)
+  - Matches auto-save pattern used elsewhere in assessment tabs
+- **IMPLEMENTATION**:
+  - File: `src/lib/components/assessment/VehicleValuesTab.svelte` (lines 322, 329)
+  - Changes: 2 function calls + 2 explanatory comments
+  - Pattern: Consistent with other tab auto-save implementations
+- **VERIFICATION**:
+  - ✅ PDF persists to database immediately after upload
+  - ✅ Validation badge updates instantly
+  - ✅ PDF remains visible when navigating between tabs
+  - ✅ PDF loads correctly on page reload
+  - ✅ PDF removal persists to database
+- **DOCUMENTATION**:
+  - Context Report: `.augment/context_reports/BUG_3_VEHICLE_VALUE_PDF_UPLOAD_CONTEXT.md`
+  - Implementation Plan: `.augment/fixes/BUG_3_PDF_UPLOAD_FIX.md`
+  - Fix Summary: `.augment/fixes/BUG_3_SUMMARY.md`
 
 ---
 

@@ -2,6 +2,112 @@
 
 ## Resolved Bugs
 
+### 4. Estimate Tab - Cannot Edit Description on Existing Line Items ✅ RESOLVED
+**Status**: RESOLVED
+**Severity**: Medium
+**Component**: Estimate Tab / Line Items Table
+**Resolution Date**: 2025-11-11
+**Fix**: Changed Svelte 4 syntax `on:blur` to Svelte 5 syntax `onblur`
+
+**Description**:
+When a line item was added to the estimate, users were unable to update or edit the description field of that already-added line. The description field appeared to be locked or non-editable after initial creation.
+
+**Root Cause**:
+Line 884 of `EstimateTab.svelte` used Svelte 4 event handler syntax (`on:blur`) instead of Svelte 5 syntax (`onblur`). Svelte 5 doesn't recognize the `on:blur` directive, so the blur handler never fired. While the `oninput` handler worked (allowing text to update as you type), without the blur handler, the field didn't properly flush updates to the local state.
+
+**Solution**:
+Changed line 884 in `src/lib/components/assessment/EstimateTab.svelte` from:
+```svelte
+on:blur={(e) => flushUpdate(item.id!, 'description', e.currentTarget.value)}
+```
+
+To:
+```svelte
+onblur={(e) => flushUpdate(item.id!, 'description', e.currentTarget.value)}
+```
+
+This single-character change (removing the colon) fixes the event handler syntax to match Svelte 5 requirements.
+
+**Implementation Details**:
+- File: `src/lib/components/assessment/EstimateTab.svelte`
+- Line: 884
+- Change: Removed colon from `on:blur` to make it `onblur`
+- Pattern: Now matches PreIncidentEstimateTab and Svelte 5 event handler syntax
+- Risk: Low (single character change, no breaking changes)
+
+**Testing**:
+- Add line item to estimate
+- Click into description field and type
+- Tab to next field (blur handler fires)
+- Click "Save Changes"
+- Navigate away and return
+- Verify description persists
+
+**Related Documentation**:
+- Context Report: `.augment/context_reports/BUG_4_ESTIMATE_DESCRIPTION_EDIT_CONTEXT.md`
+- Implementation Plan: `.augment/fixes/BUG_4_IMPLEMENTATION_PLAN.md`
+- Fix Summary: `.augment/fixes/BUG_4_FIX_SUMMARY.md`
+- Completion Report: `.augment/fixes/BUG_4_COMPLETE.md`
+
+---
+
+### 3. Vehicle Values Tab - PDF Upload Not Persisting ✅ RESOLVED
+**Status**: RESOLVED
+**Severity**: Medium
+**Component**: Vehicle Values Tab / PDF Upload
+**Resolution Date**: 2025-11-11
+**Fix**: Added `handleSave()` calls after PDF upload and removal
+
+**Description**:
+When users uploaded a PDF to the Vehicle Values tab, the upload completed successfully to storage, but the PDF URL/path was not saved to the database. When users navigated away from the tab and returned, the PDF disappeared because it was never persisted.
+
+**Root Cause**:
+The `handlePdfUpload()` function updated local state (`valuationPdfUrl` and `valuationPdfPath`) but did not call `handleSave()` to persist to the database. The PDF only saved if the user triggered the debounced save by typing in another field within 2 seconds. When users navigated away, the `$effect()` sync logic overwrote local state with database values (which had no PDF data), causing the PDF to disappear.
+
+**Solution**:
+Added `handleSave()` calls in two functions in `src/lib/components/assessment/VehicleValuesTab.svelte`:
+
+1. In `handlePdfUpload()` (line 322):
+```typescript
+function handlePdfUpload(url: string, path: string) {
+  valuationPdfUrl = url;
+  valuationPdfPath = path;
+  handleSave(); // ← Added this line
+}
+```
+
+2. In `handlePdfRemove()` (line 329):
+```typescript
+function handlePdfRemove() {
+  valuationPdfUrl = '';
+  valuationPdfPath = '';
+  handleSave(); // ← Added this line
+}
+```
+
+**Implementation Details**:
+- File: `src/lib/components/assessment/VehicleValuesTab.svelte`
+- Lines: 322, 329
+- Changes: Added 2 `handleSave()` calls + 2 explanatory comments
+- Pattern: Matches auto-save pattern used elsewhere in assessment tabs
+- Risk: Low (isolated change, no breaking changes)
+
+**Testing**:
+- Upload PDF to Vehicle Values tab
+- Verify validation badge updates immediately
+- Navigate to another tab and return
+- Verify PDF is still visible
+- Reload page and navigate to Values tab
+- Verify PDF loads from database
+- Remove PDF and verify it's deleted from database
+
+**Related Documentation**:
+- Context Report: `.augment/context_reports/BUG_3_VEHICLE_VALUE_PDF_UPLOAD_CONTEXT.md`
+- Implementation Plan: `.augment/fixes/BUG_3_PDF_UPLOAD_FIX.md`
+- Fix Summary: `.augment/fixes/BUG_3_SUMMARY.md`
+
+---
+
 ### 2. Damage ID Outstanding Fields Badge - Stays Open When Complete ✅ RESOLVED
 **Status**: RESOLVED
 **Severity**: Low
