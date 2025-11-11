@@ -881,7 +881,7 @@
 											value={item.description}
 											oninput={(e) =>
 												scheduleUpdate(item.id!, 'description', e.currentTarget.value)}
-										on:blur={(e) => flushUpdate(item.id!, 'description', e.currentTarget.value)}
+											onblur={(e) => flushUpdate(item.id!, 'description', e.currentTarget.value)}
 											class="border-0 focus-visible:ring-0 focus-visible:ring-offset-0"
 										/>
 									</Table.Cell>

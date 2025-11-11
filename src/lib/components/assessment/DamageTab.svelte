@@ -114,8 +114,24 @@
 	];
 
 	// Validation for warning banner
+	// Derive from local state instead of damageRecord prop for immediate reactivity
+	// This ensures the badge closes immediately when fields are filled, not after prop updates
 	const validation = $derived.by(() => {
-		return validateDamage(damageRecord ? [damageRecord] : []);
+		// Create temporary record from local state for validation
+		// This reacts immediately to user input without waiting for database save
+		const tempRecord = {
+			matches_description: matchesDescription,
+			severity: severity,
+			// Include other fields for completeness (not validated but good practice)
+			damage_area: damageArea,
+			damage_type: damageType,
+			mismatch_notes: mismatchNotes,
+			damage_description: damageDescription,
+			estimated_repair_duration_days: estimatedRepairDurationDays,
+			location_description: locationDescription,
+			affected_panels: affectedPanels
+		};
+		return validateDamage([tempRecord]);
 	});
 
 	// Track dirty state for auto-save on tab change

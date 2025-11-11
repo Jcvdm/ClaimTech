@@ -2,6 +2,70 @@
 
 ## Resolved Bugs
 
+### 2. Damage ID Outstanding Fields Badge - Stays Open When Complete ✅ RESOLVED
+**Status**: RESOLVED
+**Severity**: Low
+**Component**: Damage Tab / Outstanding Fields Badge
+**Resolution Date**: 2025-01-29
+**Fix**: Changed validation to derive from local state instead of damageRecord prop
+
+**Description**:
+The outstanding fields badge on the Damage ID section stayed visible even after all required fields were filled in. The badge should close/disappear once all fields are complete.
+
+**Root Cause**:
+Validation was derived from `damageRecord` prop which only updated after database save completed. Local state had correct values immediately but validation didn't react to local state changes, causing the badge to stay visible until the prop updated from the parent.
+
+**Solution**:
+Changed validation in `src/lib/components/assessment/DamageTab.svelte` (lines 116-135) from:
+```typescript
+const validation = $derived.by(() => {
+    return validateDamage(damageRecord ? [damageRecord] : []);
+});
+```
+
+To:
+```typescript
+const validation = $derived.by(() => {
+    const tempRecord = {
+        matches_description: matchesDescription,
+        severity: severity,
+        damage_area: damageArea,
+        damage_type: damageType,
+        mismatch_notes: mismatchNotes,
+        damage_description: damageDescription,
+        estimated_repair_duration_days: estimatedRepairDurationDays,
+        location_description: locationDescription,
+        affected_panels: affectedPanels
+    };
+    return validateDamage([tempRecord]);
+});
+```
+
+This ensures validation reacts immediately to user input without waiting for prop updates from the parent.
+
+**Implementation Details**:
+- File: `src/lib/components/assessment/DamageTab.svelte`
+- Lines: 116-135
+- Pattern: Derives validation from local state variables instead of prop
+- Maintains same validation logic, only changes data source
+
+**Testing**:
+- ✅ Badge appears when fields incomplete
+- ✅ Badge disappears immediately when all fields filled
+- ✅ Badge reappears immediately when field cleared
+- ✅ Persists across tab changes
+- ✅ Persists after page reload
+- ✅ Auto-save still works
+- ✅ Finalization validation correct
+- ✅ Other tabs unaffected
+- ✅ No console errors
+
+**Related Documentation**:
+- Testing Instructions: `.agent/Tasks/active/bug_2_testing_instructions.md`
+- Regression Testing: `.agent/Tasks/active/bug_2_regression_testing.md`
+
+---
+
 ### 1. Appointment Creation - UI Not Auto-Updating ✅ RESOLVED
 **Status**: RESOLVED
 **Severity**: Medium
@@ -47,35 +111,6 @@ This forces SvelteKit to discard all cached data and run the appointments list p
 ---
 
 ## Active Bugs
-
-### 2. Damage ID Outstanding Fields Badge - Stays Open When Complete
-**Status**: Open
-**Severity**: Low
-**Component**: Damage Tab / Outstanding Fields Badge
-**Description**:
-The outstanding fields badge on the Damage ID section stays visible/open even after all required fields have been filled in. The badge should close/disappear once all fields are complete.
-
-**Expected Behavior**:
-- Badge displays when fields are incomplete
-- Badge automatically closes/disappears when all required fields are filled
-
-**Current Behavior**:
-- Badge remains visible even after all fields are completed
-- User must manually close the badge or navigate away and back
-
-**Affected Pages**:
-- `/work/assessments/[id]` - Assessment page, Damage Tab
-
-**Related Code Areas**:
-- DamageTab.svelte - Outstanding fields badge logic
-- Damage validation in validation.ts
-- Badge state management/reactivity
-
-**Notes**:
-- Likely a reactivity issue where badge state isn't updating when field values change
-- May be related to localStorage draft sync or validation state not triggering re-render
-
----
 
 ### 3. Vehicle Value Tab - PDF Upload Not Persisting
 **Status**: Open

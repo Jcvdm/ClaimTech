@@ -318,11 +318,15 @@
 	function handlePdfUpload(url: string, path: string) {
 		valuationPdfUrl = url;
 		valuationPdfPath = path;
+		// Auto-save immediately after PDF upload to persist to database
+		handleSave();
 	}
 
 	function handlePdfRemove() {
 		valuationPdfUrl = '';
 		valuationPdfPath = '';
+		// Auto-save immediately after PDF removal to persist to database
+		handleSave();
 	}
 
 	// Validation for warning banner
