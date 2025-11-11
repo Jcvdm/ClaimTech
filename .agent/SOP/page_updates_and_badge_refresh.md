@@ -65,11 +65,68 @@ await invalidateAll(); // Only refreshes current page, not badges
 // User still on assessment detail page, can't see it in new list
 ```
 
+### Additional Example: Appointment Creation
+
+**✅ CORRECT - Navigate with invalidateAll for cross-page mutations**:
+```typescript
+// In InspectionDetail.svelte - handleCreateAppointment()
+async function handleCreateAppointment() {
+    loading = true;
+    error = null;
+    try {
+        // Create appointment in database
+        await appointmentService.create({
+            assessment_id: data.assessment.id,
+            appointment_type: appointmentType,
+            appointment_date: appointmentDate,
+            appointment_time: appointmentTime,
+            duration_minutes: duration,
+            location_address: location
+        }, $page.data.supabase);
+
+        // Update assessment with appointment_id
+        await assessmentService.update(
+            data.assessment.id,
+            { appointment_id: newAppointmentId },
+            $page.data.supabase
+        );
+
+        // Update assessment stage
+        await assessmentService.updateStage(
+            data.assessment.id,
+            'appointment_scheduled',
+            $page.data.supabase
+        );
+
+        showCreateAppointmentModal = false;
+
+        // Navigate to appointments list with cache invalidation
+        // IMPORTANT: Must use { invalidateAll: true } to force fresh data load
+        // Without it, SvelteKit serves cached data that doesn't include new appointment
+        goto('/work/appointments', { invalidateAll: true });
+    } catch (err) {
+        error = err instanceof Error ? err.message : 'Failed to create appointment';
+    } finally {
+        loading = false;
+    }
+}
+```
+
+**Why `{ invalidateAll: true }` is needed here**:
+- Appointment is created in database ✅
+- Assessment is updated with appointment_id ✅
+- Assessment stage is updated to 'appointment_scheduled' ✅
+- BUT: Without `invalidateAll`, SvelteKit may serve cached appointments list data
+- Cached data was loaded BEFORE the appointment was created
+- Result: New appointment doesn't appear in list until manual refresh
+- Solution: `{ invalidateAll: true }` forces fresh query that includes new appointment
+
 ### Key Points
 - Use `goto('/path/to/target-list')` after successful mutation
+- Use `{ invalidateAll: true }` when navigating to a different page after mutation
 - Don't use `await` before `goto()` (immediate navigation)
 - Authenticated client passed from `$page.data.supabase`
-- Navigation handles all data refresh automatically
+- Navigation with invalidateAll handles all data refresh automatically
 
 ---
 

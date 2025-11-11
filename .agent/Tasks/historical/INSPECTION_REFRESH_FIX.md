@@ -146,9 +146,21 @@ async function handleReactivateInspection() {
 | **Action** | **Navigation** | **Pattern** | **Status** |
 |-----------|---------------|-------------|-----------|
 | **Assign Engineer** | Same page | `goto(url, { invalidateAll: true })` | ✅ Fixed |
-| **Create Appointment** | Different page (`/work/appointments`) | `goto(url)` | ✅ Already correct |
+| **Create Appointment** | Different page (`/work/appointments`) | `goto(url, { invalidateAll: true })` | ✅ CORRECTED (Jan 11, 2025) |
 | **Cancel Inspection** | Different page (`/work/inspections`) | `goto(url)` | ✅ Already correct |
 | **Reactivate Inspection** | Different page (`/work/inspections`) | `goto(url)` | ✅ Already correct |
+
+---
+
+## 🔧 **Correction Note (Jan 11, 2025)**
+
+**Line 149 was INCORRECT**: Previously stated "Create Appointment" was "Already correct" without `invalidateAll`.
+
+**Root Cause of Error**: The assumption that "navigating to a different page automatically loads fresh data" is not always true. SvelteKit caches page data for performance, and without `{ invalidateAll: true }`, cached data can be served even when navigating to a different page.
+
+**Fix Applied**: Added `{ invalidateAll: true }` to the appointment creation navigation (line 319 of `src/routes/(app)/work/inspections/[id]/+page.svelte`).
+
+**Reference**: See `.agent/Tasks/active/bug_1_appointment_creation_fix_plan.md` for complete implementation details.
 
 ---
 

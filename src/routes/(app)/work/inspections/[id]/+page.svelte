@@ -315,8 +315,8 @@
 			);
 
 			showCreateAppointmentModal = false;
-			// Navigate to appointments list (data will be fresh on next page)
-			goto('/work/appointments');
+			// Navigate to appointments list with cache invalidation to show new appointment
+			goto('/work/appointments', { invalidateAll: true });
 		} catch (err) {
 			console.error('Error creating appointment:', err);
 			error = err instanceof Error ? err.message : 'Failed to create appointment';

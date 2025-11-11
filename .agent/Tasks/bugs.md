@@ -1,0 +1,501 @@
+# ClaimTech Bugs & Issues
+
+## Resolved Bugs
+
+### 1. Appointment Creation - UI Not Auto-Updating ✅ RESOLVED
+**Status**: RESOLVED
+**Severity**: Medium
+**Component**: Inspection Detail Page / Appointments List
+**Resolution Date**: 2025-01-11
+**Fix**: Added `{ invalidateAll: true }` to goto() call on line 319 of `src/routes/(app)/work/inspections/[id]/+page.svelte`
+
+**Description**:
+When an engineer is appointed to an inspection and an appointment is created, the UI did not automatically update to reflect the new appointment. User had to manually navigate away and return to see the appointment appear in the list.
+
+**Root Cause**:
+SvelteKit caches page data for performance. Without `{ invalidateAll: true }`, the appointments list page reused cached data that was loaded BEFORE the appointment was created, so the new appointment didn't appear.
+
+**Solution**:
+Changed line 319 from:
+```typescript
+goto('/work/appointments');
+```
+To:
+```typescript
+goto('/work/appointments', { invalidateAll: true });
+```
+
+This forces SvelteKit to discard all cached data and run the appointments list page loader fresh, which queries the database and returns updated data including the new appointment.
+
+**Implementation Details**:
+- File: `src/routes/(app)/work/inspections/[id]/+page.svelte`
+- Line: 319
+- Function: `handleCreateAppointment()`
+- Pattern: Matches the working engineer appointment flow (line 221)
+
+**Testing**:
+- ✅ Test Case 1: Create Appointment - new appointment appears immediately
+- ✅ Test Case 2: Engineer Appointment - regression test passes
+- ✅ Test Case 3: Sidebar Badge - updates immediately
+- ✅ Regression Tests: Cancel, Reactivate, Accept workflows all work
+- ✅ Edge Cases: Double-click and network delay handled correctly
+
+**Related Documentation**:
+- Implementation Plan: `.agent/Tasks/active/bug_1_appointment_creation_fix_plan.md`
+- Testing Instructions: `.agent/Tasks/active/bug_1_testing_instructions.md`
+
+---
+
+## Active Bugs
+
+### 2. Damage ID Outstanding Fields Badge - Stays Open When Complete
+**Status**: Open
+**Severity**: Low
+**Component**: Damage Tab / Outstanding Fields Badge
+**Description**:
+The outstanding fields badge on the Damage ID section stays visible/open even after all required fields have been filled in. The badge should close/disappear once all fields are complete.
+
+**Expected Behavior**:
+- Badge displays when fields are incomplete
+- Badge automatically closes/disappears when all required fields are filled
+
+**Current Behavior**:
+- Badge remains visible even after all fields are completed
+- User must manually close the badge or navigate away and back
+
+**Affected Pages**:
+- `/work/assessments/[id]` - Assessment page, Damage Tab
+
+**Related Code Areas**:
+- DamageTab.svelte - Outstanding fields badge logic
+- Damage validation in validation.ts
+- Badge state management/reactivity
+
+**Notes**:
+- Likely a reactivity issue where badge state isn't updating when field values change
+- May be related to localStorage draft sync or validation state not triggering re-render
+
+---
+
+### 3. Vehicle Value Tab - PDF Upload Not Persisting
+**Status**: Open
+**Severity**: Medium
+**Component**: Vehicle Value Tab / PDF Upload
+**Description**:
+When a PDF is uploaded to the Vehicle Value tab, the system still asks for the PDF to be uploaded (validation badge/message remains). Additionally, when navigating away from the tab and returning, the uploaded PDF is no longer visible.
+
+**Expected Behavior**:
+- PDF upload completes successfully
+- Validation badge/message disappears indicating upload is complete
+- PDF persists when navigating away and returning to the tab
+
+**Current Behavior**:
+- PDF is uploaded but validation still asks for upload
+- PDF disappears when clicking back to the tab
+- Upload appears to not be saved/persisted
+
+**Affected Pages**:
+- `/work/assessments/[id]` - Assessment page, Vehicle Value Tab
+
+**Related Code Areas**:
+- Vehicle Value Tab component (PDF upload section)
+- PDF file upload/storage logic
+- Data persistence/sync to database
+- Tab navigation/state management
+
+**Notes**:
+- Likely issue with file upload not being properly saved to database or storage
+- May be related to the auto-save pattern not triggering for file uploads
+- Could be a state sync issue between local component state and database
+
+---
+
+### 4. Estimate Tab - Cannot Edit Description on Existing Line Items
+**Status**: Open
+**Severity**: Medium
+**Component**: Estimate Tab / Line Items Table
+**Description**:
+When a line item is added to the estimate, users are unable to update or edit the description field of that already-added line. The description field appears to be locked or non-editable after initial creation.
+
+**Expected Behavior**:
+- Line items should be fully editable after creation
+- Description field should be updatable like other fields (quantity, rate, etc.)
+- Changes to description should be saved via the auto-save pattern
+
+**Current Behavior**:
+- Line items can be added successfully
+- Description field cannot be edited after line is created
+- Description appears locked/read-only
+
+**Affected Pages**:
+- `/work/assessments/[id]` - Assessment page, Estimate Tab
+
+**Related Code Areas**:
+- EstimateTab.svelte - Line items table/editing logic
+- Line item row component - description field rendering
+- ItemTable component - editable field configuration
+- Auto-save logic for line item updates
+
+**Notes**:
+- Other fields (quantity, rate) may be editable - need to verify which fields are affected
+- May be a configuration issue with the ItemTable component's editable fields
+- Could be related to field permissions or validation preventing updates
+
+---
+
+### 5. Estimate Tab - Repairer Selection Not Pulling Through Values
+**Status**: Open
+**Severity**: Medium
+**Component**: Estimate Tab / Rates and Repairer Component
+**Description**:
+When a repairer is selected/added in the Rates and Repairer component, their associated values (markup, rates, etc.) do not automatically populate or update. The repairer selection appears to not trigger the data pull-through.
+
+**Expected Behavior**:
+- When a repairer is selected, their values (markup percentage, labor rates, etc.) should automatically populate
+- Estimate calculations should update based on repairer's rates
+- Values should sync across the estimate tab
+
+**Current Behavior**:
+- Repairer can be selected/added
+- Repairer values do not auto-populate
+- Estimate remains unchanged with default/previous values
+- No automatic update to calculations based on repairer rates
+
+**Affected Pages**:
+- `/work/assessments/[id]` - Assessment page, Estimate Tab
+
+**Related Code Areas**:
+- Rates and Repairer component
+- Repairer selection/dropdown logic
+- Repairer data fetching (rates, markup)
+- Estimate calculation/sync logic
+- EstimateTab.svelte - repairer change handler
+
+**Notes**:
+- Likely missing event handler or callback when repairer is selected
+- May need to fetch repairer details and update estimate state
+- Could be related to reactive state not triggering updates to dependent calculations
+
+---
+
+### 6. Finalization Report - Outstanding Fields Checks on Completed Fields
+**Status**: Open
+**Severity**: High
+**Component**: Finalization Tab / Report Generation
+**Description**:
+When generating the finalization report, the system throws checks/validations for outstanding fields that have already been completed. Fields that are marked as complete are still being flagged as incomplete in the finalization report.
+
+**Expected Behavior**:
+- Finalization report should only flag fields that are actually incomplete
+- Completed fields should not trigger outstanding field checks
+- Report should accurately reflect the completion status of all sections
+
+**Current Behavior**:
+- Finalization report throws checks for outstanding fields
+- Fields that are completed are still being flagged as incomplete
+- Report validation appears to not be reading the actual field completion status
+
+**Affected Pages**:
+- `/work/assessments/[id]` - Assessment page, Finalization Tab
+
+**Related Code Areas**:
+- FinalizeTab.svelte - report generation logic
+- Finalization validation/checks
+- Tab completion status tracking (getTabCompletionStatus)
+- Outstanding fields detection logic
+- validation.ts - completion status functions
+
+**Notes**:
+- Likely issue with completion status not being properly evaluated
+- May be related to stale data or cached completion state
+- Could be a mismatch between field validation and completion status reporting
+
+---
+
+### 7. Finalize Force Click - Supabase Auth Connection Timeout
+**Status**: Open
+**Severity**: High
+**Component**: Finalization Tab / Force Finalize Action
+**Description**:
+When clicking the force finalize button, the application throws a Supabase Auth connection timeout error. The fetch fails with a ConnectTimeoutError after 10 seconds attempting to reach the Supabase Auth server.
+
+**Error Details**:
+```
+TypeError: fetch failed
+ConnectTimeoutError: Connect Timeout Error
+(attempted address: cfblmkzleqtvtfxujikf.supabase.co:443, timeout: 10000ms)
+code: 'UND_ERR_CONNECT_TIMEOUT'
+```
+
+**Stack Trace**:
+- Error originates from FRCService.getCountByStatus()
+- Called during dashboard page load (+page.server.ts:30)
+- Supabase Auth attempting to validate user via getUser()
+
+**Expected Behavior**:
+- Force finalize action should complete without connection errors
+- Dashboard should load successfully with FRC counts
+
+**Current Behavior**:
+- Connection timeout when attempting to reach Supabase Auth server
+- FRC count fails to load
+- Dashboard page load fails
+
+**Affected Pages**:
+- `/work/assessments/[id]` - Assessment page, Finalization Tab (force finalize action)
+- `/dashboard` - Dashboard page (FRC count loading)
+
+**Related Code Areas**:
+- FinalizeTab.svelte - force finalize button handler
+- FRCService.getCountByStatus() - line 668
+- Dashboard +page.server.ts - line 30
+- Supabase Auth client configuration
+- Network/connectivity issues
+
+**Notes**:
+- Warning about using getSession() instead of getUser() for auth validation
+- Likely network connectivity issue or Supabase server unreachable
+- May be related to environment configuration or API endpoint issues
+- Consider implementing retry logic or timeout handling
+
+---
+
+### 8. Generate All Documents Button - Supabase Storage Connection Timeout
+**Status**: Open
+**Severity**: High
+**Component**: Finalization Tab / Generate All Documents Button
+**Description**:
+When clicking the "Generate All Documents" button on the Finalize tab, the application throws a Supabase Storage connection timeout error. The fetch fails with a ConnectTimeoutError after 10 seconds attempting to reach the Supabase Storage server.
+
+**Error Details**:
+```
+StorageError: __isStorageError: true
+TypeError: fetch failed
+ConnectTimeoutError: Connect Timeout Error
+(attempted address: cfblmkzleqtvtfxujikf.supabase.co:443, timeout: 10000ms)
+code: 'UND_ERR_CONNECT_TIMEOUT'
+```
+
+**Stack Trace**:
+- Error originates from @supabase/storage-js/dist/main/lib/fetch.js:31
+- Called during document generation process
+- Supabase Storage attempting to upload/access files
+
+**Expected Behavior**:
+- Generate All Documents button should complete successfully
+- Documents should be generated and stored without connection errors
+- User should receive success confirmation
+
+**Current Behavior**:
+- Connection timeout when attempting to reach Supabase Storage server
+- Document generation fails
+- Error message: "Status: error, Progress: 0%, Message: N/A"
+- Stream closes after timeout
+
+**Affected Pages**:
+- `/work/assessments/[id]` - Assessment page, Finalization Tab
+
+**Related Code Areas**:
+- FinalizeTab.svelte - Generate All Documents button handler
+- Document generation service/functions
+- Supabase Storage client configuration
+- File upload/storage operations
+- Network/connectivity issues
+
+**Notes**:
+- Same root cause as Bug #7 (Supabase connection timeout)
+- Likely network connectivity issue or Supabase server unreachable
+- May be related to environment configuration or API endpoint issues
+- Consider implementing retry logic, timeout handling, or fallback mechanisms
+- Stream properly closes after error but user receives no actionable feedback
+
+---
+
+### 9. Report Generation - Most Information Shows N/A
+**Status**: Open
+**Severity**: Medium
+**Component**: Report Generation / Document Templates
+**Description**:
+When generating reports (assessment reports, estimates, etc.), most of the information in the generated documents displays as "N/A" instead of showing the actual data from the assessment.
+
+**Expected Behavior**:
+- Generated reports should display all relevant assessment data
+- Fields should be populated with actual values from the assessment
+- No "N/A" placeholders for fields that have data
+
+**Current Behavior**:
+- Generated reports show "N/A" for most information fields
+- Data is not being pulled through to the report templates
+- Only some fields may be populated correctly
+
+**Affected Pages**:
+- Report generation across all document types (assessment reports, estimates, etc.)
+
+**Related Code Areas**:
+- Report generation service/functions
+- Document templates
+- Data mapping/transformation for reports
+- Template variable substitution
+
+**Notes**:
+- User will provide example PDF documents to guide implementation
+- Likely issue with data not being passed to templates or template variables not being correctly mapped
+- May be related to missing data fields or incorrect field references in templates
+- Requires review of actual generated documents to identify which fields are affected
+
+---
+
+### 10. Additionals Page - Cannot Edit Line Item Values
+**Status**: Open
+**Severity**: Medium
+**Component**: Additionals Tab / Line Items
+**Description**:
+On the Additionals page, users are unable to edit line item values if typos or errors were made when adding items. Line items appear to be locked/read-only, preventing corrections to quantity, rate, description, or other fields.
+
+**Expected Behavior**:
+- Line items on Additionals page should be fully editable
+- Users should be able to correct typos or errors in any field
+- Changes should be saved via auto-save pattern
+- Behavior should match Estimate tab editing capabilities
+
+**Current Behavior**:
+- Line items cannot be edited after creation
+- Fields appear locked/read-only
+- No way to correct errors without deleting and re-adding items
+
+**Affected Pages**:
+- `/work/assessments/[id]` - Assessment page, Additionals Tab
+
+**Related Code Areas**:
+- Additionals tab component
+- Line items table/editing logic
+- ItemTable component configuration
+- Auto-save logic for additionals
+- Estimate tab (reference for correct behavior)
+
+**Notes**:
+- Possible crossover issue with Estimate tab (Bug #4 - Cannot edit description on existing lines)
+- May be same root cause affecting both tabs
+- Consider if ItemTable component needs configuration update for editable fields
+- Additionals should have same editing capabilities as Estimate tab
+
+---
+
+### 11. FRC Generation - Assessment Not Moving to FRC Immediately
+**Status**: Open
+**Severity**: Medium
+**Component**: FRC Tab / FRC Generation
+**Description**:
+When FRC (Final Repair Costing) is generated/started, the assessment does not immediately move to the FRC list. The assessment remains in its current location and requires manual navigation or page refresh to appear in the FRC section. Additionally, the FRC badge count does not update immediately.
+
+**Expected Behavior**:
+- When FRC is generated, assessment should immediately appear in FRC list
+- FRC badge count in sidebar should update immediately
+- UI should reflect the new FRC status without requiring page refresh
+- Similar to request → inspection auto-update behavior
+
+**Current Behavior**:
+- FRC is generated successfully (backend confirms)
+- Assessment does not appear in FRC list until page refresh
+- FRC badge count does not update
+- User must manually navigate away and back to see changes
+
+**Affected Pages**:
+- `/work/assessments/[id]` - Assessment page, FRC Tab
+- `/work/frc` - FRC list page
+- Sidebar - FRC badge count
+
+**Related Code Areas**:
+- FRC tab component - FRC generation/start logic
+- FRC list page data loading
+- Sidebar badge count calculation
+- Data invalidation/reactive state management
+- Assessment status/workflow transitions
+
+**Notes**:
+- Similar to Bug #1 (Appointment creation not auto-updating)
+- Likely missing data invalidation or reactive state trigger after FRC generation
+- Should reference request → inspection workflow for correct auto-update pattern
+- Badge count should be role-based (engineers see only their items, admins see all)
+
+---
+
+### 12. FRC Logic & Flow - Declined Lines Not Properly Handled
+**Status**: Open
+**Severity**: High
+**Component**: FRC Tab / Line Item Status Management
+**Description**:
+The FRC (Final Repair Costing) logic and flow has issues with how declined line items are handled. When lines are declined on the Additionals or Estimate tabs, they should appear on the FRC page marked as DECLINED and not be open for adjustment. Currently, even adjusted or declined values pull through to FRC, causing confusion about which lines are actually approved vs declined.
+
+**Expected Behavior**:
+- Declined lines should appear on FRC page with DECLINED status
+- Declined lines should NOT be editable/adjustable on FRC
+- Only approved lines should be open for adjustment on FRC
+- Adjusted values should be tracked separately from declined status
+- Clear visual distinction between approved, adjusted, and declined lines
+
+**Current Behavior**:
+- Declined lines pull through to FRC as if they're available for adjustment
+- No clear indication of declined status on FRC page
+- Adjusted values and declined status are not properly distinguished
+- Lines that should be locked appear editable
+
+**Affected Pages**:
+- `/work/assessments/[id]` - Additionals Tab, FRC Tab
+- FRC line item display and editing logic
+
+**Related Code Areas**:
+- FRC tab component - line item rendering
+- Additionals tab - decline logic
+- Line item status tracking (approved/declined/adjusted)
+- FRC data model/schema
+- Line item filtering for FRC display
+
+**Planning Notes**:
+- Need to define clear line item states: PENDING → APPROVED/DECLINED/ADJUSTED
+- Declined lines should be visually distinct (grayed out, strikethrough, etc.)
+- Declined lines should be read-only on FRC page
+- Need to track which lines were declined vs adjusted
+- Consider if declined lines should be excluded from FRC totals
+- May need database schema updates to track line item status/history
+- Requires comprehensive flow planning before implementation
+
+---
+
+### 13. Additionals and FRC Document Generation Not Active/Working
+**Status**: Open
+**Severity**: High
+**Component**: Additionals Tab / FRC Tab / Document Generation
+**Description**:
+Document generation functionality for Additionals and FRC pages is not active or not working. Users cannot generate documents (PDFs, reports, etc.) from the Additionals or FRC tabs. The generate document buttons may be missing, disabled, or non-functional.
+
+**Expected Behavior**:
+- Additionals tab should have document generation capability
+- FRC tab should have document generation capability
+- Users should be able to generate and download documents from both tabs
+- Documents should include relevant line items and assessment data
+
+**Current Behavior**:
+- Document generation not available on Additionals tab
+- Document generation not available on FRC tab
+- Generate buttons may be missing or disabled
+- No way to export/download documents from these tabs
+
+**Affected Pages**:
+- `/work/assessments/[id]` - Additionals Tab
+- `/work/assessments/[id]` - FRC Tab
+
+**Related Code Areas**:
+- Additionals tab component - document generation button/logic
+- FRC tab component - document generation button/logic
+- Document generation service
+- PDF generation templates for additionals/FRC
+- Storage/upload logic for generated documents
+
+**Notes**:
+- May be related to Bug #8 (Generate All Documents button timeout issues)
+- Need to verify if buttons exist but are disabled
+- Need to verify if document generation logic is implemented
+- May need to implement document generation for these tabs if not yet done
+- Should follow same pattern as Estimate tab document generation
+
