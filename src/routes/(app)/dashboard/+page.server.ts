@@ -31,18 +31,33 @@ export const load: PageServerLoad = async ({ locals, parent }) => {
 
 	// Load counts for each work category
 	// For engineers: filter by their engineer_id, For admins: see all
-	const [newRequestCount, inspectionCount, appointmentCount, assessmentCount, finalizedCount, frcCount, additionalsCount] = await Promise.all([
-		isEngineer ? 0 : requestService.getRequestCount({ status: 'submitted' }, locals.supabase), // Engineers don't handle requests
-		isEngineer ? 0 : inspectionService.getInspectionCount({ status: 'pending' }, locals.supabase), // Engineers don't handle inspections directly
-		appointmentService.getAppointmentCount(
-			isEngineer ? { status: 'scheduled', engineer_id } : { status: 'scheduled' },
-			locals.supabase
-		),
-		assessmentService.getInProgressCount(locals.supabase, isEngineer ? engineer_id : undefined),
-		assessmentService.getFinalizedCount(locals.supabase, isEngineer ? engineer_id : undefined),
-		frcService.getCountByStatus('in_progress', locals.supabase, isEngineer ? engineer_id : undefined),
-		additionalsService.getPendingCount(locals.supabase, isEngineer ? engineer_id : undefined)
-	]);
+    async function withRetry<T>(fn: () => Promise<T>, attempts = 3): Promise<T> {
+        let lastErr: any;
+        for (let i = 0; i < attempts; i++) {
+            try {
+                return await fn();
+            } catch (e) {
+                lastErr = e;
+                await new Promise((r) => setTimeout(r, 500 * Math.pow(2, i)));
+            }
+        }
+        throw lastErr;
+    }
+
+    const countsResults = await Promise.allSettled([
+        isEngineer ? Promise.resolve(0) : withRetry(() => requestService.getRequestCount({ status: 'submitted' }, locals.supabase)),
+        isEngineer ? Promise.resolve(0) : withRetry(() => inspectionService.getInspectionCount({ status: 'pending' }, locals.supabase)),
+        withRetry(() => appointmentService.getAppointmentCount(
+            isEngineer ? { status: 'scheduled', engineer_id } : { status: 'scheduled' },
+            locals.supabase
+        )),
+        withRetry(() => assessmentService.getInProgressCount(locals.supabase, isEngineer ? engineer_id : undefined)),
+        withRetry(() => assessmentService.getFinalizedCount(locals.supabase, isEngineer ? engineer_id : undefined)),
+        withRetry(() => frcService.getCountByStatus('in_progress', locals.supabase, isEngineer ? engineer_id : undefined)),
+        withRetry(() => additionalsService.getPendingCount(locals.supabase, isEngineer ? engineer_id : undefined))
+    ]);
+
+    const [newRequestCount, inspectionCount, appointmentCount, assessmentCount, finalizedCount, frcCount, additionalsCount] = countsResults.map((r) => r.status === 'fulfilled' ? r.value as number : 0);
 
 	// Load recent items for activity feed
 	// Engineers only see their assigned work

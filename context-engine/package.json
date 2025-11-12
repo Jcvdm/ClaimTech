@@ -3,14 +3,14 @@
   "version": "1.0.0",
   "description": "AI-powered context retrieval system with automatic codebase processing",
   "type": "module",
-  "main": "src/index.js",
+  "main": "contexts/src/index.js",
   "scripts": {
-    "start": "node src/index.js",
-    "dev": "nodemon src/index.js",
-    "process-codebase": "node scripts/process-codebase.js",
-    "analyze": "node scripts/analyze-codebase.js",
-    "index": "node scripts/index-contexts.js",
-    "setup": "node scripts/setup.js",
+    "start": "node contexts/src/index.js",
+    "dev": "nodemon contexts/src/index.js",
+    "process-codebase": "node contexts/scripts/process-codebase.js",
+    "analyze": "node contexts/scripts/analyze-codebase.js",
+    "index": "node contexts/scripts/index-contexts.js",
+    "setup": "node contexts/scripts/setup.js",
     "test": "curl http://localhost:3456/health"
   },
   "keywords": [
@@ -23,22 +23,22 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
-    "express": "^4.18.2",
+    "@babel/parser": "^7.23.9",
+    "@babel/traverse": "^7.23.9",
+    "@xenova/transformers": "^2.6.2",
+    "chromadb": "^1.7.3",
+    "chromadb-default-embed": "^2.14.0",
     "cors": "^2.8.5",
     "dotenv": "^16.3.1",
-    "chromadb": "^1.7.3",
-    "openai": "^4.28.0",
-    "@xenova/transformers": "^2.6.2",
-    "gray-matter": "^4.0.3",
+    "express": "^4.18.2",
     "glob": "^10.3.10",
-    "@babel/parser": "^7.23.9",
-    "@babel/traverse": "^7.23.9"
+    "gray-matter": "^4.0.3",
+    "openai": "^4.28.0"
   },
   "devDependencies": {
-    "nodemon": "^3.0.3",
-    "typescript": "^5.3.3",
     "@types/node": "^20.11.5",
-    "tsx": "^4.7.0"
+    "nodemon": "^3.0.3",
+    "tsx": "^4.7.0",
+    "typescript": "^5.3.3"
   }
 }
-

@@ -18,8 +18,8 @@ class ContextEngine {
     this.app.use(cors());
     this.app.use(express.json());
 
-    // Initialize Chroma
-    this.chroma = new ChromaClient({ path: process.env.DB_PATH });
+    // Initialize Chroma in embedded mode
+    this.chroma = new ChromaClient();
 
     // Initialize AI broker (cheap model via OpenRouter)
     this.ai = new OpenAI({

@@ -1,5 +1,5 @@
 import { glob } from 'glob';
-import { readFile, writeFile } from 'fs/promises';
+import { readFile, writeFile, stat } from 'fs/promises';
 import path from 'path';
 import parser from '@babel/parser';
 import traverse from '@babel/traverse';
@@ -23,18 +23,41 @@ export async function analyzeCodebase(basePath) {
   ];
   
   for (const pattern of patterns) {
-    const files = await glob(pattern, { 
+    const files = await glob(pattern, {
       cwd: basePath,
-      ignore: ['node_modules/**', 'dist/**', '.git/**', 'build/**', 'coverage/**']
+      ignore: [
+        'node_modules/**',
+        'dist/**',
+        '.git/**',
+        'build/**',
+        'coverage/**',
+        '.svelte-kit/**',
+        '.vercel/**',
+        'context-engine/**',
+        '**/*.min.js',
+        '**/*.map'
+      ]
     });
     
     for (const file of files) {
       const fullPath = path.join(basePath, file);
+
+      // Skip directories
+      try {
+        const stats = await stat(fullPath);
+        if (stats.isDirectory()) {
+          continue;
+        }
+      } catch (error) {
+        console.warn(`Skipping ${file}: ${error.message}`);
+        continue;
+      }
+
       const content = await readFile(fullPath, 'utf-8');
-      
+
       // Extract metadata based on file type
       const metadata = await extractMetadata(fullPath, content);
-      
+
       manifest.files.push({
         path: file,
         type: path.extname(file),

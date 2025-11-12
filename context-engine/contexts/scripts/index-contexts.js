@@ -10,18 +10,23 @@ export async function indexContexts(contexts, options = {}) {
   } = options;
   
   console.log(`📚 Indexing ${contexts.length} context documents...`);
-  
-  // Initialize ChromaDB
-  const chroma = new ChromaClient({ path: './db' });
-  
-  // Clear existing collection if requested
-  if (options.clearExisting) {
-    try {
-      await chroma.deleteCollection(collectionName);
-      console.log('🗑️ Cleared existing collection');
-    } catch (error) {
-      // Collection might not exist
+
+  // Initialize ChromaDB in embedded mode
+  const chroma = new ChromaClient();
+
+  // Try to get existing collection, or create new one
+  let collection;
+  try {
+    if (options.clearExisting) {
+      try {
+        await chroma.deleteCollection({ name: collectionName });
+        console.log('🗑️ Cleared existing collection');
+      } catch (error) {
+        // Collection might not exist, that's ok
+      }
     }
+  } catch (error) {
+    console.log('Note: Could not clear collection, will create new one');
   }
   
   // Create embedding function
@@ -61,8 +66,8 @@ export async function indexContexts(contexts, options = {}) {
     };
   }
   
-  // Create collection with embedding function
-  const collection = await chroma.createCollection({
+  // Get or create collection with embedding function
+  collection = await chroma.getOrCreateCollection({
     name: collectionName,
     embeddingFunction
   });

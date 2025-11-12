@@ -882,7 +882,10 @@
 			vehicleIdentification={data.vehicleIdentification}
 			exterior360={data.exterior360}
 			interiorMechanical={data.interiorMechanical}
+			interiorPhotos={data.interiorPhotos}
+			exterior360Photos={data.exterior360Photos}
 			tyres={data.tyres}
+			tyrePhotos={data.tyrePhotos}
 			damageRecord={data.damageRecord}
 			vehicleValues={data.vehicleValues}
 			{preIncidentEstimate}
