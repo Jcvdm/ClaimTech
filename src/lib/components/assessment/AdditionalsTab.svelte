@@ -9,7 +9,8 @@
 	import CombinedTotalsSummary from './CombinedTotalsSummary.svelte';
 	import OriginalEstimateLinesPanel from './OriginalEstimateLinesPanel.svelte';
 	import AdditionalsPhotosPanel from './AdditionalsPhotosPanel.svelte';
-	import { Check, X, Clock, Trash2, RotateCcw, Undo2, AlertTriangle, RefreshCw } from 'lucide-svelte';
+    import { Check, X, Clock, Trash2, RotateCcw, Undo2, AlertTriangle, RefreshCw } from 'lucide-svelte';
+    import { Input } from '$lib/components/ui/input';
 	import type {
 		AssessmentAdditionals,
 		AdditionalLineItem,
@@ -46,9 +47,106 @@
 	let error = $state<string | null>(null);
 	let showDeclineModal = $state(false);
 	let selectedLineItemId = $state<string | null>(null);
-	let showReversalModal = $state(false);
-	let reversalAction = $state<'reverse' | 'reinstate' | 'reinstate-original' | null>(null);
-	let reversalTargetId = $state<string | null>(null);
+    let showReversalModal = $state(false);
+    let reversalAction = $state<'reverse' | 'reinstate' | 'reinstate-original' | null>(null);
+    let reversalTargetId = $state<string | null>(null);
+
+    let editingSA = $state<string | null>(null);
+    let editingLabour = $state<string | null>(null);
+    let editingPaint = $state<string | null>(null);
+    let editingPartPrice = $state<string | null>(null);
+    let editingOutwork = $state<string | null>(null);
+    let tempSAHours = $state<number | null>(null);
+    let tempLabourHours = $state<number | null>(null);
+    let tempPaintPanels = $state<number | null>(null);
+    let tempPartPriceNett = $state<number | null>(null);
+    let tempOutworkNett = $state<number | null>(null);
+
+    async function updatePending(lineItemId: string, patch: any) {
+        const updated = await additionalsService.updatePendingLineItem(assessmentId, lineItemId, patch);
+        additionals = updated;
+        await onUpdate();
+    }
+
+    function handleSAClick(id: string, currentHours: number | null) {
+        editingSA = id;
+        tempSAHours = currentHours;
+    }
+    async function handleSASave(id: string) {
+        if (tempSAHours !== null) {
+            await updatePending(id, { strip_assemble_hours: tempSAHours });
+        }
+        editingSA = null;
+        tempSAHours = null;
+    }
+    function handleSACancel() {
+        editingSA = null;
+        tempSAHours = null;
+    }
+
+    function handleLabourClick(id: string, currentHours: number | null) {
+        editingLabour = id;
+        tempLabourHours = currentHours;
+    }
+    async function handleLabourSave(id: string) {
+        if (tempLabourHours !== null) {
+            await updatePending(id, { labour_hours: tempLabourHours });
+        }
+        editingLabour = null;
+        tempLabourHours = null;
+    }
+    function handleLabourCancel() {
+        editingLabour = null;
+        tempLabourHours = null;
+    }
+
+    function handlePaintClick(id: string, currentPanels: number | null) {
+        editingPaint = id;
+        tempPaintPanels = currentPanels;
+    }
+    async function handlePaintSave(id: string) {
+        if (tempPaintPanels !== null) {
+            await updatePending(id, { paint_panels: tempPaintPanels });
+        }
+        editingPaint = null;
+        tempPaintPanels = null;
+    }
+    function handlePaintCancel() {
+        editingPaint = null;
+        tempPaintPanels = null;
+    }
+
+    function handlePartPriceClick(id: string, currentNett: number | null) {
+        editingPartPrice = id;
+        tempPartPriceNett = currentNett;
+    }
+    async function handlePartPriceSave(id: string) {
+        if (tempPartPriceNett !== null) {
+            await updatePending(id, { part_price_nett: tempPartPriceNett });
+        }
+        editingPartPrice = null;
+        tempPartPriceNett = null;
+    }
+    function handlePartPriceCancel() {
+        editingPartPrice = null;
+        tempPartPriceNett = null;
+    }
+
+    function handleOutworkClick(id: string, currentNett: number | null) {
+        editingOutwork = id;
+        tempOutworkNett = currentNett;
+    }
+    async function handleOutworkSave(id: string) {
+        if (tempOutworkNett !== null) {
+            await updatePending(id, { outwork_charge_nett: tempOutworkNett });
+        }
+        editingOutwork = null;
+        tempOutworkNett = null;
+    }
+    function handleOutworkCancel() {
+        editingOutwork = null;
+        tempOutworkNett = null;
+    }
 
 	// Removed original line IDs (from additionals line_items with action='removed')
 	let removedOriginalLineIds = $derived(() =>
@@ -575,36 +673,165 @@
 								{@const StatusIcon = getStatusIcon(item.status)}
 								<tr class="border-b hover:bg-gray-50 {rowClass}">
 									<td class="py-2">{item.process_type}</td>
-									<td class="py-2">
-										<div>
-											<span class={isRemoved ? 'line-through text-red-600' : isReversal || isReversed ? 'text-blue-600' : ''}>
-												{item.description}
-											</span>
-											{#if isReversal && item.reversal_reason}
-												<p class="text-xs text-blue-600 mt-1 flex items-center gap-1">
-													<RotateCcw class="h-3 w-3" />
-													Reversal: {item.reversal_reason}
-												</p>
-											{/if}
-											{#if isReversed && item.id}
-												{@const reversalEntry = reversedBy().get(item.id)}
-												{#if reversalEntry?.reversal_reason}
-													<p class="text-xs text-blue-600 mt-1 flex items-center gap-1">
-														<RotateCcw class="h-3 w-3" />
-														Reversed: {reversalEntry.reversal_reason}
-													</p>
-												{/if}
-											{/if}
-											{#if item.decline_reason}
-												<p class="text-xs text-red-600 mt-1">Declined: {item.decline_reason}</p>
-											{/if}
-										</div>
-									</td>
-									<td class="py-2 text-right {isRemoved || isReversal ? 'text-blue-600' : ''}">R {(item.part_price_nett || 0).toFixed(2)}</td>
-									<td class="py-2 text-right {isRemoved || isReversal ? 'text-blue-600' : ''}">R {(item.strip_assemble || 0).toFixed(2)}</td>
-									<td class="py-2 text-right {isRemoved || isReversal ? 'text-blue-600' : ''}">R {(item.labour_cost || 0).toFixed(2)}</td>
-									<td class="py-2 text-right {isRemoved || isReversal ? 'text-blue-600' : ''}">R {(item.paint_cost || 0).toFixed(2)}</td>
-									<td class="py-2 text-right {isRemoved || isReversal ? 'text-blue-600' : ''}">R {(item.outwork_charge_nett || 0).toFixed(2)}</td>
+                                    <td class="py-2">
+                                        <div>
+                                            {#if !isRemoved && !isReversal && item.status === 'pending' && item.id}
+                                                <Input
+                                                    type="text"
+                                                    value={item.description}
+                                                    onblur={(e) => updatePending(item.id!, { description: e.currentTarget.value })}
+                                                    class="border-0 focus-visible:ring-0 focus-visible:ring-offset-0"
+                                                />
+                                            {:else}
+                                                <span class={isRemoved ? 'line-through text-red-600' : isReversal || isReversed ? 'text-blue-600' : ''}>
+                                                    {item.description}
+                                                </span>
+                                            {/if}
+                                            {#if isReversal && item.reversal_reason}
+                                                <p class="text-xs text-blue-600 mt-1 flex items-center gap-1">
+                                                    <RotateCcw class="h-3 w-3" />
+                                                    Reversal: {item.reversal_reason}
+                                                </p>
+                                            {/if}
+                                            {#if isReversed && item.id}
+                                                {@const reversalEntry = reversedBy().get(item.id)}
+                                                {#if reversalEntry?.reversal_reason}
+                                                    <p class="text-xs text-blue-600 mt-1 flex items-center gap-1">
+                                                        <RotateCcw class="h-3 w-3" />
+                                                        Reversed: {reversalEntry.reversal_reason}
+                                                    </p>
+                                                {/if}
+                                            {/if}
+                                            {#if item.decline_reason}
+                                                <p class="text-xs text-red-600 mt-1">Declined: {item.decline_reason}</p>
+                                            {/if}
+                                        </div>
+                                    </td>
+                                    <td class="py-2 text-right {isRemoved || isReversal ? 'text-blue-600' : ''}">
+                                        {#if !isRemoved && !isReversal && item.status === 'pending' && item.process_type === 'N'}
+                                            {#if editingPartPrice === item.id}
+                                                <Input
+                                                    type="number"
+                                                    min="0"
+                                                    step="0.01"
+                                                    bind:value={tempPartPriceNett}
+                                                    onkeydown={(e) => { if (e.key === 'Enter') handlePartPriceSave(item.id!); if (e.key === 'Escape') handlePartPriceCancel(); }}
+                                                    onblur={() => handlePartPriceSave(item.id!)}
+                                                    class="border-0 text-right text-sm focus-visible:ring-0 focus-visible:ring-offset-0"
+                                                    autofocus
+                                                />
+                                            {:else}
+                                                <button
+                                                    onclick={() => handlePartPriceClick(item.id!, item.part_price_nett || null)}
+                                                    class="text-sm font-medium text-blue-600 hover:text-blue-800 cursor-pointer w-full text-right"
+                                                >
+                                                    R {(item.part_price_nett || 0).toFixed(2)}
+                                                </button>
+                                            {/if}
+                                        {:else}
+                                            R {(item.part_price_nett || 0).toFixed(2)}
+                                        {/if}
+                                    </td>
+                                    <td class="py-2 text-right {isRemoved || isReversal ? 'text-blue-600' : ''}">
+                                        {#if !isRemoved && !isReversal && item.status === 'pending' && ['N','R','P','B'].includes(item.process_type)}
+                                            {#if editingSA === item.id}
+                                                <Input
+                                                    type="number"
+                                                    min="0"
+                                                    step="0.25"
+                                                    bind:value={tempSAHours}
+                                                    onkeydown={(e) => { if (e.key === 'Enter') handleSASave(item.id!); if (e.key === 'Escape') handleSACancel(); }}
+                                                    onblur={() => handleSASave(item.id!)}
+                                                    class="border-0 text-right text-sm focus-visible:ring-0 focus-visible:ring-offset-0"
+                                                    autofocus
+                                                />
+                                            {:else}
+                                                <button
+                                                    onclick={() => handleSAClick(item.id!, item.strip_assemble_hours || null)}
+                                                    class="text-sm font-medium text-blue-600 hover:text-blue-800 cursor-pointer w-full text-right"
+                                                >
+                                                    R {(item.strip_assemble || 0).toFixed(2)}
+                                                </button>
+                                            {/if}
+                                        {:else}
+                                            R {(item.strip_assemble || 0).toFixed(2)}
+                                        {/if}
+                                    </td>
+                                    <td class="py-2 text-right {isRemoved || isReversal ? 'text-blue-600' : ''}">
+                                        {#if !isRemoved && !isReversal && item.status === 'pending' && ['N','R','A'].includes(item.process_type)}
+                                            {#if editingLabour === item.id}
+                                                <Input
+                                                    type="number"
+                                                    min="0"
+                                                    step="0.5"
+                                                    bind:value={tempLabourHours}
+                                                    onkeydown={(e) => { if (e.key === 'Enter') handleLabourSave(item.id!); if (e.key === 'Escape') handleLabourCancel(); }}
+                                                    onblur={() => handleLabourSave(item.id!)}
+                                                    class="border-0 text-right text-sm focus-visible:ring-0 focus-visible:ring-offset-0"
+                                                    autofocus
+                                                />
+                                            {:else}
+                                                <button
+                                                    onclick={() => handleLabourClick(item.id!, item.labour_hours || null)}
+                                                    class="text-sm font-medium text-blue-600 hover:text-blue-800 cursor-pointer w-full text-right"
+                                                >
+                                                    R {(item.labour_cost || 0).toFixed(2)}
+                                                </button>
+                                            {/if}
+                                        {:else}
+                                            R {(item.labour_cost || 0).toFixed(2)}
+                                        {/if}
+                                    </td>
+                                    <td class="py-2 text-right {isRemoved || isReversal ? 'text-blue-600' : ''}">
+                                        {#if !isRemoved && !isReversal && item.status === 'pending' && ['N','R','P','B'].includes(item.process_type)}
+                                            {#if editingPaint === item.id}
+                                                <Input
+                                                    type="number"
+                                                    min="0"
+                                                    step="0.5"
+                                                    bind:value={tempPaintPanels}
+                                                    onkeydown={(e) => { if (e.key === 'Enter') handlePaintSave(item.id!); if (e.key === 'Escape') handlePaintCancel(); }}
+                                                    onblur={() => handlePaintSave(item.id!)}
+                                                    class="border-0 text-right text-sm focus-visible:ring-0 focus-visible:ring-offset-0"
+                                                    autofocus
+                                                />
+                                            {:else}
+                                                <button
+                                                    onclick={() => handlePaintClick(item.id!, item.paint_panels || null)}
+                                                    class="text-sm font-medium text-blue-600 hover:text-blue-800 cursor-pointer w-full text-right"
+                                                >
+                                                    R {(item.paint_cost || 0).toFixed(2)}
+                                                </button>
+                                            {/if}
+                                        {:else}
+                                            R {(item.paint_cost || 0).toFixed(2)}
+                                        {/if}
+                                    </td>
+                                    <td class="py-2 text-right {isRemoved || isReversal ? 'text-blue-600' : ''}">
+                                        {#if !isRemoved && !isReversal && item.status === 'pending' && item.process_type === 'O'}
+                                            {#if editingOutwork === item.id}
+                                                <Input
+                                                    type="number"
+                                                    min="0"
+                                                    step="0.01"
+                                                    bind:value={tempOutworkNett}
+                                                    onkeydown={(e) => { if (e.key === 'Enter') handleOutworkSave(item.id!); if (e.key === 'Escape') handleOutworkCancel(); }}
+                                                    onblur={() => handleOutworkSave(item.id!)}
+                                                    class="border-0 text-right text-sm focus-visible:ring-0 focus-visible:ring-offset-0"
+                                                    autofocus
+                                                />
+                                            {:else}
+                                                <button
+                                                    onclick={() => handleOutworkClick(item.id!, item.outwork_charge_nett || null)}
+                                                    class="text-sm font-medium text-blue-600 hover:text-blue-800 cursor-pointer w-full text-right"
+                                                >
+                                                    R {(item.outwork_charge_nett || 0).toFixed(2)}
+                                                </button>
+                                            {/if}
+                                        {:else}
+                                            R {(item.outwork_charge_nett || 0).toFixed(2)}
+                                        {/if}
+                                    </td>
 									<td class="py-2 text-right font-medium {isRemoved || isReversal ? 'text-blue-600' : ''}">R {item.total.toFixed(2)}</td>
 									<td class="py-2">
 										{#if isReversal}

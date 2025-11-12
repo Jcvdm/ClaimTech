@@ -6,6 +6,15 @@ import type {
 	EstimateLineItem
 } from '$lib/types/assessment';
 import { auditService } from './audit.service';
+import {
+  calculateSACost,
+  calculateLabourCost,
+  calculatePaintCost,
+  calculatePartSellingPrice,
+  calculateOutworkSellingPrice,
+  calculateBetterment,
+  calculateLineItemTotal
+} from '$lib/utils/estimateCalculations';
 import type { ServiceClient } from '$lib/types/service';
 
 class AdditionalsService {
@@ -819,14 +828,102 @@ class AdditionalsService {
 			vat_amount_approved: Math.round(vatAmount * 100) / 100,
 			total_approved: Math.round(total * 100) / 100
 		};
-	}
+  }
 
-	/**
-	 * List all additionals records
-	 * Joins with assessments, appointments, inspections, requests, and clients
-	 * Pulls vehicle data from assessment_vehicle_identification (updated during assessment)
-	 * Only shows additionals for active assessments (stage = 'estimate_finalized')
-	 * Archived/cancelled assessments are excluded (moved to archive page)
+  /**
+   * Update a pending line item values
+   */
+  async updatePendingLineItem(
+    assessmentId: string,
+    lineItemId: string,
+    patch: Partial<AdditionalLineItem>,
+    client?: ServiceClient
+  ): Promise<AssessmentAdditionals> {
+    const db = client ?? supabase;
+
+    const additionals = await this.getByAssessment(assessmentId, client);
+    if (!additionals) throw new Error('Additionals record not found');
+
+    const idx = additionals.line_items.findIndex((i) => i.id === lineItemId);
+    if (idx === -1) throw new Error('Line item not found');
+
+    const current = additionals.line_items[idx];
+    if (current.status !== 'pending' || current.action === 'reversal' || current.action === 'removed') {
+      throw new Error('Only pending added items can be edited');
+    }
+
+    const updatedBase: AdditionalLineItem = { ...current, ...patch } as AdditionalLineItem;
+
+    const sa = calculateSACost(updatedBase.strip_assemble_hours ?? null, additionals.labour_rate);
+    const labour = calculateLabourCost(updatedBase.labour_hours ?? null, additionals.labour_rate);
+    const paint = calculatePaintCost(updatedBase.paint_panels ?? null, additionals.paint_rate);
+
+    let partMarkup = 0;
+    if (updatedBase.part_type === 'OEM') partMarkup = additionals.oem_markup_percentage;
+    else if (updatedBase.part_type === 'ALT') partMarkup = additionals.alt_markup_percentage;
+    else if (updatedBase.part_type === '2ND') partMarkup = additionals.second_hand_markup_percentage;
+
+    const partSelling = calculatePartSellingPrice(updatedBase.part_price_nett ?? null, partMarkup);
+    const outworkSelling = calculateOutworkSellingPrice(
+      updatedBase.outwork_charge_nett ?? null,
+      additionals.outwork_markup_percentage
+    );
+
+    const updated: AdditionalLineItem = {
+      ...updatedBase,
+      strip_assemble: sa,
+      labour_cost: labour,
+      paint_cost: paint,
+      part_price: partSelling,
+      outwork_charge: outworkSelling
+    } as AdditionalLineItem;
+
+    const bettermentTotal = calculateBetterment(updated);
+    const total = calculateLineItemTotal(updated, additionals.labour_rate, additionals.paint_rate);
+
+    const finalItem: AdditionalLineItem = { ...updated, betterment_total: bettermentTotal, total };
+
+    const oldTotal = current.total || 0;
+
+    const newLineItems = additionals.line_items.slice();
+    newLineItems[idx] = finalItem;
+
+    const { data, error } = await db
+      .from('assessment_additionals')
+      .update({
+        line_items: newLineItems,
+        updated_at: new Date().toISOString()
+      })
+      .eq('assessment_id', assessmentId)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error updating pending line item:', error);
+      throw error;
+    }
+
+    await auditService.logChange({
+      entity_type: 'estimate',
+      entity_id: assessmentId,
+      action: 'additionals_line_item_updated_pending',
+      metadata: {
+        line_item_id: lineItemId,
+        description: finalItem.description,
+        old_total: oldTotal,
+        new_total: finalItem.total
+      }
+    });
+
+    return data;
+  }
+
+  /**
+   * List all additionals records
+   * Joins with assessments, appointments, inspections, requests, and clients
+   * Pulls vehicle data from assessment_vehicle_identification (updated during assessment)
+   * Only shows additionals for active assessments (stage = 'estimate_finalized')
+   * Archived/cancelled assessments are excluded (moved to archive page)
 	 */
 	async listAdditionals(client?: ServiceClient, engineer_id?: string | null): Promise<any[]> {
 		const db = client ?? supabase;
