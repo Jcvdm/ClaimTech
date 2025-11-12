@@ -9,7 +9,7 @@
 	import AssessmentResultSelector from './AssessmentResultSelector.svelte';
 	import RequiredFieldsWarning from './RequiredFieldsWarning.svelte';
 	import BettermentModal from './BettermentModal.svelte';
-	import { Plus, Trash2, Check, CircleAlert, CircleCheck, CircleX, Info, Percent, ShieldCheck, Package, Recycle } from 'lucide-svelte';
+    import { Plus, Trash2, Check, CircleAlert, CircleCheck, CircleX, Info, Percent, ShieldCheck, Package, Recycle, RefreshCw } from 'lucide-svelte';
 	import type {
 		Estimate,
 		EstimateLineItem,
@@ -104,6 +104,7 @@
 	let localEstimate = $state<Estimate | null>(null);
 	let dirty = $state(false);
 	let saving = $state(false);
+	let recalculating = $state(false);
 
 	// Parts list modal state
 	let showPartsListModal = $state(false);
@@ -617,9 +618,18 @@
 		return validateEstimate(estimate);
 	});
 
-	function handleLocalUpdateRates(labourRate: number, paintRate: number, vatPercentage: number, oem: number, alt: number, secondHand: number, outwork: number) {
-
+	async function handleLocalUpdateRates(
+		labourRate: number,
+		paintRate: number,
+		vatPercentage: number,
+		oem: number,
+		alt: number,
+		secondHand: number,
+		outwork: number
+	) {
 		if (!localEstimate) return;
+		recalculating = true;
+		dirty = true;
 		localEstimate.labour_rate = labourRate;
 		localEstimate.paint_rate = paintRate;
 		localEstimate.vat_percentage = vatPercentage;
@@ -627,13 +637,25 @@
 		localEstimate.alt_markup_percentage = alt;
 		localEstimate.second_hand_markup_percentage = secondHand;
 		localEstimate.outwork_markup_percentage = outwork;
-		// Recalc line totals
 		localEstimate.line_items = localEstimate.line_items.map((i) => {
 			const updated = { ...i } as EstimateLineItem;
 			updated.total = calculateLineItemTotal(updated, labourRate, paintRate);
 			return updated;
 		});
-		markDirty();
+		try {
+			await props.onUpdateRates?.(
+				labourRate,
+				paintRate,
+				vatPercentage,
+				oem,
+				alt,
+				secondHand,
+				outwork
+			);
+			dirty = false;
+		} finally {
+			recalculating = false;
+		}
 	}
 	function handleLocalUpdateRepairer(repairerId: string | null) {
 		if (!localEstimate) return;
@@ -643,7 +665,8 @@
 
 </script>
 
-<div class="space-y-6">
+<div class="relative" aria-busy={recalculating}>
+    <div class={recalculating ? 'space-y-6 blur-sm pointer-events-none' : 'space-y-6'}>
 	<!-- Warning Banner -->
 
 	<RequiredFieldsWarning missingFields={validation.missingFields} />
@@ -688,8 +711,7 @@
 									: `${parseInt(vehicleValues.warranty_expiry_mileage).toLocaleString()} km`}
 							</p>
 						{/if}
-					</div>
-				</div>
+    </div>
 			</Card>
 		{/if}
 
@@ -707,6 +729,7 @@
 			onUpdateRates={handleLocalUpdateRates}
 			onUpdateRepairer={handleLocalUpdateRepairer}
 			{onRepairersUpdate}
+			disabled={saving || recalculating}
 		/>
 
 		<!-- Quick Add Form -->
@@ -864,13 +887,13 @@
 															<span class="text-xs font-semibold">2ND</span>
 														</div>
 													{:else}
-														<span class="text-xs text-gray-500">OEM</span>
-													{/if}
-												</div>
-											</div>
-										{:else}
-											<span class="text-gray-400 text-sm">-</span>
-										{/if}
+						<span class="text-xs text-gray-500">OEM</span>
+					{/if}
+					</div>
+				</div>
+				{:else}
+					<span class="text-gray-400 text-sm">-</span>
+				{/if}
 									</Table.Cell>
 
 									<!-- Description -->
@@ -1230,6 +1253,14 @@
 				<Check class="mr-2 h-4 w-4" />
 				Complete Estimate
 			</Button>
+		</div>
+		{/if}
+	</div>
+	{#if recalculating}
+		<div class="absolute inset-0 flex items-center justify-center z-20">
+			<div class="bg-white/70 rounded-md p-4 shadow">
+				<RefreshCw class="h-6 w-6 animate-spin text-blue-600" />
+			</div>
 		</div>
 	{/if}
 </div>

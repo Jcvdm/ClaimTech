@@ -133,6 +133,15 @@
 			}, 3000);
 		}
 		onUpdateRepairer(localRepairerId || null);
+		onUpdateRates(
+			localLabourRate,
+			localPaintRate,
+			localVatPercentage,
+			localOemMarkup,
+			localAltMarkup,
+			localSecondHandMarkup,
+			localOutworkMarkup
+		);
 	}
 
 	async function handleQuickAddRepairer() {
@@ -174,6 +183,16 @@
 
 			// Update repairer
 			onUpdateRepairer(newRepairer.id);
+
+			onUpdateRates(
+				localLabourRate,
+				localPaintRate,
+				localVatPercentage,
+				localOemMarkup,
+				localAltMarkup,
+				localSecondHandMarkup,
+				localOutworkMarkup
+			);
 
 			// Close modal and reset form
 			closeQuickAddModal();
@@ -302,15 +321,16 @@
 					</label>
 					<div class="flex items-center gap-2">
 						<span class="text-gray-500">R</span>
-						<Input
-							id="labour-rate"
-							type="number"
-							min="0"
-							step="0.01"
-							bind:value={localLabourRate}
-							{disabled}
-							class="flex-1"
-						/>
+		<Input
+			id="labour-rate"
+			type="number"
+			min="0"
+			step="0.01"
+			bind:value={localLabourRate}
+			{disabled}
+			onblur={handleUpdateRates}
+			class="flex-1"
+		/>
 					</div>
 					<p class="mt-1 text-xs text-gray-500">
 						Cost per hour of labour (e.g., R500.00)
@@ -324,15 +344,16 @@
 					</label>
 					<div class="flex items-center gap-2">
 						<span class="text-gray-500">R</span>
-						<Input
-							id="paint-rate"
-							type="number"
-							min="0"
-							step="0.01"
-							bind:value={localPaintRate}
-							{disabled}
-							class="flex-1"
-						/>
+		<Input
+			id="paint-rate"
+			type="number"
+			min="0"
+			step="0.01"
+			bind:value={localPaintRate}
+			{disabled}
+			onblur={handleUpdateRates}
+			class="flex-1"
+		/>
 					</div>
 					<p class="mt-1 text-xs text-gray-500">
 						Cost per panel painted (e.g., R2000.00)
@@ -345,16 +366,17 @@
 						VAT Percentage
 					</label>
 					<div class="flex items-center gap-2">
-						<Input
-							id="vat-percentage"
-							type="number"
-							min="0"
-							max="100"
-							step="0.1"
-							bind:value={localVatPercentage}
-							{disabled}
-							class="flex-1"
-						/>
+		<Input
+			id="vat-percentage"
+			type="number"
+			min="0"
+			max="100"
+			step="0.1"
+			bind:value={localVatPercentage}
+			{disabled}
+			onblur={handleUpdateRates}
+			class="flex-1"
+		/>
 						<span class="text-gray-500">%</span>
 					</div>
 					<p class="mt-1 text-xs text-gray-500">
@@ -376,16 +398,17 @@
 							OEM Markup
 						</label>
 						<div class="flex items-center gap-2">
-							<Input
-								id="oem-markup"
-								type="number"
-								min="0"
-								max="100"
-								step="0.1"
-								bind:value={localOemMarkup}
-								{disabled}
-								class="flex-1"
-							/>
+				<Input
+					id="oem-markup"
+					type="number"
+					min="0"
+					max="100"
+					step="0.1"
+					bind:value={localOemMarkup}
+					{disabled}
+					onblur={handleUpdateRates}
+					class="flex-1"
+				/>
 							<span class="text-gray-500">%</span>
 						</div>
 						<p class="mt-1 text-xs text-gray-500">
@@ -399,16 +422,17 @@
 							Aftermarket Markup
 						</label>
 						<div class="flex items-center gap-2">
-							<Input
-								id="alt-markup"
-								type="number"
-								min="0"
-								max="100"
-								step="0.1"
-								bind:value={localAltMarkup}
-								{disabled}
-								class="flex-1"
-							/>
+				<Input
+					id="alt-markup"
+					type="number"
+					min="0"
+					max="100"
+					step="0.1"
+					bind:value={localAltMarkup}
+					{disabled}
+					onblur={handleUpdateRates}
+					class="flex-1"
+				/>
 							<span class="text-gray-500">%</span>
 						</div>
 						<p class="mt-1 text-xs text-gray-500">
@@ -422,16 +446,17 @@
 							Second Hand Markup
 						</label>
 						<div class="flex items-center gap-2">
-							<Input
-								id="second-hand-markup"
-								type="number"
-								min="0"
-								max="100"
-								step="0.1"
-								bind:value={localSecondHandMarkup}
-								{disabled}
-								class="flex-1"
-							/>
+				<Input
+					id="second-hand-markup"
+					type="number"
+					min="0"
+					max="100"
+					step="0.1"
+					bind:value={localSecondHandMarkup}
+					{disabled}
+					onblur={handleUpdateRates}
+					class="flex-1"
+				/>
 							<span class="text-gray-500">%</span>
 						</div>
 						<p class="mt-1 text-xs text-gray-500">
@@ -445,16 +470,17 @@
 							Outwork Markup
 						</label>
 						<div class="flex items-center gap-2">
-							<Input
-								id="outwork-markup"
-								type="number"
-								min="0"
-								max="100"
-								step="0.1"
-								bind:value={localOutworkMarkup}
-								{disabled}
-								class="flex-1"
-							/>
+				<Input
+					id="outwork-markup"
+					type="number"
+					min="0"
+					max="100"
+					step="0.1"
+					bind:value={localOutworkMarkup}
+					{disabled}
+					onblur={handleUpdateRates}
+					class="flex-1"
+				/>
 							<span class="text-gray-500">%</span>
 						</div>
 						<p class="mt-1 text-xs text-gray-500">
@@ -472,14 +498,14 @@
 							Rates have changed. Click "Update Rates" to recalculate all line items.
 						</span>
 					</div>
-					<div class="flex gap-2">
-						<Button variant="outline" size="sm" onclick={handleReset}>
-							Cancel
-						</Button>
-						<Button size="sm" onclick={handleUpdateRates} disabled={disabled}>
-							Update Rates
-						</Button>
-					</div>
+				<div class="flex gap-2">
+					<Button variant="outline" size="sm" onclick={handleReset}>
+						Cancel
+					</Button>
+					<Button size="sm" onclick={handleUpdateRates} disabled={disabled}>
+						Update Rates
+					</Button>
+				</div>
 				</div>
 			{/if}
 

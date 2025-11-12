@@ -2,6 +2,44 @@
 
 ## Resolved Bugs
 
+### 5. Estimate Tab - Repairer Selection Pulls Through Values ✅ RESOLVED
+**Status**: RESOLVED
+**Severity**: Medium
+**Component**: Estimate Tab / Rates and Repairer Component
+**Resolution Date**: 2025-11-12
+**Fix**: Propagate repairer defaults to rates immediately, auto-apply rate changes on blur, persist rates and show loading overlay during recalculation
+
+**Description**:
+Selecting a repairer did not auto-populate their default rates/markup into the estimate, and calculations did not update. Manual rate edits also required clicking "Update Rates" to see totals change, which led to confusion and stale UI.
+
+**Root Cause**:
+`RatesAndRepairerConfiguration` only called `onUpdateRepairer` on selection; updated default rates lived in local state without invoking `onUpdateRates`. `EstimateTab` recalculation ran only when `onUpdateRates` was triggered explicitly. There was no loading/disabled state, so users could interact mid-recalc.
+
+**Solution**:
+- Call `onUpdateRates(...)` immediately after repairer selection and after Quick Add to propagate defaults and trigger recalculation.
+- Add `onblur={handleUpdateRates}` to all rate/markup inputs so changes apply on field blur.
+- Update `EstimateTab` to recalc totals, persist rates via parent `onUpdateRates`, and clear the Save banner after successful update.
+- Add a blur overlay with a loading spinner while recalculation/persistence is in progress.
+
+**Implementation Details**:
+- File: `src/lib/components/assessment/RatesAndRepairerConfiguration.svelte`
+  - Selection handler: `handleRepairerChange` calls `onUpdateRates` `src/lib/components/assessment/RatesAndRepairerConfiguration.svelte:117–136`
+  - Quick Add handler: calls `onUpdateRates` `src/lib/components/assessment/RatesAndRepairerConfiguration.svelte:166–177`
+  - Auto-apply on blur: inputs `labourRate`, `paintRate`, `vatPercentage`, `oemMarkup`, `altMarkup`, `secondHandMarkup`, `outworkMarkup` `src/lib/components/assessment/RatesAndRepairerConfiguration.svelte:306–314, 328–336, 349–357, 379–388, 403–411, 426–434, 449–457`
+- File: `src/lib/components/assessment/EstimateTab.svelte`
+  - Recalc + persist: `handleLocalUpdateRates` `src/lib/components/assessment/EstimateTab.svelte:620–644`
+  - Loading overlay: wrapper and overlay `src/lib/components/assessment/EstimateTab.svelte:668–669, 1258–1265`
+
+**Testing**:
+- Select an existing repairer → defaults populate, totals recalc immediately, UI shows brief loading overlay.
+- Quick Add a repairer → defaults populate, totals recalc immediately, repairers list refreshes.
+- Edit any rate/markup and tab out → totals update immediately, overlay displays briefly.
+- Navigate away/back → rates and totals persist without manual Save.
+
+**Related Documentation**:
+- Architecture and tab patterns: `.agent/README/architecture_quick_ref.md`
+- System docs: `.agent/README/system_docs.md`
+
 ### 4. Estimate Tab - Cannot Edit Description on Existing Line Items ✅ RESOLVED
 **Status**: RESOLVED
 **Severity**: Medium
@@ -284,38 +322,7 @@ When a line item is added to the estimate, users are unable to update or edit th
 
 ---
 
-### 5. Estimate Tab - Repairer Selection Not Pulling Through Values
-**Status**: Open
-**Severity**: Medium
-**Component**: Estimate Tab / Rates and Repairer Component
-**Description**:
-When a repairer is selected/added in the Rates and Repairer component, their associated values (markup, rates, etc.) do not automatically populate or update. The repairer selection appears to not trigger the data pull-through.
-
-**Expected Behavior**:
-- When a repairer is selected, their values (markup percentage, labor rates, etc.) should automatically populate
-- Estimate calculations should update based on repairer's rates
-- Values should sync across the estimate tab
-
-**Current Behavior**:
-- Repairer can be selected/added
-- Repairer values do not auto-populate
-- Estimate remains unchanged with default/previous values
-- No automatic update to calculations based on repairer rates
-
-**Affected Pages**:
-- `/work/assessments/[id]` - Assessment page, Estimate Tab
-
-**Related Code Areas**:
-- Rates and Repairer component
-- Repairer selection/dropdown logic
-- Repairer data fetching (rates, markup)
-- Estimate calculation/sync logic
-- EstimateTab.svelte - repairer change handler
-
-**Notes**:
-- Likely missing event handler or callback when repairer is selected
-- May need to fetch repairer details and update estimate state
-- Could be related to reactive state not triggering updates to dependent calculations
+<!-- Bug 5 moved to Resolved Bugs -->
 
 ---
 
@@ -639,4 +646,3 @@ Document generation functionality for Additionals and FRC pages is not active or
 - Need to verify if document generation logic is implemented
 - May need to implement document generation for these tabs if not yet done
 - Should follow same pattern as Estimate tab document generation
-
