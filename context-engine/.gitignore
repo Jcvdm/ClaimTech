@@ -1,0 +1,10 @@
+node_modules/
+.env
+db/
+cache/
+contexts/extracted/
+*.log
+.DS_Store
+manifest.json
+processing-summary.json
+

@@ -35,6 +35,9 @@
 		vehicleValues?: any;
 		preIncidentEstimate?: any;
 		estimate?: any;
+		interiorPhotos?: any[];
+		exterior360Photos?: any[];
+		tyrePhotos?: any[];
 	}
 
 	// Make props reactive using $derived pattern
@@ -53,6 +56,9 @@
 	const vehicleValues = $derived(props.vehicleValues ?? null);
 	const preIncidentEstimate = $derived(props.preIncidentEstimate ?? null);
 	const estimate = $derived(props.estimate ?? null);
+	const interiorPhotos = $derived(props.interiorPhotos ?? []);
+	const exterior360Photos = $derived(props.exterior360Photos ?? []);
+	const tyrePhotos = $derived(props.tyrePhotos ?? []);
 
 	let generationStatus = $state<DocumentGenerationStatus>({
 		report_generated: false,
@@ -102,7 +108,10 @@
 			vehicleIdentification,
 			exterior360,
 			interiorMechanical,
+			interiorPhotos,
+			exterior360Photos,
 			tyres,
+			tyrePhotos,
 			damageRecord,
 			vehicleValues,
 			preIncidentEstimate,
@@ -175,36 +184,38 @@
 	 * Force finalize estimate despite missing required fields
 	 * User has acknowledged the missing fields and wants to proceed anyway
 	 */
-	async function handleForceFinalize() {
-		finalizing = true;
-		error = null;
-		try {
-			// Pass missing fields info for audit logging
-			const missingFieldsInfo = allMissingFields.map(({ tab, fields }) => ({
-				tab,
-				fields
-			}));
-
-			await assessmentService.finalizeEstimate(
-				assessment.id,
-				{
-					forcedFinalization: true,
-					missingFields: missingFieldsInfo
-				},
-				$page.data.supabase  // Authenticated client from page context
-			);
-			showValidationModal = false; // Close the modal on success
-			// Force reload of all page data to ensure database changes are visible
-			await invalidateAll();
-			// Navigate to Finalized Assessments list to show the finalized assessment
-			// This triggers sidebar badge refresh with fresh data
-			goto('/work/finalized-assessments');
-		} catch (err) {
-			error = err instanceof Error ? err.message : 'Failed to finalize estimate';
-		} finally {
-			finalizing = false;
-		}
-	}
+async function handleForceFinalize() {
+    finalizing = true;
+    error = null;
+    try {
+        const missingFieldsInfo = allMissingFields.map(({ tab, fields }) => ({ tab, fields }));
+        let attempt = 0;
+        let lastErr: any = null;
+        while (attempt < 3) {
+            try {
+                await assessmentService.finalizeEstimate(
+                    assessment.id,
+                    { forcedFinalization: true, missingFields: missingFieldsInfo },
+                    $page.data.supabase
+                );
+                lastErr = null;
+                break;
+            } catch (e) {
+                lastErr = e;
+                await new Promise((r) => setTimeout(r, 500 * Math.pow(2, attempt)));
+                attempt++;
+            }
+        }
+        if (lastErr) throw lastErr;
+        showValidationModal = false;
+        await invalidateAll();
+        goto('/work/finalized-assessments');
+    } catch (err) {
+        error = err instanceof Error ? err.message : 'Failed to finalize estimate';
+    } finally {
+        finalizing = false;
+    }
+}
 
 	async function handleGenerateReport() {
 		generating.report = true;

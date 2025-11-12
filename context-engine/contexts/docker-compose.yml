@@ -1,0 +1,20 @@
+version: '3.8'
+
+services:
+  context-engine:
+    build: .
+    ports:
+      - "3456:3456"
+    environment:
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
+      - CONTEXT_MODEL=google/gemini-flash-1.5-8b
+      - PORT=3456
+      - DB_PATH=./db
+      - CONTEXT_DIR=./contexts
+      - CACHE_TTL=3600
+    volumes:
+      - ./db:/app/db
+      - ./contexts:/app/contexts
+      - ./cache:/app/cache
+    restart: unless-stopped
+

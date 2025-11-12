@@ -2,6 +2,37 @@
 
 ## Resolved Bugs
 
+### 6. Finalization Report - Outstanding Fields Checks on Completed Fields ✅ RESOLVED
+**Status**: RESOLVED
+**Severity**: High
+**Component**: Finalization Tab / Report Generation
+**Resolution Date**: 2025-11-12
+**Fix**: Pass photo arrays into finalization validation and wire parent to provide them
+
+**Description**:
+Finalization report flagged tabs as incomplete even when users had completed their fields, especially photo requirements.
+
+**Root Cause**:
+`FinalizeTab` computed `getTabCompletionStatus` without passing `interiorPhotos`, `exterior360Photos`, and `tyrePhotos`. The validators rely on these arrays (≥2 interior, ≥4 exterior, ≥1 per tyre). Without the arrays, validation assumed zero photos and reported false missing fields.
+
+**Solution**:
+- Added `interiorPhotos`, `exterior360Photos`, and `tyrePhotos` props to `FinalizeTab` and included them in `getTabCompletionStatus`.
+- Updated parent assessment page to pass the photo arrays from `data.*` into `FinalizeTab`.
+
+**Implementation Details**:
+- File: `src/lib/components/assessment/FinalizeTab.svelte`
+  - Props extended to include `interiorPhotos`, `exterior360Photos`, `tyrePhotos` (near props interface)
+  - `getTabCompletionStatus(...)` updated to include these arrays `src/lib/components/assessment/FinalizeTab.svelte:100–111`
+- File: `src/routes/(app)/work/assessments/[appointment_id]/+page.svelte`
+  - Passed `interiorPhotos`, `exterior360Photos`, `tyrePhotos` into `<FinalizeTab ... />` `src/routes/(app)/work/assessments/[appointment_id]/+page.svelte:876–890`
+
+**Testing**:
+- With completed photo requirements, Finalization no longer flags tabs as incomplete.
+- Add/remove photos in their tabs and navigate to Finalize → status reflects accurately.
+
+**Related Documentation**:
+- Validation reference: `.agent/README/system_docs.md` → validation utilities
+
 ### 5. Estimate Tab - Repairer Selection Pulls Through Values ✅ RESOLVED
 **Status**: RESOLVED
 **Severity**: Medium
@@ -326,37 +357,7 @@ When a line item is added to the estimate, users are unable to update or edit th
 
 ---
 
-### 6. Finalization Report - Outstanding Fields Checks on Completed Fields
-**Status**: Open
-**Severity**: High
-**Component**: Finalization Tab / Report Generation
-**Description**:
-When generating the finalization report, the system throws checks/validations for outstanding fields that have already been completed. Fields that are marked as complete are still being flagged as incomplete in the finalization report.
-
-**Expected Behavior**:
-- Finalization report should only flag fields that are actually incomplete
-- Completed fields should not trigger outstanding field checks
-- Report should accurately reflect the completion status of all sections
-
-**Current Behavior**:
-- Finalization report throws checks for outstanding fields
-- Fields that are completed are still being flagged as incomplete
-- Report validation appears to not be reading the actual field completion status
-
-**Affected Pages**:
-- `/work/assessments/[id]` - Assessment page, Finalization Tab
-
-**Related Code Areas**:
-- FinalizeTab.svelte - report generation logic
-- Finalization validation/checks
-- Tab completion status tracking (getTabCompletionStatus)
-- Outstanding fields detection logic
-- validation.ts - completion status functions
-
-**Notes**:
-- Likely issue with completion status not being properly evaluated
-- May be related to stale data or cached completion state
-- Could be a mismatch between field validation and completion status reporting
+<!-- Bug 6 moved to Resolved Bugs -->
 
 ---
 

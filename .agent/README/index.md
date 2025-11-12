@@ -20,6 +20,7 @@
 
 **Recent Changes:**
 - See [Changelog](./changelog.md) for detailed update history
+ - See [Bugs & Issues](../Tasks/bugs.md) for current open/resolved bugs
 
 ---
 
