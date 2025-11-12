@@ -1,0 +1,44 @@
+{
+  "name": "context-engine",
+  "version": "1.0.0",
+  "description": "AI-powered context retrieval system with automatic codebase processing",
+  "type": "module",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "nodemon src/index.js",
+    "process-codebase": "node scripts/process-codebase.js",
+    "analyze": "node scripts/analyze-codebase.js",
+    "index": "node scripts/index-contexts.js",
+    "setup": "node scripts/setup.js",
+    "test": "curl http://localhost:3456/health"
+  },
+  "keywords": [
+    "context",
+    "ai",
+    "embeddings",
+    "vector-db",
+    "codebase-analysis"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.18.2",
+    "cors": "^2.8.5",
+    "dotenv": "^16.3.1",
+    "chromadb": "^1.7.3",
+    "openai": "^4.28.0",
+    "@xenova/transformers": "^2.6.2",
+    "gray-matter": "^4.0.3",
+    "glob": "^10.3.10",
+    "@babel/parser": "^7.23.9",
+    "@babel/traverse": "^7.23.9"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.3",
+    "typescript": "^5.3.3",
+    "@types/node": "^20.11.5",
+    "tsx": "^4.7.0"
+  }
+}
+
