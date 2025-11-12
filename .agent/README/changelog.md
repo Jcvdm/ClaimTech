@@ -1,6 +1,6 @@
 # Changelog - Recent Updates
 
-**Last Updated**: November 11, 2025 (Bug Fixes #3 & #4)
+**Last Updated**: November 12, 2025 (Bug Fixes #5 & #6)
 
 ---
 
@@ -646,3 +646,54 @@ All changes have been backward-compatible.
 
 **Maintenance**: Update after each significant feature or bug fix
 **Last Review**: January 30, 2025
+## November 12, 2025
+
+### ✅ Bug #6 Fix - Finalization Report False Missing Fields
+- **ISSUE**: Finalization report flagged tabs as incomplete despite completed fields
+  - Photo requirements (Interior ≥2, Exterior360 ≥4, Tyres ≥1 per tyre) were reported missing
+- **ROOT CAUSE**: `FinalizeTab` did not pass photo arrays into validation
+  - `getTabCompletionStatus` relies on `interiorPhotos`, `exterior360Photos`, `tyrePhotos`
+- **SOLUTION**: Wire photo arrays into finalization validation
+  - Added props `interiorPhotos`, `exterior360Photos`, `tyrePhotos` to `FinalizeTab`
+  - Included these arrays in `getTabCompletionStatus`
+  - Updated parent assessment page to pass photo arrays
+- **IMPLEMENTATION**:
+  - `src/lib/components/assessment/FinalizeTab.svelte:100–111` (validation call includes arrays)
+  - `src/routes/(app)/work/assessments/[appointment_id]/+page.svelte:876–890` (pass arrays into `<FinalizeTab />`)
+- **VERIFICATION**:
+  - ✅ With completed photo counts, no false missing fields
+  - ✅ Adding/removing photos updates status accurately upon navigating to Finalize
+
+### ✅ Bug #5 Fix - Repairer Defaults and Rate Recalculation
+- **ISSUE**: Selecting a repairer did not auto-populate defaults or recalc totals; manual rate edits required “Update Rates”
+- **ROOT CAUSE**: `RatesAndRepairerConfiguration` called only `onUpdateRepairer` and not `onUpdateRates`
+- **SOLUTION**: Call `onUpdateRates` on selection and Quick Add; auto-apply rates on blur; loading overlay; immediate persistence
+- **IMPLEMENTATION**:
+  - `src/lib/components/assessment/RatesAndRepairerConfiguration.svelte:117–136, 166–177, 306–314, 328–336, 349–357, 379–388, 403–411, 426–434, 449–457`
+  - `src/lib/components/assessment/EstimateTab.svelte:620–644, 668–669, 1258–1265`
+- **VERIFICATION**:
+  - ✅ Defaults propagate; totals recalc instantly; brief loading overlay; changes persist
+### ✅ Bug #7 Fix - Supabase Auth Connection Timeout Resilience
+- **ISSUE**: Force finalize action and dashboard counts intermittently fail with `UND_ERR_CONNECT_TIMEOUT` (10s) to Supabase endpoints
+- **ROOT CAUSE**: Transient network/connectivity timeouts during server-side calls; single-attempt requests cause page/action failure
+- **SOLUTION**: Add retry with exponential backoff and page-level fallbacks
+  - Force finalize: 3 attempts with 500ms→1000ms→2000ms backoff
+  - Dashboard: wrap counts with retry and `Promise.allSettled` to render partial data instead of failing
+- **IMPLEMENTATION**:
+  - `src/lib/components/assessment/FinalizeTab.svelte:187–216` (force finalize retry)
+  - `src/routes/(app)/dashboard/+page.server.ts:32–45` (retry helper + fallbacks)
+- **VERIFICATION**:
+  - ✅ Force finalize succeeds under transient timeouts; errors surface only after 3 failed attempts
+  - ✅ Dashboard loads even if one or more counts time out, defaulting those counts to 0
+
+### ✅ Additionals UX - Pending-Only Inline Editing
+- **FEATURE**: Enable inline editing for Additionals line items when status is `pending`
+  - Editable fields: description, Part Nett (N), S&A hours (N/R/P/B), Labour hours (N/R/A), Paint panels (N/R/P/B), Outwork Nett (O)
+  - Save on blur/Enter; recalculates derived costs and `total` using locked Additionals rates/markups
+  - Approved totals card remains unchanged until item is approved
+- **IMMUTABILITY**: Approved/declined/removed/reversal entries remain read-only; adjustments happen via reversal entries
+- **IMPLEMENTATION**:
+  - `src/lib/services/additionals.service.ts:100–203` — `updatePendingLineItem()`
+  - `src/lib/components/assessment/AdditionalsTab.svelte:2,47–85,579–736` — inline edit controls and handlers
+- **AUDIT**: Logs `additionals_line_item_updated_pending` with old/new totals
+- **IMPACT**: Faster workflows for pending additions while preserving immutable audit trail for finalized states

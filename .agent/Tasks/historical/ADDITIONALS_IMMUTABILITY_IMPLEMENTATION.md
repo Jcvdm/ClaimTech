@@ -14,11 +14,28 @@ Previously, additionals line items could be edited or deleted after creation, wh
 
 ## Solution: Event-Sourced Reversals
 
-Instead of editing or deleting line items, we now create **reversal entries** that represent the opposite action. This provides:
+Instead of editing or deleting finalized line items, we now create **reversal entries** that represent the opposite action. This provides:
 - ✅ Complete immutability (no edits or deletes after creation)
 - ✅ Full audit trail of all changes
 - ✅ Ability to "undo" any action via reversals
 - ✅ Simple calculation logic (sum all approved items)
+
+## Pending Items Editing
+
+Pending additional items are editable inline for productivity. Once approved, declined, removed, or reversed, entries become immutable and any future changes must be made via reversal entries.
+
+**Editable Fields (pending only):** Description, Part Nett (N), S&A hours (N/R/P/B), Labour hours (N/R/A), Paint panels (N/R/P/B), Outwork Nett (O). Edits save on blur/Enter and recalculate derived costs and totals using the Additionals’ locked rates/markups.
+
+**Service Method:** `updatePendingLineItem(assessmentId, lineItemId, patch)` computes:
+- `strip_assemble = strip_assemble_hours × labour_rate`
+- `labour_cost = labour_hours × labour_rate`
+- `paint_cost = paint_panels × paint_rate`
+- `part_price = calculatePartSellingPrice(part_price_nett, markup by part_type)`
+- `outwork_charge = calculateOutworkSellingPrice(outwork_charge_nett, outwork_markup_percentage)`
+- `betterment_total = calculateBetterment(updatedItem)`
+- `total = calculateLineItemTotal(updatedItem, labour_rate, paint_rate)`
+
+Approved totals are unaffected until approval. All pending edits are audit logged (`additionals_line_item_updated_pending`).
 
 ## Data Model Changes
 
