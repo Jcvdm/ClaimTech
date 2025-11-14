@@ -1,7 +1,7 @@
 # System Documentation Index
 
-**Last Updated**: January 12, 2025 (Bug #7 Hotfix - FRC Badge Count Regression)
-**Total Files**: 34 System documentation files
+**Last Updated**: January 31, 2025 (Bug #8 - SSE Streaming for Batch Document Generation)
+**Total Files**: 35 System documentation files
 
 ---
 
@@ -164,7 +164,35 @@ Comprehensive system documentation covering architecture, database design, secur
 - **Read When**: Need latest loading animation patterns
 - **Note**: Complements ui_loading_patterns.md with implementation analysis
 
-### 3. Photo Labeling Implementation ⭐ CRITICAL FIX (Nov 9, 2025)
+### 3. SSE Streaming for Long-Running Operations ⭐ NEW (Jan 31, 2025)
+- **File**: [sse_streaming_pattern.md](../System/sse_streaming_pattern.md)
+- **Size**: ~500 lines | **Last Updated**: Jan 31, 2025
+- **Read When**: Implementing long-running batch operations, need real-time progress feedback, handling partial success
+- **Use Case**: Document generation, batch processing, multi-step workflows
+
+**Contains**:
+- SSE (Server-Sent Events) streaming architecture
+- Sequential vs parallel generation patterns
+- Progress tracking with per-item status
+- Partial success handling (e.g., 3/4 documents succeed)
+- Client-side SSE parsing and state management
+- UI component patterns (progress bars, status indicators, retry buttons)
+- Error handling and recovery strategies
+- Performance considerations and optimization
+
+**Implemented in**:
+- `src/routes/api/generate-all-documents/+server.ts` - SSE streaming endpoint
+- `src/lib/services/document-generation.service.ts` - SSE parsing and progress callbacks
+- `src/lib/components/assessment/DocumentGenerationProgress.svelte` - Progress UI component
+- `src/lib/components/assessment/FinalizeTab.svelte` - Integration with retry handlers
+
+**Related**: [UI Loading Patterns](../System/ui_loading_patterns.md), [Project Architecture](../System/project_architecture.md)
+
+**Key for**: Understanding streaming patterns, implementing batch operations with progress feedback, handling partial failures gracefully
+
+---
+
+### 4. Photo Labeling Implementation ⭐ CRITICAL FIX (Nov 9, 2025)
 - **File**: [photo_labeling_implementation_nov_6_2025.md](../System/photo_labeling_implementation_nov_6_2025.md)
 - **Size**: ~1000 lines | **Last Updated**: Nov 9, 2025 (FINAL FIX)
 - **Read When**: Working with photo components, implementing optimistic updates, debugging photo navigation, using bigger-picture library
