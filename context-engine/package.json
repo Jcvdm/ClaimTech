@@ -3,15 +3,18 @@
   "version": "1.0.0",
   "description": "AI-powered context retrieval system with automatic codebase processing",
   "type": "module",
-  "main": "contexts/src/index.js",
+  "main": "contexts/src/intelligent-engine.js",
   "scripts": {
-    "start": "node contexts/src/index.js",
-    "dev": "nodemon contexts/src/index.js",
+    "start": "node contexts/src/intelligent-engine.js",
+    "start:v2": "node contexts/src/intelligent-engine.js",
+    "dev": "nodemon contexts/src/intelligent-engine.js",
+    "dev:v2": "nodemon contexts/src/intelligent-engine.js",
     "process-codebase": "node contexts/scripts/process-codebase.js",
     "analyze": "node contexts/scripts/analyze-codebase.js",
     "index": "node contexts/scripts/index-contexts.js",
     "setup": "node contexts/scripts/setup.js",
-    "test": "curl http://localhost:3456/health"
+    "test": "curl http://localhost:3457/health",
+    "compare": "echo 'Context Engine V2: http://localhost:3457'"
   },
   "keywords": [
     "context",

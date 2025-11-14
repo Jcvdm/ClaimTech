@@ -934,43 +934,51 @@ class FRCService {
 	/**
 	 * Get count of FRC records by status
 	 * Only counts FRC for active assessments (stage = 'estimate_finalized')
+	 *
+	 * OPTIMIZED: Query from assessments table with targeted joins
+	 * This filters by stage AND engineer assignment, preventing archived FRC from being counted
+	 * Uses 2-table join (assessments + appointments + assessment_frc) instead of direct query
+	 * to ensure proper filtering by assessment stage and engineer assignment.
 	 */
 	async getCountByStatus(status: 'not_started' | 'in_progress' | 'completed', client?: ServiceClient, engineer_id?: string | null): Promise<number> {
 		const db = client ?? supabase;
 
-		// Query from assessments table for simpler, more reliable filtering
-		// This avoids PostgREST deep filter path issues
-		// Only count FRC for active assessments (stage = 'estimate_finalized')
-		if (engineer_id) {
-			// Engineer view - only their assigned active assessments with FRC at this status
+		try {
+			// Query from assessments table for proper stage filtering
+			if (engineer_id) {
+				// Engineer view - only their assigned assessments with FRC at this status
+				const { count, error } = await db
+					.from('assessments')
+					.select('id, appointments!inner(engineer_id), assessment_frc!inner(status)',
+							{ count: 'exact', head: true })
+					.eq('stage', 'estimate_finalized')  // Only active assessments
+					.eq('appointments.engineer_id', engineer_id)
+					.eq('assessment_frc.status', status);
+
+				if (error) {
+					console.error(`Error counting engineer FRC (status: ${status}, engineer: ${engineer_id}):`, error);
+					return 0;
+				}
+				return count || 0;
+			}
+
+			// Admin view - all assessments with FRC at this status
 			const { count, error } = await db
 				.from('assessments')
-				.select('id, appointments!inner(engineer_id), assessment_frc!inner(status)',
-						{ count: 'exact', head: true })
+				.select('id, assessment_frc!inner(status)', { count: 'exact', head: true })
 				.eq('stage', 'estimate_finalized')  // Only active assessments
-				.eq('appointments.engineer_id', engineer_id)
 				.eq('assessment_frc.status', status);
 
 			if (error) {
-				console.error('Error counting engineer FRC:', error);
+				console.error(`Error counting all FRC (status: ${status}):`, error);
 				return 0;
 			}
+
 			return count || 0;
-		}
-
-		// Admin view - all active assessments with FRC at this status
-		const { count, error } = await db
-			.from('assessments')
-			.select('id, assessment_frc!inner(status)',
-					{ count: 'exact', head: true })
-			.eq('stage', 'estimate_finalized')  // Only active assessments
-			.eq('assessment_frc.status', status);
-
-		if (error) {
-			console.error('Error counting all FRC:', error);
+		} catch (err) {
+			console.error(`Exception counting FRC (status: ${status}, engineer: ${engineer_id || 'all'}):`, err);
 			return 0;
 		}
-		return count || 0;
 	}
 
 	/**

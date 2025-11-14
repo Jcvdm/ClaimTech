@@ -193,30 +193,22 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 			console.log('File path:', filePath);
 			console.log('PDF size:', pdfBuffer.length, 'bytes');
 
-			const { data: uploadData, error: uploadError } = await locals.supabase.storage
-				.from('documents')
-				.upload(filePath, pdfBuffer, {
-					contentType: 'application/pdf',
-					upsert: true
-				});
+            let uploadOk = false;
+            let lastUploadErr: any = null;
+            for (let i = 0; i < 3; i++) {
+                const { error: uploadError } = await locals.supabase.storage
+                    .from('documents')
+                    .upload(filePath, pdfBuffer, { contentType: 'application/pdf', upsert: true });
+                if (!uploadError) { uploadOk = true; break; }
+                lastUploadErr = uploadError;
+                await new Promise(r => setTimeout(r, 500 * Math.pow(2, i)));
+            }
+            if (!uploadOk) {
+                yield { status: 'error', progress: 0, error: `Failed to upload PDF to storage: ${lastUploadErr?.message || 'Unknown error'}` };
+                return;
+            }
 
-			if (uploadError) {
-				console.error('=== Storage Upload Error ===');
-				console.error('Error:', uploadError);
-				console.error('Error message:', uploadError.message);
-				console.error('Error details:', JSON.stringify(uploadError, null, 2));
-				console.error('File path:', filePath);
-				console.error('PDF size:', pdfBuffer.length);
-				console.error('===========================');
-				yield {
-					status: 'error',
-					progress: 0,
-					error: `Failed to upload PDF to storage: ${uploadError.message}`
-				};
-				return;
-			}
-
-			console.log('PDF uploaded successfully:', uploadData);
+            console.log('PDF uploaded successfully');
 
 			yield { status: 'processing', progress: 95, message: 'Finalizing...' };
 

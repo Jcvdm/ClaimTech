@@ -4,6 +4,7 @@
 	import { Badge } from '$lib/components/ui/badge';
 	import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '$lib/components/ui/dialog';
 	import DocumentCard from './DocumentCard.svelte';
+	import DocumentGenerationProgress from './DocumentGenerationProgress.svelte';
 	import {
 		FileText,
 		Image,
@@ -102,6 +103,20 @@
 	let finalizing = $state(false);
 	let showValidationModal = $state(false);
 
+	// Document generation progress tracking for batch generation
+	let showBatchProgress = $state(false);
+	let documentProgress = $state<{
+		report: { status: 'pending' | 'processing' | 'success' | 'error', progress: number, message: string, url: string | null, error: string | null };
+		estimate: { status: 'pending' | 'processing' | 'success' | 'error', progress: number, message: string, url: string | null, error: string | null };
+		photosPdf: { status: 'pending' | 'processing' | 'success' | 'error', progress: number, message: string, url: string | null, error: string | null };
+		photosZip: { status: 'pending' | 'processing' | 'success' | 'error', progress: number, message: string, url: string | null, error: string | null };
+	}>({
+		report: { status: 'pending', progress: 0, message: 'Waiting...', url: null, error: null },
+		estimate: { status: 'pending', progress: 0, message: 'Waiting...', url: null, error: null },
+		photosPdf: { status: 'pending', progress: 0, message: 'Waiting...', url: null, error: null },
+		photosZip: { status: 'pending', progress: 0, message: 'Waiting...', url: null, error: null }
+	});
+
 	// Validate all tabs
 	const tabValidations = $derived.by(() => {
 		return getTabCompletionStatus({
@@ -183,16 +198,26 @@
 	/**
 	 * Force finalize estimate despite missing required fields
 	 * User has acknowledged the missing fields and wants to proceed anyway
+	 *
+	 * Includes retry logic with exponential backoff and user-friendly error messages
 	 */
 async function handleForceFinalize() {
     finalizing = true;
     error = null;
+
+    // Show progress message to user
+    progressMessage.report = 'Finalizing assessment...';
+
     try {
         const missingFieldsInfo = allMissingFields.map(({ tab, fields }) => ({ tab, fields }));
         let attempt = 0;
         let lastErr: any = null;
+
         while (attempt < 3) {
             try {
+                // Update progress message with attempt number
+                progressMessage.report = `Finalizing assessment (attempt ${attempt + 1}/3)...`;
+
                 await assessmentService.finalizeEstimate(
                     assessment.id,
                     { forcedFinalization: true, missingFields: missingFieldsInfo },
@@ -202,16 +227,37 @@ async function handleForceFinalize() {
                 break;
             } catch (e) {
                 lastErr = e;
+                console.warn(`Finalization attempt ${attempt + 1} failed:`, e);
+
+                // Exponential backoff: 500ms, 1s, 2s
                 await new Promise((r) => setTimeout(r, 500 * Math.pow(2, attempt)));
                 attempt++;
             }
         }
-        if (lastErr) throw lastErr;
+
+        if (lastErr) {
+            // Provide user-friendly error messages for common issues
+            if (lastErr.message?.includes('timeout') ||
+                lastErr.message?.includes('TIMEOUT') ||
+                lastErr.code === 'UND_ERR_CONNECT_TIMEOUT' ||
+                lastErr.code === 'ETIMEDOUT') {
+                throw new Error('Connection timeout. Please check your internet connection and try again.');
+            }
+            if (lastErr.message?.includes('fetch failed') ||
+                lastErr.message?.includes('network')) {
+                throw new Error('Network error. Please check your connection and try again.');
+            }
+            throw lastErr;
+        }
+
         showValidationModal = false;
+        progressMessage.report = 'Refreshing data...';
+
         await invalidateAll();
         goto('/work/finalized-assessments');
     } catch (err) {
         error = err instanceof Error ? err.message : 'Failed to finalize estimate';
+        progressMessage.report = '';
     } finally {
         finalizing = false;
     }
@@ -353,16 +399,98 @@ async function handleForceFinalize() {
 
 	async function handleGenerateAll() {
 		generating.all = true;
+		showBatchProgress = true;
 		error = null;
+
+		// Reset progress state
+		documentProgress = {
+			report: { status: 'pending', progress: 0, message: 'Waiting...', url: null, error: null },
+			estimate: { status: 'pending', progress: 0, message: 'Waiting...', url: null, error: null },
+			photosPdf: { status: 'pending', progress: 0, message: 'Waiting...', url: null, error: null },
+			photosZip: { status: 'pending', progress: 0, message: 'Waiting...', url: null, error: null }
+		};
+
 		try {
-			await onGenerateAll();
+			// Call streaming service with progress callback
+			const result = await documentGenerationService.generateAllDocuments(
+				assessment.id,
+				(documentType, progress, message, url, errorMsg) => {
+					// Update progress for specific document
+					const status = errorMsg ? 'error' : (progress === 100 ? 'success' : 'processing');
+					documentProgress[documentType] = {
+						status,
+						progress,
+						message,
+						url,
+						error: errorMsg
+					};
+				}
+			);
+
+			// Show error if any documents failed
+			if (!result.success && result.errors.length > 0) {
+				error = `Some documents failed to generate:\n${result.errors.join('\n')}`;
+			}
+
 			await loadGenerationStatus();
-			// Refresh parent data to update assessment with new document URLs
 			await invalidateAll();
 		} catch (err) {
 			error = err instanceof Error ? err.message : 'Failed to generate documents';
 		} finally {
 			generating.all = false;
+		}
+	}
+
+	async function handleRetryDocument(documentType: string) {
+		// Reset progress for this document
+		documentProgress[documentType as keyof typeof documentProgress] = {
+			status: 'processing',
+			progress: 0,
+			message: 'Retrying...',
+			url: null,
+			error: null
+		};
+
+		try {
+			// Map document type to API format
+			const apiType = documentType === 'photosPdf' ? 'photos_pdf' :
+			                documentType === 'photosZip' ? 'photos_zip' :
+			                documentType;
+
+			// Call individual document generator
+			const url = await documentGenerationService.generateDocument(
+				assessment.id,
+				apiType as any,
+				(progress, message) => {
+					documentProgress[documentType as keyof typeof documentProgress] = {
+						status: 'processing',
+						progress,
+						message,
+						url: null,
+						error: null
+					};
+				}
+			);
+
+			// Update with success
+			documentProgress[documentType as keyof typeof documentProgress] = {
+				status: 'success',
+				progress: 100,
+				message: 'Generated successfully',
+				url,
+				error: null
+			};
+
+			await loadGenerationStatus();
+			await invalidateAll();
+		} catch (err) {
+			documentProgress[documentType as keyof typeof documentProgress] = {
+				status: 'error',
+				progress: 0,
+				message: 'Failed',
+				url: null,
+				error: err instanceof Error ? err.message : 'Unknown error'
+			};
 		}
 	}
 
@@ -539,19 +667,32 @@ async function handleForceFinalize() {
 	<!-- Quick Actions -->
 	<Card class="p-6">
 		<h3 class="mb-4 text-lg font-semibold text-gray-900">Quick Actions</h3>
-		<div class="flex flex-col gap-3 sm:flex-row">
-			<Button onclick={handleGenerateAll} disabled={generating.all} class="flex-1">
-				<Package class="mr-2 h-4 w-4" />
-				{generating.all ? 'Generating All...' : 'Generate All Documents'}
-			</Button>
 
-			{#if generationStatus.all_generated}
-				<Button onclick={() => onDownloadDocument('complete')} variant="outline" class="flex-1">
-					<FileArchive class="mr-2 h-4 w-4" />
-					Download Complete Package
+		{#if showBatchProgress}
+			<!-- Show progress component during batch generation -->
+			<DocumentGenerationProgress
+				report={documentProgress.report}
+				estimate={documentProgress.estimate}
+				photosPdf={documentProgress.photosPdf}
+				photosZip={documentProgress.photosZip}
+				onRetry={handleRetryDocument}
+			/>
+		{:else}
+			<!-- Show generate button when not generating -->
+			<div class="flex flex-col gap-3 sm:flex-row">
+				<Button onclick={handleGenerateAll} disabled={generating.all} class="flex-1">
+					<Package class="mr-2 h-4 w-4" />
+					{generating.all ? 'Generating All...' : 'Generate All Documents'}
 				</Button>
-			{/if}
-		</div>
+
+				{#if generationStatus.all_generated}
+					<Button onclick={() => onDownloadDocument('complete')} variant="outline" class="flex-1">
+						<FileArchive class="mr-2 h-4 w-4" />
+						Download Complete Package
+					</Button>
+				{/if}
+			</div>
+		{/if}
 	</Card>
 </div>
 

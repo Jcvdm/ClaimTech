@@ -191,6 +191,44 @@ async function checkDatabaseState() {
   }
   
   console.log('='.repeat(60));
+
+  // 7. FRC & Additionals schema and sample checks
+  console.log('\n🧩 FRC & Additionals Schema Checks');
+  console.log('='.repeat(60));
+
+  // Additionals
+  const { data: additionalsSample, error: additionalsErr } = await supabase
+    .from('assessment_additionals')
+    .select('id, assessment_id, labour_rate, paint_rate, vat_percentage, oem_markup_percentage, alt_markup_percentage, second_hand_markup_percentage, outwork_markup_percentage, line_items, excluded_line_item_ids, subtotal_approved, vat_amount_approved, total_approved')
+    .limit(1);
+
+  if (additionalsErr) {
+    console.log(`❌ assessment_additionals query error: ${additionalsErr.message}`);
+  } else {
+    const sample = additionalsSample?.[0];
+    console.log(`✅ assessment_additionals reachable. Columns:`);
+    console.log(`   - excluded_line_item_ids present: ${sample && Object.prototype.hasOwnProperty.call(sample, 'excluded_line_item_ids') ? 'YES' : 'NO'}`);
+    console.log(`   - line_items type: ${Array.isArray(sample?.line_items) ? 'array' : typeof sample?.line_items}`);
+    console.log(`   - subtotal_approved: ${sample?.subtotal_approved ?? 'N/A'} | total_approved: ${sample?.total_approved ?? 'N/A'}`);
+  }
+
+  // FRC
+  const { data: frcSample, error: frcErr } = await supabase
+    .from('assessment_frc')
+    .select('id, assessment_id, status, line_items, vat_percentage, quoted_total, actual_total')
+    .limit(1);
+
+  if (frcErr) {
+    console.log(`❌ assessment_frc query error: ${frcErr.message}`);
+  } else {
+    const sample = frcSample?.[0];
+    console.log(`✅ assessment_frc reachable. Columns:`);
+    console.log(`   - status: ${sample?.status ?? 'N/A'}`);
+    console.log(`   - line_items type: ${Array.isArray(sample?.line_items) ? 'array' : typeof sample?.line_items}`);
+    console.log(`   - quoted_total: ${sample?.quoted_total ?? 'N/A'} | actual_total: ${sample?.actual_total ?? 'N/A'}`);
+  }
+
+  console.log('='.repeat(60));
 }
 
 checkDatabaseState().catch(console.error);

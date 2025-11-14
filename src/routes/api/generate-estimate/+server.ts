@@ -204,23 +204,22 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 			const filePath = `assessments/${assessmentId}/estimates/${fileName}`;
 
 			console.log(`[${new Date().toISOString()}] [Request ${requestId}] Uploading PDF to Supabase storage: ${filePath}`);
-			const { error: uploadError } = await locals.supabase.storage
-				.from('documents')
-				.upload(filePath, pdfBuffer, {
-					contentType: 'application/pdf',
-					upsert: true
-				});
-
-			if (uploadError) {
-				console.error(`[${new Date().toISOString()}] [Request ${requestId}] Upload error:`, uploadError);
-				yield {
-					status: 'error',
-					progress: 0,
-					error: 'Failed to upload PDF to storage'
-				};
-				console.log(`[${new Date().toISOString()}] [Request ${requestId}] Error yielded, returning from generator`);
-				return;
-			}
+            {
+                let ok = false;
+                let lastErr: any = null;
+                for (let i = 0; i < 3; i++) {
+                    const { error: uploadError } = await locals.supabase.storage
+                        .from('documents')
+                        .upload(filePath, pdfBuffer, { contentType: 'application/pdf', upsert: true });
+                    if (!uploadError) { ok = true; break; }
+                    lastErr = uploadError;
+                    await new Promise(r => setTimeout(r, 500 * Math.pow(2, i)));
+                }
+                if (!ok) {
+                    yield { status: 'error', progress: 0, error: 'Failed to upload PDF to storage' };
+                    return;
+                }
+            }
 
 			console.log(`[${new Date().toISOString()}] [Request ${requestId}] PDF uploaded successfully`);
 			console.log(`[${new Date().toISOString()}] [Request ${requestId}] Yielding progress: 95%`);

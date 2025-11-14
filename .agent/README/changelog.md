@@ -1,6 +1,52 @@
 # Changelog - Recent Updates
 
-**Last Updated**: November 12, 2025 (Bug Fixes #5 & #6)
+**Last Updated**: January 31, 2025 (Bug #8 Fix - SSE Streaming for Batch Document Generation)
+
+---
+
+## January 31, 2025
+
+### ✅ Bug #8 Fix - Generate All Documents SSE Streaming & Progress Tracking
+- **ISSUE**: Generate All Documents button showed no progress feedback during 30-60+ second generation
+  - Generic loading spinner with no indication of progress
+  - No way to identify which document failed
+  - All-or-nothing approach (entire batch fails if one document fails)
+  - Poor UX with long waits and no feedback
+- **ROOT CAUSE**: Batch aggregator used `Promise.allSettled` with no streaming
+  - Parallel generation with no progress updates
+  - JSON response only returned after all documents completed
+  - No partial success handling
+- **SOLUTION**: Implemented SSE streaming with per-document progress tracking
+  - Sequential generation with real-time progress updates (0-25% report, 25-50% estimate, 50-75% photos PDF, 75-100% photos ZIP)
+  - New DocumentGenerationProgress component with status indicators
+  - Individual retry buttons for failed documents
+  - Partial success handling (continue with 3/4 documents)
+  - Comprehensive logging with timestamps
+- **IMPLEMENTATION**:
+  - `src/routes/api/generate-all-documents/+server.ts` - Converted to SSE streaming (249 lines)
+  - `src/lib/services/document-generation.service.ts` - Updated generateAllDocuments() with progress callback
+  - `src/lib/components/assessment/DocumentGenerationProgress.svelte` - NEW progress UI component (133 lines)
+  - `src/lib/components/assessment/FinalizeTab.svelte` - Integrated progress tracking with retry handlers
+  - `src/lib/utils/streaming-response.ts` - Added 'partial' status support
+- **BENEFITS**:
+  - Real-time progress feedback (user sees which document is being generated)
+  - Clear identification of failures (know exactly which document failed)
+  - Individual retry functionality (no need to regenerate all documents)
+  - Partial success support (3/4 documents can succeed)
+  - Better debugging with detailed logs
+- **VERIFICATION**:
+  - ✅ Progress bars update smoothly (0-100%)
+  - ✅ Status icons change correctly (pending → processing → success/error)
+  - ✅ Messages display for each document
+  - ✅ Retry buttons appear for failed documents
+  - ✅ View Document links work for successful documents
+  - ✅ Overall progress count is accurate
+- **DOCUMENTATION**:
+  - Investigation Report: `.agent/Tasks/active/BUG_8_INVESTIGATION_REPORT.md`
+  - SSE Streaming Guide: `.agent/Tasks/active/BUG_8_SSE_STREAMING_IMPLEMENTATION_GUIDE.md`
+  - UI Component Guide: `.agent/Tasks/active/BUG_8_UI_COMPONENT_IMPLEMENTATION_GUIDE.md`
+  - Implementation Summary: `.agent/Tasks/active/BUG_8_IMPLEMENTATION_SUMMARY.md`
+  - Next Actions: `.agent/Tasks/active/BUG_8_NEXT_ACTIONS.md`
 
 ---
 

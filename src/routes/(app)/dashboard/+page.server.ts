@@ -31,6 +31,11 @@ export const load: PageServerLoad = async ({ locals, parent }) => {
 
 	// Load counts for each work category
 	// For engineers: filter by their engineer_id, For admins: see all
+
+	/**
+	 * Retry helper with exponential backoff
+	 * Attempts the function up to 3 times with increasing delays
+	 */
     async function withRetry<T>(fn: () => Promise<T>, attempts = 3): Promise<T> {
         let lastErr: any;
         for (let i = 0; i < attempts; i++) {
@@ -44,17 +49,70 @@ export const load: PageServerLoad = async ({ locals, parent }) => {
         throw lastErr;
     }
 
+	/**
+	 * Timeout wrapper with graceful fallback
+	 * Prevents dashboard from crashing if a count query times out
+	 * Returns fallback value (0) if timeout or error occurs
+	 */
+	async function withTimeout<T>(
+		fn: () => Promise<T>,
+		timeoutMs: number = 15000,
+		fallback: T
+	): Promise<T> {
+		return Promise.race([
+			fn(),
+			new Promise<T>((_, reject) =>
+				setTimeout(() => reject(new Error('Query timeout')), timeoutMs)
+			)
+		]).catch((err) => {
+			console.warn('Count query failed, using fallback:', {
+				error: err.message,
+				code: err.code,
+				fallback
+			});
+			return fallback;
+		});
+	}
+
     const countsResults = await Promise.allSettled([
-        isEngineer ? Promise.resolve(0) : withRetry(() => requestService.getRequestCount({ status: 'submitted' }, locals.supabase)),
-        isEngineer ? Promise.resolve(0) : withRetry(() => inspectionService.getInspectionCount({ status: 'pending' }, locals.supabase)),
-        withRetry(() => appointmentService.getAppointmentCount(
-            isEngineer ? { status: 'scheduled', engineer_id } : { status: 'scheduled' },
-            locals.supabase
-        )),
-        withRetry(() => assessmentService.getInProgressCount(locals.supabase, isEngineer ? engineer_id : undefined)),
-        withRetry(() => assessmentService.getFinalizedCount(locals.supabase, isEngineer ? engineer_id : undefined)),
-        withRetry(() => frcService.getCountByStatus('in_progress', locals.supabase, isEngineer ? engineer_id : undefined)),
-        withRetry(() => additionalsService.getPendingCount(locals.supabase, isEngineer ? engineer_id : undefined))
+        isEngineer ? Promise.resolve(0) : withTimeout(
+			() => withRetry(() => requestService.getRequestCount({ status: 'submitted' }, locals.supabase)),
+			15000,
+			0
+		),
+        isEngineer ? Promise.resolve(0) : withTimeout(
+			() => withRetry(() => inspectionService.getInspectionCount({ status: 'pending' }, locals.supabase)),
+			15000,
+			0
+		),
+        withTimeout(
+			() => withRetry(() => appointmentService.getAppointmentCount(
+				isEngineer ? { status: 'scheduled', engineer_id } : { status: 'scheduled' },
+				locals.supabase
+			)),
+			15000,
+			0
+		),
+        withTimeout(
+			() => withRetry(() => assessmentService.getInProgressCount(locals.supabase, isEngineer ? engineer_id : undefined)),
+			15000,
+			0
+		),
+        withTimeout(
+			() => withRetry(() => assessmentService.getFinalizedCount(locals.supabase, isEngineer ? engineer_id : undefined)),
+			15000,
+			0
+		),
+        withTimeout(
+			() => withRetry(() => frcService.getCountByStatus('in_progress', locals.supabase, isEngineer ? engineer_id : undefined)),
+			15000,
+			0
+		),
+        withTimeout(
+			() => withRetry(() => additionalsService.getPendingCount(locals.supabase, isEngineer ? engineer_id : undefined)),
+			15000,
+			0
+		)
     ]);
 
     const [newRequestCount, inspectionCount, appointmentCount, assessmentCount, finalizedCount, frcCount, additionalsCount] = countsResults.map((r) => r.status === 'fulfilled' ? r.value as number : 0);

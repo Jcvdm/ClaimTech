@@ -1,108 +1,250 @@
-import { json, error } from '@sveltejs/kit';
+import { error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
+import { createStreamingResponse } from '$lib/utils/streaming-response';
+
+interface DocumentResult {
+	success: boolean;
+	url: string | null;
+	error: string | null;
+}
+
+interface AllDocumentsResults {
+	report: DocumentResult;
+	estimate: DocumentResult;
+	photosPdf: DocumentResult;
+	photosZip: DocumentResult;
+}
+
+/**
+ * Generate a single document by calling its endpoint and parsing SSE stream
+ */
+async function generateDocument(
+	type: 'report' | 'estimate' | 'photos-pdf' | 'photos-zip',
+	assessmentId: string,
+	fetch: typeof globalThis.fetch,
+	onProgress?: (progress: number, message: string) => void
+): Promise<string> {
+	const startTime = Date.now();
+	console.log(`[${new Date().toISOString()}] Starting ${type} generation for assessment ${assessmentId}`);
+
+	const response = await fetch(`/api/generate-${type}`, {
+		method: 'POST',
+		headers: { 'Content-Type': 'application/json' },
+		body: JSON.stringify({ assessmentId })
+	});
+
+	if (!response.ok) {
+		const errorData = await response.json().catch(() => ({}));
+		const errorMsg = errorData.message || `Failed to generate ${type}`;
+		console.error(`[${new Date().toISOString()}] ${type} generation failed:`, errorMsg);
+		throw new Error(errorMsg);
+	}
+
+	// Handle SSE streaming response
+	const reader = response.body?.getReader();
+	if (!reader) {
+		throw new Error('No response body');
+	}
+
+	const decoder = new TextDecoder();
+	let buffer = '';
+	let finalUrl = '';
+
+	try {
+		while (true) {
+			const { done, value } = await reader.read();
+			if (done) break;
+
+			buffer += decoder.decode(value, { stream: true });
+			const messages = buffer.split('\n\n');
+			buffer = messages.pop() || '';
+
+			for (const message of messages) {
+				if (!message.trim() || !message.startsWith('data: ')) continue;
+
+				const data = JSON.parse(message.replace(/^data: /, ''));
+
+				if (onProgress && typeof data.progress === 'number') {
+					onProgress(data.progress, data.message || data.status);
+				}
+
+				if (data.status === 'complete' && data.url) {
+					finalUrl = data.url;
+				}
+
+				if (data.status === 'error') {
+					throw new Error(data.error || 'Unknown error');
+				}
+			}
+		}
+	} finally {
+		reader.releaseLock();
+	}
+
+	if (!finalUrl) {
+		throw new Error('Document generation completed but no URL returned');
+	}
+
+	const duration = Date.now() - startTime;
+	console.log(`[${new Date().toISOString()}] ${type} generation completed in ${duration}ms`);
+
+	return finalUrl;
+}
 
 export const POST: RequestHandler = async ({ request, fetch }) => {
-	try {
-		const { assessmentId } = await request.json();
+	const body = await request.json();
+	const assessmentId = body.assessmentId;
 
-		if (!assessmentId) {
-			throw error(400, 'Assessment ID is required');
-		}
+	if (!assessmentId) {
+		throw error(400, 'Assessment ID is required');
+	}
 
-		// Generate all documents in parallel
-		const [reportResponse, estimateResponse, photosPdfResponse, photosZipResponse] =
-			await Promise.allSettled([
-				fetch('/api/generate-report', {
-					method: 'POST',
-					headers: { 'Content-Type': 'application/json' },
-					body: JSON.stringify({ assessmentId })
-				}),
-				fetch('/api/generate-estimate', {
-					method: 'POST',
-					headers: { 'Content-Type': 'application/json' },
-					body: JSON.stringify({ assessmentId })
-				}),
-				fetch('/api/generate-photos-pdf', {
-					method: 'POST',
-					headers: { 'Content-Type': 'application/json' },
-					body: JSON.stringify({ assessmentId })
-				}),
-				fetch('/api/generate-photos-zip', {
-					method: 'POST',
-					headers: { 'Content-Type': 'application/json' },
-					body: JSON.stringify({ assessmentId })
-				})
-			]);
+	console.log(`[${new Date().toISOString()}] Starting batch document generation for assessment ${assessmentId}`);
 
-		// Process results
-		const results = {
+	return createStreamingResponse(async function* () {
+		const results: AllDocumentsResults = {
 			report: { success: false, url: null, error: null },
 			estimate: { success: false, url: null, error: null },
 			photosPdf: { success: false, url: null, error: null },
 			photosZip: { success: false, url: null, error: null }
 		};
 
-		// Report
-		if (reportResponse.status === 'fulfilled' && reportResponse.value.ok) {
-			const data = await reportResponse.value.json();
-			results.report = { success: true, url: data.url, error: null };
-		} else if (reportResponse.status === 'rejected') {
-			results.report.error = reportResponse.reason?.message || 'Failed to generate report';
-		} else if (reportResponse.status === 'fulfilled') {
-			const errorData = await reportResponse.value.json().catch(() => ({}));
-			results.report.error = errorData.message || 'Failed to generate report';
-		}
-
-		// Estimate
-		if (estimateResponse.status === 'fulfilled' && estimateResponse.value.ok) {
-			const data = await estimateResponse.value.json();
-			results.estimate = { success: true, url: data.url, error: null };
-		} else if (estimateResponse.status === 'rejected') {
-			results.estimate.error = estimateResponse.reason?.message || 'Failed to generate estimate';
-		} else if (estimateResponse.status === 'fulfilled') {
-			const errorData = await estimateResponse.value.json().catch(() => ({}));
-			results.estimate.error = errorData.message || 'Failed to generate estimate';
-		}
-
-		// Photos PDF
-		if (photosPdfResponse.status === 'fulfilled' && photosPdfResponse.value.ok) {
-			const data = await photosPdfResponse.value.json();
-			results.photosPdf = { success: true, url: data.url, error: null };
-		} else if (photosPdfResponse.status === 'rejected') {
-			results.photosPdf.error = photosPdfResponse.reason?.message || 'Failed to generate photos PDF';
-		} else if (photosPdfResponse.status === 'fulfilled') {
-			const errorData = await photosPdfResponse.value.json().catch(() => ({}));
-			results.photosPdf.error = errorData.message || 'Failed to generate photos PDF';
-		}
-
-		// Photos ZIP
-		if (photosZipResponse.status === 'fulfilled' && photosZipResponse.value.ok) {
-			const data = await photosZipResponse.value.json();
-			results.photosZip = { success: true, url: data.url, error: null };
-		} else if (photosZipResponse.status === 'rejected') {
-			results.photosZip.error = photosZipResponse.reason?.message || 'Failed to generate photos ZIP';
-		} else if (photosZipResponse.status === 'fulfilled') {
-			const errorData = await photosZipResponse.value.json().catch(() => ({}));
-			results.photosZip.error = errorData.message || 'Failed to generate photos ZIP';
-		}
-
-		// Check if all succeeded
-		const allSucceeded =
-			results.report.success &&
-			results.estimate.success &&
-			results.photosPdf.success &&
-			results.photosZip.success;
-
-		return json({
-			success: allSucceeded,
+		// 1. Generate Report (0-25%)
+		yield {
+			status: 'processing' as const,
+			progress: 0,
+			message: 'Generating assessment report...',
 			results
-		});
-	} catch (err) {
-		console.error('Error generating all documents:', err);
-		if (err && typeof err === 'object' && 'status' in err) {
-			throw err;
+		};
+
+		try {
+			const reportUrl = await generateDocument('report', assessmentId, fetch, (progress, msg) => {
+				// Scale progress to 0-25% range
+				const scaledProgress = Math.floor(progress * 0.25);
+				// Note: Can't yield inside callback, progress tracked internally
+			});
+			results.report = { success: true, url: reportUrl, error: null };
+			yield {
+				status: 'processing' as const,
+				progress: 25,
+				message: 'Report complete ✓',
+				results
+			};
+		} catch (err) {
+			const errorMsg = err instanceof Error ? err.message : 'Failed to generate report';
+			results.report.error = errorMsg;
+			console.error(`[${new Date().toISOString()}] Report generation failed:`, errorMsg);
+			yield {
+				status: 'processing' as const,
+				progress: 25,
+				message: 'Report failed ✗',
+				results
+			};
 		}
-		throw error(500, 'Failed to generate all documents');
-	}
+
+		// 2. Generate Estimate (25-50%)
+		yield {
+			status: 'processing' as const,
+			progress: 25,
+			message: 'Generating estimate document...',
+			results
+		};
+
+		try {
+			const estimateUrl = await generateDocument('estimate', assessmentId, fetch);
+			results.estimate = { success: true, url: estimateUrl, error: null };
+			yield {
+				status: 'processing' as const,
+				progress: 50,
+				message: 'Estimate complete ✓',
+				results
+			};
+		} catch (err) {
+			const errorMsg = err instanceof Error ? err.message : 'Failed to generate estimate';
+			results.estimate.error = errorMsg;
+			console.error(`[${new Date().toISOString()}] Estimate generation failed:`, errorMsg);
+			yield {
+				status: 'processing' as const,
+				progress: 50,
+				message: 'Estimate failed ✗',
+				results
+			};
+		}
+
+		// 3. Generate Photos PDF (50-75%)
+		yield {
+			status: 'processing' as const,
+			progress: 50,
+			message: 'Generating photos PDF...',
+			results
+		};
+
+		try {
+			const photosPdfUrl = await generateDocument('photos-pdf', assessmentId, fetch);
+			results.photosPdf = { success: true, url: photosPdfUrl, error: null };
+			yield {
+				status: 'processing' as const,
+				progress: 75,
+				message: 'Photos PDF complete ✓',
+				results
+			};
+		} catch (err) {
+			const errorMsg = err instanceof Error ? err.message : 'Failed to generate photos PDF';
+			results.photosPdf.error = errorMsg;
+			console.error(`[${new Date().toISOString()}] Photos PDF generation failed:`, errorMsg);
+			yield {
+				status: 'processing' as const,
+				progress: 75,
+				message: 'Photos PDF failed ✗',
+				results
+			};
+		}
+
+		// 4. Generate Photos ZIP (75-100%)
+		yield {
+			status: 'processing' as const,
+			progress: 75,
+			message: 'Generating photos ZIP archive...',
+			results
+		};
+
+		try {
+			const photosZipUrl = await generateDocument('photos-zip', assessmentId, fetch);
+			results.photosZip = { success: true, url: photosZipUrl, error: null };
+			yield {
+				status: 'processing' as const,
+				progress: 100,
+				message: 'Photos ZIP complete ✓',
+				results
+			};
+		} catch (err) {
+			const errorMsg = err instanceof Error ? err.message : 'Failed to generate photos ZIP';
+			results.photosZip.error = errorMsg;
+			console.error(`[${new Date().toISOString()}] Photos ZIP generation failed:`, errorMsg);
+			yield {
+				status: 'processing' as const,
+				progress: 100,
+				message: 'Photos ZIP failed ✗',
+				results
+			};
+		}
+
+		// Final result
+		const successCount = Object.values(results).filter((r) => r.success).length;
+		const allSucceeded = successCount === 4;
+
+		console.log(
+			`[${new Date().toISOString()}] Batch generation complete: ${successCount}/4 documents succeeded`
+		);
+
+		yield {
+			status: allSucceeded ? ('complete' as const) : ('partial' as const),
+			progress: 100,
+			message: allSucceeded
+				? 'All documents generated successfully!'
+				: `${successCount}/4 documents generated. Some failed.`,
+			results
+		};
+	});
 };
 

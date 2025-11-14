@@ -1,7 +1,7 @@
 # ClaimTech Documentation
 
 **Project**: ClaimTech (SVA - SvelteKit Validation App)
-**Last Updated**: November 11, 2025 (Bug Fixes #3 & #4)
+**Last Updated**: January 12, 2025 (Bug #7 Hotfix - FRC Badge Count Regression)
 
 ---
 

@@ -4,11 +4,12 @@
  */
 
 export interface StreamProgress {
-	status: 'processing' | 'complete' | 'error';
+	status: 'processing' | 'complete' | 'error' | 'partial';
 	progress: number; // 0-100
 	message?: string;
 	url?: string;
 	error?: string;
+	results?: any; // For batch operations that return multiple results
 }
 
 /**

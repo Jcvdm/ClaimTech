@@ -10,9 +10,25 @@ export const load: LayoutLoad = async ({ data, depends, fetch }) => {
 	 */
 	depends('supabase:auth')
 
+	/**
+	 * Create browser client with custom timeout configuration
+	 * - 30s timeout for slow networks (up from default 10s)
+	 * - Related to Bug #7: Finalize Force Click Supabase Auth Connection Timeout
+	 */
 	const supabase = createBrowserClient<Database>(PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON_KEY, {
 		global: {
-			fetch,
+			fetch: (url, options = {}) => {
+				const controller = new AbortController();
+				const timeoutId = setTimeout(() => controller.abort(), 30000); // 30s timeout
+
+				return fetch(url, {
+					...options,
+					signal: controller.signal
+				}).finally(() => clearTimeout(timeoutId));
+			},
+			headers: {
+				'x-client-info': 'claimtech-layout'
+			}
 		},
 	})
 

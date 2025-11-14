@@ -115,31 +115,25 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 			 * Helper function to download a photo from Supabase storage
 			 * Converts proxy URL to storage path and downloads directly from private bucket
 			 */
-			const downloadPhoto = async (proxyUrl: string | null): Promise<ArrayBuffer | null> => {
-				if (!proxyUrl) return null;
-
-				try {
-					// Extract path from proxy URL
-					// "/api/photo/assessments/..." → "assessments/..."
-					const path = proxyUrl.replace('/api/photo/', '');
-
-					// Download from Supabase storage using authenticated client
-					const { data: photoBlob, error: downloadError } = await locals.supabase.storage
-						.from('SVA Photos')
-						.download(path);
-
-					if (downloadError || !photoBlob) {
-						console.warn(`[${new Date().toISOString()}] [Request ${requestId}] Failed to download photo: ${path}`, downloadError);
-						return null;
-					}
-
-					// Convert blob to array buffer
-					return await photoBlob.arrayBuffer();
-				} catch (err) {
-					console.warn(`[${new Date().toISOString()}] [Request ${requestId}] Error downloading photo: ${proxyUrl}`, err);
-					return null;
-				}
-			};
+            const downloadPhoto = async (proxyUrl: string | null): Promise<ArrayBuffer | null> => {
+                if (!proxyUrl) return null;
+                const path = proxyUrl.replace('/api/photo/', '');
+                let lastErr: any = null;
+                for (let i = 0; i < 3; i++) {
+                    try {
+                        const { data: photoBlob, error: downloadError } = await locals.supabase.storage.from('SVA Photos').download(path);
+                        if (!downloadError && photoBlob) {
+                            return await photoBlob.arrayBuffer();
+                        }
+                        lastErr = downloadError;
+                    } catch (err) {
+                        lastErr = err;
+                    }
+                    await new Promise(r => setTimeout(r, 500 * Math.pow(2, i)));
+                }
+                console.warn(`[${new Date().toISOString()}] [Request ${requestId}] Failed to download photo: ${path}`, lastErr);
+                return null;
+            };
 
 			// Collect Vehicle Identification Photos
 			let photoCounter = 1;
@@ -464,32 +458,24 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 			const fileName = `${assessment.assessment_number}_Photos_${timestamp}.zip`;
 			const filePath = `assessments/${assessmentId}/photos/${fileName}`;
 
-			try {
-				const { error: uploadError } = await locals.supabase.storage
-					.from('documents')
-					.upload(filePath, zipBuffer, {
-						contentType: 'application/zip',
-						upsert: true
-					});
-
-				if (uploadError) {
-					console.error(`[${new Date().toISOString()}] [Request ${requestId}] Upload error:`, uploadError);
-					yield {
-						status: 'error',
-						progress: 0,
-						error: 'Failed to upload ZIP to storage'
-					};
-					return;
-				}
-			} catch (uploadError) {
-				console.error(`[${new Date().toISOString()}] [Request ${requestId}] Upload exception:`, uploadError);
-				yield {
-					status: 'error',
-					progress: 0,
-					error: `Upload failed: ${uploadError instanceof Error ? uploadError.message : 'Unknown error'}`
-				};
-				return;
-			}
+            {
+                let ok = false;
+                let lastErr: any = null;
+                for (let i = 0; i < 3; i++) {
+                    try {
+                        const { error: uploadError } = await locals.supabase.storage.from('documents').upload(filePath, zipBuffer, { contentType: 'application/zip', upsert: true });
+                        if (!uploadError) { ok = true; break; }
+                        lastErr = uploadError;
+                    } catch (err) {
+                        lastErr = err;
+                    }
+                    await new Promise(r => setTimeout(r, 500 * Math.pow(2, i)));
+                }
+                if (!ok) {
+                    yield { status: 'error', progress: 0, error: 'Failed to upload ZIP to storage' };
+                    return;
+                }
+            }
 
 			yield { status: 'processing', progress: 95, message: 'Updating database...' };
 

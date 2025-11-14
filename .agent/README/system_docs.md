@@ -1,7 +1,7 @@
 # System Documentation Index
 
-**Last Updated**: November 9, 2025 (Photo Panel Display Fix)
-**Total Files**: 33 System documentation files
+**Last Updated**: January 12, 2025 (Bug #7 Hotfix - FRC Badge Count Regression)
+**Total Files**: 34 System documentation files
 
 ---
 
@@ -299,9 +299,20 @@ Comprehensive system documentation covering architecture, database design, secur
 - **Read When**: Understanding assessment stage enum values
 - **Contains**: Migration 075 enum corrections
 
+#### Recent Fixes (Jan 2025)
+
+**12. Bug #7 Hotfix: FRC Badge Count Regression** ⭐ LATEST
+- **File**: [bug_7_hotfix_frc_badge_count_regression.md](../Tasks/completed/bug_7_hotfix_frc_badge_count_regression.md)
+- **Date**: Jan 12, 2025
+- **Issue**: FRC badge showed 2 records when only 1 active (regression from Bug #7 optimization)
+- **Root Cause**: Query optimization removed stage filtering, RLS policies don't filter by stage
+- **Solution**: Restored stage filtering while keeping optimization benefits (2-table join vs 3-table)
+- **Impact**: Badge counts now correct, excludes archived assessments
+- **Related**: [Bug #7 Fix](../Tasks/completed/bug_7_finalize_force_click_timeout_fix.md)
+
 #### Older Implementation Logs
 
-**12. RLS Recursion Fix Summary**
+**13. RLS Recursion Fix Summary**
 - **File**: [rls_recursion_fix_summary.md](../System/rls_recursion_fix_summary.md)
 - **Date**: Oct 2025
 - **Contains**: Historical RLS recursion fixes

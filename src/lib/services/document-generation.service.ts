@@ -165,15 +165,30 @@ class DocumentGenerationService {
 	}
 
 	/**
-	 * Generate all documents
+	 * Generate all documents with streaming progress updates
+	 * @param onProgress - Callback to receive progress updates for each document
+	 * @returns Object with URLs for all generated documents
 	 */
-	async generateAllDocuments(assessmentId: string): Promise<{
-		reportUrl: string;
-		estimateUrl: string;
-		photosPdfUrl: string;
-		photosZipUrl: string;
+	async generateAllDocuments(
+		assessmentId: string,
+		onProgress?: (
+			documentType: 'report' | 'estimate' | 'photosPdf' | 'photosZip',
+			progress: number,
+			message: string,
+			url: string | null,
+			error: string | null
+		) => void
+	): Promise<{
+		success: boolean;
+		reportUrl: string | null;
+		estimateUrl: string | null;
+		photosPdfUrl: string | null;
+		photosZipUrl: string | null;
+		errors: string[];
 	}> {
 		try {
+			console.log(`Starting batch document generation for assessment ${assessmentId}...`);
+
 			const response = await fetch('/api/generate-all-documents', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
@@ -181,13 +196,11 @@ class DocumentGenerationService {
 			});
 
 			if (!response.ok) {
-				// Try to parse JSON error response
 				let errorMessage = 'Failed to generate documents';
 				try {
 					const error = await response.json();
 					errorMessage = error.message || errorMessage;
 				} catch (jsonError) {
-					// Response is not JSON (probably HTML error page)
 					const text = await response.text();
 					console.error('Non-JSON error response:', text.substring(0, 500));
 					errorMessage = `Server error (${response.status}): ${response.statusText}`;
@@ -195,7 +208,140 @@ class DocumentGenerationService {
 				throw new Error(errorMessage);
 			}
 
-			return await response.json();
+			// Handle SSE streaming response
+			const reader = response.body?.getReader();
+			const decoder = new TextDecoder();
+
+			if (!reader) {
+				throw new Error('Response body is not readable');
+			}
+
+			let buffer = '';
+			let finalResults: any = null;
+
+			while (true) {
+				const { done, value } = await reader.read();
+
+				if (done) break;
+
+				buffer += decoder.decode(value, { stream: true });
+
+				// Process complete SSE messages
+				const messages = buffer.split('\n\n');
+				buffer = messages.pop() || '';
+
+				for (const message of messages) {
+					if (!message.trim() || !message.startsWith('data: ')) continue;
+
+					try {
+						const jsonStr = message.replace(/^data: /, '');
+						const data = JSON.parse(jsonStr);
+
+						console.log(
+							`Batch Progress: ${data.progress}% - ${data.message || data.status}`
+						);
+
+						// Update progress for each document if results are provided
+						if (data.results && onProgress) {
+							const results = data.results;
+
+							// Report progress
+							if (results.report) {
+								onProgress(
+									'report',
+									results.report.success ? 100 : 0,
+									results.report.success ? 'Complete' : results.report.error || 'Pending',
+									results.report.url,
+									results.report.error
+								);
+							}
+
+							// Estimate progress
+							if (results.estimate) {
+								onProgress(
+									'estimate',
+									results.estimate.success ? 100 : 0,
+									results.estimate.success
+										? 'Complete'
+										: results.estimate.error || 'Pending',
+									results.estimate.url,
+									results.estimate.error
+								);
+							}
+
+							// Photos PDF progress
+							if (results.photosPdf) {
+								onProgress(
+									'photosPdf',
+									results.photosPdf.success ? 100 : 0,
+									results.photosPdf.success
+										? 'Complete'
+										: results.photosPdf.error || 'Pending',
+									results.photosPdf.url,
+									results.photosPdf.error
+								);
+							}
+
+							// Photos ZIP progress
+							if (results.photosZip) {
+								onProgress(
+									'photosZip',
+									results.photosZip.success ? 100 : 0,
+									results.photosZip.success
+										? 'Complete'
+										: results.photosZip.error || 'Pending',
+									results.photosZip.url,
+									results.photosZip.error
+								);
+							}
+						}
+
+						// Store final results
+						if (
+							data.status === 'complete' ||
+							data.status === 'partial' ||
+							data.status === 'error'
+						) {
+							finalResults = data.results;
+						}
+					} catch (parseError) {
+						console.error('Error parsing SSE message:', message, parseError);
+					}
+				}
+			}
+
+			if (!finalResults) {
+				throw new Error('Document generation completed but no results were returned');
+			}
+
+			// Collect errors
+			const errors: string[] = [];
+			if (finalResults.report?.error) errors.push(`Report: ${finalResults.report.error}`);
+			if (finalResults.estimate?.error)
+				errors.push(`Estimate: ${finalResults.estimate.error}`);
+			if (finalResults.photosPdf?.error)
+				errors.push(`Photos PDF: ${finalResults.photosPdf.error}`);
+			if (finalResults.photosZip?.error)
+				errors.push(`Photos ZIP: ${finalResults.photosZip.error}`);
+
+			const success =
+				finalResults.report?.success &&
+				finalResults.estimate?.success &&
+				finalResults.photosPdf?.success &&
+				finalResults.photosZip?.success;
+
+			console.log(
+				`Batch generation complete: ${success ? 'All succeeded' : `${errors.length} failed`}`
+			);
+
+			return {
+				success,
+				reportUrl: finalResults.report?.url || null,
+				estimateUrl: finalResults.estimate?.url || null,
+				photosPdfUrl: finalResults.photosPdf?.url || null,
+				photosZipUrl: finalResults.photosZip?.url || null,
+				errors
+			};
 		} catch (error) {
 			console.error('Error generating all documents:', error);
 			throw error;

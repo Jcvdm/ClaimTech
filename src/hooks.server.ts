@@ -1,4 +1,5 @@
 import { createServerClient } from '@supabase/ssr'
+import { Agent } from 'undici'
 import { type Handle, redirect } from '@sveltejs/kit'
 import { sequence } from '@sveltejs/kit/hooks'
 import { PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON_KEY } from '$env/static/public'
@@ -6,9 +7,14 @@ import type { Database } from '$lib/types/database'
 
 const supabase: Handle = async ({ event, resolve }) => {
 	/**
-	 * Creates a Supabase client specific to this server request.
-	 * 
+	 * Creates a Supabase client specific to this server request with optimized configuration.
+	 *
 	 * The Supabase client gets the Auth token from the request cookies.
+	 *
+	 * Configuration Optimizations:
+	 * - 30s timeout for slow networks (up from default 10s)
+	 * - Connection keep-alive for connection pooling
+	 * - Related to Bug #7: Finalize Force Click Supabase Auth Connection Timeout
 	 */
 	event.locals.supabase = createServerClient<Database>(
 		PUBLIC_SUPABASE_URL,
@@ -39,8 +45,19 @@ const supabase: Handle = async ({ event, resolve }) => {
 					})
 				},
 			},
-		}
-	)
+            global: {
+                headers: {
+                    'x-client-info': 'claimtech-ssr'
+                },
+                fetch: (url, options = {}) => {
+                    const controller = new AbortController();
+                    const timeoutId = setTimeout(() => controller.abort(), 30000); // 30s timeout
+                    const dispatcher = new Agent({ connect: { timeout: 30000 }, keepAliveTimeout: 60000, headersTimeout: 30000 });
+                    return fetch(url, { ...options, signal: controller.signal, dispatcher }).finally(() => clearTimeout(timeoutId));
+                }
+            }
+        }
+    )
 
 	/**
 	 * Unlike `supabase.auth.getSession()`, which returns the session _without_
