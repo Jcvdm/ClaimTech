@@ -126,9 +126,13 @@ export function composeFinalEstimateLines(
 					process_type: line.process_type,
 					description: line.description,
 					quoted_total: line.total || 0,
-					actual_total: null,
-					decision: 'pending',
+					actual_total: line.action === 'removed'
+						? Number(((line.part_price_nett ?? 0) + (line.strip_assemble ?? 0) + (line.labour_cost ?? 0) + (line.paint_cost ?? 0) + (line.outwork_charge_nett ?? 0)).toFixed(2))
+						: null,
+					decision: line.action === 'removed' ? 'agree' : 'pending',
 					adjust_reason: null,
+					is_removal_additional: line.action === 'removed' || undefined,
+					removal_for_source_line_id: line.action === 'removed' ? line.original_line_id ?? null : null,
 					// Snapshot quoted component breakdown
 					quoted_part_price_nett: line.part_price_nett ?? null,
 					quoted_part_price: line.part_price ?? null,
@@ -145,14 +149,14 @@ export function composeFinalEstimateLines(
 					labour_rate_snapshot: frozenRates?.labour_rate ?? additionals.labour_rate,
 					paint_rate_snapshot: frozenRates?.paint_rate ?? additionals.paint_rate,
 					// Actuals initially null
-					actual_part_price_nett: null,
-					actual_strip_assemble: null,
-					actual_strip_assemble_hours: null,
-					actual_labour_cost: null,
-					actual_labour_hours: null,
-					actual_paint_cost: null,
-					actual_paint_panels: null,
-					actual_outwork_charge: null
+					actual_part_price_nett: line.action === 'removed' ? (line.part_price_nett ?? 0) : null,
+					actual_strip_assemble: line.action === 'removed' ? (line.strip_assemble ?? 0) : null,
+					actual_strip_assemble_hours: line.action === 'removed' ? (line.strip_assemble_hours ?? null) : null,
+					actual_labour_cost: line.action === 'removed' ? (line.labour_cost ?? 0) : null,
+					actual_labour_hours: line.action === 'removed' ? (line.labour_hours ?? null) : null,
+					actual_paint_cost: line.action === 'removed' ? (line.paint_cost ?? 0) : null,
+					actual_paint_panels: line.action === 'removed' ? (line.paint_panels ?? null) : null,
+					actual_outwork_charge: line.action === 'removed' ? (line.outwork_charge_nett ?? 0) : null
 				});
 			});
 
@@ -177,6 +181,8 @@ export function composeFinalEstimateLines(
 					actual_total: null,
 					decision: 'pending',
 					adjust_reason: null,
+					is_removal_additional: line.action === 'removed' || undefined,
+					removal_for_source_line_id: line.action === 'removed' ? line.original_line_id ?? null : null,
 					// Mark declined lines
 					declined_via_additionals: true,
 					decline_reason: line.decline_reason || 'No reason provided',
@@ -454,6 +460,75 @@ export function calculateVAT(subtotal: number, vatPercentage: number): number {
 export function calculateTotal(subtotal: number, vatAmount: number): number {
 	const total = subtotal + vatAmount;
 	return Number(total.toFixed(2));
+}
+
+/**
+ * Calculate "New Total" based on decided lines and automatic removals
+ * Rules:
+ * - Include only lines where decision !== 'pending' OR line.is_removal_additional === true
+ * - Exclude original estimate lines marked removed_via_additionals
+ * - For decided lines, use actual component values
+ * - For removal additional lines, use quoted component values
+ * - Apply markup to parts/outwork nett totals at aggregate level
+ */
+export function calculateFRCNewTotals(
+    lineItems: FRCLineItem[],
+    markupPercentages: { parts_markup: number; outwork_markup: number },
+    vatPercentage: number
+): {
+    parts_nett: number;
+    labour: number;
+    paint: number;
+    outwork_nett: number;
+    markup: number;
+    subtotal: number;
+    vat_amount: number;
+    total: number;
+} {
+    const included = lineItems.filter((line) => {
+        const isDecided = line.decision !== 'pending';
+        const isRemovalAdditional = !!line.is_removal_additional;
+        const isRemovedOriginal = line.source === 'estimate' && !!line.removed_via_additionals;
+        return (isDecided || isRemovalAdditional) && !isRemovedOriginal;
+    });
+
+    let partsNettTotal = 0;
+    let labourTotal = 0;
+    let paintTotal = 0;
+    let outworkNettTotal = 0;
+
+    included.forEach((line) => {
+        const useActual = line.decision !== 'pending' && !line.is_removal_additional;
+        if (useActual) {
+            partsNettTotal += line.actual_part_price_nett ?? 0;
+            labourTotal += (line.actual_strip_assemble ?? 0) + (line.actual_labour_cost ?? 0);
+            paintTotal += line.actual_paint_cost ?? 0;
+            outworkNettTotal += line.actual_outwork_charge ?? 0;
+        } else {
+            partsNettTotal += line.quoted_part_price_nett ?? 0;
+            labourTotal += (line.quoted_strip_assemble ?? 0) + (line.quoted_labour_cost ?? 0);
+            paintTotal += line.quoted_paint_cost ?? 0;
+            outworkNettTotal += line.quoted_outwork_charge_nett ?? 0;
+        }
+    });
+
+    const partsMarkupAmt = partsNettTotal * (markupPercentages.parts_markup / 100);
+    const outworkMarkupAmt = outworkNettTotal * (markupPercentages.outwork_markup / 100);
+    const totalMarkup = partsMarkupAmt + outworkMarkupAmt;
+    const subtotal = partsNettTotal + labourTotal + paintTotal + outworkNettTotal + totalMarkup;
+    const vat_amount = (subtotal * vatPercentage) / 100;
+    const total = subtotal + vat_amount;
+
+    return {
+        parts_nett: Number(partsNettTotal.toFixed(2)),
+        labour: Number(labourTotal.toFixed(2)),
+        paint: Number(paintTotal.toFixed(2)),
+        outwork_nett: Number(outworkNettTotal.toFixed(2)),
+        markup: Number(totalMarkup.toFixed(2)),
+        subtotal: Number(subtotal.toFixed(2)),
+        vat_amount: Number(vat_amount.toFixed(2)),
+        total: Number(total.toFixed(2))
+    };
 }
 
 /**

@@ -169,6 +169,23 @@ $effect(() => {
 				</div>
 			</Card>
 
+			<!-- Estimate Settings -->
+			<Card class="p-6">
+				<h3 class="mb-4 text-lg font-semibold text-gray-900">Estimate Settings</h3>
+				<div class="grid gap-6 md:grid-cols-2">
+					<FormField
+						label="Sundries Percentage (%)"
+						name="sundries_percentage"
+						type="number"
+						value={typeof data.settings?.sundries_percentage === 'number' ? String(data.settings?.sundries_percentage) : '1.00'}
+						placeholder="1.00"
+						step="0.01"
+						min="0"
+						max="100"
+					/>
+				</div>
+			</Card>
+
 			<!-- Terms & Conditions -->
 			<Card class="p-6">
 				<div class="mb-4 flex items-center gap-3">

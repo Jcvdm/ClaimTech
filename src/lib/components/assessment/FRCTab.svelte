@@ -6,7 +6,7 @@
 	import * as Dialog from '$lib/components/ui/dialog';
 	import { Textarea } from '$lib/components/ui/textarea';
 	import { Label } from '$lib/components/ui/label';
-	import FRCLinesTable from './FRCLinesTable.svelte';
+import FRCLinesTable from './FRCLinesTable.svelte';
 	import FRCSignOffModal from './FRCSignOffModal.svelte';
 	import {
 		FileText,
@@ -32,7 +32,7 @@
 	import { frcDocumentsService } from '$lib/services/frc-documents.service';
 	import { additionalsService } from '$lib/services/additionals.service';
 	import { formatCurrency } from '$lib/utils/formatters';
-	import { calculateDeltas } from '$lib/utils/frcCalculations';
+import { calculateDeltas, calculateFRCNewTotals } from '$lib/utils/frcCalculations';
 	import { calculateSACost, calculateLabourCost, calculatePaintCost } from '$lib/utils/estimateCalculations';
 
 	interface Props {
@@ -94,6 +94,8 @@
 	let frcError = $state<string | null>(null);
 	let frcReportUrl = $state<string | null>(null);
 
+	let refreshing = $state(false);
+
 	// Load FRC with snapshot lines (auto-merges additionals if changed)
 	// Uses snapshot pattern: line_items stored in database with auto-merge on load
 	async function loadFRC() {
@@ -141,6 +143,23 @@
 			error = err instanceof Error ? err.message : 'Failed to start FRC';
 		} finally {
 			starting = false;
+		}
+	}
+
+	async function handleRefreshFRC() {
+		if (!frc) return;
+		refreshing = true;
+		error = null;
+		try {
+			const updated = await frcService.refreshFRC(assessmentId);
+			frc = updated;
+			lines = updated.line_items || [];
+			wasMerged = true;
+			await onUpdate();
+		} catch (err) {
+			error = err instanceof Error ? err.message : 'Failed to refresh FRC snapshot';
+		} finally {
+			refreshing = false;
 		}
 	}
 
@@ -466,10 +485,25 @@
 	}
 
 	// Calculate deltas for display
-	const quotedVsActual = $derived(() => {
-		if (!frc) return null;
-		return calculateDeltas(frc.quoted_total, frc.actual_total);
-	});
+    const baselineTotals = $derived(() => {
+        if (!frc) return null;
+        const baseline_subtotal = frc.quoted_estimate_subtotal;
+        const baseline_vat = (baseline_subtotal * frc.vat_percentage) / 100;
+        const baseline_total = baseline_subtotal + baseline_vat;
+        return { subtotal: baseline_subtotal, vat: baseline_vat, total: baseline_total };
+    });
+
+    const newTotals = $derived(() => {
+        if (!frc) return null;
+        const parts_markup = estimate.oem_markup_percentage;
+        const outwork_markup = estimate.outwork_markup_percentage;
+        return calculateFRCNewTotals(lines, { parts_markup, outwork_markup }, frc.vat_percentage);
+    });
+
+    const deltaTotals = $derived(() => {
+        if (!baselineTotals() || !newTotals()) return null;
+        return calculateDeltas(baselineTotals()!.total, newTotals()!.total);
+    });
 
 	const partsDeltas = $derived(() => {
 		if (!frc) return null;
@@ -491,11 +525,11 @@
 		return calculateDeltas(frc.quoted_outwork_total, frc.actual_outwork_total);
 	});
 
-	// Check if all lines have decisions
-	const allLinesDecided = $derived(() => {
-		if (!frc) return false;
-		return lines.every((line) => line.decision !== 'pending');
-	});
+    // Check if all actionable lines have decisions
+    const allLinesDecided = $derived(() => {
+        if (!frc) return false;
+        return lines.filter((l) => !l.removed_via_additionals && !l.declined_via_additionals).every((line) => line.decision !== 'pending');
+    });
 
 	// Initial load on mount
 	$effect(() => {
@@ -581,6 +615,11 @@
 								{/if}
 							</p>
 						{/if}
+					</div>
+					<div class="flex items-center">
+						<Button size="sm" onclick={handleRefreshFRC} disabled={refreshing}>
+							{refreshing ? 'Refreshing...' : 'Refresh Snapshot'}
+						</Button>
 					</div>
 				</div>
 			</Card>
@@ -685,15 +724,46 @@
 			</Card>
 		{/if}
 
-		<!-- Totals Summary -->
-		<Card class="p-6">
-			<h3 class="text-lg font-semibold text-gray-900 mb-4">Quoted vs Actual Totals</h3>
+        <!-- Line Items Table -->
+        <Card class="p-6">
+            <h3 class="text-lg font-semibold text-gray-900 mb-4">Line Items</h3>
+            <FRCLinesTable
+                {frc}
+                {lines}
+                documents={documents}
+                onAgree={handleAgree}
+                onAdjust={openAdjustModal}
+                onLinkDocument={(line, documentId) => {
+                    if (!frc) return;
+                    frcService.updateLineMetadata(frc.id, line.id, { linked_document_id: documentId }).then((updated) => {
+                        frc = updated;
+                        lines = updated.line_items || [];
+                        onUpdate();
+                    }).catch((err) => { error = err instanceof Error ? err.message : 'Failed to link document'; });
+                }}
+                onToggleMatched={(line, matched) => {
+                    if (!frc) return;
+                    frcService.updateLineMetadata(frc.id, line.id, { matched }).then((updated) => {
+                        frc = updated;
+                        lines = updated.line_items || [];
+                        onUpdate();
+                    }).catch((err) => { error = err instanceof Error ? err.message : 'Failed to update matched state'; });
+                }}
+            />
+        </Card>
+
+        <!-- Totals Summary -->
+        <Card class="p-6">
+            <h3 class="text-lg font-semibold text-gray-900 mb-4">Baseline vs New Total</h3>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
+                
+            </div>
 
 			<div class="space-y-6">
-				<!-- ORIGINAL ESTIMATE SECTION -->
-				<div>
-					<h4 class="text-sm font-bold text-blue-900 mb-3 uppercase tracking-wide">Original Estimate</h4>
-					<div class="space-y-2 pl-4 border-l-2 border-blue-200">
+                <!-- BASELINE (ORIGINAL ESTIMATE) -->
+                <div>
+                    <h4 class="text-sm font-bold text-blue-900 mb-3 uppercase tracking-wide">Baseline (Original Estimate)</h4>
+                    <div class="space-y-2 pl-4 border-l-2 border-blue-200">
 						<!-- Parts (Nett) -->
 						<div class="flex items-center justify-between py-1">
 							<span class="text-sm text-gray-700">Parts (Nett)</span>
@@ -749,24 +819,22 @@
 								</span>
 							</div>
 						</div>
-						<!-- Subtotal -->
-						<div class="flex items-center justify-between py-2 bg-blue-50 px-3 rounded">
-							<span class="text-sm font-semibold text-blue-900">Subtotal</span>
-							<div class="flex items-center gap-4">
-								<span class="text-sm font-medium text-gray-600 w-24 text-right">{formatCurrency(frc.quoted_estimate_subtotal)}</span>
-								<span class="text-sm font-semibold text-blue-900 w-24 text-right">{formatCurrency(frc.actual_estimate_subtotal)}</span>
-								<span class="text-xs font-medium text-gray-500 w-20 text-right">
-									{formatCurrency(frc.actual_estimate_subtotal - frc.quoted_estimate_subtotal)}
-								</span>
-							</div>
-						</div>
-					</div>
-				</div>
+                        <!-- Subtotal -->
+                        <div class="flex items-center justify-between py-2 bg-blue-50 px-3 rounded">
+                            <span class="text-sm font-semibold text-blue-900">Subtotal</span>
+                            <div class="flex items-center gap-4">
+                                <span class="text-sm font-medium text-gray-600 w-24 text-right">{formatCurrency(baselineTotals()!.subtotal)}</span>
+                                <span class="text-sm font-medium text-gray-600 w-24 text-right">VAT {formatCurrency(baselineTotals()!.vat)}</span>
+                                <span class="text-sm font-semibold text-blue-900 w-24 text-right">{formatCurrency(baselineTotals()!.total)}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
 
-				<!-- ADDITIONALS SECTION -->
-				<div>
-					<h4 class="text-sm font-bold text-purple-900 mb-3 uppercase tracking-wide">Additionals</h4>
-					<div class="space-y-2 pl-4 border-l-2 border-purple-200">
+                <!-- NEW TOTAL (DECIDED + AUTO REMOVALS) -->
+                <div>
+                    <h4 class="text-sm font-bold text-green-900 mb-3 uppercase tracking-wide">New Total</h4>
+                    <div class="space-y-2 pl-4 border-l-2 border-green-200">
 						<!-- Parts (Nett) -->
 						<div class="flex items-center justify-between py-1">
 							<span class="text-sm text-gray-700">Parts (Nett)</span>
@@ -822,76 +890,49 @@
 								</span>
 							</div>
 						</div>
-						<!-- Subtotal -->
-						<div class="flex items-center justify-between py-2 bg-purple-50 px-3 rounded">
-							<span class="text-sm font-semibold text-purple-900">Subtotal</span>
-							<div class="flex items-center gap-4">
-								<span class="text-sm font-medium text-gray-600 w-24 text-right">{formatCurrency(frc.quoted_additionals_subtotal)}</span>
-								<span class="text-sm font-semibold text-purple-900 w-24 text-right">{formatCurrency(frc.actual_additionals_subtotal)}</span>
-								<span class="text-xs font-medium text-gray-500 w-20 text-right">
-									{formatCurrency(frc.actual_additionals_subtotal - frc.quoted_additionals_subtotal)}
-								</span>
-							</div>
-						</div>
-					</div>
-				</div>
+                        <!-- Subtotal -->
+                        <div class="flex items-center justify-between py-2 bg-green-50 px-3 rounded">
+                            <span class="text-sm font-semibold text-green-900">Subtotal</span>
+                            <div class="flex items-center gap-4">
+                                <span class="text-sm font-medium text-gray-600 w-24 text-right">{formatCurrency(newTotals()!.subtotal)}</span>
+                                <span class="text-sm font-medium text-gray-600 w-24 text-right">VAT {formatCurrency(newTotals()!.vat_amount)}</span>
+                                <span class="text-sm font-semibold text-green-900 w-24 text-right">{formatCurrency(newTotals()!.total)}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
 
-				<!-- COMBINED TOTAL SECTION -->
-				<div class="pt-4 border-t-2 border-gray-300">
-					<h4 class="text-sm font-bold text-gray-900 mb-3 uppercase tracking-wide">Combined Total</h4>
-					<div class="space-y-2">
-						<!-- Subtotal -->
-						<div class="flex items-center justify-between py-2">
-							<span class="text-sm font-semibold text-gray-900">Subtotal</span>
-							<div class="flex items-center gap-4">
-								<span class="text-sm text-gray-600 w-24 text-right">{formatCurrency(frc.quoted_subtotal)}</span>
-								<span class="text-sm font-semibold text-gray-900 w-24 text-right">{formatCurrency(frc.actual_subtotal)}</span>
-								<span class="text-xs text-gray-500 w-20 text-right">
-									{formatCurrency(frc.actual_subtotal - frc.quoted_subtotal)}
-								</span>
-							</div>
-						</div>
-						<!-- VAT -->
-						<div class="flex items-center justify-between py-2">
-							<span class="text-sm font-medium text-gray-700">VAT ({frc.vat_percentage}%)</span>
-							<div class="flex items-center gap-4">
-								<span class="text-sm text-gray-600 w-24 text-right">{formatCurrency(frc.quoted_vat_amount)}</span>
-								<span class="text-sm font-medium text-gray-900 w-24 text-right">{formatCurrency(frc.actual_vat_amount)}</span>
-								<span class="text-xs text-gray-500 w-20 text-right">
-									{formatCurrency(frc.actual_vat_amount - frc.quoted_vat_amount)}
-								</span>
-							</div>
-						</div>
-						<!-- Total -->
-						<div class="flex items-center justify-between py-3 bg-gray-900 text-white px-4 rounded-lg">
-							<span class="text-base font-bold">Total (Inc VAT)</span>
-							<div class="flex items-center gap-4">
-								<span class="text-base font-medium w-24 text-right">{formatCurrency(frc.quoted_total)}</span>
-								<span class="text-xl font-bold w-24 text-right">{formatCurrency(frc.actual_total)}</span>
-								{#if quotedVsActual()}
-									<div class="flex items-center gap-1 w-20 justify-end">
-										{#if quotedVsActual()!.isOver}
-											<TrendingUp class="h-4 w-4 text-red-400" />
-											<span class="text-xs font-semibold text-red-400">
-												+{formatCurrency(quotedVsActual()!.delta)}
-											</span>
-										{:else if quotedVsActual()!.isUnder}
-											<TrendingDown class="h-4 w-4 text-green-400" />
-											<span class="text-xs font-semibold text-green-400">
-												{formatCurrency(quotedVsActual()!.delta)}
-											</span>
-										{:else}
-											<Minus class="h-4 w-4 text-gray-400" />
-											<span class="text-xs font-semibold text-gray-400">
-												{formatCurrency(0)}
-											</span>
-										{/if}
-									</div>
-								{/if}
-							</div>
-						</div>
-					</div>
-				</div>
+                <!-- DELTA SECTION -->
+                <div class="pt-4 border-t-2 border-gray-300">
+                    <h4 class="text-sm font-bold text-gray-900 mb-3 uppercase tracking-wide">Delta vs Baseline</h4>
+                    <div class="flex items-center justify-between py-3 bg-gray-900 text-white px-4 rounded-lg">
+                        <span class="text-base font-bold">Delta (New − Baseline)</span>
+                        <div class="flex items-center gap-4">
+                            <span class="text-base font-medium w-24 text-right">{formatCurrency(baselineTotals()!.total)}</span>
+                            <span class="text-xl font-bold w-24 text-right">{formatCurrency(newTotals()!.total)}</span>
+                            {#if deltaTotals()}
+                                <div class="flex items-center gap-1 w-20 justify-end">
+                                    {#if deltaTotals()!.isOver}
+                                        <TrendingUp class="h-4 w-4 text-red-400" />
+                                        <span class="text-xs font-semibold text-red-400">
+                                            +{formatCurrency(deltaTotals()!.delta)}
+                                        </span>
+                                    {:else if deltaTotals()!.isUnder}
+                                        <TrendingDown class="h-4 w-4 text-green-400" />
+                                        <span class="text-xs font-semibold text-green-400">
+                                            {formatCurrency(deltaTotals()!.delta)}
+                                        </span>
+                                    {:else}
+                                        <Minus class="h-4 w-4 text-gray-400" />
+                                        <span class="text-xs font-semibold text-gray-400">
+                                            {formatCurrency(0)}
+                                        </span>
+                                    {/if}
+                                </div>
+                            {/if}
+                        </div>
+                    </div>
+                </div>
 
 				<!-- Legend -->
 				<div class="pt-4 border-t">
@@ -902,16 +943,7 @@
 			</div>
 		</Card>
 
-		<!-- Line Items Table -->
-		<Card class="p-6">
-			<h3 class="text-lg font-semibold text-gray-900 mb-4">Line Items</h3>
-			<FRCLinesTable
-				{frc}
-				{lines}
-				onAgree={handleAgree}
-				onAdjust={openAdjustModal}
-			/>
-		</Card>
+        
 
 		<!-- Documents Panel -->
 		<Card class="p-6">

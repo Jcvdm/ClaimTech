@@ -113,6 +113,13 @@ export class EstimateService {
 		}
 
 		// Create new
+		let sundriesPct = 1.0;
+		try {
+			const { data: companySettings } = await (client ?? supabase).from('company_settings').select('*').single();
+			if (companySettings && typeof companySettings.sundries_percentage === 'number') {
+				sundriesPct = companySettings.sundries_percentage;
+			}
+		} catch {}
 		return this.create({
 			assessment_id: assessmentId,
 			labour_rate: 500.0,
@@ -120,6 +127,7 @@ export class EstimateService {
 			line_items: [],
 			notes: '',
 			vat_percentage: 15.0,
+			sundries_percentage: sundriesPct,
 			currency: 'ZAR'
 		}, client);
 	}
@@ -129,6 +137,13 @@ export class EstimateService {
 	 */
 	async create(input: CreateEstimateInput, client?: ServiceClient): Promise<Estimate> {
 		const db = client ?? supabase;
+		let settingsSundriesPct = 1.0;
+		try {
+			const { data: companySettings } = await db.from('company_settings').select('*').single();
+			if (companySettings && typeof companySettings.sundries_percentage === 'number') {
+				settingsSundriesPct = companySettings.sundries_percentage;
+			}
+		} catch {}
 		// Calculate totals (nett per-line; markup at aggregate)
 		const lineItems = input.line_items || [];
 		const labourRate = input.labour_rate || 500.0;
@@ -138,15 +153,15 @@ export class EstimateService {
 		const alt = input.alt_markup_percentage ?? 0;
 		const sh = input.second_hand_markup_percentage ?? 0;
 		const outwork = input.outwork_markup_percentage ?? 0;
-        const { subtotal, sundriesAmount, vatAmount, total } = computeAggregateTotals(
-            lineItems,
-            vatPercentage,
-            oem,
-            alt,
-            sh,
-            outwork,
-            input.sundries_percentage ?? 1.0
-        );
+		const { subtotal, sundriesAmount, vatAmount, total } = computeAggregateTotals(
+			lineItems,
+			vatPercentage,
+			oem,
+			alt,
+			sh,
+			outwork,
+			input.sundries_percentage ?? settingsSundriesPct
+		);
 
 		const { data, error } = await db
 			.from('assessment_estimates')

@@ -9,7 +9,7 @@
 	import CombinedTotalsSummary from './CombinedTotalsSummary.svelte';
 	import OriginalEstimateLinesPanel from './OriginalEstimateLinesPanel.svelte';
 	import AdditionalsPhotosPanel from './AdditionalsPhotosPanel.svelte';
-    import { Check, X, Clock, Trash2, RotateCcw, Undo2, AlertTriangle, RefreshCw } from 'lucide-svelte';
+    import { Check, X, Clock, Trash2, RotateCcw, Undo2, AlertTriangle, RefreshCw, ShieldCheck, Package, Recycle } from 'lucide-svelte';
     import { Input } from '$lib/components/ui/input';
 	import type {
 		AssessmentAdditionals,
@@ -67,6 +67,15 @@
         const idx = additionals.line_items.findIndex((li) => li.id === lineItemId);
         if (idx !== -1) {
             additionals.line_items[idx].description = value;
+            additionals = { ...additionals };
+        }
+    }
+
+    function updateLocalPartType(lineItemId: string, value: string) {
+        if (!additionals) return;
+        const idx = additionals.line_items.findIndex((li) => li.id === lineItemId);
+        if (idx !== -1) {
+            additionals.line_items[idx].part_type = value as any;
             additionals = { ...additionals };
         }
     }
@@ -661,16 +670,17 @@
 					<table class="w-full text-sm">
 						<thead class="border-b">
 							<tr class="text-left">
-								<th class="pb-2 font-medium">Type</th>
-								<th class="pb-2 font-medium">Description</th>
-								<th class="pb-2 font-medium text-right">Part</th>
-								<th class="pb-2 font-medium text-right">S&A</th>
-								<th class="pb-2 font-medium text-right">Labour</th>
-								<th class="pb-2 font-medium text-right">Paint</th>
-								<th class="pb-2 font-medium text-right">Outwork</th>
-								<th class="pb-2 font-medium text-right">Total</th>
-								<th class="pb-2 font-medium">Status</th>
-								<th class="pb-2 font-medium">Actions</th>
+                                <th class="pb-2 font-medium">Type</th>
+                                <th class="pb-2 font-medium">Part Type</th>
+                                <th class="pb-2 font-medium">Description</th>
+                                <th class="pb-2 font-medium text-right">Part</th>
+                                <th class="pb-2 font-medium text-right">S&A</th>
+                                <th class="pb-2 font-medium text-right">Labour</th>
+                                <th class="pb-2 font-medium text-right">Paint</th>
+                                <th class="pb-2 font-medium text-right">Outwork</th>
+                                <th class="pb-2 font-medium text-right">Total</th>
+                                <th class="pb-2 font-medium">Status</th>
+                                <th class="pb-2 font-medium">Actions</th>
 							</tr>
 						</thead>
 						<tbody>
@@ -716,6 +726,50 @@
                                                 <p class="text-xs text-red-600 mt-1">Declined: {item.decline_reason}</p>
                                             {/if}
                                         </div>
+                                    </td>
+                                    <td class="py-2">
+                                        {#if item.process_type === 'N'}
+                                            {#if !isRemoved && !isReversal && item.status === 'pending'}
+                                                <div class="flex items-center gap-2">
+                                                    <select
+                                                        value={item.part_type || ''}
+                                                        oninput={(e) => updateLocalPartType(item.id!, e.currentTarget.value)}
+                                                        onblur={(e) => updatePending(item.id!, { part_type: e.currentTarget.value })}
+                                                        class="border rounded px-2 py-1 text-sm"
+                                                    >
+                                                        <option value="">—</option>
+                                                        <option value="OEM">OEM</option>
+                                                        <option value="ALT">ALT</option>
+                                                        <option value="2ND">2ND</option>
+                                                    </select>
+                                                    {#if item.part_type}
+                                                        {@const PTIcon = item.part_type === 'OEM' ? ShieldCheck : item.part_type === 'ALT' ? Package : item.part_type === '2ND' ? Recycle : null}
+                                                        {#if PTIcon}
+                                                            <Badge class="bg-gray-100 text-gray-800">
+                                                                <PTIcon class="h-3 w-3 mr-1" />
+                                                                {item.part_type}
+                                                            </Badge>
+                                                        {/if}
+                                                    {/if}
+                                                </div>
+                                            {:else}
+                                                {#if item.part_type}
+                                                    {@const PTIcon = item.part_type === 'OEM' ? ShieldCheck : item.part_type === 'ALT' ? Package : item.part_type === '2ND' ? Recycle : null}
+                                                    {#if PTIcon}
+                                                        <Badge class="bg-gray-100 text-gray-800">
+                                                            <PTIcon class="h-3 w-3 mr-1" />
+                                                            {item.part_type}
+                                                        </Badge>
+                                                    {:else}
+                                                        <span>—</span>
+                                                    {/if}
+                                                {:else}
+                                                    <span>—</span>
+                                                {/if}
+                                            {/if}
+                                        {:else}
+                                            <span>—</span>
+                                        {/if}
                                     </td>
                                     <td class="py-2 text-right {isRemoved || isReversal ? 'text-blue-600' : ''}">
                                         {#if !isRemoved && !isReversal && item.status === 'pending' && item.process_type === 'N'}

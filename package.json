@@ -5,6 +5,7 @@
 	"type": "module",
 	"scripts": {
 		"dev": "vite dev",
+		"dev:mem": "node --max-old-space-size=6144 node_modules/vite/bin/vite.js dev",
 		"dev:development": "vite dev --mode development",
 		"build": "vite build",
 		"build:development": "vite build --mode development",

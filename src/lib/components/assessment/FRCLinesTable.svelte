@@ -4,18 +4,21 @@
 	import * as Table from '$lib/components/ui/table';
 	import * as Dialog from '$lib/components/ui/dialog';
 	import { Check, Clock, AlertCircle } from 'lucide-svelte';
-	import type { FinalRepairCosting, FRCLineItem } from '$lib/types/assessment';
+import type { FinalRepairCosting, FRCLineItem, FRCDocument } from '$lib/types/assessment';
 	import { formatCurrency } from '$lib/utils/formatters';
 	import { getProcessTypeBadgeColor } from '$lib/constants/processTypes';
 
-	interface Props {
-		frc: FinalRepairCosting;
-		lines: FRCLineItem[]; // Live-computed lines (not from frc.line_items)
-		onAgree: (line: FRCLineItem) => void;
-		onAdjust: (line: FRCLineItem) => void;
-	}
+    interface Props {
+        frc: FinalRepairCosting;
+        lines: FRCLineItem[];
+        documents: FRCDocument[];
+        onAgree: (line: FRCLineItem) => void;
+        onAdjust: (line: FRCLineItem) => void;
+        onLinkDocument: (line: FRCLineItem, documentId: string) => void;
+        onToggleMatched: (line: FRCLineItem, matched: boolean) => void;
+    }
 
-	let { frc, lines, onAgree, onAdjust }: Props = $props();
+    let { frc, lines, documents, onAgree, onAdjust, onLinkDocument, onToggleMatched }: Props = $props();
 
 	// Row actions dialog state
 	let rowActionsOpen = $state(false);
@@ -85,8 +88,8 @@
 				<Table.Head class="w-[140px] text-right px-3">Total</Table.Head>
 			</Table.Row>
 		</Table.Header>
-		<Table.Body>
-			{#if lines.length === 0}
+        <Table.Body>
+            {#if lines.length === 0}
 				<Table.Row class="hover:bg-transparent">
 					<!-- xl and above: 7 columns -->
 					<Table.Cell colspan={7} class="hidden xl:table-cell h-24 text-center text-gray-500">
@@ -97,11 +100,12 @@
 						No line items in FRC
 					</Table.Cell>
 				</Table.Row>
-			{:else}
-				{#each lines as line (line.id)}
-					{@const badge = getDecisionBadge(line.decision)}
-					{@const isRemovedOrDeclined = line.removed_via_additionals || line.declined_via_additionals}
-					<Table.Row class="hover:bg-gray-50 {isRemovedOrDeclined ? 'opacity-60 bg-gray-50/50' : ''}">
+            {:else}
+                {#each lines as line (line.id)}
+                    {#if !line.is_removal_additional}
+                    {@const badge = getDecisionBadge(line.decision)}
+                    {@const isRemovedOrDeclined = line.removed_via_additionals || line.declined_via_additionals}
+                    <Table.Row class="hover:bg-gray-50 {isRemovedOrDeclined ? 'opacity-60 bg-gray-50/50' : ''}">
 						<!-- Process Type -->
 						<Table.Cell class="px-3 py-3">
 							<span class="px-2 py-1 text-xs font-semibold rounded {getProcessTypeBadgeColor(line.process_type)}">
@@ -110,37 +114,52 @@
 						</Table.Cell>
 
 						<!-- Description -->
-						<Table.Cell class="px-3 py-3">
-							<div
-								class="rounded-md focus:outline-none focus:ring-2 focus:ring-primary/50 cursor-pointer"
-								role="button"
-								tabindex={0}
-								onclick={() => openRowActions(line)}
-								onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openRowActions(line); } }}
-							>
+                        <Table.Cell class="px-3 py-3">
+                            <div
+                                class="rounded-md focus:outline-none focus:ring-2 focus:ring-primary/50 {isRemovedOrDeclined ? '' : 'cursor-pointer'}"
+                                role={isRemovedOrDeclined ? undefined : 'button'}
+                                tabindex={isRemovedOrDeclined ? undefined : 0}
+                                onclick={() => { if (!isRemovedOrDeclined) openRowActions(line); }}
+                                onkeydown={(e) => { if (!isRemovedOrDeclined && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); openRowActions(line); } }}
+                            >
 								<p class="text-sm font-medium text-gray-900 {line.removed_via_additionals || line.declined_via_additionals ? 'line-through' : ''}">
 								{line.description}
 							</p>
+                                <p class="text-xs text-gray-500 mt-0.5 flex items-center gap-2">
+                                    <span>Source: {line.source === 'estimate' ? 'Original Estimate' : 'Additional'}</span>
+                                    {#if line.removed_via_additionals}
+                                        <Badge variant="destructive" class="text-[10px] py-0 px-1.5">REMOVED</Badge>
+                                    {/if}
+                                    {#if line.declined_via_additionals}
+                                        <Badge variant="destructive" class="text-[10px] py-0 px-1.5" title={line.decline_reason}>DECLINED</Badge>
+                                    {/if}
+                                    {#if line.source === 'additional' && (line.quoted_total ?? 0) < 0}
+                                        <Badge variant="outline" class="text-[10px] py-0 px-1.5 border-red-400 text-red-600">
+                                            REMOVAL (-)
+                                        </Badge>
+                                    {/if}
+                                    {#if line.removed_via_additionals}
+                                        {@const removal = lines.find(l => l.is_removal_additional && l.removal_for_source_line_id === line.source_line_id)}
+                                        {#if removal}
+                                            <Badge variant="outline" class="text-[10px] py-0 px-1.5 border-red-400 text-red-600">
+                                                Deduction {formatCurrency(removal.quoted_total)}
+                                            </Badge>
+                                        {/if}
+                                    {/if}
+                                </p>
 								<p class="text-xs text-gray-500 mt-0.5 flex items-center gap-2">
-									<span>Source: {line.source === 'estimate' ? 'Original Estimate' : 'Additional'}</span>
-									{#if line.removed_via_additionals}
-										<Badge variant="destructive" class="text-[10px] py-0 px-1.5">REMOVED</Badge>
-									{/if}
-									{#if line.declined_via_additionals}
-										<Badge variant="destructive" class="text-[10px] py-0 px-1.5" title={line.decline_reason}>DECLINED</Badge>
-									{/if}
-									{#if line.source === 'additional' && (line.quoted_total ?? 0) < 0}
-										<Badge variant="outline" class="text-[10px] py-0 px-1.5 border-red-400 text-red-600">
-											REMOVAL (-)
-										</Badge>
-									{/if}
-								</p>
-								<p class="text-xs text-gray-500 mt-0.5 flex items-center gap-2">
-									<Badge variant={badge.variant} class={badge.class}>
-										{@const Icon = badge.icon}
-										<Icon class="h-3 w-3 mr-1" />
-										{badge.label}
-									</Badge>
+                                    {#if line.removed_via_additionals}
+                                        <Badge class="bg-green-100 text-green-800">
+                                            <Check class="h-3 w-3 mr-1" />
+                                            Agreed (Removed)
+                                        </Badge>
+                                    {:else}
+                                        <Badge variant={badge.variant} class={badge.class}>
+                                            {@const Icon = badge.icon}
+                                            <Icon class="h-3 w-3 mr-1" />
+                                            {badge.label}
+                                        </Badge>
+                                    {/if}
 									{#if ((line.quoted_outwork_charge_nett || 0) > 0 || (line.actual_outwork_charge ?? 0) > 0)}
 										<span>
 											Outwork (nett): {formatCurrency(line.actual_outwork_charge ?? line.quoted_outwork_charge_nett ?? 0)}
@@ -331,10 +350,11 @@
 						</Table.Cell>
 
 
-					</Table.Row>
-				{/each}
-			{/if}
-		</Table.Body>
+                    </Table.Row>
+                    {/if}
+                {/each}
+            {/if}
+        </Table.Body>
 	</Table.Root>
 </div>
 
@@ -342,43 +362,67 @@
 
 <!-- Row Actions Dialog -->
 <Dialog.Root bind:open={rowActionsOpen}>
-	<Dialog.Content class="sm:max-w-md">
+    <Dialog.Content class="sm:max-w-md">
 		<Dialog.Header>
 			<Dialog.Title>Line Actions</Dialog.Title>
 			{#if currentLine}
 				<Dialog.Description>{currentLine.description}</Dialog.Description>
 			{/if}
 		</Dialog.Header>
-		{#if currentLine}
-			{#if frc.status === 'in_progress'}
-				<div class="space-y-2">
-					<Button
-						variant="outline"
-						class="w-full"
-						onclick={() => {
-							onAgree(currentLine!);
-							rowActionsOpen = false;
-						}}
-						disabled={currentLine.decision === 'agree'}
-					>
-						<Check class="h-4 w-4 mr-2" />
-						Agree with Quoted Amount
-					</Button>
-					<Button
-						variant="outline"
-						class="w-full"
-						onclick={() => {
-							onAdjust(currentLine!);
-							rowActionsOpen = false;
-						}}
-					>
-						<AlertCircle class="h-4 w-4 mr-2" />
-						Adjust Amount
-					</Button>
-				</div>
-			{:else}
-				<p class="text-sm text-gray-500">FRC is completed. No actions available.</p>
-			{/if}
-		{/if}
-	</Dialog.Content>
+        {#if currentLine}
+            {#if frc.status === 'in_progress'}
+                <div class="space-y-2">
+                    <Button
+                        variant="outline"
+                        class="w-full"
+                        onclick={() => {
+                            onAgree(currentLine!);
+                            rowActionsOpen = false;
+                        }}
+                        disabled={currentLine.decision === 'agree' || currentLine.removed_via_additionals || currentLine.declined_via_additionals}
+                    >
+                        <Check class="h-4 w-4 mr-2" />
+                        Agree with Quoted Amount
+                    </Button>
+                    <Button
+                        variant="outline"
+                        class="w-full"
+                        onclick={() => {
+                            onAdjust(currentLine!);
+                            rowActionsOpen = false;
+                        }}
+                        disabled={currentLine.removed_via_additionals || currentLine.declined_via_additionals}
+                    >
+                        <AlertCircle class="h-4 w-4 mr-2" />
+                        Adjust Amount
+                    </Button>
+                </div>
+                <div class="space-y-2 mt-3">
+                    <p class="text-xs text-gray-600">Attach Invoice</p>
+                    <select
+                        class="w-full border rounded px-2 py-1 text-sm"
+                        disabled={currentLine.removed_via_additionals || currentLine.declined_via_additionals}
+                        onchange={(e) => onLinkDocument(currentLine!, (e.target as HTMLSelectElement).value)}
+                    >
+                        <option value="">Select Document</option>
+                        {#each documents as doc (doc.id)}
+                            <option value={doc.id}>{doc.label || doc.document_type} ({new Date(doc.created_at).toLocaleDateString()})</option>
+                        {/each}
+                    </select>
+                    <div class="flex items-center gap-2">
+                        <input
+                            id="matched-toggle"
+                            type="checkbox"
+                            checked={currentLine.matched || false}
+                            disabled={currentLine.removed_via_additionals || currentLine.declined_via_additionals}
+                            oninput={(e) => onToggleMatched(currentLine!, (e.target as HTMLInputElement).checked)}
+                        />
+                        <label for="matched-toggle" class="text-xs text-gray-700">Matched to invoice</label>
+                    </div>
+                </div>
+            {:else}
+                <p class="text-sm text-gray-500">FRC is completed. No actions available.</p>
+            {/if}
+        {/if}
+    </Dialog.Content>
 </Dialog.Root>

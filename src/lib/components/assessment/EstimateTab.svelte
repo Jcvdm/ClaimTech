@@ -542,6 +542,8 @@
 
 		const vis = localLineItems();
 
+		const effectivePct = (localEstimate?.sundries_percentage ?? estimate?.sundries_percentage ?? 1);
+
 		const partsNett = vis
 			.filter((i: any) => i.process_type === 'N')
 			.reduce((sum: number, i: any) => sum + (i.part_price_nett || 0), 0);
@@ -576,23 +578,24 @@
 
 		// Subtotal now includes betterment deduction
         const subtotalExVat = partsNett + saTotal + labourTotal + paintTotal + outworkNett + markupTotal - bettermentTotal;
-        const sundriesAmount = subtotalExVat * 0.01;
+		const sundriesAmount = subtotalExVat * (effectivePct / 100);
         const vatAmount = (subtotalExVat + sundriesAmount) * ((percentSource.vat_percentage || 0) / 100);
         const totalIncVat = subtotalExVat + sundriesAmount + vatAmount;
-        return {
-            partsTotal: partsNett,
-            saTotal,
-            labourTotal,
-            paintTotal,
-            outworkTotal: outworkNett,
-            markupTotal,
-            bettermentTotal, // NEW
-            subtotalExVat,
-            sundriesAmount,
-            vatPercentage: percentSource.vat_percentage || 0,
-            vatAmount,
-            totalIncVat
-        };
+		return {
+			partsTotal: partsNett,
+			saTotal,
+			labourTotal,
+			paintTotal,
+			outworkTotal: outworkNett,
+			markupTotal,
+			bettermentTotal, // NEW
+			subtotalExVat,
+			sundriesAmount,
+			sundriesPct: effectivePct,
+			vatPercentage: percentSource.vat_percentage || 0,
+			vatAmount,
+			totalIncVat
+		};
 	});
 
 	// Check if estimate is complete
@@ -1168,8 +1171,8 @@
                 </div>
 
                 <div class="flex items-center justify-between py-2 border-b-2">
-                    <span class="text-base font-semibold text-gray-700">Sundries (1%)</span>
-                    <span class="text-lg font-semibold">{formatCurrency(totals?.sundriesAmount || 0)}</span>
+					<span class="text-base font-semibold text-gray-700">Sundries ({Math.round(((totals?.sundriesPct ?? 1) * 100)) / 100}%)</span>
+					<span class="text-lg font-semibold">{formatCurrency(totals?.sundriesAmount || 0)}</span>
                 </div>
 
 					<!-- VAT -->

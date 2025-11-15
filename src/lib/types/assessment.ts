@@ -727,6 +727,7 @@ export interface CompanySettings {
 	assessment_terms_and_conditions?: string | null;
 	estimate_terms_and_conditions?: string | null;
 	frc_terms_and_conditions?: string | null;
+	sundries_percentage?: number;
 	created_at: string;
 	updated_at: string;
 }
@@ -760,6 +761,7 @@ export interface UpdateCompanySettingsInput {
 	assessment_terms_and_conditions?: string | null;
 	estimate_terms_and_conditions?: string | null;
 	frc_terms_and_conditions?: string | null;
+	sundries_percentage?: number;
 }
 
 // Additional line item status
@@ -964,7 +966,11 @@ export interface FRCLineItem {
 	actual_labour_hours?: number | null; // Actual labour hours
 	actual_paint_cost?: number | null; // Actual paint cost
 	actual_paint_panels?: number | null; // Actual paint panels
-	actual_outwork_charge?: number | null; // Actual outwork charge
+    actual_outwork_charge?: number | null; // Actual outwork charge
+    linked_document_id?: string | null;
+    matched?: boolean | null;
+    is_removal_additional?: boolean;
+    removal_for_source_line_id?: string | null;
 }
 
 export interface FinalRepairCosting {

@@ -676,7 +676,7 @@ export function generateEstimateHTML(data: EstimateData): string {
 					<td class="totals-value">${formatCurrency(subtotal)}</td>
 				</tr>
 				<tr>
-					<td class="totals-label">Sundries (1%):</td>
+					<td class="totals-label">Sundries (${estimate ? (estimate.sundries_percentage ?? (companySettings?.sundries_percentage ?? 1)) : (companySettings?.sundries_percentage ?? 1)}%):</td>
 					<td class="totals-value">${formatCurrency(estimate ? (estimate.sundries_amount || 0) : 0)}</td>
 				</tr>
 				<tr>

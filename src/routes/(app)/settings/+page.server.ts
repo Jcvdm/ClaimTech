@@ -15,8 +15,8 @@ export const load: PageServerLoad = async ({ locals }) => {
 };
 
 export const actions: Actions = {
-	update: async ({ request, locals }) => {
-		const formData = await request.formData();
+    update: async ({ request, locals }) => {
+        const formData = await request.formData();
 
 		// Get T&Cs fields and sanitize them
 		const assessmentTCs = formData.get('assessment_terms_and_conditions') as string | null;
@@ -40,21 +40,29 @@ export const actions: Actions = {
 			});
 		}
 
-		const input = {
-			company_name: formData.get('company_name') as string,
-			po_box: formData.get('po_box') as string,
-			city: formData.get('city') as string,
-			province: formData.get('province') as string,
-			postal_code: formData.get('postal_code') as string,
-			phone: formData.get('phone') as string,
-			fax: formData.get('fax') as string,
-			email: formData.get('email') as string,
-			website: formData.get('website') as string,
-			// Sanitize T&Cs (trim whitespace, normalize line breaks)
-			assessment_terms_and_conditions: assessmentTCs ? sanitizeInput(assessmentTCs) : null,
-			estimate_terms_and_conditions: estimateTCs ? sanitizeInput(estimateTCs) : null,
-			frc_terms_and_conditions: frcTCs ? sanitizeInput(frcTCs) : null
-		};
+        const input = {
+            company_name: formData.get('company_name') as string,
+            po_box: formData.get('po_box') as string,
+            city: formData.get('city') as string,
+            province: formData.get('province') as string,
+            postal_code: formData.get('postal_code') as string,
+            phone: formData.get('phone') as string,
+            fax: formData.get('fax') as string,
+            email: formData.get('email') as string,
+            website: formData.get('website') as string,
+            // Sanitize T&Cs (trim whitespace, normalize line breaks)
+            assessment_terms_and_conditions: assessmentTCs ? sanitizeInput(assessmentTCs) : null,
+            estimate_terms_and_conditions: estimateTCs ? sanitizeInput(estimateTCs) : null,
+            frc_terms_and_conditions: frcTCs ? sanitizeInput(frcTCs) : null,
+            sundries_percentage: (() => {
+                const raw = formData.get('sundries_percentage') as string | null;
+                if (!raw) return undefined;
+                const num = Number(raw);
+                if (Number.isNaN(num)) return undefined;
+                const clamped = Math.min(100, Math.max(0, num));
+                return Number(clamped.toFixed(2));
+            })()
+        };
 
 		try {
 			const updated = await companySettingsService.updateSettings(input, locals.supabase);

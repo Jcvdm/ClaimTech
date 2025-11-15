@@ -120,6 +120,12 @@
 
 ---
 
+## Recent Docs
+- System: [FRC Mechanics](../System/frc_mechanics.md)
+- SOP: [FRC Refresh Snapshot](../SOP/frc_refresh.md), [FRC Decisions](../SOP/frc_decisions.md)
+- Task: [FRC UI & Logic Refinement](../Tasks/FRC_UI_logic_refinement.md)
+
+
 ## Agent-Specific Entry Points
 
 ### research-analyst
@@ -203,36 +209,4 @@
 
 **"I need to implement a feature"**
 → [Task Guides](./task_guides.md) (find use case)
-→ [SOP Index](./sops.md) (find relevant SOP)
-→ Specific SOP doc (500-1000 lines)
-
-**"I need to debug an issue"**
-→ [System Docs](./system_docs.md) (find bug postmortems)
-→ [SOP Index](./sops.md) (find debugging guide)
-→ Specific troubleshooting doc
-
-**"I need to process data efficiently"** ⭐ NEW
-→ [Using Code Executor](../SOP/using_code_executor.md) (decision tree)
-→ [Code Execution Patterns](../System/code_execution_patterns.md) (examples)
-→ [MCP Code API Reference](../System/mcp_code_api_reference.md) (API docs)
-
----
-
-## Keeping Documentation Updated
-
-**After implementing features**:
-- Update relevant System/ docs if architecture changed
-- Update relevant SOP/ if new patterns introduced
-- Add bug postmortem if significant fix
-- Update this index if new major documentation added
-
-**Where to document what**:
-- **System/**: Architecture, database, security, implementation history
-- **SOP/**: Step-by-step how-to guides, best practices
-- **Tasks/**: Feature PRDs, implementation plans
-- **README/**: Indexes and quick references (this folder)
-
----
-
-**Last Updated**: January 2025
 **Maintained by**: ClaimTech Engineering Team

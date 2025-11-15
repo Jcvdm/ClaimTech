@@ -108,6 +108,38 @@ class FRCService {
 		return { frc: mergedFRC, lines: mergedFRC.line_items || [], wasMerged: true };
 	}
 
+	async refreshFRC(assessmentId: string, client?: ServiceClient): Promise<FinalRepairCosting> {
+		const db = client ?? supabase;
+		const frc = await this.getByAssessment(assessmentId, db);
+		if (!frc) {
+			throw new Error('FRC not found for this assessment');
+		}
+		const additionals = await additionalsService.getByAssessment(assessmentId, db);
+		const { data: assessment } = await db
+			.from('assessments')
+			.select('finalized_labour_rate, finalized_paint_rate')
+			.eq('id', assessmentId)
+			.maybeSingle();
+		if (!assessment) {
+			throw new Error('Assessment not found');
+		}
+		const estimate = await estimateService.getByAssessment(assessmentId, db);
+		if (!estimate) {
+			throw new Error('Estimate not found');
+		}
+		const updated = await this.mergeAdditionals(
+			frc.id,
+			estimate,
+			additionals,
+			{
+				labour_rate: assessment.finalized_labour_rate,
+				paint_rate: assessment.finalized_paint_rate
+			},
+			db
+		);
+		return updated;
+	}
+
 	/**
 	 * Merge new additionals into existing FRC snapshot
 	 * Preserves all existing line decisions using stable fingerprint matching
@@ -139,7 +171,27 @@ class FRCService {
 		const freshLines = composeFinalEstimateLines(estimate, additionals, frozenRates);
 
 		// Merge fresh lines into snapshot, preserving decisions
-		const mergedLines = this.mergeNewAdditionals(frc.line_items || [], freshLines);
+		let mergedLines = this.mergeNewAdditionals(frc.line_items || [], freshLines);
+
+		// Normalize removal additional lines: auto-agree and set actuals to quoted nett
+		mergedLines = mergedLines.map((ln) => {
+			if (ln.is_removal_additional && ln.decision === 'pending') {
+				return {
+					...ln,
+					decision: 'agree',
+					actual_part_price_nett: ln.quoted_part_price_nett ?? 0,
+					actual_strip_assemble: ln.quoted_strip_assemble ?? 0,
+					actual_strip_assemble_hours: ln.strip_assemble_hours ?? null,
+					actual_labour_cost: ln.quoted_labour_cost ?? 0,
+					actual_labour_hours: ln.labour_hours ?? null,
+					actual_paint_cost: ln.quoted_paint_cost ?? 0,
+					actual_paint_panels: ln.paint_panels ?? null,
+					actual_outwork_charge: ln.quoted_outwork_charge_nett ?? 0,
+					actual_total: Number(((ln.quoted_part_price_nett ?? 0) + (ln.quoted_strip_assemble ?? 0) + (ln.quoted_labour_cost ?? 0) + (ln.quoted_paint_cost ?? 0) + (ln.quoted_outwork_charge_nett ?? 0)).toFixed(2))
+				};
+			}
+			return ln;
+		});
 
 		// Fetch assessment to get frozen markups
 		const { data: assessment } = await db
@@ -669,6 +721,69 @@ class FRCService {
 		return data;
 	}
 
+	async updateLineMetadata(
+		frcId: string,
+		lineId: string,
+		metadata: { linked_document_id?: string | null; matched?: boolean | null },
+		client?: ServiceClient
+	): Promise<FinalRepairCosting> {
+		const db = client ?? supabase;
+
+		const frc = await this.getById(frcId, client);
+		if (!frc) {
+			throw new Error('FRC not found');
+		}
+
+		const lineIndex = frc.line_items.findIndex((item) => item.id === lineId);
+		if (lineIndex === -1) {
+			throw new Error('Line item not found');
+		}
+
+		const updatedLineItems = [...frc.line_items];
+		updatedLineItems[lineIndex] = {
+			...updatedLineItems[lineIndex],
+			linked_document_id: metadata.linked_document_id ?? updatedLineItems[lineIndex].linked_document_id ?? null,
+			matched: metadata.matched ?? updatedLineItems[lineIndex].matched ?? null
+		};
+
+		const currentVersion = frc.line_items_version ?? 0;
+		const now = new Date().toISOString();
+
+		const { data, error } = await db
+			.from('assessment_frc')
+			.update({
+				line_items: updatedLineItems,
+				line_items_version: currentVersion + 1,
+				updated_at: now
+			})
+			.eq('id', frcId)
+			.eq('line_items_version', currentVersion)
+			.select()
+			.single();
+
+		if (error) {
+			if ((error as any).code === 'PGRST116') {
+				throw new Error('FRC was modified by another process. Please reload and try again.');
+			}
+			throw new Error(`Failed to update line metadata: ${error.message}`);
+		}
+
+		await auditService.logChange({
+			entity_type: 'frc',
+			entity_id: frcId,
+			action: 'updated',
+			field_name: 'line_metadata',
+			new_value: 'metadata_updated',
+			metadata: {
+				line_id: lineId,
+				linked_document_id: metadata.linked_document_id ?? null,
+				matched: metadata.matched ?? null
+			}
+		});
+
+		return data;
+	}
+
 	/**
 	 * Complete FRC with sign-off details
 	 */
@@ -689,13 +804,13 @@ class FRCService {
 			throw new Error('FRC not found');
 		}
 
-		// Validate all lines have decisions
-		const pendingLines = frc.line_items.filter((line) => line.decision === 'pending');
-		if (pendingLines.length > 0) {
-			throw new Error(
-				`Cannot complete FRC: ${pendingLines.length} line(s) still pending decision`
-			);
-		}
+        // Validate all actionable lines have decisions (exclude removed/declined)
+        const pendingLines = frc.line_items.filter((line) => !line.removed_via_additionals && !line.declined_via_additionals && line.decision === 'pending');
+        if (pendingLines.length > 0) {
+            throw new Error(
+                `Cannot complete FRC: ${pendingLines.length} line(s) still pending decision`
+            );
+        }
 
 		// Validate all adjust decisions have reasons
 		for (const line of frc.line_items) {

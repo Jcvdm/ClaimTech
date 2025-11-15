@@ -92,6 +92,18 @@ export class MyService {
 
 ---
 
+## 🧭 FRC Workflow SOPs
+
+### 1. FRC Refresh Snapshot
+- **File**: [frc_refresh.md](../SOP/frc_refresh.md)
+- **Read When**: Need to manually re-merge latest Additionals into FRC.
+
+### 2. FRC Decisions (Agree/Adjust/Removed)
+- **File**: [frc_decisions.md](../SOP/frc_decisions.md)
+- **Read When**: Understanding decision rules, auto-agree for removals, completion validation.
+
+---
+
 ### 2. Working with Assessment-Centric Architecture ⭐ CRITICAL
 - **File**: [working_with_assessment_centric_architecture.md](../SOP/working_with_assessment_centric_architecture.md)
 - **Size**: ~1,300 lines | **Last Updated**: Jan 30, 2025 (Added: Assessment & Inspection Cancellation patterns)

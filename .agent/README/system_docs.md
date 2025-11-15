@@ -61,6 +61,13 @@ Comprehensive system documentation covering architecture, database design, secur
 
 ---
 
+### 4. FRC Mechanics (Snapshot, Decisions, Totals)
+- **File**: [frc_mechanics.md](../System/frc_mechanics.md)
+- **Read When**: Implementing or debugging FRC snapshot/merge, removal grouping, Baseline vs New Total and Delta.
+- **Contains**: Line composition, UI grouping, decision normalization, totals semantics.
+
+---
+
 ## 🔐 Security & Authentication
 
 ### 1. Session Management & Security ⭐ CRITICAL
