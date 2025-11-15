@@ -4,7 +4,8 @@ import type {
 	Exterior360,
 	InteriorMechanical,
 	DamageRecord,
-	CompanySettings
+	CompanySettings,
+	VehicleValues
 } from '$lib/types/assessment';
 import { formatCurrency, formatDateNumeric } from '$lib/utils/formatters';
 import { escapeHtmlWithLineBreaks } from '$lib/utils/sanitize';
@@ -22,6 +23,9 @@ interface ReportData {
 	estimate: any;
 	repairer: any;
 	tyres: any[] | null;
+	vehicleValues: VehicleValues | null; // NEW
+	assessmentNotes: string; // NEW - concatenated notes
+	engineer: any; // NEW - engineer with user info
 }
 
 export function generateReportHTML(data: ReportData): string {
@@ -37,8 +41,21 @@ export function generateReportHTML(data: ReportData): string {
 		client,
 		estimate,
 		repairer,
-		tyres
+		tyres,
+		vehicleValues,
+		assessmentNotes,
+		engineer
 	} = data;
+
+	const row = (label: string, value: string | number | null | undefined) => {
+		const v = value === null || value === undefined ? '' : String(value).trim();
+		return v ? `\n\t\t<div class="info-row">\n\t\t\t<span class="info-label">${label}</span>\n\t\t\t<span class="info-value">${v}</span>\n\t\t</div>` : '';
+	};
+
+	const cell = (value: string | number | null | undefined) => {
+		const v = value === null || value === undefined ? '' : String(value).trim();
+		return v || '-';
+	};
 
 	return `
 <!DOCTYPE html>
@@ -187,6 +204,36 @@ export function generateReportHTML(data: ReportData): string {
 		DAMAGE INSPECTION REPORT
 	</div>
 
+	<!-- Executive Summary -->
+	<div class="section">
+		<div class="section-title">EXECUTIVE SUMMARY</div>
+		<div class="info-grid">
+			${(() => {
+				const vehicleDisplay = `${vehicleIdentification?.make || request?.vehicle_make || ''} ${vehicleIdentification?.model || request?.vehicle_model || ''}`.trim();
+				return row('Vehicle:', vehicleDisplay);
+			})()}
+			${row('Claim Number:', request?.claim_number || '')}
+			<div class="info-row">
+				<span class="info-label">Outcome:</span>
+				<span class="info-value" style="font-weight: bold; color: ${
+					estimate?.assessment_result === 'repairable' ? '#059669' :
+					estimate?.assessment_result === 'borderline_writeoff' ? '#d97706' :
+					estimate?.assessment_result === 'total_writeoff' ? '#dc2626' : '#374151'
+				};">${estimate?.assessment_result ? (estimate.assessment_result === 'repairable' ? 'Repairable' : estimate.assessment_result === 'borderline_writeoff' ? 'Borderline Write-off' : estimate.assessment_result === 'total_writeoff' ? 'Total Write-off' : estimate.assessment_result) : 'Pending'}</span>
+			</div>
+			<div class="info-row">
+				<span class="info-label">Estimated Repair Cost:</span>
+				<span class="info-value" style="font-weight: 600; color: #1e40af;">${estimate ? formatCurrency(estimate.total) : '-'}</span>
+			</div>
+			${vehicleValues ? `
+			<div class="info-row">
+				<span class="info-label">Pre-Incident Market Value:</span>
+				<span class="info-value">${formatCurrency(vehicleValues.market_total_adjusted_value)}</span>
+			</div>
+			` : ''}
+		</div>
+	</div>
+
 	<!-- Report Information -->
 	<div class="section">
 		<div class="section-title">REPORT INFORMATION</div>
@@ -199,14 +246,8 @@ export function generateReportHTML(data: ReportData): string {
 				<span class="info-label">Inspection Date:</span>
 				<span class="info-value">${formatDateNumeric(assessment.created_at)}</span>
 			</div>
-			<div class="info-row">
-				<span class="info-label">Assessor:</span>
-				<span class="info-value">${assessment.assessor_name || 'N/A'}</span>
-			</div>
-			<div class="info-row">
-				<span class="info-label">Contact:</span>
-				<span class="info-value">${assessment.assessor_contact || 'N/A'}</span>
-			</div>
+			${row('Assessor:', engineer?.users?.full_name || '')}
+			${row('Contact:', engineer?.users?.phone || engineer?.users?.email || '')}
 		</div>
 	</div>
 
@@ -214,22 +255,10 @@ export function generateReportHTML(data: ReportData): string {
 	<div class="section">
 		<div class="section-title">CLAIM INFORMATION</div>
 		<div class="info-grid">
-			<div class="info-row">
-				<span class="info-label">Claim Number:</span>
-				<span class="info-value">${request?.claim_number || 'N/A'}</span>
-			</div>
-			<div class="info-row">
-				<span class="info-label">Request Number:</span>
-				<span class="info-value">${request?.request_number || 'N/A'}</span>
-			</div>
-			<div class="info-row">
-				<span class="info-label">Date of Loss:</span>
-				<span class="info-value">${formatDateNumeric(request?.date_of_loss)}</span>
-			</div>
-			<div class="info-row">
-				<span class="info-label">Instructed By:</span>
-				<span class="info-value">${client?.name || 'N/A'}</span>
-			</div>
+			${row('Claim Number:', request?.claim_number || '')}
+			${row('Request Number:', request?.request_number || '')}
+			${row('Date of Loss:', request?.date_of_loss ? formatDateNumeric(request.date_of_loss) : '')}
+			${row('Instructed By:', client?.name || '')}
 		</div>
 	</div>
 
@@ -237,38 +266,14 @@ export function generateReportHTML(data: ReportData): string {
 	<div class="section">
 		<div class="section-title">VEHICLE INFORMATION</div>
 		<div class="info-grid">
-			<div class="info-row">
-				<span class="info-label">Make:</span>
-				<span class="info-value">${vehicleIdentification?.make || request?.vehicle_make || 'N/A'}</span>
-			</div>
-			<div class="info-row">
-				<span class="info-label">Model:</span>
-				<span class="info-value">${vehicleIdentification?.model || request?.vehicle_model || 'N/A'}</span>
-			</div>
-			<div class="info-row">
-				<span class="info-label">Year:</span>
-				<span class="info-value">${vehicleIdentification?.year || request?.vehicle_year || 'N/A'}</span>
-			</div>
-			<div class="info-row">
-				<span class="info-label">Registration:</span>
-				<span class="info-value">${vehicleIdentification?.registration_number || request?.vehicle_registration || 'N/A'}</span>
-			</div>
-			<div class="info-row">
-				<span class="info-label">VIN:</span>
-				<span class="info-value">${vehicleIdentification?.vin_number || 'N/A'}</span>
-			</div>
-			<div class="info-row">
-				<span class="info-label">Engine Number:</span>
-				<span class="info-value">${vehicleIdentification?.engine_number || 'N/A'}</span>
-			</div>
-			<div class="info-row">
-				<span class="info-label">Color:</span>
-				<span class="info-value">${vehicleIdentification?.color || 'N/A'}</span>
-			</div>
-			<div class="info-row">
-				<span class="info-label">Odometer:</span>
-				<span class="info-value">${interiorMechanical?.mileage_reading ? `${interiorMechanical.mileage_reading.toLocaleString()} km` : 'N/A'}</span>
-			</div>
+			${row('Make:', vehicleIdentification?.make || request?.vehicle_make || '')}
+			${row('Model:', vehicleIdentification?.model || request?.vehicle_model || '')}
+			${row('Year:', vehicleIdentification?.year || request?.vehicle_year || '')}
+			${row('Registration:', vehicleIdentification?.registration_number || request?.vehicle_registration || '')}
+			${row('VIN:', vehicleIdentification?.vin_number || '')}
+			${row('Engine Number:', vehicleIdentification?.engine_number || '')}
+			${row('Color:', vehicleIdentification?.color || '')}
+			${row('Odometer:', interiorMechanical?.mileage_reading ? `${interiorMechanical.mileage_reading.toLocaleString()} km` : '')}
 		</div>
 	</div>
 
@@ -279,10 +284,7 @@ export function generateReportHTML(data: ReportData): string {
 	<div class="section">
 		<div class="section-title">VEHICLE CONDITION</div>
 		<div class="info-grid">
-			<div class="info-row">
-				<span class="info-label">Overall Condition:</span>
-				<span class="info-value">${exterior360?.overall_condition || 'N/A'}</span>
-			</div>
+			${row('Overall Condition:', exterior360?.overall_condition || '')}
 			<div class="info-row">
 				<span class="info-label">Service History:</span>
 				<span class="info-value">${vehicleIdentification?.service_history_available ? 'Available' : 'Not Available'}</span>
@@ -300,22 +302,10 @@ export function generateReportHTML(data: ReportData): string {
 	<div class="section">
 		<div class="section-title">INTERIOR & MECHANICAL</div>
 		<div class="info-grid">
-			<div class="info-row">
-				<span class="info-label">Transmission:</span>
-				<span class="info-value">${interiorMechanical?.transmission_type || 'N/A'}</span>
-			</div>
-			<div class="info-row">
-				<span class="info-label">Vehicle Power:</span>
-				<span class="info-value">${interiorMechanical?.vehicle_power_status || 'N/A'}</span>
-			</div>
-			<div class="info-row">
-				<span class="info-label">Engine Condition:</span>
-				<span class="info-value">${interiorMechanical?.engine_condition || 'N/A'}</span>
-			</div>
-			<div class="info-row">
-				<span class="info-label">Electronics:</span>
-				<span class="info-value">${interiorMechanical?.electronics_condition || 'N/A'}</span>
-			</div>
+			${row('Transmission:', interiorMechanical?.transmission_type || '')}
+			${row('Vehicle Power:', interiorMechanical?.vehicle_power_status || '')}
+			${row('Engine Condition:', interiorMechanical?.engine_condition || '')}
+			${row('Electronics:', interiorMechanical?.electronics_condition || '')}
 		</div>
 	</div>
 
@@ -337,12 +327,12 @@ export function generateReportHTML(data: ReportData): string {
 			<tbody>
 				${tyres.map((tyre: any) => `
 				<tr style="border-bottom: 1px solid #e5e7eb;">
-					<td style="padding: 6px; font-size: 9pt;">${tyre.position_label || tyre.position || 'N/A'}</td>
-					<td style="padding: 6px; font-size: 9pt;">${tyre.tyre_make || 'N/A'}</td>
-					<td style="padding: 6px; font-size: 9pt;">${tyre.tyre_size || 'N/A'}</td>
-					<td style="padding: 6px; font-size: 9pt;">${tyre.condition ? tyre.condition.charAt(0).toUpperCase() + tyre.condition.slice(1) : 'N/A'}</td>
-					<td style="padding: 6px; font-size: 9pt; text-align: right;">${tyre.tread_depth_mm ? `${tyre.tread_depth_mm}mm` : 'N/A'}</td>
-					<td style="padding: 6px; font-size: 9pt;">${tyre.rim_condition ? tyre.rim_condition.charAt(0).toUpperCase() + tyre.rim_condition.slice(1) : 'N/A'}</td>
+					<td style="padding: 6px; font-size: 9pt;">${cell(tyre.position_label || tyre.position)}</td>
+					<td style="padding: 6px; font-size: 9pt;">${cell(tyre.tyre_make)}</td>
+					<td style="padding: 6px; font-size: 9pt;">${cell(tyre.tyre_size)}</td>
+					<td style="padding: 6px; font-size: 9pt;">${tyre.condition ? tyre.condition.charAt(0).toUpperCase() + tyre.condition.slice(1) : '-'}</td>
+					<td style="padding: 6px; font-size: 9pt; text-align: right;">${tyre.tread_depth_mm ? `${tyre.tread_depth_mm}mm` : '-'}</td>
+					<td style="padding: 6px; font-size: 9pt;">${tyre.rim_condition ? tyre.rim_condition.charAt(0).toUpperCase() + tyre.rim_condition.slice(1) : '-'}</td>
 				</tr>
 				`).join('')}
 			</tbody>
@@ -381,57 +371,127 @@ export function generateReportHTML(data: ReportData): string {
 		` : ''}
 	</div>
 
-	<!-- Repair Estimate Summary -->
-	${estimate ? `
+	<!-- Warranty & Vehicle Values -->
+	${vehicleValues ? `
 	<div class="section">
-		<div class="section-title">REPAIR ESTIMATE SUMMARY</div>
+		<div class="section-title">WARRANTY & VEHICLE VALUES</div>
+
+		<!-- Warranty Information -->
 		<div class="info-grid">
+			${row('Warranty Status:', vehicleValues.warranty_status ? vehicleValues.warranty_status.charAt(0).toUpperCase() + vehicleValues.warranty_status.slice(1) : '')}
+			${row('Warranty Period:', vehicleValues.warranty_period_years ? vehicleValues.warranty_period_years + ' years' : '')}
+			${vehicleValues.warranty_start_date ? `
 			<div class="info-row">
-				<span class="info-label">Number of Line Items:</span>
-				<span class="info-value">${estimate.line_items?.length || 0}</span>
-			</div>
-			${repairer ? `
-			<div class="info-row">
-				<span class="info-label">Repairer:</span>
-				<span class="info-value">${repairer.name || 'N/A'}</span>
+				<span class="info-label">Warranty Start:</span>
+				<span class="info-value">${formatDateNumeric(vehicleValues.warranty_start_date)}</span>
 			</div>
 			` : ''}
+			${vehicleValues.warranty_end_date ? `
 			<div class="info-row">
-				<span class="info-label">Subtotal (excl VAT):</span>
-				<span class="info-value" style="font-weight: bold;">${formatCurrency(estimate.subtotal)}</span>
-			</div>
-			<div class="info-row">
-				<span class="info-label">VAT (${estimate.vat_percentage || 15}%):</span>
-				<span class="info-value">${formatCurrency(estimate.vat_amount)}</span>
-			</div>
-			<div class="info-row">
-				<span class="info-label">Grand Total (incl VAT):</span>
-				<span class="info-value" style="font-weight: bold; font-size: 12pt; color: #1e40af;">${formatCurrency(estimate.total)}</span>
-			</div>
-			${estimate.assessment_result ? `
-			<div class="info-row">
-				<span class="info-label">Assessment Result:</span>
-				<span class="info-value" style="font-weight: bold; color: ${
-					estimate.assessment_result === 'repairable' ? '#059669' :
-					estimate.assessment_result === 'borderline_writeoff' ? '#d97706' :
-					'#dc2626'
-				};">${
-					estimate.assessment_result === 'repairable' ? 'Repairable' :
-					estimate.assessment_result === 'borderline_writeoff' ? 'Borderline Write-off' :
-					estimate.assessment_result === 'total_writeoff' ? 'Total Write-off' :
-					estimate.assessment_result
-				}</span>
+				<span class="info-label">Warranty End:</span>
+				<span class="info-value">${formatDateNumeric(vehicleValues.warranty_end_date)}</span>
 			</div>
 			` : ''}
 		</div>
+
+		<!-- Vehicle Values Table -->
+		<table style="width: 100%; margin-top: 15px;">
+			<thead>
+				<tr style="background-color: #f3f4f6;">
+					<th style="padding: 8px;">Value Type</th>
+					<th style="padding: 8px; text-align: right;">Trade</th>
+					<th style="padding: 8px; text-align: right;">Market</th>
+					<th style="padding: 8px; text-align: right;">Retail</th>
+				</tr>
+			</thead>
+			<tbody>
+				<tr>
+					<td style="padding: 6px; font-weight: bold;">Pre-Incident Value</td>
+					<td style="padding: 6px; text-align: right;">${formatCurrency(vehicleValues.trade_total_adjusted_value)}</td>
+					<td style="padding: 6px; text-align: right;">${formatCurrency(vehicleValues.market_total_adjusted_value)}</td>
+					<td style="padding: 6px; text-align: right;">${formatCurrency(vehicleValues.retail_total_adjusted_value)}</td>
+				</tr>
+				<tr>
+					<td style="padding: 6px; font-weight: bold;">Borderline Write-off</td>
+					<td style="padding: 6px; text-align: right;">${formatCurrency(vehicleValues.borderline_writeoff_trade)}</td>
+					<td style="padding: 6px; text-align: right;">${formatCurrency(vehicleValues.borderline_writeoff_market)}</td>
+					<td style="padding: 6px; text-align: right;">${formatCurrency(vehicleValues.borderline_writeoff_retail)}</td>
+				</tr>
+				<tr>
+					<td style="padding: 6px; font-weight: bold;">Total Write-off</td>
+					<td style="padding: 6px; text-align: right;">${formatCurrency(vehicleValues.total_writeoff_trade)}</td>
+					<td style="padding: 6px; text-align: right;">${formatCurrency(vehicleValues.total_writeoff_market)}</td>
+					<td style="padding: 6px; text-align: right;">${formatCurrency(vehicleValues.total_writeoff_retail)}</td>
+				</tr>
+				<tr>
+					<td style="padding: 6px; font-weight: bold;">Salvage Value</td>
+					<td style="padding: 6px; text-align: right;">${formatCurrency(vehicleValues.salvage_trade)}</td>
+					<td style="padding: 6px; text-align: right;">${formatCurrency(vehicleValues.salvage_market)}</td>
+					<td style="padding: 6px; text-align: right;">${formatCurrency(vehicleValues.salvage_retail)}</td>
+				</tr>
+			</tbody>
+		</table>
+
+		${vehicleValues.warranty_notes ? `
+		<div style="margin-top: 10px;">
+			<div style="font-weight: bold; margin-bottom: 5px;">Warranty Notes:</div>
+			<div class="notes-box">${vehicleValues.warranty_notes}</div>
+		</div>
+		` : ''}
 	</div>
 	` : ''}
 
+		<!-- Repair Estimate Summary -->
+		${estimate ? `
+		<div class="section">
+			<div class="section-title">REPAIR ESTIMATE SUMMARY</div>
+			<div class="info-grid">
+				<div class="info-row">
+					<span class="info-label">Number of Line Items:</span>
+					<span class="info-value">${estimate.line_items?.length || 0}</span>
+				</div>
+				${repairer ? `
+				<div class="info-row">
+					<span class="info-label">Repairer:</span>
+					<span class="info-value">${repairer.name || ''}</span>
+				</div>
+				` : ''}
+				<div class="info-row">
+					<span class="info-label">Subtotal (excl VAT):</span>
+					<span class="info-value" style="font-weight: bold;">${formatCurrency(estimate.subtotal)}</span>
+				</div>
+				<div class="info-row">
+					<span class="info-label">VAT (${estimate.vat_percentage || 15}%):</span>
+					<span class="info-value">${formatCurrency(estimate.vat_amount)}</span>
+				</div>
+				<div class="info-row">
+					<span class="info-label">Grand Total (incl VAT):</span>
+					<span class="info-value" style="font-weight: bold; font-size: 12pt; color: #1e40af;">${formatCurrency(estimate.total)}</span>
+				</div>
+				${estimate.assessment_result ? `
+				<div class="info-row">
+					<span class="info-label">Assessment Result:</span>
+					<span class="info-value" style="font-weight: bold; color: ${
+						estimate.assessment_result === 'repairable' ? '#059669' :
+						estimate.assessment_result === 'borderline_writeoff' ? '#d97706' :
+						'#dc2626'
+					};">${
+						estimate.assessment_result === 'repairable' ? 'Repairable' :
+						estimate.assessment_result === 'borderline_writeoff' ? 'Borderline Write-off' :
+						estimate.assessment_result === 'total_writeoff' ? 'Total Write-off' :
+						estimate.assessment_result
+					}</span>
+				</div>
+				` : ''}
+			</div>
+		</div>
+		` : ''}
+
 	<!-- Assessment Notes -->
-	${assessment.notes ? `
+	${assessmentNotes ? `
 	<div class="section">
 		<div class="section-title">ASSESSMENT NOTES</div>
-		<div class="notes-box">${assessment.notes}</div>
+		<div class="notes-box" style="white-space: pre-wrap;">${assessmentNotes}</div>
 	</div>
 	` : ''}
 

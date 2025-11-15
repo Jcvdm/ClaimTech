@@ -470,6 +470,8 @@ export interface Estimate {
 	outwork_markup_percentage: number; // Markup % for outwork charges (default 25%)
 	line_items: EstimateLineItem[];
 	subtotal: number;
+	sundries_percentage?: number;
+	sundries_amount?: number;
 	vat_percentage: number;
 	vat_amount: number;
 	total: number;
@@ -492,11 +494,13 @@ export interface CreateEstimateInput {
 	assessment_result?: AssessmentResultType | null;
 	notes?: string;
 	vat_percentage?: number;
+	sundries_percentage?: number;
 	currency?: string;
 }
 
 export interface UpdateEstimateInput extends Partial<Omit<CreateEstimateInput, 'assessment_id'>> {
 	subtotal?: number;
+	sundries_amount?: number;
 	vat_amount?: number;
 	total?: number;
 	repairer_id?: string | null;

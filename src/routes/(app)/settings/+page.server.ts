@@ -57,8 +57,8 @@ export const actions: Actions = {
 		};
 
 		try {
-			await companySettingsService.updateSettings(input, locals.supabase);
-			return { success: true };
+			const updated = await companySettingsService.updateSettings(input, locals.supabase);
+			return { success: true, settings: updated };
 		} catch (error) {
 			console.error('Error updating settings:', error);
 			return fail(500, { error: 'Failed to update settings' });

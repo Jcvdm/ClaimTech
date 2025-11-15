@@ -3,6 +3,68 @@ import type { RequestHandler } from './$types';
 import { generatePDF } from '$lib/utils/pdf-generator';
 import { generateReportHTML } from '$lib/templates/report-template';
 import { createStreamingResponse } from '$lib/utils/streaming-response';
+import { formatDateNumeric } from '$lib/utils/formatters';
+
+// Helper function to format assessment notes grouped by section
+function formatAssessmentNotesBySection(notes: any[]): string {
+	if (!notes || notes.length === 0) return '';
+
+	// Filter out notes that belong on other documents (estimate, additionals, frc)
+	const reportNotes = notes.filter(note =>
+		!['estimate', 'additionals', 'frc'].includes(note.source_tab)
+	);
+
+	if (reportNotes.length === 0) return '';
+
+	// Map source_tab to display headers
+	const sectionHeaders: Record<string, string> = {
+		identification: 'VEHICLE IDENTIFICATION NOTES',
+		exterior_360: 'EXTERIOR 360 NOTES',
+		interior: 'INTERIOR & MECHANICAL NOTES',
+		tyres: 'TYRES NOTES',
+		damage: 'DAMAGE ASSESSMENT NOTES',
+		vehicle_values: 'VEHICLE VALUES NOTES',
+		pre_incident_estimate: 'PRE-INCIDENT ESTIMATE NOTES',
+		summary: 'SUMMARY NOTES',
+		finalize: 'FINALIZATION NOTES'
+	};
+
+	// Group notes by source_tab
+	const groupedNotes: Record<string, string[]> = {};
+	reportNotes.forEach(note => {
+		const tab = note.source_tab || 'summary';
+		if (!groupedNotes[tab]) {
+			groupedNotes[tab] = [];
+		}
+		groupedNotes[tab].push(note.note_text);
+	});
+
+	// Build formatted output with sections
+	const sections: string[] = [];
+
+	// Maintain consistent section order
+	const sectionOrder = [
+		'identification',
+		'exterior_360',
+		'interior',
+		'tyres',
+		'damage',
+		'vehicle_values',
+		'pre_incident_estimate',
+		'summary',
+		'finalize'
+	];
+
+	sectionOrder.forEach(tab => {
+		if (groupedNotes[tab] && groupedNotes[tab].length > 0) {
+			const header = sectionHeaders[tab] || tab.toUpperCase();
+			const notesText = groupedNotes[tab].join('\n\n');
+			sections.push(`${header}\n${notesText}`);
+		}
+	});
+
+	return sections.join('\n\n');
+}
 
 export const POST: RequestHandler = async ({ request, locals }) => {
 	const body = await request.json();
@@ -53,7 +115,9 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 			{ data: client },
 			{ data: estimate },
 			{ data: repairer },
-			{ data: tyres }
+			{ data: tyres },
+			{ data: vehicleValues },
+			{ data: assessmentNotes }
 		] = await Promise.all([
 			locals.supabase
 				.from('assessment_vehicle_identification')
@@ -94,10 +158,36 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 				.from('assessment_tyres')
 				.select('*')
 				.eq('assessment_id', assessmentId)
-				.order('position', { ascending: true })
+				.order('position', { ascending: true }),
+			// NEW: Fetch vehicle values
+			locals.supabase
+				.from('assessment_vehicle_values')
+				.select('*')
+				.eq('assessment_id', assessmentId)
+				.single(),
+			// NEW: Fetch assessment notes (multiple notes per assessment)
+			locals.supabase
+				.from('assessment_notes')
+				.select('*')
+				.eq('assessment_id', assessmentId)
+				.order('created_at', { ascending: true })
 			]);
 
 			yield { status: 'processing', progress: 35, message: 'Preparing report data...' };
+
+			// NEW: Fetch engineer/assessor info if appointment exists
+			let engineer = null;
+			if (appointment?.engineer_id) {
+				const { data: engineerData } = await locals.supabase
+					.from('engineers')
+					.select('*, users!inner(email, full_name, phone)')
+					.eq('id', appointment.engineer_id)
+					.single();
+				engineer = engineerData;
+			}
+
+			// NEW: Format assessment notes grouped by section
+			const formattedNotes = formatAssessmentNotesBySection(assessmentNotes || []);
 
 			// Generate report number if not exists
 			let reportNumber = assessment.report_number;
@@ -140,7 +230,10 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 				client,
 				estimate,
 				repairer,
-				tyres
+				tyres,
+				vehicleValues, // NEW
+				assessmentNotes: formattedNotes, // NEW
+				engineer // NEW
 			});
 
 			yield { status: 'processing', progress: 60, message: 'Rendering PDF (this may take 1-2 minutes)...' };

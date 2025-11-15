@@ -4,8 +4,9 @@
 	import { Button } from '$lib/components/ui/button';
 	import PageHeader from '$lib/components/layout/PageHeader.svelte';
 	import FormField from '$lib/components/forms/FormField.svelte';
-	import { Building2, Save, FileText } from 'lucide-svelte';
-	import type { PageData, ActionData } from './$types';
+    import { Building2, Save, FileText, Loader2 } from 'lucide-svelte';
+    import type { PageData, ActionData } from './$types';
+    import { invalidateAll } from '$app/navigation';
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();
 
@@ -17,12 +18,21 @@
 	// Track T&Cs text for character counts
 	let assessmentTCs = $state(data.settings?.assessment_terms_and_conditions || '');
 	let estimateTCs = $state(data.settings?.estimate_terms_and_conditions || '');
-	let frcTCs = $state(data.settings?.frc_terms_and_conditions || '');
+let frcTCs = $state(data.settings?.frc_terms_and_conditions || '');
 
 	// Derived character counts
 	let assessmentTCsLength = $derived(assessmentTCs.length);
 	let estimateTCsLength = $derived(estimateTCs.length);
-	let frcTCsLength = $derived(frcTCs.length);
+let frcTCsLength = $derived(frcTCs.length);
+
+$effect(() => {
+	if (form?.success && (form as any)?.settings) {
+		const s = (form as any).settings as any;
+		assessmentTCs = s.assessment_terms_and_conditions || '';
+		estimateTCs = s.estimate_terms_and_conditions || '';
+		frcTCs = s.frc_terms_and_conditions || '';
+	}
+});
 </script>
 
 <div class="space-y-6">
@@ -43,17 +53,19 @@
 		</div>
 	{/if}
 
-	<form
-		method="POST"
-		action="?/update"
-		use:enhance={() => {
-			loading = true;
-			return async ({ update }) => {
-				await update();
-				loading = false;
-			};
-		}}
-	>
+    <form
+        method="POST"
+        action="?/update"
+        class="relative"
+        use:enhance={() => {
+            loading = true;
+            return async ({ update }) => {
+                await update();
+                await invalidateAll();
+                loading = false;
+            };
+        }}
+    >
 		<div class="space-y-6">
 			<!-- Company Information -->
 			<Card class="p-6">
@@ -236,17 +248,26 @@
 							{frcTCsLength.toLocaleString()} / {MAX_TCS_LENGTH.toLocaleString()} characters
 						</p>
 					</div>
-				</div>
-			</Card>
-
-			<!-- Actions -->
-			<div class="flex justify-end gap-3">
-				<Button type="submit" disabled={loading}>
-					<Save class="mr-2 h-4 w-4" />
-					{loading ? 'Saving...' : 'Save Settings'}
-				</Button>
-			</div>
 		</div>
+		</Card>
+
+		<!-- Actions -->
+		<div class="flex justify-end gap-3">
+			<Button type="submit" disabled={loading}>
+				<Save class="mr-2 h-4 w-4" />
+				{loading ? 'Saving...' : 'Save Settings'}
+			</Button>
+		</div>
+		</div>
+
+		{#if loading}
+			<div class="absolute inset-0 z-50 flex items-center justify-center bg-white/40 backdrop-blur-sm">
+				<div class="flex items-center gap-3 px-4 py-3 rounded-lg bg-white shadow border">
+					<Loader2 class="h-6 w-6 animate-spin text-blue-600" />
+					<span class="text-sm font-medium text-gray-700">Saving…</span>
+				</div>
+			</div>
+		{/if}
 	</form>
 </div>
 

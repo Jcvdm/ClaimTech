@@ -214,6 +214,21 @@ export function generateEstimateHTML(data: EstimateData): string {
 			margin-bottom: 15px;
 		}
 
+		/* Unified section styles for consistency with assessment report */
+		.section {
+			margin-bottom: 20px;
+			page-break-inside: avoid;
+		}
+
+		.section-title {
+			background-color: #dbeafe;
+			padding: 8px;
+			font-weight: bold;
+			font-size: 11pt;
+			border-left: 4px solid #3b82f6;
+			margin-bottom: 10px;
+		}
+
 		.info-section {
 			display: grid;
 			grid-template-columns: 1fr 1fr;
@@ -485,6 +500,29 @@ export function generateEstimateHTML(data: EstimateData): string {
 		REPAIR ESTIMATE
 	</div>
 
+	<!-- Executive Summary -->
+	<div class="section">
+		<div class="section-title">EXECUTIVE SUMMARY</div>
+		<div class="info-section">
+			<div>
+				<div style="font-size: 9pt; color: #6b7280;">Vehicle</div>
+				<div style="font-size: 11pt; font-weight: 600;">${vehicleIdentification?.make || request?.vehicle_make || 'N/A'} ${vehicleIdentification?.model || request?.vehicle_model || ''}</div>
+			</div>
+			<div>
+				<div style="font-size: 9pt; color: #6b7280;">Claim Number</div>
+				<div style="font-size: 11pt; font-weight: 600;">${request?.claim_number || 'N/A'}</div>
+			</div>
+			<div>
+				<div style="font-size: 9pt; color: #6b7280;">Outcome</div>
+				<div style="font-size: 11pt; font-weight: 600;">${estimate?.assessment_result ? (estimate.assessment_result === 'repairable' ? 'Repairable' : estimate.assessment_result === 'borderline_writeoff' ? 'Borderline Write-off' : estimate.assessment_result === 'total_writeoff' ? 'Total Write-off' : estimate.assessment_result) : 'Pending'}</div>
+			</div>
+			<div>
+				<div style="font-size: 9pt; color: #6b7280;">Estimated Repair Cost</div>
+				<div style="font-size: 11pt; font-weight: 600; color: #1e40af;">${estimate ? formatCurrency(estimate.total) : '-'}</div>
+			</div>
+		</div>
+	</div>
+
 	<!-- Information Section -->
 	<div class="info-section">
 		<!-- Claim Information -->
@@ -638,7 +676,11 @@ export function generateEstimateHTML(data: EstimateData): string {
 					<td class="totals-value">${formatCurrency(subtotal)}</td>
 				</tr>
 				<tr>
-					<td class="totals-label">VAT (15%):</td>
+					<td class="totals-label">Sundries (1%):</td>
+					<td class="totals-value">${formatCurrency(estimate ? (estimate.sundries_amount || 0) : 0)}</td>
+				</tr>
+				<tr>
+					<td class="totals-label">VAT (${estimate ? (estimate.vat_percentage ?? 15) : 15}%):</td>
 					<td class="totals-value">${formatCurrency(vat)}</td>
 				</tr>
 				<tr class="grand-total">
@@ -662,8 +704,8 @@ export function generateEstimateHTML(data: EstimateData): string {
 
 	<!-- Terms & Conditions -->
 	${companySettings?.estimate_terms_and_conditions ? `
-	<div style="margin-top: 30px; page-break-inside: avoid;">
-		<h3 style="margin-bottom: 10px; color: #1e40af;">TERMS & CONDITIONS</h3>
+	<div class="section" style="margin-top: 30px; page-break-inside: avoid;">
+		<div class="section-title">TERMS & CONDITIONS</div>
 		<div style="font-size: 9pt; line-height: 1.5; color: #333; border: 1px solid #ddd; padding: 12px; background: #f9f9f9; white-space: pre-wrap;">
 			${escapeHtmlWithLineBreaks(companySettings.estimate_terms_and_conditions)}
 		</div>

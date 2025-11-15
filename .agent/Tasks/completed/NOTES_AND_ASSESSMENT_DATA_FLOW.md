@@ -355,6 +355,83 @@ export interface UpdateAssessmentNoteInput {
 
 ---
 
+## 8. REPORT FORMATTING - NOTES BY SECTION
+
+**Implementation**: `src/routes/api/generate-report/+server.ts` - `formatAssessmentNotesBySection()`
+
+### Purpose
+Format assessment notes for professional report display by grouping notes by section (Vehicle Identification, Interior, Damage, etc.) instead of chronological list.
+
+### Key Features
+1. **Filters document-specific notes**:
+   - Excludes `estimate` notes (belong on estimate PDF)
+   - Excludes `additionals` notes (belong on additionals PDF)
+   - Excludes `frc` notes (belong on FRC PDF)
+
+2. **Groups by source_tab with headers**:
+   ```
+   VEHICLE IDENTIFICATION NOTES
+   Digital inspection done - based on photos from insured.
+
+   L/D expired - insured awaiting new disc.
+
+   INTERIOR & MECHANICAL NOTES
+   All mechanical and electrical components seem to be in working order.
+   ```
+
+3. **Professional formatting**:
+   - No timestamps
+   - No note type indicators
+   - Section headers in UPPERCASE
+   - Double line breaks between notes
+   - Consistent section order
+
+### Section Mapping
+| source_tab | Header | Include in Report |
+|------------|--------|-------------------|
+| identification | VEHICLE IDENTIFICATION NOTES | ✅ |
+| exterior_360 | EXTERIOR 360 NOTES | ✅ |
+| interior | INTERIOR & MECHANICAL NOTES | ✅ |
+| tyres | TYRES NOTES | ✅ |
+| damage | DAMAGE ASSESSMENT NOTES | ✅ |
+| vehicle_values | VEHICLE VALUES NOTES | ✅ |
+| pre_incident_estimate | PRE-INCIDENT ESTIMATE NOTES | ✅ |
+| summary | SUMMARY NOTES | ✅ |
+| finalize | FINALIZATION NOTES | ✅ |
+| estimate | (Estimate Notes) | ❌ |
+| additionals | (Additionals Notes) | ❌ |
+| frc | (FRC Notes) | ❌ |
+
+### Implementation Pattern
+```typescript
+function formatAssessmentNotesBySection(notes: any[]): string {
+  // 1. Filter out document-specific notes
+  const reportNotes = notes.filter(note =>
+    !['estimate', 'additionals', 'frc'].includes(note.source_tab)
+  );
+
+  // 2. Group by source_tab
+  const groupedNotes: Record<string, string[]> = {};
+  reportNotes.forEach(note => {
+    const tab = note.source_tab || 'summary';
+    if (!groupedNotes[tab]) groupedNotes[tab] = [];
+    groupedNotes[tab].push(note.note_text);
+  });
+
+  // 3. Build sections with headers
+  const sections: string[] = [];
+  sectionOrder.forEach(tab => {
+    if (groupedNotes[tab]?.length > 0) {
+      sections.push(`${sectionHeaders[tab]}\n${groupedNotes[tab].join('\n\n')}`);
+    }
+  });
+
+  return sections.join('\n\n');
+}
+```
+
+---
+
 ## Related Files
 - `src/lib/services/assessment-notes.service.ts` - Notes service
 - `src/lib/components/assessment/AssessmentNotes.svelte` - Notes UI

@@ -575,22 +575,24 @@
 		const markupTotal = partsMarkup + outworkMarkup;
 
 		// Subtotal now includes betterment deduction
-		const subtotalExVat = partsNett + saTotal + labourTotal + paintTotal + outworkNett + markupTotal - bettermentTotal;
-		const vatAmount = subtotalExVat * ((percentSource.vat_percentage || 0) / 100);
-		const totalIncVat = subtotalExVat + vatAmount;
-		return {
-			partsTotal: partsNett,
-			saTotal,
-			labourTotal,
-			paintTotal,
-			outworkTotal: outworkNett,
-			markupTotal,
-			bettermentTotal, // NEW
-			subtotalExVat,
-			vatPercentage: percentSource.vat_percentage || 0,
-			vatAmount,
-			totalIncVat
-		};
+        const subtotalExVat = partsNett + saTotal + labourTotal + paintTotal + outworkNett + markupTotal - bettermentTotal;
+        const sundriesAmount = subtotalExVat * 0.01;
+        const vatAmount = (subtotalExVat + sundriesAmount) * ((percentSource.vat_percentage || 0) / 100);
+        const totalIncVat = subtotalExVat + sundriesAmount + vatAmount;
+        return {
+            partsTotal: partsNett,
+            saTotal,
+            labourTotal,
+            paintTotal,
+            outworkTotal: outworkNett,
+            markupTotal,
+            bettermentTotal, // NEW
+            subtotalExVat,
+            sundriesAmount,
+            vatPercentage: percentSource.vat_percentage || 0,
+            vatAmount,
+            totalIncVat
+        };
 	});
 
 	// Check if estimate is complete
@@ -665,8 +667,8 @@
 
 </script>
 
-<div class="relative" aria-busy={recalculating}>
-    <div class={recalculating ? 'space-y-6 blur-sm pointer-events-none' : 'space-y-6'}>
+<div class="relative" aria-busy={recalculating || saving}>
+    <div class={(recalculating || saving) ? 'space-y-6 blur-sm pointer-events-none' : 'space-y-6'}>
 	<!-- Warning Banner -->
 
 	<RequiredFieldsWarning missingFields={validation.missingFields} />
@@ -1160,15 +1162,20 @@
 					{/if}
 
 					<!-- Subtotal -->
-					<div class="flex items-center justify-between py-2 border-b-2">
-						<span class="text-base font-semibold text-gray-700">Subtotal (Ex VAT)</span>
-					<span class="text-lg font-semibold">{formatCurrency(totals?.subtotalExVat || 0)}</span>
-					</div>
+                <div class="flex items-center justify-between py-2 border-b-2">
+                    <span class="text-base font-semibold text-gray-700">Subtotal (Ex VAT)</span>
+                    <span class="text-lg font-semibold">{formatCurrency(totals?.subtotalExVat || 0)}</span>
+                </div>
+
+                <div class="flex items-center justify-between py-2 border-b-2">
+                    <span class="text-base font-semibold text-gray-700">Sundries (1%)</span>
+                    <span class="text-lg font-semibold">{formatCurrency(totals?.sundriesAmount || 0)}</span>
+                </div>
 
 					<!-- VAT -->
 					<div class="flex items-center justify-between py-2 border-b-2">
-						<span class="text-base font-semibold text-gray-700">VAT ({totals?.vatPercentage ?? 0}%)</span>
-						<span class="text-lg font-semibold">{formatCurrency(totals?.vatAmount || 0)}</span>
+                        <span class="text-base font-semibold text-gray-700">VAT ({totals?.vatPercentage ?? 0}%)</span>
+                        <span class="text-lg font-semibold">{formatCurrency(totals?.vatAmount || 0)}</span>
 					</div>
 
 					<!-- Total with Color Coding -->
@@ -1256,10 +1263,11 @@
 		</div>
 		{/if}
 	</div>
-	{#if recalculating}
-		<div class="absolute inset-0 flex items-center justify-center z-20">
-			<div class="bg-white/70 rounded-md p-4 shadow">
+	{#if recalculating || saving}
+		<div class="absolute inset-0 z-50 flex items-center justify-center bg-white/40 backdrop-blur-sm">
+			<div class="flex items-center gap-3 px-4 py-3 rounded-lg bg-white shadow border">
 				<RefreshCw class="h-6 w-6 animate-spin text-blue-600" />
+				<span class="text-sm font-medium text-gray-700">{saving ? 'Saving…' : 'Recalculating…'}</span>
 			</div>
 		</div>
 	{/if}

@@ -62,6 +62,15 @@
     let tempPartPriceNett = $state<number | null>(null);
     let tempOutworkNett = $state<number | null>(null);
 
+    function updateLocalDescription(lineItemId: string, value: string) {
+        if (!additionals) return;
+        const idx = additionals.line_items.findIndex((li) => li.id === lineItemId);
+        if (idx !== -1) {
+            additionals.line_items[idx].description = value;
+            additionals = { ...additionals };
+        }
+    }
+
     async function updatePending(lineItemId: string, patch: any) {
         const updated = await additionalsService.updatePendingLineItem(assessmentId, lineItemId, patch);
         additionals = updated;
@@ -675,10 +684,11 @@
 									<td class="py-2">{item.process_type}</td>
                                     <td class="py-2">
                                         <div>
-                                            {#if !isRemoved && !isReversal && item.status === 'pending' && item.id}
+                                            {#if !isRemoved && !isReversal && item.status === 'pending'}
                                                 <Input
                                                     type="text"
                                                     value={item.description}
+                                                    oninput={(e) => updateLocalDescription(item.id!, e.currentTarget.value)}
                                                     onblur={(e) => updatePending(item.id!, { description: e.currentTarget.value })}
                                                     class="border-0 focus-visible:ring-0 focus-visible:ring-offset-0"
                                                 />

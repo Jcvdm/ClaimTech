@@ -1,10 +1,59 @@
 # Changelog - Recent Updates
 
-**Last Updated**: January 31, 2025 (Bug #8 Fix - SSE Streaming for Batch Document Generation)
+**Last Updated**: January 31, 2025 (Bug #9 Enhancement - Notes Formatting by Section)
 
 ---
 
 ## January 31, 2025
+
+### ✨ Bug #9 Enhancement - Assessment Report Notes Formatting by Section
+- **ISSUE**: Assessment report notes displayed chronologically with timestamps and note type indicators
+  - All notes in one section with "(Added: 2025/11/10)" timestamps
+  - Included note type indicators like "[BETTERMENT]", "[SYSTEM]"
+  - Unprofessional appearance for formal reports
+  - Estimate/Additionals/FRC notes mixed with assessment notes
+- **SOLUTION**: Implemented section-based notes grouping
+  - Notes grouped by source_tab (Vehicle Identification, Interior, Damage, etc.)
+  - Removed timestamps and note type indicators
+  - Professional section headers in UPPERCASE
+  - Filtered out document-specific notes (estimate, additionals, frc)
+  - Consistent section order maintained
+- **IMPLEMENTATION**:
+  - `src/routes/api/generate-report/+server.ts` - New `formatAssessmentNotesBySection()` function
+  - Replaced `formatAssessmentNotes()` with section-based grouping
+  - Updated function call to use new formatter
+- **BENEFITS**:
+  - Professional, formal report appearance
+  - Clear section organization
+  - Cleaner, more readable notes
+  - Proper separation of concerns (notes stay on their respective documents)
+- **DOCUMENTATION**:
+  - Implementation: `.augment/BUG_9_NOTES_FORMATTING_IMPLEMENTATION.md`
+  - Plan: `.augment/bug_9_notes_formatting_plan.md`
+  - Updated: `.agent/Tasks/completed/NOTES_AND_ASSESSMENT_DATA_FLOW.md` (Section 8)
+
+### ✅ Bug #9 Fix - Report Generation - Most Information Shows N/A (COMPLETED)
+- **ISSUE**: Assessment reports displayed "N/A" for most fields instead of actual data
+- **ROOT CAUSES**:
+  - Assessment notes used deprecated field (assessment.notes instead of assessment_notes table)
+  - Vehicle values data not fetched
+  - Assessor information missing
+  - Nullable foreign keys not handled
+- **SOLUTION**:
+  - Fetch all notes from assessment_notes table with formatAssessmentNotes()
+  - Added vehicle values fetch with new Warranty & Vehicle Values section
+  - Fetch engineer data from appointment relationship
+  - Conditional fetching for nullable foreign keys
+- **IMPLEMENTATION**:
+  - `src/routes/api/generate-report/+server.ts` - Added data fetches and helper function
+  - `src/lib/templates/report-template.ts` - Updated interface, fixed assessor info, added warranty section
+- **DOCUMENTATION**:
+  - Completion Report: `.augment/BUG_9_COMPLETION_REPORT.md`
+  - Implementation Summary: `.augment/bug_9_implementation_summary.md`
+
+---
+
+## January 31, 2025 (Earlier)
 
 ### ✅ Bug #8 Fix - Generate All Documents SSE Streaming & Progress Tracking
 - **ISSUE**: Generate All Documents button showed no progress feedback during 30-60+ second generation

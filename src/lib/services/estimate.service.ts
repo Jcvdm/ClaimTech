@@ -22,13 +22,14 @@ import {
 // Compute aggregate totals applying markup only at aggregate level (parts & outwork)
 // Now includes betterment deduction
 function computeAggregateTotals(
-	lineItems: EstimateLineItem[],
-	vatPercentage: number,
-	oemMarkup: number,
-	altMarkup: number,
-	secondHandMarkup: number,
-	outworkMarkup: number
-): { subtotal: number; vatAmount: number; total: number } {
+    lineItems: EstimateLineItem[],
+    vatPercentage: number,
+    oemMarkup: number,
+    altMarkup: number,
+    secondHandMarkup: number,
+    outworkMarkup: number,
+    sundriesPercentage: number
+): { subtotal: number; sundriesAmount: number; vatAmount: number; total: number } {
 	let partsSellingTotal = 0;
 	let labourTotal = 0;
 	let paintTotal = 0;
@@ -73,10 +74,11 @@ function computeAggregateTotals(
 		bettermentTotal += item.betterment_total || 0;
 	}
 
-	const subtotal = Number((partsSellingTotal + labourTotal + paintTotal + outworkSellingTotal).toFixed(2));
-	const vatAmount = Number(((subtotal * vatPercentage) / 100).toFixed(2));
-	const total = Number((subtotal + vatAmount).toFixed(2));
-	return { subtotal, vatAmount, total };
+    const subtotal = Number((partsSellingTotal + labourTotal + paintTotal + outworkSellingTotal).toFixed(2));
+    const sundriesAmount = Number((subtotal * (sundriesPercentage / 100)).toFixed(2));
+    const vatAmount = Number((((subtotal + sundriesAmount) * vatPercentage) / 100).toFixed(2));
+    const total = Number((subtotal + sundriesAmount + vatAmount).toFixed(2));
+    return { subtotal, sundriesAmount, vatAmount, total };
 }
 
 export class EstimateService {
@@ -136,14 +138,15 @@ export class EstimateService {
 		const alt = input.alt_markup_percentage ?? 0;
 		const sh = input.second_hand_markup_percentage ?? 0;
 		const outwork = input.outwork_markup_percentage ?? 0;
-		const { subtotal, vatAmount, total } = computeAggregateTotals(
-			lineItems,
-			vatPercentage,
-			oem,
-			alt,
-			sh,
-			outwork
-		);
+        const { subtotal, sundriesAmount, vatAmount, total } = computeAggregateTotals(
+            lineItems,
+            vatPercentage,
+            oem,
+            alt,
+            sh,
+            outwork,
+            input.sundries_percentage ?? 1.0
+        );
 
 		const { data, error } = await db
 			.from('assessment_estimates')
@@ -152,11 +155,13 @@ export class EstimateService {
 				repairer_id: input.repairer_id || null,
 				labour_rate: labourRate,
 				paint_rate: paintRate,
-				line_items: lineItems,
-				subtotal,
-				vat_percentage: vatPercentage,
-				vat_amount: vatAmount,
-				total,
+                line_items: lineItems,
+                subtotal,
+                sundries_percentage: input.sundries_percentage ?? 1.0,
+                sundries_amount: sundriesAmount,
+                vat_percentage: vatPercentage,
+                vat_amount: vatAmount,
+                total,
 				assessment_result: input.assessment_result || null,
 				notes: input.notes || null,
 				currency: input.currency || 'ZAR'
@@ -200,7 +205,7 @@ export class EstimateService {
 		// If line_items or rates are being updated, recalculate totals
 		let updateData: any = { ...input };
 
-		if (input.line_items || input.labour_rate || input.paint_rate) {
+        if (input.line_items || input.labour_rate || input.paint_rate || input.sundries_percentage !== undefined) {
 			const labourRate = input.labour_rate || currentEstimate.labour_rate;
 			const paintRate = input.paint_rate || currentEstimate.paint_rate;
 			const lineItems = input.line_items || currentEstimate.line_items;
@@ -212,23 +217,26 @@ export class EstimateService {
 					: lineItems;
 
 			const vatPercentage = input.vat_percentage || currentEstimate.vat_percentage;
-			const { subtotal, vatAmount, total } = computeAggregateTotals(
-				recalculatedItems,
-				vatPercentage,
-				input.oem_markup_percentage ?? currentEstimate.oem_markup_percentage ?? 0,
-				input.alt_markup_percentage ?? currentEstimate.alt_markup_percentage ?? 0,
-				input.second_hand_markup_percentage ?? currentEstimate.second_hand_markup_percentage ?? 0,
-				input.outwork_markup_percentage ?? currentEstimate.outwork_markup_percentage ?? 0
-			);
+            const { subtotal, sundriesAmount, vatAmount, total } = computeAggregateTotals(
+                recalculatedItems,
+                vatPercentage,
+                input.oem_markup_percentage ?? currentEstimate.oem_markup_percentage ?? 0,
+                input.alt_markup_percentage ?? currentEstimate.alt_markup_percentage ?? 0,
+                input.second_hand_markup_percentage ?? currentEstimate.second_hand_markup_percentage ?? 0,
+                input.outwork_markup_percentage ?? currentEstimate.outwork_markup_percentage ?? 0,
+                input.sundries_percentage ?? currentEstimate.sundries_percentage ?? 1.0
+            );
 
 			updateData = {
 				...updateData,
-				line_items: recalculatedItems,
-				subtotal,
-				vat_amount: vatAmount,
-				total
-			};
-		}
+                line_items: recalculatedItems,
+                subtotal,
+                sundries_percentage: input.sundries_percentage ?? currentEstimate.sundries_percentage ?? 1.0,
+                sundries_amount: sundriesAmount,
+                vat_amount: vatAmount,
+                total
+            };
+        }
 
 		const { data, error } = await supabase
 			.from('assessment_estimates')
@@ -245,14 +253,15 @@ export class EstimateService {
 		// Log audit trail
 		try {
 			// Check if rates were updated
-			const ratesChanged =
-				(input.labour_rate !== undefined && input.labour_rate !== currentEstimate.labour_rate) ||
-				(input.paint_rate !== undefined && input.paint_rate !== currentEstimate.paint_rate) ||
-				(input.vat_percentage !== undefined && input.vat_percentage !== currentEstimate.vat_percentage) ||
-				(input.oem_markup_percentage !== undefined && input.oem_markup_percentage !== currentEstimate.oem_markup_percentage) ||
-				(input.alt_markup_percentage !== undefined && input.alt_markup_percentage !== currentEstimate.alt_markup_percentage) ||
-				(input.second_hand_markup_percentage !== undefined && input.second_hand_markup_percentage !== currentEstimate.second_hand_markup_percentage) ||
-				(input.outwork_markup_percentage !== undefined && input.outwork_markup_percentage !== currentEstimate.outwork_markup_percentage);
+            const ratesChanged =
+                (input.labour_rate !== undefined && input.labour_rate !== currentEstimate.labour_rate) ||
+                (input.paint_rate !== undefined && input.paint_rate !== currentEstimate.paint_rate) ||
+                (input.vat_percentage !== undefined && input.vat_percentage !== currentEstimate.vat_percentage) ||
+                (input.oem_markup_percentage !== undefined && input.oem_markup_percentage !== currentEstimate.oem_markup_percentage) ||
+                (input.alt_markup_percentage !== undefined && input.alt_markup_percentage !== currentEstimate.alt_markup_percentage) ||
+                (input.second_hand_markup_percentage !== undefined && input.second_hand_markup_percentage !== currentEstimate.second_hand_markup_percentage) ||
+                (input.outwork_markup_percentage !== undefined && input.outwork_markup_percentage !== currentEstimate.outwork_markup_percentage) ||
+                (input.sundries_percentage !== undefined && input.sundries_percentage !== currentEstimate.sundries_percentage);
 
 			if (ratesChanged) {
 				await auditService.logChange({
@@ -265,10 +274,10 @@ export class EstimateService {
 						new_labour_rate: data.labour_rate,
 						old_paint_rate: currentEstimate.paint_rate,
 						new_paint_rate: data.paint_rate,
-						old_vat_percentage: currentEstimate.vat_percentage,
-						new_vat_percentage: data.vat_percentage
-					}
-				});
+                        old_vat_percentage: currentEstimate.vat_percentage,
+                        new_vat_percentage: data.vat_percentage
+                    }
+                });
 			} else {
 				// Generic update for other changes
 				await auditService.logChange({
@@ -496,23 +505,25 @@ export class EstimateService {
 		);
 
 		// Recalculate estimate totals (aggregate markup)
-		const { subtotal, vatAmount, total } = computeAggregateTotals(
-			updatedLineItems,
-			estimate.vat_percentage,
-			estimate.oem_markup_percentage ?? 0,
-			estimate.alt_markup_percentage ?? 0,
-			estimate.second_hand_markup_percentage ?? 0,
-			estimate.outwork_markup_percentage ?? 0
-		);
+        const { subtotal, sundriesAmount, vatAmount, total } = computeAggregateTotals(
+            updatedLineItems,
+            estimate.vat_percentage,
+            estimate.oem_markup_percentage ?? 0,
+            estimate.alt_markup_percentage ?? 0,
+            estimate.second_hand_markup_percentage ?? 0,
+            estimate.outwork_markup_percentage ?? 0,
+            estimate.sundries_percentage ?? 1.0
+        );
 
 		const { data, error } = await supabase
 			.from('assessment_estimates')
-			.update({
-				line_items: updatedLineItems,
-				subtotal,
-				vat_amount: vatAmount,
-				total
-			})
+            .update({
+                line_items: updatedLineItems,
+                subtotal,
+                sundries_amount: sundriesAmount,
+                vat_amount: vatAmount,
+                total
+            })
 			.eq('id', id)
 			.select()
 			.single();

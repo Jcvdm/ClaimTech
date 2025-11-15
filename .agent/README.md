@@ -1,7 +1,7 @@
 # ClaimTech Documentation
 
 **Project**: ClaimTech (SVA - SvelteKit Validation App)
-**Last Updated**: January 31, 2025 (Bug #8 - SSE Streaming for Batch Document Generation)
+**Last Updated**: January 31, 2025 (Bug #9 Enhancement - Notes Formatting by Section)
 
 ---
 

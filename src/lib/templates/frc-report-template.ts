@@ -537,17 +537,17 @@ export function generateFRCReportHTML(data: FRCReportData): string {
 
     <!-- Terms & Conditions -->
     ${
-			companySettings?.frc_terms_and_conditions
-				? `
-    <div style="margin-top: 30px; page-break-inside: avoid;">
-        <h3 style="margin-bottom: 10px; color: #1e40af; font-size: 14pt; font-weight: bold;">TERMS & CONDITIONS</h3>
+            companySettings?.frc_terms_and_conditions
+                ? `
+    <div class="section" style="margin-top: 30px; page-break-inside: avoid;">
+        <div class="section-title">TERMS & CONDITIONS</div>
         <div style="font-size: 9pt; line-height: 1.5; color: #333; border: 1px solid #ddd; padding: 12px; background: #f9f9f9; white-space: pre-wrap;">
             ${escapeHtmlWithLineBreaks(companySettings.frc_terms_and_conditions)}
         </div>
     </div>
     `
-				: ''
-		}
+                : ''
+        }
 
     <!-- Footer -->
     <div class="footer">
