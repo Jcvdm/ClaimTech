@@ -61,36 +61,44 @@
 	const exterior360Photos = $derived(props.exterior360Photos ?? []);
 	const tyrePhotos = $derived(props.tyrePhotos ?? []);
 
-	let generationStatus = $state<DocumentGenerationStatus>({
-		report_generated: false,
-		estimate_generated: false,
-		photos_pdf_generated: false,
-		photos_zip_generated: false,
-		all_generated: false,
-		generated_at: null
-	});
+let generationStatus = $state<DocumentGenerationStatus>({
+	report_generated: false,
+	estimate_generated: false,
+	photos_pdf_generated: false,
+	photos_zip_generated: false,
+	frc_report_generated: false,
+	additionals_letter_generated: false,
+	all_generated: false,
+	generated_at: null
+});
 
-	let generating = $state({
-		report: false,
-		estimate: false,
-		photos_pdf: false,
-		photos_zip: false,
-		all: false
-	});
+let generating = $state({
+	report: false,
+	estimate: false,
+	photos_pdf: false,
+	photos_zip: false,
+	frc_report: false,
+	additionals_letter: false,
+	all: false
+});
 
-	let progress = $state({
-		report: 0,
-		estimate: 0,
-		photos_pdf: 0,
-		photos_zip: 0
-	});
+let progress = $state({
+	report: 0,
+	estimate: 0,
+	photos_pdf: 0,
+	photos_zip: 0,
+	frc_report: 0,
+	additionals_letter: 0
+});
 
-	let progressMessage = $state({
-		report: '',
-		estimate: '',
-		photos_pdf: '',
-		photos_zip: ''
-	});
+let progressMessage = $state({
+	report: '',
+	estimate: '',
+	photos_pdf: '',
+	photos_zip: '',
+	frc_report: '',
+	additionals_letter: ''
+});
 
 	// Track if generation is slow/timeout for print fallback
 	let showPrintFallback = $state({
@@ -370,32 +378,93 @@ async function handleForceFinalize() {
 		}
 	}
 
-	async function handleGeneratePhotosZIP() {
-		generating.photos_zip = true;
+async function handleGeneratePhotosZIP() {
+	generating.photos_zip = true;
+	progress.photos_zip = 0;
+	progressMessage.photos_zip = 'Starting...';
+	error = null;
+	try {
+		// Call service directly with progress callback
+		await documentGenerationService.generateDocument(
+			assessment.id,
+			'photos_zip',
+			(prog, msg) => {
+				progress.photos_zip = prog;
+				progressMessage.photos_zip = msg;
+			}
+		);
+		await loadGenerationStatus();
+		// Refresh parent data to update assessment with new document URLs
+		await invalidateAll();
+	} catch (err) {
+		error = err instanceof Error ? err.message : 'Failed to generate photos ZIP';
+	} finally {
+		generating.photos_zip = false;
 		progress.photos_zip = 0;
-		progressMessage.photos_zip = 'Starting...';
-		error = null;
-		try {
-			// Call service directly with progress callback
-			await documentGenerationService.generateDocument(
-				assessment.id,
-				'photos_zip',
-				(prog, msg) => {
-					progress.photos_zip = prog;
-					progressMessage.photos_zip = msg;
-				}
-			);
-			await loadGenerationStatus();
-			// Refresh parent data to update assessment with new document URLs
-			await invalidateAll();
-		} catch (err) {
-			error = err instanceof Error ? err.message : 'Failed to generate photos ZIP';
-		} finally {
-			generating.photos_zip = false;
-			progress.photos_zip = 0;
-			progressMessage.photos_zip = '';
-		}
+		progressMessage.photos_zip = '';
 	}
+}
+
+async function handleGenerateFRCReport() {
+	generating.frc_report = true;
+	progress.frc_report = 0;
+	progressMessage.frc_report = 'Starting...';
+	showPrintFallback.frc = false;
+	error = null;
+
+	const fallbackTimer = setTimeout(() => {
+		if (generating.frc_report) {
+			showPrintFallback.frc = true;
+		}
+	}, 8000);
+
+	try {
+		await documentGenerationService.generateDocument(
+			assessment.id,
+			'frc_report',
+			(prog, msg) => {
+				progress.frc_report = prog;
+				progressMessage.frc_report = msg;
+			}
+		);
+		await loadGenerationStatus();
+		await invalidateAll();
+		showPrintFallback.frc = false;
+	} catch (err) {
+		error = err instanceof Error ? err.message : 'Failed to generate FRC report';
+		showPrintFallback.frc = true;
+	} finally {
+		clearTimeout(fallbackTimer);
+		generating.frc_report = false;
+		progress.frc_report = 0;
+		progressMessage.frc_report = '';
+	}
+}
+
+async function handleGenerateAdditionalsLetter() {
+	generating.additionals_letter = true;
+	progress.additionals_letter = 0;
+	progressMessage.additionals_letter = 'Starting...';
+	error = null;
+	try {
+		await documentGenerationService.generateDocument(
+			assessment.id,
+			'additionals_letter',
+			(prog, msg) => {
+				progress.additionals_letter = prog;
+				progressMessage.additionals_letter = msg;
+			}
+		);
+		await loadGenerationStatus();
+		await invalidateAll();
+	} catch (err) {
+		error = err instanceof Error ? err.message : 'Failed to generate Additionals Letter';
+	} finally {
+		generating.additionals_letter = false;
+		progress.additionals_letter = 0;
+		progressMessage.additionals_letter = '';
+	}
+}
 
 	async function handleGenerateAll() {
 		generating.all = true;
@@ -660,6 +729,34 @@ async function handleForceFinalize() {
 				progressMessage={progressMessage.photos_zip}
 				onGenerate={handleGeneratePhotosZIP}
 				onDownload={() => onDownloadDocument('photos_zip')}
+			/>
+
+			<DocumentCard
+				title="FRC Settlement Report"
+				description="Final Repair Costing report with agreed/adjusted items and settlement total"
+				icon={FileText}
+				generated={!!generationStatus.frc_report_generated}
+				generatedAt={assessment.documents_generated_at}
+				generating={generating.frc_report}
+				progress={progress.frc_report}
+				progressMessage={progressMessage.frc_report}
+				onGenerate={handleGenerateFRCReport}
+				onDownload={() => onDownloadDocument('frc_report')}
+				printUrl={documentGenerationService.getPrintUrl(assessment.id, 'frc')}
+				showPrintFallback={showPrintFallback.frc}
+			/>
+
+			<DocumentCard
+				title="Additionals Letter"
+				description="Summary of approved and declined additionals with totals and notes"
+				icon={FileText}
+				generated={!!generationStatus.additionals_letter_generated}
+				generatedAt={assessment.documents_generated_at}
+				generating={generating.additionals_letter}
+				progress={progress.additionals_letter}
+				progressMessage={progressMessage.additionals_letter}
+				onGenerate={handleGenerateAdditionalsLetter}
+				onDownload={() => onDownloadDocument('additionals_letter')}
 			/>
 		</div>
 	</div>

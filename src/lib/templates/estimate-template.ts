@@ -92,10 +92,16 @@ export function generateEstimateHTML(data: EstimateData): string {
 					const showValue = (value: number | null | undefined) =>
 						value && value > 0 ? formatCurrency(value) : '-';
 
+					// Part type badge for N items
+					const partTypeBadge = item.process_type === 'N' && item.part_type
+						? `<span style="display:inline-block;background:#1e40af;color:#fff;padding:2px 4px;border-radius:2px;font-size:7pt;font-weight:bold;">${item.part_type}</span>`
+						: '-';
+
 					return `
 			<tr style="border-bottom: 1px solid #e5e7eb;">
 				<td style="padding: 6px; font-size: 9pt;">${getProcessTypeLabel(item.process_type)}</td>
 				<td style="padding: 6px; font-size: 9pt;">${item.description || ''}</td>
+				<td style="padding: 6px; font-size: 9pt; text-align: center;">${partTypeBadge}</td>
 				<td style="padding: 6px; font-size: 9pt; text-align: right;">${showValue(item.part_price_nett)}</td>
 				<td style="padding: 6px; font-size: 9pt; text-align: right;">${showValue(item.strip_assemble)}</td>
 				<td style="padding: 6px; font-size: 9pt; text-align: right;">${showValue(item.labour_cost)}</td>
@@ -608,13 +614,14 @@ export function generateEstimateHTML(data: EstimateData): string {
 	<table>
 		<thead>
 			<tr>
-				<th style="width: 8%;">CODE</th>
-				<th style="width: 30%;">DESCRIPTION</th>
-				<th style="width: 10%;">PARTS</th>
-				<th style="width: 10%;">S&A</th>
-				<th style="width: 10%;">LABOUR</th>
-				<th style="width: 10%;">PAINT</th>
-				<th style="width: 10%;">OUTWORK</th>
+				<th style="width: 7%;">CODE</th>
+				<th style="width: 28%;">DESCRIPTION</th>
+				<th style="width: 7%;">TYPE</th>
+				<th style="width: 9%;">PARTS</th>
+				<th style="width: 9%;">S&A</th>
+				<th style="width: 9%;">LABOUR</th>
+				<th style="width: 9%;">PAINT</th>
+				<th style="width: 9%;">OUTWORK</th>
 				<th style="width: 12%;">TOTAL</th>
 			</tr>
 		</thead>

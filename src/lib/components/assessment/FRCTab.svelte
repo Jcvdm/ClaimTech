@@ -657,8 +657,8 @@ import { calculateDeltas, calculateFRCNewTotals } from '$lib/utils/frcCalculatio
 			</Card>
 		{/if}
 
-		<!-- FRC Report Generation (only show when FRC is completed) -->
-		{#if frc.status === 'completed'}
+		<!-- FRC Report Generation -->
+		{#if frc}
 			<Card class="p-6">
 				<div class="flex items-start justify-between mb-4">
 					<div>
@@ -759,7 +759,7 @@ import { calculateDeltas, calculateFRCNewTotals } from '$lib/utils/frcCalculatio
                 
             </div>
 
-			<div class="space-y-6">
+            <div class="space-y-6">
                 <!-- BASELINE (ORIGINAL ESTIMATE) -->
                 <div>
                     <h4 class="text-sm font-bold text-blue-900 mb-3 uppercase tracking-wide">Baseline (Original Estimate)</h4>
@@ -934,14 +934,23 @@ import { calculateDeltas, calculateFRCNewTotals } from '$lib/utils/frcCalculatio
                     </div>
                 </div>
 
+                <!-- Settlement to Repairer -->
+                <div class="pt-4 border-t">
+                    <div class="flex items-center justify-between py-3 px-4 rounded-lg bg-green-100 border border-green-200">
+                        <span class="text-base font-bold text-green-900">Settlement to Repairer</span>
+                        <span class="text-2xl font-extrabold text-green-900">{formatCurrency(newTotals()!.total)}</span>
+                    </div>
+                    <p class="mt-2 text-xs text-gray-500 text-center">Includes VAT at {frc.vat_percentage}% and all agreed/adjusted items, net of removals.</p>
+                </div>
+
 				<!-- Legend -->
 				<div class="pt-4 border-t">
 					<p class="text-xs text-gray-500 text-center">
 						Legend: <span class="font-medium">Quoted</span> → <span class="font-medium">Actual</span> → <span class="font-medium">Delta</span>
 					</p>
 				</div>
-			</div>
-		</Card>
+            </div>
+        </Card>
 
         
 

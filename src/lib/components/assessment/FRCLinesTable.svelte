@@ -35,6 +35,8 @@ import type { FinalRepairCosting, FRCLineItem, FRCDocument } from '$lib/types/as
 				return { variant: 'default' as const, icon: Check, label: 'Agreed', class: 'bg-green-100 text-green-800' };
 			case 'adjust':
 				return { variant: 'default' as const, icon: AlertCircle, label: 'Adjusted', class: 'bg-orange-100 text-orange-800' };
+			case 'declined':
+				return { variant: 'destructive' as const, icon: AlertCircle, label: 'Declined', class: 'bg-red-100 text-red-800' };
 			default:
 				return { variant: 'secondary' as const, icon: Clock, label: 'Pending', class: '' };
 		}
@@ -379,7 +381,7 @@ import type { FinalRepairCosting, FRCLineItem, FRCDocument } from '$lib/types/as
                             onAgree(currentLine!);
                             rowActionsOpen = false;
                         }}
-                        disabled={currentLine.decision === 'agree' || currentLine.removed_via_additionals || currentLine.declined_via_additionals}
+                        disabled={currentLine.decision === 'agree' || currentLine.decision === 'declined' || currentLine.removed_via_additionals || currentLine.declined_via_additionals}
                     >
                         <Check class="h-4 w-4 mr-2" />
                         Agree with Quoted Amount
@@ -391,7 +393,7 @@ import type { FinalRepairCosting, FRCLineItem, FRCDocument } from '$lib/types/as
                             onAdjust(currentLine!);
                             rowActionsOpen = false;
                         }}
-                        disabled={currentLine.removed_via_additionals || currentLine.declined_via_additionals}
+                        disabled={currentLine.decision === 'declined' || currentLine.removed_via_additionals || currentLine.declined_via_additionals}
                     >
                         <AlertCircle class="h-4 w-4 mr-2" />
                         Adjust Amount

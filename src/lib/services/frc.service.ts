@@ -418,9 +418,9 @@ class FRCService {
 		// Use frozen rates if available, otherwise fall back to estimate rates
 		const frozenRates = assessment?.finalized_labour_rate && assessment?.finalized_paint_rate
 			? {
-					labour_rate: assessment.finalized_labour_rate,
-					paint_rate: assessment.finalized_paint_rate
-			  }
+				labour_rate: assessment.finalized_labour_rate,
+				paint_rate: assessment.finalized_paint_rate
+			}
 			: undefined;
 
 		// Use frozen markups if available, otherwise fall back to estimate markups
@@ -563,6 +563,11 @@ class FRCService {
 		}
 
 		const line = frc.line_items[lineIndex];
+
+		// Prevent updating lines that are declined via additionals
+		if (line.decision === 'declined' || line.declined_via_additionals) {
+			throw new Error('Cannot update a line that was declined via additionals');
+		}
 
 		// Update line item
 		if (decision === 'agree') {
@@ -804,13 +809,13 @@ class FRCService {
 			throw new Error('FRC not found');
 		}
 
-        // Validate all actionable lines have decisions (exclude removed/declined)
-        const pendingLines = frc.line_items.filter((line) => !line.removed_via_additionals && !line.declined_via_additionals && line.decision === 'pending');
-        if (pendingLines.length > 0) {
-            throw new Error(
-                `Cannot complete FRC: ${pendingLines.length} line(s) still pending decision`
-            );
-        }
+		// Validate all actionable lines have decisions (exclude removed/declined)
+		const pendingLines = frc.line_items.filter((line) => !line.removed_via_additionals && !line.declined_via_additionals && line.decision === 'pending');
+		if (pendingLines.length > 0) {
+			throw new Error(
+				`Cannot complete FRC: ${pendingLines.length} line(s) still pending decision`
+			);
+		}
 
 		// Validate all adjust decisions have reasons
 		for (const line of frc.line_items) {
@@ -1065,7 +1070,7 @@ class FRCService {
 				const { count, error } = await db
 					.from('assessments')
 					.select('id, appointments!inner(engineer_id), assessment_frc!inner(status)',
-							{ count: 'exact', head: true })
+						{ count: 'exact', head: true })
 					.eq('stage', 'estimate_finalized')  // Only active assessments
 					.eq('appointments.engineer_id', engineer_id)
 					.eq('assessment_frc.status', status);

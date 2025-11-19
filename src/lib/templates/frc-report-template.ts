@@ -1,46 +1,46 @@
 import type {
-	Assessment,
-	FinalRepairCosting,
-	VehicleIdentification,
-	Estimate,
-	AssessmentAdditionals,
-	FRCDocument,
-	CompanySettings
+    Assessment,
+    FinalRepairCosting,
+    VehicleIdentification,
+    Estimate,
+    AssessmentAdditionals,
+    FRCDocument,
+    CompanySettings
 } from '$lib/types/assessment';
 import { formatCurrency, formatDateNumeric } from '$lib/utils/formatters';
 import { escapeHtmlWithLineBreaks } from '$lib/utils/sanitize';
 
 interface FRCReportData {
-	assessment: Assessment;
-	frc: FinalRepairCosting;
-	vehicleIdentification: VehicleIdentification | null;
-	estimate: Estimate | null;
-	additionals: AssessmentAdditionals | null;
-	repairer: any;
-	companySettings: CompanySettings | null;
-	frcDocuments: FRCDocument[];
+    assessment: Assessment;
+    frc: FinalRepairCosting;
+    vehicleIdentification: VehicleIdentification | null;
+    estimate: Estimate | null;
+    additionals: AssessmentAdditionals | null;
+    repairer: any;
+    companySettings: CompanySettings | null;
+    frcDocuments: FRCDocument[];
 }
 
 export function generateFRCReportHTML(data: FRCReportData): string {
-	const {
-		assessment,
-		frc,
-		vehicleIdentification,
-		estimate,
-		additionals,
-		repairer,
-		companySettings,
-		frcDocuments
-	} = data;
+    const {
+        assessment,
+        frc,
+        vehicleIdentification,
+        estimate,
+        additionals,
+        repairer,
+        companySettings,
+        frcDocuments
+    } = data;
 
-	// Calculate settlement amount (actual total to be paid)
-	const settlementAmount = frc.actual_total;
-	const quotedAmount = frc.quoted_total;
-	const variance = settlementAmount - quotedAmount;
-	const variancePercentage =
-		quotedAmount > 0 ? ((variance / quotedAmount) * 100).toFixed(2) : '0.00';
+    // Calculate settlement amount (actual total to be paid)
+    const settlementAmount = frc.actual_total;
+    const quotedAmount = frc.quoted_total;
+    const variance = settlementAmount - quotedAmount;
+    const variancePercentage =
+        quotedAmount > 0 ? ((variance / quotedAmount) * 100).toFixed(2) : '0.00';
 
-	return `
+    return `
 <!DOCTYPE html>
 <html>
 <head>
@@ -254,6 +254,11 @@ export function generateFRCReportHTML(data: FRCReportData): string {
             background: #fef3c7;
             color: #92400e;
         }
+
+        .decision-badge.declined {
+            background: #fee2e2;
+            color: #991b1b;
+        }
         
         .subtotal-row {
             font-weight: bold;
@@ -328,9 +333,8 @@ export function generateFRCReportHTML(data: FRCReportData): string {
         </p>
         <div class="settlement-amount">${formatCurrency(settlementAmount)}</div>
         
-        ${
-					repairer
-						? `
+        ${repairer
+            ? `
         <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #86efac;">
             <p style="font-size: 10pt; color: #374151; margin-bottom: 5px;"><strong>Repairer Details:</strong></p>
             <p style="font-size: 10pt; color: #374151;">${repairer.name}</p>
@@ -338,8 +342,8 @@ export function generateFRCReportHTML(data: FRCReportData): string {
             ${repairer.phone ? `<p style="font-size: 9pt; color: #6b7280;">${repairer.phone}</p>` : ''}
         </div>
         `
-						: ''
-				}
+            : ''
+        }
     </div>
 
     <!-- Vehicle Information -->
@@ -459,43 +463,86 @@ export function generateFRCReportHTML(data: FRCReportData): string {
         <table class="line-items-table">
             <thead>
                 <tr>
-                    <th style="width: 5%;">#</th>
-                    <th style="width: 30%;">Description</th>
+                    <th style="width: 4%;">#</th>
+                    <th style="width: 28%;">Description</th>
+                    <th style="width: 8%;">Type</th>
                     <th style="width: 10%;">Decision</th>
-                    <th style="width: 13%;" class="amount">Quoted</th>
-                    <th style="width: 13%;" class="amount">Actual</th>
-                    <th style="width: 13%;" class="amount">Variance</th>
-                    <th style="width: 16%;">Notes</th>
+                    <th style="width: 12%;" class="amount">Quoted</th>
+                    <th style="width: 12%;" class="amount">Actual</th>
+                    <th style="width: 12%;" class="amount">Variance</th>
+                    <th style="width: 14%;">Notes</th>
                 </tr>
             </thead>
             <tbody>
                 ${frc.line_items
-									.map((line, index) => {
-										const lineVariance = line.actual_total - line.quoted_total;
-										return `
+            .map((line, index) => {
+                const lineVariance = line.actual_total - line.quoted_total;
+                return `
                     <tr>
                         <td>${index + 1}</td>
                         <td>${line.description || 'N/A'}</td>
+                        <td style="text-align:center;">${line.process_type === 'N' && line.part_type ? `<span style="display:inline-block;background:#1e40af;color:#fff;padding:2px 4px;border-radius:2px;font-size:7pt;font-weight:bold;">${line.part_type}</span>` : '-'}</td>
                         <td>
                             <span class="decision-badge ${line.decision}">${line.decision.toUpperCase()}</span>
                         </td>
                         <td class="amount">${formatCurrency(line.quoted_total)}</td>
-                        <td class="amount">${formatCurrency(line.actual_total)}</td>
+                        <td class="amount">${line.actual_total !== null ? formatCurrency(line.actual_total) : '-'}</td>
                         <td class="amount" style="color: ${lineVariance < 0 ? '#dc2626' : lineVariance > 0 ? '#f59e0b' : '#6b7280'};">
                             ${lineVariance >= 0 ? '+' : ''}${formatCurrency(lineVariance)}
                         </td>
-                        <td style="font-size: 7pt;">${line.adjust_reason || '-'}</td>
+                        <td style="font-size: 7pt;">${line.adjust_reason || line.decline_reason || '-'}</td>
                     </tr>
                     `;
-									})
-									.join('')}
+            })
+            .join('')}
             </tbody>
         </table>
     </div>
 
-    ${
-			frc.sign_off_notes
-				? `
+    <!-- Deductions Section -->
+    ${frc.line_items.some(l => l.removed_via_additionals || l.declined_via_additionals)
+            ? `
+    <div class="section">
+        <div class="section-title">Deductions (Removed/Declined Items)</div>
+        <p style="font-size: 9pt; color: #6b7280; margin-bottom: 10px;">
+            The following items were removed or declined via the additionals workflow and are excluded from the settlement total.
+        </p>
+        <table class="line-items-table">
+            <thead>
+                <tr>
+                    <th style="width: 5%;">#</th>
+                    <th style="width: 35%;">Description</th>
+                    <th style="width: 15%;">Reason</th>
+                    <th style="width: 15%;" class="amount">Quoted Amount</th>
+                    <th style="width: 30%;">Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${frc.line_items
+                .filter(l => l.removed_via_additionals || l.declined_via_additionals)
+                .map((line, index) => {
+                    const status = line.removed_via_additionals ? 'Removed via Additionals' : 'Declined via Additionals';
+                    const reason = line.decline_reason || 'N/A';
+                    return `
+                    <tr style="text-decoration:line-through;color:#9ca3af;">
+                        <td>${index + 1}</td>
+                        <td>${line.description || 'N/A'}</td>
+                        <td style="font-size: 8pt;">${reason}</td>
+                        <td class="amount">${formatCurrency(line.quoted_total)}</td>
+                        <td style="font-size: 9pt;">${status}</td>
+                    </tr>
+                    `;
+                })
+                .join('')}
+            </tbody>
+        </table>
+    </div>
+    `
+            : ''
+        }
+
+    ${frc.sign_off_notes
+            ? `
     <!-- Sign-Off Notes -->
     <div class="section">
         <div class="section-title">Sign-Off Notes</div>
@@ -504,12 +551,11 @@ export function generateFRCReportHTML(data: FRCReportData): string {
         </p>
     </div>
     `
-				: ''
-		}
+            : ''
+        }
 
-    ${
-			frcDocuments.length > 0
-				? `
+    ${frcDocuments.length > 0
+            ? `
     <!-- Attached Documents (at the end) -->
     <div class="documents-section">
         <div class="section-title">Attached Documents</div>
@@ -517,8 +563,8 @@ export function generateFRCReportHTML(data: FRCReportData): string {
             ${frcDocuments.length} document(s) attached to this FRC (invoices, receipts, and supporting documentation)
         </p>
         ${frcDocuments
-					.map(
-						(doc) => `
+                .map(
+                    (doc) => `
             <div class="document-item">
                 <div class="document-label">${doc.label || 'Document'}</div>
                 <div class="document-meta">
@@ -528,17 +574,16 @@ export function generateFRCReportHTML(data: FRCReportData): string {
                 </div>
             </div>
         `
-					)
-					.join('')}
+                )
+                .join('')}
     </div>
     `
-				: ''
-		}
+            : ''
+        }
 
     <!-- Terms & Conditions -->
-    ${
-            companySettings?.frc_terms_and_conditions
-                ? `
+    ${companySettings?.frc_terms_and_conditions
+            ? `
     <div class="section" style="margin-top: 30px; page-break-inside: avoid;">
         <div class="section-title">TERMS & CONDITIONS</div>
         <div style="font-size: 9pt; line-height: 1.5; color: #333; border: 1px solid #ddd; padding: 12px; background: #f9f9f9; white-space: pre-wrap;">
@@ -546,7 +591,7 @@ export function generateFRCReportHTML(data: FRCReportData): string {
         </div>
     </div>
     `
-                : ''
+            : ''
         }
 
     <!-- Footer -->

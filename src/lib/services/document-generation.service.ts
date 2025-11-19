@@ -31,13 +31,28 @@ class DocumentGenerationService {
 		const photos_pdf_generated = !!data.photos_pdf_url;
 		const photos_zip_generated = !!data.photos_zip_url;
 
+		// Fetch FRC and Additionals document URLs
+		const [{ data: frc }, { data: additionals }] = await Promise.all([
+			supabase.from('assessment_frc').select('frc_report_url').eq('assessment_id', assessmentId).single(),
+			supabase
+				.from('assessment_additionals')
+				.select('additionals_letter_url')
+				.eq('assessment_id', assessmentId)
+				.single()
+		]);
+
+		const frc_report_generated = !!frc?.frc_report_url;
+		const additionals_letter_generated = !!additionals?.additionals_letter_url;
+
 		return {
 			report_generated,
 			estimate_generated,
 			photos_pdf_generated,
 			photos_zip_generated,
+			frc_report_generated,
+			additionals_letter_generated,
 			all_generated:
-				report_generated && estimate_generated && photos_pdf_generated && photos_zip_generated,
+				report_generated && estimate_generated && photos_pdf_generated && photos_zip_generated && frc_report_generated && additionals_letter_generated,
 			generated_at: data.documents_generated_at
 		};
 	}
@@ -47,14 +62,14 @@ class DocumentGenerationService {
 	 * @param onProgress - Optional callback to receive progress updates (0-100)
 	 * @returns Document URL or throws error with timeout flag
 	 */
-	async generateDocument(
-		assessmentId: string,
-		documentType: DocumentType,
+    async generateDocument(
+        assessmentId: string,
+        documentType: DocumentType,
 		onProgress?: (progress: number, message: string) => void
 	): Promise<string> {
 		try {
-			// Convert underscores to hyphens for API route (e.g., photos_pdf -> photos-pdf)
-			const apiPath = documentType.replace(/_/g, '-');
+            // Convert underscores to hyphens for API route (e.g., photos_pdf -> photos-pdf)
+            const apiPath = documentType.replace(/_/g, '-');
 
 			console.log(`Generating ${documentType} for assessment ${assessmentId}...`);
 			console.log('⏱️  Streaming progress updates enabled - timeout detection active');
@@ -63,11 +78,11 @@ class DocumentGenerationService {
 			const startTime = Date.now();
 			const HOBBY_TIMEOUT_WARNING = 7000; // 7 seconds - warn before 10s limit
 
-			const response = await fetch(`/api/generate-${apiPath}`, {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ assessmentId })
-			});
+            const response = await fetch(`/api/generate-${apiPath}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ assessmentId })
+            });
 
 			if (!response.ok) {
 				// Try to parse JSON error response

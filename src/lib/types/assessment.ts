@@ -724,26 +724,36 @@ export interface CompanySettings {
 	website: string;
 	logo_url?: string | null;
 	// Terms and Conditions fields for each document type
-	assessment_terms_and_conditions?: string | null;
-	estimate_terms_and_conditions?: string | null;
-	frc_terms_and_conditions?: string | null;
-	sundries_percentage?: number;
-	created_at: string;
-	updated_at: string;
+		assessment_terms_and_conditions?: string | null;
+		estimate_terms_and_conditions?: string | null;
+		frc_terms_and_conditions?: string | null;
+		additionals_terms_and_conditions?: string | null;
+		sundries_percentage?: number;
+		created_at: string;
+		updated_at: string;
 }
 
 // Document generation status
 export interface DocumentGenerationStatus {
-	report_generated: boolean;
-	estimate_generated: boolean;
-	photos_pdf_generated: boolean;
-	photos_zip_generated: boolean;
-	all_generated: boolean;
-	generated_at?: string | null;
+		report_generated: boolean;
+		estimate_generated: boolean;
+		photos_pdf_generated: boolean;
+		photos_zip_generated: boolean;
+		frc_report_generated?: boolean;
+		additionals_letter_generated?: boolean;
+		all_generated: boolean;
+		generated_at?: string | null;
 }
 
 // Document types
-export type DocumentType = 'report' | 'estimate' | 'photos_pdf' | 'photos_zip' | 'complete';
+export type DocumentType =
+	| 'report'
+	| 'estimate'
+	| 'photos_pdf'
+	| 'photos_zip'
+	| 'frc_report'
+	| 'additionals_letter'
+	| 'complete';
 
 // Input types for company settings
 export interface UpdateCompanySettingsInput {
@@ -757,11 +767,12 @@ export interface UpdateCompanySettingsInput {
 	email?: string;
 	website?: string;
 	logo_url?: string;
-	// Terms and Conditions fields
-	assessment_terms_and_conditions?: string | null;
-	estimate_terms_and_conditions?: string | null;
-	frc_terms_and_conditions?: string | null;
-	sundries_percentage?: number;
+		// Terms and Conditions fields
+		assessment_terms_and_conditions?: string | null;
+		estimate_terms_and_conditions?: string | null;
+		frc_terms_and_conditions?: string | null;
+		additionals_terms_and_conditions?: string | null;
+		sundries_percentage?: number;
 }
 
 // Additional line item status
@@ -922,7 +933,7 @@ export interface UpdateDamagePhotoInput {
 
 // Final Repair Costing (FRC) types
 export type FRCStatus = 'not_started' | 'in_progress' | 'completed';
-export type FRCDecision = 'pending' | 'agree' | 'adjust';
+export type FRCDecision = 'pending' | 'agree' | 'adjust' | 'declined';
 export type FRCLineSource = 'estimate' | 'additional';
 
 export interface FRCLineItem {

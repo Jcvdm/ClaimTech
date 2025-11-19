@@ -179,7 +179,7 @@ export function composeFinalEstimateLines(
 					description: line.description,
 					quoted_total: line.total || 0,
 					actual_total: null,
-					decision: 'pending',
+					decision: 'declined',
 					adjust_reason: null,
 					is_removal_additional: line.action === 'removed' || undefined,
 					removal_for_source_line_id: line.action === 'removed' ? line.original_line_id ?? null : null,
@@ -463,72 +463,123 @@ export function calculateTotal(subtotal: number, vatAmount: number): number {
 }
 
 /**
- * Calculate "New Total" based on decided lines and automatic removals
+ * Calculate "New Total" based on decided lines only
  * Rules:
- * - Include only lines where decision !== 'pending' OR line.is_removal_additional === true
- * - Exclude original estimate lines marked removed_via_additionals
+ * - Include ONLY lines where decision === 'agree' OR decision === 'adjust'
+ * - EXCLUDE pending lines entirely (they have no decision yet)
+ * - EXCLUDE removed_via_additionals lines (they are deductions, handled separately)
+ * - EXCLUDE declined_via_additionals lines (they are deductions, handled separately)
  * - For decided lines, use actual component values
- * - For removal additional lines, use quoted component values
  * - Apply markup to parts/outwork nett totals at aggregate level
+ * - Return breakdown for display in FRC report
  */
 export function calculateFRCNewTotals(
-    lineItems: FRCLineItem[],
-    markupPercentages: { parts_markup: number; outwork_markup: number },
-    vatPercentage: number
+	lineItems: FRCLineItem[],
+	markupPercentages: { parts_markup: number; outwork_markup: number },
+	vatPercentage: number
 ): {
-    parts_nett: number;
-    labour: number;
-    paint: number;
-    outwork_nett: number;
-    markup: number;
-    subtotal: number;
-    vat_amount: number;
-    total: number;
+	parts_nett: number;
+	labour: number;
+	paint: number;
+	outwork_nett: number;
+	markup: number;
+	subtotal: number;
+	vat_amount: number;
+	total: number;
 } {
-    const included = lineItems.filter((line) => {
-        const isDecided = line.decision !== 'pending';
-        const isRemovalAdditional = !!line.is_removal_additional;
-        const isRemovedOriginal = line.source === 'estimate' && !!line.removed_via_additionals;
-        return (isDecided || isRemovalAdditional) && !isRemovedOriginal;
-    });
+	// Include ONLY decided lines (agree or adjust)
+	const decidedLines = lineItems.filter((line) =>
+		line.decision === 'agree' || line.decision === 'adjust'
+	);
 
-    let partsNettTotal = 0;
-    let labourTotal = 0;
-    let paintTotal = 0;
-    let outworkNettTotal = 0;
+	let partsNettTotal = 0;
+	let labourTotal = 0;
+	let paintTotal = 0;
+	let outworkNettTotal = 0;
 
-    included.forEach((line) => {
-        const useActual = line.decision !== 'pending' && !line.is_removal_additional;
-        if (useActual) {
-            partsNettTotal += line.actual_part_price_nett ?? 0;
-            labourTotal += (line.actual_strip_assemble ?? 0) + (line.actual_labour_cost ?? 0);
-            paintTotal += line.actual_paint_cost ?? 0;
-            outworkNettTotal += line.actual_outwork_charge ?? 0;
-        } else {
-            partsNettTotal += line.quoted_part_price_nett ?? 0;
-            labourTotal += (line.quoted_strip_assemble ?? 0) + (line.quoted_labour_cost ?? 0);
-            paintTotal += line.quoted_paint_cost ?? 0;
-            outworkNettTotal += line.quoted_outwork_charge_nett ?? 0;
-        }
-    });
+	decidedLines.forEach((line) => {
+		// Use actual values for decided lines
+		partsNettTotal += line.actual_part_price_nett ?? 0;
+		labourTotal += (line.actual_strip_assemble ?? 0) + (line.actual_labour_cost ?? 0);
+		paintTotal += line.actual_paint_cost ?? 0;
+		outworkNettTotal += line.actual_outwork_charge ?? 0;
+	});
 
-    const partsMarkupAmt = partsNettTotal * (markupPercentages.parts_markup / 100);
-    const outworkMarkupAmt = outworkNettTotal * (markupPercentages.outwork_markup / 100);
-    const totalMarkup = partsMarkupAmt + outworkMarkupAmt;
-    const subtotal = partsNettTotal + labourTotal + paintTotal + outworkNettTotal + totalMarkup;
-    const vat_amount = (subtotal * vatPercentage) / 100;
-    const total = subtotal + vat_amount;
+	const partsMarkupAmt = partsNettTotal * (markupPercentages.parts_markup / 100);
+	const outworkMarkupAmt = outworkNettTotal * (markupPercentages.outwork_markup / 100);
+	const totalMarkup = partsMarkupAmt + outworkMarkupAmt;
+	const subtotal = partsNettTotal + labourTotal + paintTotal + outworkNettTotal + totalMarkup;
+	const vat_amount = (subtotal * vatPercentage) / 100;
+	const total = subtotal + vat_amount;
 
-    return {
-        parts_nett: Number(partsNettTotal.toFixed(2)),
-        labour: Number(labourTotal.toFixed(2)),
-        paint: Number(paintTotal.toFixed(2)),
-        outwork_nett: Number(outworkNettTotal.toFixed(2)),
-        markup: Number(totalMarkup.toFixed(2)),
-        subtotal: Number(subtotal.toFixed(2)),
-        vat_amount: Number(vat_amount.toFixed(2)),
-        total: Number(total.toFixed(2))
-    };
+	return {
+		parts_nett: Number(partsNettTotal.toFixed(2)),
+		labour: Number(labourTotal.toFixed(2)),
+		paint: Number(paintTotal.toFixed(2)),
+		outwork_nett: Number(outworkNettTotal.toFixed(2)),
+		markup: Number(totalMarkup.toFixed(2)),
+		subtotal: Number(subtotal.toFixed(2)),
+		vat_amount: Number(vat_amount.toFixed(2)),
+		total: Number(total.toFixed(2))
+	};
+}
+
+/**
+ * Calculate deductions (removed and declined lines) using quoted values
+ * These are lines that were removed via additionals or declined via additionals
+ * They should be shown separately in the FRC report as deductions
+ */
+export function calculateFRCDeductions(
+	lineItems: FRCLineItem[],
+	markupPercentages: { parts_markup: number; outwork_markup: number },
+	vatPercentage: number
+): {
+	parts_nett: number;
+	labour: number;
+	paint: number;
+	outwork_nett: number;
+	markup: number;
+	subtotal: number;
+	vat_amount: number;
+	total: number;
+	count: number;
+} {
+	// Include removed and declined lines
+	const deductionLines = lineItems.filter((line) =>
+		line.removed_via_additionals || line.declined_via_additionals
+	);
+
+	let partsNettTotal = 0;
+	let labourTotal = 0;
+	let paintTotal = 0;
+	let outworkNettTotal = 0;
+
+	deductionLines.forEach((line) => {
+		// Use quoted values for deductions (they were never executed)
+		partsNettTotal += line.quoted_part_price_nett ?? 0;
+		labourTotal += (line.quoted_strip_assemble ?? 0) + (line.quoted_labour_cost ?? 0);
+		paintTotal += line.quoted_paint_cost ?? 0;
+		outworkNettTotal += line.quoted_outwork_charge_nett ?? 0;
+	});
+
+	const partsMarkupAmt = partsNettTotal * (markupPercentages.parts_markup / 100);
+	const outworkMarkupAmt = outworkNettTotal * (markupPercentages.outwork_markup / 100);
+	const totalMarkup = partsMarkupAmt + outworkMarkupAmt;
+	const subtotal = partsNettTotal + labourTotal + paintTotal + outworkNettTotal + totalMarkup;
+	const vat_amount = (subtotal * vatPercentage) / 100;
+	const total = subtotal + vat_amount;
+
+	return {
+		parts_nett: Number(partsNettTotal.toFixed(2)),
+		labour: Number(labourTotal.toFixed(2)),
+		paint: Number(paintTotal.toFixed(2)),
+		outwork_nett: Number(outworkNettTotal.toFixed(2)),
+		markup: Number(totalMarkup.toFixed(2)),
+		subtotal: Number(subtotal.toFixed(2)),
+		vat_amount: Number(vat_amount.toFixed(2)),
+		total: Number(total.toFixed(2)),
+		count: deductionLines.length
+	};
 }
 
 /**

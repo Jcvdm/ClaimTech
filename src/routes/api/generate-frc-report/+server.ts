@@ -79,7 +79,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 				{ data: companySettings },
 				{ data: client }
 			] = await Promise.all([
-				supabase
+				locals.supabase
 					.from('assessment_vehicle_identification')
 					.select('*')
 					.eq('assessment_id', assessmentId)
@@ -107,7 +107,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
 			// Fetch repairer using estimate data
 			const { data: repairer } = estimate?.repairer_id
-				? await locals.locals.supabase.from('repairers').select('*').eq('id', estimate.repairer_id).single()
+				? await locals.supabase.from('repairers').select('*').eq('id', estimate.repairer_id).single()
 				: { data: null };
 
 			// Fetch FRC documents
@@ -210,7 +210,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 				if (urlParts.length > 1) {
 					const previousPath = urlParts[1];
 					console.log(`[${new Date().toISOString()}] [Request ${requestId}] Deleting previous FRC report: ${previousPath}`);
-					const { error: removeError } = await locals.locals.supabase.storage
+					const { error: removeError } = await locals.supabase.storage
 						.from('documents')
 						.remove([previousPath]);
 
@@ -229,7 +229,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 			const filePath = `assessments/${assessmentId}/frc/${fileName}`;
 
 			console.log(`[${new Date().toISOString()}] [Request ${requestId}] Uploading PDF to Supabase storage: ${filePath}`);
-			const { error: uploadError } = await locals.locals.supabase.storage
+			const { error: uploadError } = await locals.supabase.storage
 				.from('documents')
 				.upload(filePath, pdfBuffer, {
 					contentType: 'application/pdf',

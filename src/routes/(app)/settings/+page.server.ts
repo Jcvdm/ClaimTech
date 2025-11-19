@@ -22,6 +22,7 @@ export const actions: Actions = {
 		const assessmentTCs = formData.get('assessment_terms_and_conditions') as string | null;
 		const estimateTCs = formData.get('estimate_terms_and_conditions') as string | null;
 		const frcTCs = formData.get('frc_terms_and_conditions') as string | null;
+		const additionalsTCs = formData.get('additionals_terms_and_conditions') as string | null;
 
 		// Validate T&Cs length
 		if (assessmentTCs && assessmentTCs.length > MAX_TCS_LENGTH) {
@@ -39,6 +40,11 @@ export const actions: Actions = {
 				error: `FRC Terms & Conditions too long (max ${MAX_TCS_LENGTH} characters)`
 			});
 		}
+		if (additionalsTCs && additionalsTCs.length > MAX_TCS_LENGTH) {
+			return fail(400, {
+				error: `Additionals Terms & Conditions too long (max ${MAX_TCS_LENGTH} characters)`
+			});
+		}
 
         const input = {
             company_name: formData.get('company_name') as string,
@@ -51,9 +57,10 @@ export const actions: Actions = {
             email: formData.get('email') as string,
             website: formData.get('website') as string,
             // Sanitize T&Cs (trim whitespace, normalize line breaks)
-            assessment_terms_and_conditions: assessmentTCs ? sanitizeInput(assessmentTCs) : null,
-            estimate_terms_and_conditions: estimateTCs ? sanitizeInput(estimateTCs) : null,
-            frc_terms_and_conditions: frcTCs ? sanitizeInput(frcTCs) : null,
+			assessment_terms_and_conditions: assessmentTCs ? sanitizeInput(assessmentTCs) : null,
+			estimate_terms_and_conditions: estimateTCs ? sanitizeInput(estimateTCs) : null,
+			frc_terms_and_conditions: frcTCs ? sanitizeInput(frcTCs) : null,
+			additionals_terms_and_conditions: additionalsTCs ? sanitizeInput(additionalsTCs) : null,
             sundries_percentage: (() => {
                 const raw = formData.get('sundries_percentage') as string | null;
                 if (!raw) return undefined;

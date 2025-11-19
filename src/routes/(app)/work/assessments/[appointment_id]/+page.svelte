@@ -125,7 +125,9 @@
 	}
 
 	async function handleCancelAssessment() {
-		if (!confirm('Are you sure you want to cancel this assessment? This action cannot be undone.')) {
+		if (
+			!confirm('Are you sure you want to cancel this assessment? This action cannot be undone.')
+		) {
 			return;
 		}
 
@@ -162,7 +164,10 @@
 	// Vehicle Identification handlers
 	async function handleUpdateVehicleIdentification(updateData: Partial<VehicleIdentification>) {
 		try {
-			const updated = await vehicleIdentificationService.upsert(data.assessment.id, updateData as any);
+			const updated = await vehicleIdentificationService.upsert(
+				data.assessment.id,
+				updateData as any
+			);
 			// Update local data with saved values
 			data.vehicleIdentification = updated;
 		} catch (error) {
@@ -239,7 +244,7 @@
 			// Create new array instead of mutating (triggers $derived reactivity)
 			const index = data.tyres.findIndex((t) => t.id === id);
 			if (index !== -1) {
-				data.tyres = data.tyres.map((t, i) => i === index ? updatedTyre : t);
+				data.tyres = data.tyres.map((t, i) => (i === index ? updatedTyre : t));
 			}
 		} catch (error) {
 			console.error('Error updating tyre:', error);
@@ -297,7 +302,11 @@
 						}
 					: undefined;
 
-				const updated = await vehicleValuesService.update(data.vehicleValues.id, updateData as any, writeOffPercentages as any);
+				const updated = await vehicleValuesService.update(
+					data.vehicleValues.id,
+					updateData as any,
+					writeOffPercentages as any
+				);
 				// Update local data with saved values
 				data.vehicleValues = updated;
 			}
@@ -311,7 +320,10 @@
 		try {
 			if (preIncidentEstimate) {
 				// Service updates DB and returns updated estimate
-				const updatedEstimate = await preIncidentEstimateService.update(preIncidentEstimate.id, updateData);
+				const updatedEstimate = await preIncidentEstimateService.update(
+					preIncidentEstimate.id,
+					updateData
+				);
 
 				// Update local $state variable (triggers Svelte reactivity in child components)
 				preIncidentEstimate = updatedEstimate;
@@ -325,7 +337,10 @@
 		try {
 			if (preIncidentEstimate) {
 				// Service updates DB and returns updated estimate
-				const updatedEstimate = await preIncidentEstimateService.addLineItem(preIncidentEstimate.id, item);
+				const updatedEstimate = await preIncidentEstimateService.addLineItem(
+					preIncidentEstimate.id,
+					item
+				);
 
 				// Update local $state variable (triggers Svelte reactivity in child components)
 				preIncidentEstimate = updatedEstimate;
@@ -364,7 +379,10 @@
 		try {
 			if (preIncidentEstimate) {
 				// Service updates DB and returns updated estimate
-				const updatedEstimate = await preIncidentEstimateService.deleteLineItem(preIncidentEstimate.id, itemId);
+				const updatedEstimate = await preIncidentEstimateService.deleteLineItem(
+					preIncidentEstimate.id,
+					itemId
+				);
 
 				// Update local $state variable (triggers Svelte reactivity in child components)
 				preIncidentEstimate = updatedEstimate;
@@ -464,7 +482,10 @@
 		}
 	}
 
-	async function handleUpdateLineItem(itemId: string, updateData: Partial<EstimateLineItem>): Promise<EstimateLineItem> {
+	async function handleUpdateLineItem(
+		itemId: string,
+		updateData: Partial<EstimateLineItem>
+	): Promise<EstimateLineItem> {
 		try {
 			if (!estimate) throw new Error('Estimate not found');
 			const updatedEstimate = await estimateService.updateLineItem(estimate.id, itemId, updateData);
@@ -505,7 +526,10 @@
 				estimate = updatedEstimate;
 			}
 			if (tempIds.size > 0) {
-				estimate = { ...estimate, line_items: estimate.line_items.filter((i) => !tempIds.has(i.id!)) };
+				estimate = {
+					...estimate,
+					line_items: estimate.line_items.filter((i) => !tempIds.has(i.id!))
+				};
 			}
 		} catch (error) {
 			console.error('Error bulk deleting line items:', error);
@@ -645,23 +669,58 @@
 				// TODO: Generate complete package ZIP
 				documentName = 'Complete Package';
 				break;
+			case 'frc_report':
+				// Fetch URL from assessment_frc
+				((documentName = 'FRC Report'),
+					(filename = `${assessment.assessment_number}_FRC_Report.pdf`));
+				// Synchronously unavailable; warn if missing
+				// Attempt to read cached URL via a lightweight call
+				url = null;
+				break;
+			case 'additionals_letter':
+				// Fetch URL from assessment_additionals
+				((documentName = 'Additionals Letter'),
+					(filename = `${assessment.assessment_number}_Additionals_Letter.pdf`));
+				url = null;
+				break;
 		}
 
 		if (url) {
 			console.log(`Downloading ${documentName}:`, url);
 			documentGenerationService.downloadDocument(url, filename);
 		} else {
-			// Show error message instead of failing silently
-			console.error(`Cannot download ${documentName}: URL is null or undefined`);
-			console.log('Assessment data:', {
-				id: assessment.id,
-				assessment_number: assessment.assessment_number,
-				report_pdf_url: assessment.report_pdf_url,
-				estimate_pdf_url: assessment.estimate_pdf_url,
-				photos_pdf_url: assessment.photos_pdf_url,
-				photos_zip_url: assessment.photos_zip_url
-			});
-			alert(`${documentName} has not been generated yet. Please generate it first by clicking the "Generate" button.`);
+			// Try fetching URLs for FRC/Additionals on demand
+			(async () => {
+				try {
+					if (type === 'frc_report') {
+						const { data: frcRow } = await data.supabase
+							.from('assessment_frc')
+							.select('frc_report_url')
+							.eq('assessment_id', assessment.id)
+							.single();
+						if (frcRow?.frc_report_url) {
+							return documentGenerationService.downloadDocument(frcRow.frc_report_url, filename);
+						}
+					} else if (type === 'additionals_letter') {
+						const { data: addRow } = await data.supabase
+							.from('assessment_additionals')
+							.select('additionals_letter_url')
+							.eq('assessment_id', assessment.id)
+							.single();
+						if (addRow?.additionals_letter_url) {
+							return documentGenerationService.downloadDocument(
+								addRow.additionals_letter_url,
+								filename
+							);
+						}
+					}
+				} catch (e) {
+					console.error('Error fetching document URL:', e);
+				}
+				alert(
+					`${documentName} has not been generated yet. Please generate it first by clicking the "Generate" button.`
+				);
+			})();
 		}
 	}
 
@@ -708,15 +767,15 @@
 	tyres={data.tyres}
 	damageRecord={data.damageRecord}
 	vehicleValues={data.vehicleValues}
-	preIncidentEstimate={preIncidentEstimate}
+	{preIncidentEstimate}
 	{estimate}
 >
 	{#if currentTab === 'summary'}
 		<SummaryTab
 			assessment={data.assessment}
 			vehicleValues={data.vehicleValues}
-			estimate={estimate}
-			preIncidentEstimate={preIncidentEstimate}
+			{estimate}
+			{preIncidentEstimate}
 			inspection={data.inspection}
 			request={data.request}
 			client={data.client}
@@ -747,7 +806,9 @@
 			onDeleteAccessory={handleDeleteAccessory}
 			onPhotosUpdate={async () => {
 				// Reload exterior 360 photos from database
-				const updatedPhotos = await exterior360PhotosService.getPhotosByAssessment(data.assessment.id);
+				const updatedPhotos = await exterior360PhotosService.getPhotosByAssessment(
+					data.assessment.id
+				);
 				// Update local state (triggers reactivity)
 				data.exterior360Photos = updatedPhotos;
 			}}
@@ -840,7 +901,7 @@
 		/>
 	{:else if currentTab === 'estimate'}
 		<EstimateTab
-			estimate={estimate}
+			{estimate}
 			assessmentId={data.assessment.id}
 			assessmentNumber={data.assessment.assessment_number}
 			estimatePhotos={data.estimatePhotos}
@@ -894,17 +955,18 @@
 	{:else if currentTab === 'additionals' && estimate}
 		<AdditionalsTab
 			assessmentId={data.assessment.id}
-			estimate={estimate}
+			{estimate}
 			vehicleValues={data.vehicleValues}
 			repairers={data.repairers}
 			onUpdate={async () => {
 				// Additionals updated, no need to reload entire page
 			}}
+			onDownloadDocument={handleDownloadDocument}
 		/>
 	{:else if currentTab === 'frc' && estimate}
 		<FRCTab
 			assessmentId={data.assessment.id}
-			estimate={estimate}
+			{estimate}
 			vehicleValues={data.vehicleValues}
 			engineer={data.engineer}
 			onUpdate={async () => {
@@ -912,10 +974,7 @@
 			}}
 		/>
 	{:else if currentTab === 'audit'}
-		<AuditTab 
-			assessmentId={data.assessment.id}
-			supabase={data.supabase}
-		/>
+		<AuditTab assessmentId={data.assessment.id} supabase={data.supabase} />
 	{/if}
 
 	<!-- Global Assessment Notes (visible on all tabs except finalize) -->
@@ -925,14 +984,15 @@
 				assessmentId={data.assessment.id}
 				{notes}
 				{currentTab}
-				lastSaved={lastSaved}
+				{lastSaved}
 				onUpdate={async () => {
 					// Reload notes from database to update UI immediately
-					const updatedNotes = await assessmentNotesService.getNotesByAssessment(data.assessment.id);
+					const updatedNotes = await assessmentNotesService.getNotesByAssessment(
+						data.assessment.id
+					);
 					notes = updatedNotes; // Update local state to trigger reactivity
 				}}
 			/>
 		</div>
 	{/if}
 </AssessmentLayout>
-

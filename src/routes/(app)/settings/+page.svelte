@@ -12,30 +12,33 @@
 
 	let loading = $state(false);
 
-	// Maximum length for T&Cs fields
-	const MAX_TCS_LENGTH = 10000;
+    // Maximum length for T&Cs fields
+    const MAX_TCS_LENGTH = 10000;
 
 	// Track T&Cs text for character counts
-	let assessmentTCs = $state(data.settings?.assessment_terms_and_conditions || '');
-	let estimateTCs = $state(data.settings?.estimate_terms_and_conditions || '');
-let frcTCs = $state(data.settings?.frc_terms_and_conditions || '');
+    let assessmentTCs = $state(data.settings?.assessment_terms_and_conditions || '');
+    let estimateTCs = $state(data.settings?.estimate_terms_and_conditions || '');
+    let frcTCs = $state(data.settings?.frc_terms_and_conditions || '');
+    let additionalsTCs = $state(data.settings?.additionals_terms_and_conditions || '');
 
 	// Derived character counts
-	let assessmentTCsLength = $derived(assessmentTCs.length);
-	let estimateTCsLength = $derived(estimateTCs.length);
-let frcTCsLength = $derived(frcTCs.length);
+    let assessmentTCsLength = $derived(assessmentTCs.length);
+    let estimateTCsLength = $derived(estimateTCs.length);
+    let frcTCsLength = $derived(frcTCs.length);
+    let additionalsTCsLength = $derived(additionalsTCs.length);
 
-$effect(() => {
-	if (form?.success && (form as any)?.settings) {
-		const s = (form as any).settings as any;
-		assessmentTCs = s.assessment_terms_and_conditions || '';
-		estimateTCs = s.estimate_terms_and_conditions || '';
-		frcTCs = s.frc_terms_and_conditions || '';
-	}
-});
+    $effect(() => {
+    	if (form?.success && (form as any)?.settings) {
+    		const s = (form as any).settings as any;
+    		assessmentTCs = s.assessment_terms_and_conditions || '';
+    		estimateTCs = s.estimate_terms_and_conditions || '';
+    		frcTCs = s.frc_terms_and_conditions || '';
+    		additionalsTCs = s.additionals_terms_and_conditions || '';
+    	}
+    });
 </script>
 
-<div class="space-y-6">
+                <div class="space-y-6">
 	<PageHeader
 		title="Company Settings"
 		description="Manage your company information for document generation"
@@ -244,14 +247,14 @@ $effect(() => {
 						</p>
 					</div>
 
-					<!-- FRC Report T&Cs -->
+                    <!-- FRC Report T&Cs -->
 					<div class="space-y-2">
 						<label for="frc_terms_and_conditions" class="block text-sm font-medium text-gray-700">
 							FRC Report Terms & Conditions
 						</label>
-						<p class="text-xs text-gray-500">
-							These terms will appear in the Final Repair Costing (FRC) PDF
-						</p>
+                        <p class="text-xs text-gray-500">
+                            These terms will appear in the Final Repair Costing (FRC) PDF
+                        </p>
 						<textarea
 							id="frc_terms_and_conditions"
 							name="frc_terms_and_conditions"
@@ -261,12 +264,33 @@ $effect(() => {
 							class="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
 							placeholder="SCOPE OF FRC:&#10;• Final costing based on actual parts and labour used&#10;• Comparison against original estimate provided&#10;&#10;DOCUMENTATION REQUIREMENTS:&#10;✓ All parts invoices&#10;✓ All outwork invoices&#10;✓ Collection/Release Notice (signed)&#10;✓ Copy of workmanship warranty"
 						></textarea>
-						<p class="text-xs text-gray-500">
-							{frcTCsLength.toLocaleString()} / {MAX_TCS_LENGTH.toLocaleString()} characters
-						</p>
-					</div>
-		</div>
-		</Card>
+                        <p class="text-xs text-gray-500">
+                            {frcTCsLength.toLocaleString()} / {MAX_TCS_LENGTH.toLocaleString()} characters
+                        </p>
+                    </div>
+                    <!-- Additionals Letter T&Cs -->
+                    <div class="space-y-2">
+                        <label for="additionals_terms_and_conditions" class="block text-sm font-medium text-gray-700">
+                            Additionals Letter Terms & Conditions
+                        </label>
+                        <p class="text-xs text-gray-500">
+                            These terms will appear in the Additionals Letter PDF
+                        </p>
+                        <textarea
+                            id="additionals_terms_and_conditions"
+                            name="additionals_terms_and_conditions"
+                            bind:value={additionalsTCs}
+                            maxlength={MAX_TCS_LENGTH}
+                            rows="10"
+                            class="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+                            placeholder="This letter summarizes approved and declined additionals for the claim as per assessor/engineer recommendations.&#10;&#10;SCOPE:&#10;• Approved items authorized for repair&#10;• Declined items listed for record with reasons"
+                        ></textarea>
+                        <p class="text-xs text-gray-500">
+                            {additionalsTCsLength.toLocaleString()} / {MAX_TCS_LENGTH.toLocaleString()} characters
+                        </p>
+                    </div>
+                </div>
+            </Card>
 
 		<!-- Actions -->
 		<div class="flex justify-end gap-3">
