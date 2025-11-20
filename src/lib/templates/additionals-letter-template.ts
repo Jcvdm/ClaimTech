@@ -20,8 +20,9 @@ export function generateAdditionalsLetterHTML(data: AdditionalsLetterData): stri
   const { assessment, additionals, companySettings, request, client, repairer } = data;
 
   // Filter items by status and action
+  // Approved table: only show true approved additions (exclude removals and reversals)
   const approvedItems: AdditionalLineItem[] = (additionals?.line_items || []).filter(
-    (li) => li.status === 'approved' && li.action !== 'reversal'
+    (li) => li.status === 'approved' && li.action === 'added'
   );
   const declinedItems: AdditionalLineItem[] = (additionals?.line_items || []).filter(
     (li) => li.status === 'declined'
@@ -187,7 +188,7 @@ export function generateAdditionalsLetterHTML(data: AdditionalsLetterData): stri
 
   <div class="section">
     <div class="section-title">REMOVED ORIGINAL LINES</div>
-    <p style="font-size:8pt;color:#6b7280;margin-bottom:8px;">Original estimate lines removed due to parts unavailability or other reasons. These items are excluded from the payable total.</p>
+    <p style="font-size:8pt;color:#6b7280;margin-bottom:8px;">Original estimate lines removed due to parts unavailability or other reasons. These items are shown here for audit trail purposes and are included in the calculation summary above as negative adjustments that reduce the payable total.</p>
     <table>
       <thead>
         <tr>
@@ -210,7 +211,7 @@ export function generateAdditionalsLetterHTML(data: AdditionalsLetterData): stri
   <div class="section">
     <div class="section-title">CALCULATION SUMMARY</div>
     <p style="font-size:8pt;color:#6b7280;margin-bottom:8px;">
-      <strong>Note:</strong> Column values shown are nett amounts (before markup). The totals below include markup applied to parts and outwork at the aggregate level, then VAT is calculated on the subtotal.
+      <strong>Note:</strong> Column values shown are nett amounts (before markup). The totals below include markup applied to parts and outwork at the aggregate level, then VAT is calculated on the subtotal. Approved removals and reversals are included as negative adjustments.
     </p>
     <table class="totals-table" style="width:100%;margin-bottom:12px;">
       <tr>
@@ -227,10 +228,9 @@ export function generateAdditionalsLetterHTML(data: AdditionalsLetterData): stri
       </tr>
     </table>
     <div style="font-size:8pt;color:#6b7280;background:#f0fdf4;border:1px solid #86efac;padding:8px;border-radius:4px;">
-      <strong>Excluded from payable total:</strong>
+      <strong>Notes about payable total:</strong>
       <ul style="margin:4px 0;padding-left:20px;">
-        <li>Declined items: ${declinedItems.length} item(s)</li>
-        <li>Removed original lines: ${removedItems.length} item(s)</li>
+        <li>Removed original lines: ${removedItems.length} item(s) – included above as negative adjustments that reduce the payable total.</li>
       </ul>
     </div>
   </div>
