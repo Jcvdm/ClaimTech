@@ -1,30 +1,36 @@
 <script lang="ts">
-  import PageHeader from '$lib/components/layout/PageHeader.svelte';
-  import DataTable from '$lib/components/data/DataTable.svelte';
-  import EmptyState from '$lib/components/data/EmptyState.svelte';
-  import { Button } from '$lib/components/ui/button';
-  import { Plus, FileText } from 'lucide-svelte';
+	import PageHeader from '$lib/components/layout/PageHeader.svelte';
+	import DataTable from '$lib/components/data/DataTable.svelte';
+	import EmptyState from '$lib/components/data/EmptyState.svelte';
+	import { Button } from '$lib/components/ui/button';
+	import { Plus, FileText } from 'lucide-svelte';
 
-  export let data: { type: string; items: { id: string; title: string; updated_at: string }[] };
+	let {
+		data
+	}: {
+		data: { type: string; items: { id: string; title: string; updated_at: string }[] };
+	} = $props();
 
-  const LABELS: Record<string, string> = {
-    requests: 'Requests',
-    inspections: 'Inspections',
-    frc: 'Final Costings',
-    additionals: 'Additionals'
-  };
+	const LABELS: Record<string, string> = {
+		requests: 'Requests',
+		inspections: 'Inspections',
+		frc: 'Final Costings',
+		additionals: 'Additionals'
+	};
 
-  // Add mock status and formatted date for demo
-  const itemsWithStatus = data.items.map((item, i) => ({
-    ...item,
-    status: ['draft', 'pending', 'sent', 'approved'][i % 4],
-    date: new Date(item.updated_at).toLocaleDateString()
-  }));
+	// Add mock status and formatted date for demo
+	const itemsWithStatus = $derived(
+		data.items.map((item, i) => ({
+			...item,
+			status: ['draft', 'pending', 'sent', 'approved'][i % 4],
+			date: new Date(item.updated_at).toLocaleDateString()
+		}))
+	);
 
-  function handleRowClick(row: any) {
-    console.log('Clicked row:', row);
-    // Navigate to detail page
-  }
+	function handleRowClick(row: any) {
+		console.log('Clicked row:', row);
+		// Navigate to detail page
+	}
 </script>
 
 <div class="space-y-6">
