@@ -32,6 +32,13 @@
 ### 📚 [System Documentation](./README/system_docs.md)
 Complete index of architecture, database, security, UI patterns, and bug postmortems (30 files).
 
+### 🌹 Shadcn UI Playbook (.agent/shadui)
+- **sidebar-modernization.md** – notes on modernizing the dashboard sidebar with shadcn-svelte primitives and rose token theming.
+- **top-bar-research.md** – captures the comparison with shadcn/ui’s header and the rose gradient update we applied in the layout.
+- **login-modernization.md** – planning doc for the hero-driven login card and rose-accent form styles.
+- **date-picker.md** ? explains why Incident date selection now uses `Popover` + `Calendar` for Svelte 5 compatibility.
+- **requests-flow-alignment.md** ? records the tabs/alert/dialog alignment for the Requests list and New Request form.
+
 ### 📝 [Standard Operating Procedures](./README/sops.md)
 Step-by-step guides for database operations, services, authentication, UI features, and debugging (19 files).
 

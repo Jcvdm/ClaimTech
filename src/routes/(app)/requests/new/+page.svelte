@@ -8,6 +8,8 @@
 	import FormActions from '$lib/components/forms/FormActions.svelte';
 	import { Card } from '$lib/components/ui/card';
 	import { Button } from '$lib/components/ui/button';
+	import { Alert, AlertDescription, AlertTitle } from '$lib/components/ui/alert';
+	import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '$lib/components/ui/dialog';
 	import { requestService } from '$lib/services/request.service';
 	import { clientService } from '$lib/services/client.service';
 	import { Plus } from 'lucide-svelte';
@@ -20,6 +22,7 @@
 	let loading = $state(false);
 	let error = $state<string | null>(null);
 	let showClientModal = $state(false);
+	let clients = $state(data.clients);
 
 	// Basic Information
 	let client_id = $state('');
@@ -80,7 +83,7 @@
 			});
 
 			// Add to clients list and select it
-			data.clients = [...data.clients, newClient];
+			clients = [...clients, newClient];
 			client_id = newClient.id;
 
 			// Reset form and close modal
@@ -153,13 +156,13 @@
 	}
 
 	// Client options for dropdown
-	const clientOptions = [
+	const clientOptions = $derived(() => [
 		{ value: '', label: 'Select a client' },
-		...data.clients.map((c) => ({
+		...clients.map((c) => ({
 			value: c.id,
 			label: `${c.name} (${c.type === 'insurance' ? 'Insurance' : 'Private'})`
 		}))
-	];
+	]);
 
 
 </script>
@@ -168,15 +171,17 @@
 	<PageHeader title="New Request" description="Create a new vehicle damage assessment request" />
 
 	{#if data.error}
-		<div class="rounded-md bg-red-50 p-4">
-			<p class="text-sm text-red-800">{data.error}</p>
-		</div>
+		<Alert variant="destructive">
+			<AlertTitle>Unable to load required data</AlertTitle>
+			<AlertDescription>{data.error}</AlertDescription>
+		</Alert>
 	{/if}
 
 	{#if error}
-		<div class="rounded-md bg-red-50 p-4">
-			<p class="text-sm text-red-800">{error}</p>
-		</div>
+		<Alert variant="destructive">
+			<AlertTitle>Something went wrong</AlertTitle>
+			<AlertDescription>{error}</AlertDescription>
+		</Alert>
 	{/if}
 
 	<form onsubmit={handleSubmit} class="space-y-6">
@@ -279,67 +284,69 @@
 	</form>
 </div>
 
-<!-- Quick Add Client Modal -->
-{#if showClientModal}
-	<div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-		<Card class="w-full max-w-md p-6">
-			<h3 class="mb-4 text-lg font-semibold text-gray-900">Quick Add Client</h3>
-			<div class="space-y-4">
-				<FormField
-					label="Client Name"
-					name="new_client_name"
-					type="text"
-					bind:value={newClientName}
-					required
-					placeholder="Client name"
-				/>
+<!-- Quick Add Client Dialog -->
+<Dialog bind:open={showClientModal}>
+	<DialogContent class="sm:max-w-md">
+		<DialogHeader>
+			<DialogTitle>Quick Add Client</DialogTitle>
+			<DialogDescription>Add a new client without leaving the request form.</DialogDescription>
+		</DialogHeader>
 
-				<FormField
-					label="Type"
-					name="new_client_type"
-					type="select"
-					bind:value={newClientType}
-					required
-					options={[
-						{ value: 'insurance', label: 'Insurance' },
-						{ value: 'private', label: 'Private' }
-					]}
-				/>
+		<div class="space-y-4">
+			<FormField
+				label="Client Name"
+				name="new_client_name"
+				type="text"
+				bind:value={newClientName}
+				required
+				placeholder="Client name"
+			/>
 
-				<FormField
-					label="Email"
-					name="new_client_email"
-					type="email"
-					bind:value={newClientEmail}
-					placeholder="email@example.com"
-				/>
+			<FormField
+				label="Type"
+				name="new_client_type"
+				type="select"
+				bind:value={newClientType}
+				required
+				options={[
+					{ value: 'insurance', label: 'Insurance' },
+					{ value: 'private', label: 'Private' }
+				]}
+			/>
 
-				<FormField
-					label="Phone"
-					name="new_client_phone"
-					type="text"
-					bind:value={newClientPhone}
-					placeholder="+27 11 123 4567"
-				/>
+			<FormField
+				label="Email"
+				name="new_client_email"
+				type="email"
+				bind:value={newClientEmail}
+				placeholder="email@example.com"
+			/>
 
-				<div class="flex justify-end gap-2 pt-4">
-					<Button
-						type="button"
-						variant="outline"
-						onclick={() => {
-							showClientModal = false;
-							error = null;
-						}}
-					>
-						Cancel
-					</Button>
-					<Button type="button" onclick={handleQuickAddClient} disabled={loading}>
-						Add Client
-					</Button>
-				</div>
-			</div>
-		</Card>
-	</div>
-{/if}
+			<FormField
+				label="Phone"
+				name="new_client_phone"
+				type="text"
+				bind:value={newClientPhone}
+				placeholder="+27 11 123 4567"
+			/>
+		</div>
+
+		<DialogFooter class="pt-4">
+			<Button
+				type="button"
+				variant="outline"
+				onclick={() => {
+					showClientModal = false;
+					error = null;
+				}}
+			>
+				Cancel
+			</Button>
+			<Button type="button" onclick={handleQuickAddClient} disabled={loading}>
+				Add Client
+			</Button>
+		</DialogFooter>
+	</DialogContent>
+</Dialog>
 
 

@@ -7,7 +7,9 @@
 	import TableCell from '$lib/components/data/TableCell.svelte';
 	import EmptyState from '$lib/components/data/EmptyState.svelte';
 	import { Button } from '$lib/components/ui/button';
-	import { Badge } from '$lib/components/ui/badge';
+import { Badge } from '$lib/components/ui/badge';
+import { Alert, AlertDescription, AlertTitle } from '$lib/components/ui/alert';
+import { Tabs, TabsList, TabsTrigger } from '$lib/components/ui/tabs';
 	import { FileText, Plus, Hash, User, Car, Calendar } from 'lucide-svelte';
 	import type { Request, RequestStatus } from '$lib/types/request';
 	import type { PageData } from './$types';
@@ -18,7 +20,14 @@
 	type RequestWithClient = Request & { client_name: string; formatted_date: string };
 
 	// Status filter state
-	let selectedStatus = $state<RequestStatus | 'all'>('all');
+	type StatusFilterValue = RequestStatus | 'all';
+	let selectedStatus = $state<StatusFilterValue>('all');
+
+	const statusTabItems = [
+		{ value: 'all', label: 'All' },
+		{ value: 'submitted', label: 'New' },
+		{ value: 'draft', label: 'Draft' }
+	] as const;
 
 	// Add client names and formatted dates to requests
 	// Only include submitted and draft requests
@@ -87,7 +96,7 @@
 </script>
 
 <div class="flex-1 space-y-6 p-8">
-	<PageHeader title="New Requests" description="Review and accept new vehicle damage assessment requests">
+	<PageHeader title="Requests" description="Review and accept new vehicle damage assessment requests">
 		{#snippet actions()}
 			<Button href="/requests/new">
 				<Plus class="mr-2 h-4 w-4" />
@@ -97,41 +106,32 @@
 	</PageHeader>
 
 	{#if data.error}
-		<div class="rounded-md bg-red-50 p-4">
-			<p class="text-sm text-red-800">{data.error}</p>
-		</div>
+		<Alert variant="destructive">
+			<AlertTitle>Unable to load requests</AlertTitle>
+			<AlertDescription>{data.error}</AlertDescription>
+		</Alert>
 	{/if}
 
-	<!-- Status Filter Tabs -->
-	<div class="flex gap-2 border-b border-gray-200">
-		<button
-			class="px-4 py-2 text-sm font-medium transition-colors {selectedStatus === 'all'
-				? 'border-b-2 border-blue-600 text-blue-600'
-				: 'text-gray-500 hover:text-gray-700'}"
-			onclick={() => (selectedStatus = 'all')}
-		>
-			All
-			<Badge variant="secondary" class="ml-2">{statusCounts.all}</Badge>
-		</button>
-		<button
-			class="px-4 py-2 text-sm font-medium transition-colors {selectedStatus === 'submitted'
-				? 'border-b-2 border-blue-600 text-blue-600'
-				: 'text-gray-500 hover:text-gray-700'}"
-			onclick={() => (selectedStatus = 'submitted')}
-		>
-			New
-			<Badge variant="secondary" class="ml-2">{statusCounts.submitted}</Badge>
-		</button>
-		<button
-			class="px-4 py-2 text-sm font-medium transition-colors {selectedStatus === 'draft'
-				? 'border-b-2 border-blue-600 text-blue-600'
-				: 'text-gray-500 hover:text-gray-700'}"
-			onclick={() => (selectedStatus = 'draft')}
-		>
-			Draft
-			<Badge variant="secondary" class="ml-2">{statusCounts.draft}</Badge>
-		</button>
-	</div>
+	<Tabs
+		bind:value={selectedStatus}
+		class="w-full"
+		onValueChange={(value) => (selectedStatus = value as StatusFilterValue)}
+	>
+		<TabsList class="flex w-full items-center justify-start gap-2 rounded-none border-b border-border bg-transparent p-0">
+			{#each statusTabItems as item}
+				<TabsTrigger value={item.value} class="w-auto gap-2 rounded-none border-b-2 border-transparent px-4 py-2 text-sm data-[state=active]:border-rose-500">
+					<span>{item.label}</span>
+					<Badge variant="secondary">
+						{item.value === 'all'
+							? statusCounts.all
+							: item.value === 'submitted'
+								? statusCounts.submitted
+								: statusCounts.draft}
+					</Badge>
+				</TabsTrigger>
+			{/each}
+		</TabsList>
+	</Tabs>
 
 	{#if requestsWithDetails.length === 0}
 		<EmptyState

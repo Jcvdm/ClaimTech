@@ -1,6 +1,7 @@
 <script lang="ts">
 	import FormField from './FormField.svelte';
 	import { Card } from '$lib/components/ui/card';
+	import { DatePicker } from '$lib/components/ui/date-picker';
 
 	type Props = {
 		date_of_loss: string;
@@ -33,12 +34,22 @@
 	<h3 class="mb-4 text-lg font-semibold text-gray-900">Incident Details</h3>
 	<div class="grid gap-6">
 		<div class="grid gap-6 md:grid-cols-2">
-			<FormField
-				label="Date of Loss"
+			<div class="space-y-2">
+			<label
+				id="incident-date-of-loss-label"
+				for="incident-date-of-loss-trigger"
+				class="text-sm font-medium leading-none text-gray-700"
+			>
+				Date of Loss
+			</label>
+			<DatePicker
 				name="date_of_loss"
-				type="date"
+				labelId="incident-date-of-loss-label"
+				triggerId="incident-date-of-loss-trigger"
+				placeholder="Select date"
 				bind:value={date_of_loss}
 			/>
+			</div>
 
 			<FormField
 				label="Insured Value (R)"
@@ -75,4 +86,3 @@
 		/>
 	</div>
 </Card>
-
