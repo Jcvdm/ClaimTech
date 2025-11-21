@@ -1,0 +1,222 @@
+﻿import type { Appointment } from './appointment';
+import type { AuditLog } from './audit';
+import type { Client } from './client';
+import type {
+	AdditionalsPhoto,
+	Assessment,
+	AssessmentAdditionals,
+	AssessmentNote,
+	CompanySettings,
+	DamagePhoto,
+	DamageRecord,
+	Estimate,
+	EstimatePhoto,
+	Exterior360,
+	Exterior360Photo,
+	FinalRepairCosting,
+	FRCDocument,
+	FRCEntry,
+	InteriorMechanical,
+	InteriorPhoto,
+	PreIncidentEstimate,
+	PreIncidentEstimatePhoto,
+	VehicleAccessory,
+	VehicleIdentification,
+	VehicleValues,
+	Tyre,
+	TyrePhoto
+} from './assessment';
+import type { Engineer } from './engineer';
+import type { Inspection } from './inspection';
+import type { Repairer } from './repairer';
+import type { Request, RequestTask } from './request';
+import type { UserProfile } from './user';
+
+export type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[];
+
+type AutoTimestampKeys<Row> = Extract<'id' | 'created_at' | 'updated_at', keyof Row>;
+type Insertable<Row> = Omit<Row, AutoTimestampKeys<Row>> & Partial<Pick<Row, AutoTimestampKeys<Row>>>;
+type Updatable<Row> = Partial<Omit<Row, AutoTimestampKeys<Row>>>;
+
+export interface Database {
+	public: {
+		Tables: {
+			assessment_360_exterior: {
+				Row: Exterior360;
+				Insert: Insertable<Exterior360>;
+				Update: Updatable<Exterior360>;
+			};
+			assessment_accessories: {
+				Row: VehicleAccessory;
+				Insert: Insertable<VehicleAccessory>;
+				Update: Updatable<VehicleAccessory>;
+			};
+			assessment_additionals: {
+				Row: AssessmentAdditionals;
+				Insert: Insertable<AssessmentAdditionals>;
+				Update: Updatable<AssessmentAdditionals>;
+			};
+			assessment_additionals_photos: {
+				Row: AdditionalsPhoto;
+				Insert: Insertable<AdditionalsPhoto>;
+				Update: Updatable<AdditionalsPhoto>;
+			};
+			assessment_damage: {
+				Row: DamageRecord;
+				Insert: Insertable<DamageRecord>;
+				Update: Updatable<DamageRecord>;
+			};
+			assessment_damage_photos: {
+				Row: DamagePhoto;
+				Insert: Insertable<DamagePhoto>;
+				Update: Updatable<DamagePhoto>;
+			};
+			assessment_estimates: {
+				Row: Estimate;
+				Insert: Insertable<Estimate>;
+				Update: Updatable<Estimate>;
+			};
+			assessment_exterior_360_photos: {
+				Row: Exterior360Photo;
+				Insert: Insertable<Exterior360Photo>;
+				Update: Updatable<Exterior360Photo>;
+			};
+			assessment_frc: {
+				Row: FinalRepairCosting;
+				Insert: Insertable<FinalRepairCosting>;
+				Update: Updatable<FinalRepairCosting>;
+			};
+			assessment_frc_documents: {
+				Row: FRCDocument;
+				Insert: Insertable<FRCDocument>;
+				Update: Updatable<FRCDocument>;
+			};
+			assessment_interior_mechanical: {
+				Row: InteriorMechanical;
+				Insert: Insertable<InteriorMechanical>;
+				Update: Updatable<InteriorMechanical>;
+			};
+			assessment_interior_photos: {
+				Row: InteriorPhoto;
+				Insert: Insertable<InteriorPhoto>;
+				Update: Updatable<InteriorPhoto>;
+			};
+			assessment_notes: {
+				Row: AssessmentNote;
+				Insert: Insertable<AssessmentNote>;
+				Update: Updatable<AssessmentNote>;
+			};
+			assessment_tyre_photos: {
+				Row: TyrePhoto;
+				Insert: Insertable<TyrePhoto>;
+				Update: Updatable<TyrePhoto>;
+			};
+			assessment_tyres: {
+				Row: Tyre;
+				Insert: Insertable<Tyre>;
+				Update: Updatable<Tyre>;
+			};
+			assessment_vehicle_identification: {
+				Row: VehicleIdentification;
+				Insert: Insertable<VehicleIdentification>;
+				Update: Updatable<VehicleIdentification>;
+			};
+			assessment_vehicle_values: {
+				Row: VehicleValues;
+				Insert: Insertable<VehicleValues>;
+				Update: Updatable<VehicleValues>;
+			};
+			assessments: {
+				Row: Assessment;
+				Insert: Insertable<Assessment>;
+				Update: Updatable<Assessment>;
+			};
+			appointments: {
+				Row: Appointment;
+				Insert: Insertable<Appointment>;
+				Update: Updatable<Appointment>;
+			};
+			audit_logs: {
+				Row: AuditLog;
+				Insert: Insertable<AuditLog>;
+				Update: Updatable<AuditLog>;
+			};
+			clients: {
+				Row: Client;
+				Insert: Omit<Client, 'id' | 'created_at' | 'updated_at'> & {
+					id?: string;
+					created_at?: string;
+					updated_at?: string;
+				};
+				Update: Partial<Omit<Client, 'id' | 'created_at' | 'updated_at'>>;
+			};
+			company_settings: {
+				Row: CompanySettings;
+				Insert: Insertable<CompanySettings>;
+				Update: Updatable<CompanySettings>;
+			};
+			engineers: {
+				Row: Engineer;
+				Insert: Insertable<Engineer>;
+				Update: Updatable<Engineer>;
+			};
+			estimate_photos: {
+				Row: EstimatePhoto;
+				Insert: Insertable<EstimatePhoto>;
+				Update: Updatable<EstimatePhoto>;
+			};
+			frc_entries: {
+				Row: FRCEntry;
+				Insert: Insertable<FRCEntry>;
+				Update: Updatable<FRCEntry>;
+			};
+			inspections: {
+				Row: Inspection;
+				Insert: Insertable<Inspection>;
+				Update: Updatable<Inspection>;
+			};
+			pre_incident_estimate_photos: {
+				Row: PreIncidentEstimatePhoto;
+				Insert: Insertable<PreIncidentEstimatePhoto>;
+				Update: Updatable<PreIncidentEstimatePhoto>;
+			};
+			pre_incident_estimates: {
+				Row: PreIncidentEstimate;
+				Insert: Insertable<PreIncidentEstimate>;
+				Update: Updatable<PreIncidentEstimate>;
+			};
+			repairers: {
+				Row: Repairer;
+				Insert: Insertable<Repairer>;
+				Update: Updatable<Repairer>;
+			};
+			request_tasks: {
+				Row: RequestTask;
+				Insert: Insertable<RequestTask>;
+				Update: Updatable<RequestTask>;
+			};
+			requests: {
+				Row: Request;
+				Insert: Insertable<Request>;
+				Update: Updatable<Request>;
+			};
+			user_profiles: {
+				Row: UserProfile;
+				Insert: Insertable<UserProfile>;
+				Update: Updatable<UserProfile>;
+			};
+		};
+		Views: {
+			[_ in never]: never;
+		};
+		Functions: {
+			[_ in never]: never;
+		};
+		Enums: {
+			[_ in never]: never;
+		};
+		CompositeTypes: {
+			[_ in never]: never;
+		};
+	};
+}

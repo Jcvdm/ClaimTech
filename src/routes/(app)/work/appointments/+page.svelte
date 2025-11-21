@@ -9,6 +9,7 @@
 	import GradientBadge from '$lib/components/data/GradientBadge.svelte';
 	import ActionButtonGroup from '$lib/components/data/ActionButtonGroup.svelte';
 	import ActionIconButton from '$lib/components/data/ActionIconButton.svelte';
+	import { Tabs, TabsList, TabsTrigger } from '$lib/components/ui/tabs';
 	import { Badge } from '$lib/components/ui/badge';
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
@@ -20,17 +21,7 @@
 		DialogHeader,
 		DialogTitle
 	} from '$lib/components/ui/dialog';
-	import {
-		Calendar,
-		Clock,
-		MapPin,
-		User,
-		Car,
-		AlertCircle,
-		Play,
-		Eye,
-		Hash
-	} from 'lucide-svelte';
+	import { Calendar, Clock, MapPin, User, Car, AlertCircle, Play, Eye, Hash } from 'lucide-svelte';
 	import type { Assessment } from '$lib/types/assessment';
 	import type { AppointmentType } from '$lib/types/appointment';
 	import type { Province } from '$lib/types/engineer';
@@ -45,6 +36,12 @@
 	let selectedType = $state<AppointmentType | 'all'>('all');
 	let dateFilter = $state<string>(''); // Date picker value
 	let loading = $state(false);
+
+	const typeTabItems = [
+		{ value: 'all', label: 'All' },
+		{ value: 'in_person', label: 'In-Person' },
+		{ value: 'digital', label: 'Digital' }
+	] as const;
 
 	// Schedule/Reschedule modal state
 	let showScheduleModal = $state(false);
@@ -103,9 +100,15 @@
 							? appointment.location_city || appointment.location_address || '-'
 							: 'Digital',
 					datetime_display: formatDateWithWeekday(appointment.appointment_date),
-					time_display: formatTimeDisplay(appointment.appointment_time, appointment.duration_minutes),
+					time_display: formatTimeDisplay(
+						appointment.appointment_time,
+						appointment.duration_minutes
+					),
 					dateKey,
-					isOverdue: isAppointmentOverdue(appointment.appointment_date, appointment.appointment_time),
+					isOverdue: isAppointmentOverdue(
+						appointment.appointment_date,
+						appointment.appointment_time
+					),
 					// Parse time for sorting
 					timeValue: appointment.appointment_time
 						? parseInt(appointment.appointment_time.replace(':', ''))
@@ -136,14 +139,13 @@
 
 	// Table columns
 	const columns = [
-		{ key: 'appointment_number', label: 'Appointment #', sortable: true, icon: Hash },
-		{ key: 'appointment_type', label: 'Type', sortable: true, icon: Calendar },
-		{ key: 'datetime_display', label: 'Date & Time', sortable: true, icon: Clock },
-		{ key: 'client_name', label: 'Client', sortable: true, icon: User },
-		{ key: 'vehicle_display', label: 'Vehicle', sortable: false, icon: Car },
-		{ key: 'engineer_name', label: 'Engineer', sortable: true, icon: User },
-		{ key: 'location_display', label: 'Location', sortable: false, icon: MapPin },
-		{ key: 'actions', label: 'Actions', sortable: false }
+		{ key: 'appointment_number' as const, label: 'Appointment #', sortable: true, icon: Hash },
+		{ key: 'appointment_type' as const, label: 'Type', sortable: true, icon: Calendar },
+		{ key: 'datetime_display' as const, label: 'Date & Time', sortable: true, icon: Clock },
+		{ key: 'client_name' as const, label: 'Client', sortable: true, icon: User },
+		{ key: 'vehicle_display' as const, label: 'Vehicle', sortable: false, icon: Car },
+		{ key: 'engineer_name' as const, label: 'Engineer', sortable: true, icon: User },
+		{ key: 'location_display' as const, label: 'Location', sortable: false, icon: MapPin }
 	];
 
 	function handleRowClick(row: (typeof allAssessmentsWithDetails)[0]) {
@@ -246,46 +248,38 @@
 		<!-- Date Filter -->
 		<div class="flex items-center gap-2">
 			<Calendar class="h-4 w-4 text-gray-500" />
-			<Input
-				type="date"
-				bind:value={dateFilter}
-				placeholder="Filter by date"
-				class="w-48"
-			/>
+			<Input type="date" bind:value={dateFilter} placeholder="Filter by date" class="w-48" />
 			{#if dateFilter}
 				<Button variant="ghost" size="sm" onclick={() => (dateFilter = '')}>Clear</Button>
 			{/if}
 		</div>
 
 		<!-- Type Filter -->
-		<div class="flex items-center gap-2">
-			<span class="text-sm font-medium text-gray-700">Type:</span>
-			<button
-				onclick={() => (selectedType = 'all')}
-				class="rounded-md px-3 py-1.5 text-sm font-medium transition-colors {selectedType === 'all'
-					? 'bg-blue-100 text-blue-700'
-					: 'bg-gray-100 text-gray-700 hover:bg-gray-200'}"
+		<Tabs
+			bind:value={selectedType}
+			class="w-auto"
+			onValueChange={(value: string) => (selectedType = value as AppointmentType | 'all')}
+		>
+			<TabsList
+				class="flex w-full items-center justify-start gap-2 rounded-none border-b border-border bg-transparent p-0"
 			>
-				All ({typeCounts.all})
-			</button>
-			<button
-				onclick={() => (selectedType = 'in_person')}
-				class="rounded-md px-3 py-1.5 text-sm font-medium transition-colors {selectedType ===
-				'in_person'
-					? 'bg-blue-100 text-blue-700'
-					: 'bg-gray-100 text-gray-700 hover:bg-gray-200'}"
-			>
-				In-Person ({typeCounts.in_person})
-			</button>
-			<button
-				onclick={() => (selectedType = 'digital')}
-				class="rounded-md px-3 py-1.5 text-sm font-medium transition-colors {selectedType === 'digital'
-					? 'bg-blue-100 text-blue-700'
-					: 'bg-gray-100 text-gray-700 hover:bg-gray-200'}"
-			>
-				Digital ({typeCounts.digital})
-			</button>
-		</div>
+				{#each typeTabItems as item}
+					<TabsTrigger
+						value={item.value}
+						class="w-auto gap-2 rounded-none border-b-2 border-transparent px-4 py-2 text-sm data-[state=active]:border-rose-500"
+					>
+						<span>{item.label}</span>
+						<Badge variant="secondary">
+							{item.value === 'all'
+								? typeCounts.all
+								: item.value === 'in_person'
+									? typeCounts.in_person
+									: typeCounts.digital}
+						</Badge>
+					</TabsTrigger>
+				{/each}
+			</TabsList>
+		</Tabs>
 	</div>
 
 	{#if filteredAssessments.length === 0}
@@ -332,26 +326,6 @@
 										<span>{row.time_display}</span>
 									</div>
 								</div>
-							{:else if column.key === 'actions'}
-								<ActionButtonGroup align="right">
-									<ActionIconButton
-										icon={Calendar}
-										label="Reschedule"
-										onclick={() => handleOpenScheduleModal(row)}
-										disabled={loading}
-									/>
-									<ActionIconButton
-										icon={Play}
-										label="Start Assessment"
-										onclick={() => handleStartAssessment(row.assessment_id, row.appointment_id)}
-										variant="primary"
-									/>
-									<ActionIconButton
-										icon={Eye}
-										label="View Details"
-										onclick={() => goto(`/work/appointments/${row.appointment_id}`)}
-									/>
-								</ActionButtonGroup>
 							{:else}
 								{row[column.key]}
 							{/if}
@@ -377,7 +351,6 @@
 					loadingRowId={loadingId}
 					rowIdKey="appointment_id"
 					striped
-					animated
 				>
 					{#snippet cellContent(column, row)}
 						{#if column.key === 'appointment_number'}
@@ -397,26 +370,6 @@
 									<span>{row.time_display}</span>
 								</div>
 							</div>
-						{:else if column.key === 'actions'}
-							<ActionButtonGroup align="right">
-								<ActionIconButton
-									icon={Calendar}
-									label="Reschedule"
-									onclick={() => handleOpenScheduleModal(row)}
-									disabled={loading}
-								/>
-								<ActionIconButton
-									icon={Play}
-									label="Start Assessment"
-									onclick={() => handleStartAssessment(row.assessment_id, row.appointment_id)}
-									variant="primary"
-								/>
-								<ActionIconButton
-									icon={Eye}
-									label="View Details"
-									onclick={() => goto(`/work/appointments/${row.appointment_id}`)}
-								/>
-							</ActionButtonGroup>
 						{:else}
 							{row[column.key]}
 						{/if}
@@ -478,7 +431,7 @@
 						type="date"
 						bind:value={scheduleDate}
 						required
-						class="flex h-10 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm ring-offset-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
+						class="flex h-10 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm ring-offset-white focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:outline-none"
 					/>
 				</div>
 				<div class="space-y-2">
@@ -489,7 +442,7 @@
 						id="schedule_time"
 						type="time"
 						bind:value={scheduleTime}
-						class="flex h-10 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm ring-offset-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
+						class="flex h-10 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm ring-offset-white focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:outline-none"
 					/>
 				</div>
 			</div>
@@ -505,7 +458,7 @@
 					bind:value={scheduleDuration}
 					min="15"
 					step="15"
-					class="flex h-10 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm ring-offset-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
+					class="flex h-10 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm ring-offset-white focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:outline-none"
 				/>
 			</div>
 
@@ -523,7 +476,7 @@
 							type="text"
 							bind:value={scheduleLocationAddress}
 							placeholder="Street address"
-							class="flex h-10 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm ring-offset-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
+							class="flex h-10 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm ring-offset-white focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:outline-none"
 						/>
 					</div>
 
@@ -537,7 +490,7 @@
 								type="text"
 								bind:value={scheduleLocationCity}
 								placeholder="City"
-								class="flex h-10 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm ring-offset-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
+								class="flex h-10 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm ring-offset-white focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:outline-none"
 							/>
 						</div>
 						<div class="space-y-2">
@@ -547,7 +500,7 @@
 							<select
 								id="schedule_location_province"
 								bind:value={scheduleLocationProvince}
-								class="flex h-10 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm ring-offset-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
+								class="flex h-10 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm ring-offset-white focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:outline-none"
 							>
 								<option value="">Select province</option>
 								<option value="Eastern Cape">Eastern Cape</option>
@@ -572,7 +525,7 @@
 							bind:value={scheduleLocationNotes}
 							rows="2"
 							placeholder="Additional location details or directions"
-							class="flex w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm ring-offset-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
+							class="flex w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm ring-offset-white focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:outline-none"
 						></textarea>
 					</div>
 				</div>
@@ -586,7 +539,7 @@
 					bind:value={scheduleNotes}
 					rows="3"
 					placeholder="General notes about the appointment"
-					class="flex w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm ring-offset-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
+					class="flex w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm ring-offset-white focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:outline-none"
 				></textarea>
 			</div>
 
@@ -600,7 +553,7 @@
 					bind:value={scheduleSpecialInstructions}
 					rows="2"
 					placeholder="Any special instructions for the engineer"
-					class="flex w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm ring-offset-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
+					class="flex w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm ring-offset-white focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:outline-none"
 				></textarea>
 			</div>
 		</div>

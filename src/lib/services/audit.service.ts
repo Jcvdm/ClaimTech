@@ -31,7 +31,7 @@ export class AuditService {
 				return null;
 			}
 
-			return data;
+			return data as AuditLog;
 		} catch (err) {
 			console.error('Error in audit logging:', err);
 			return null;
@@ -57,7 +57,7 @@ export class AuditService {
 				throw new Error(`Failed to fetch audit history: ${error.message}`);
 			}
 
-			return data || [];
+			return (data || []) as AuditLog[];
 		} catch (err) {
 			console.error('Error fetching audit history:', err);
 			return [];
@@ -82,7 +82,7 @@ export class AuditService {
 				throw new Error(`Failed to fetch recent logs: ${error.message}`);
 			}
 
-			return data || [];
+			return (data || []) as AuditLog[];
 		} catch (err) {
 			console.error('Error fetching recent logs:', err);
 			return [];
@@ -108,7 +108,7 @@ export class AuditService {
 				throw new Error(`Failed to fetch logs by action: ${error.message}`);
 			}
 
-			return data || [];
+			return (data || []) as AuditLog[];
 		} catch (err) {
 			console.error('Error fetching logs by action:', err);
 			return [];
@@ -145,7 +145,7 @@ export class AuditService {
 				throw new Error(`Failed to fetch assessment audit history: ${error.message}`);
 			}
 
-			return data || [];
+			return (data || []) as AuditLog[];
 		} catch (err) {
 			console.error('Error fetching assessment audit history:', err);
 			return [];

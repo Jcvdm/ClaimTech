@@ -1,7 +1,7 @@
 # System Documentation Index
 
-**Last Updated**: January 31, 2025 (Bug #8 - SSE Streaming for Batch Document Generation)
-**Total Files**: 35 System documentation files
+**Last Updated**: November 21, 2025 (Supabase Type Generation Fix - PostgrestFilterBuilder<never> Resolution)
+**Total Files**: 36 System documentation files
 
 ---
 
@@ -65,6 +65,25 @@ Comprehensive system documentation covering architecture, database design, secur
 - **File**: [frc_mechanics.md](../System/frc_mechanics.md)
 - **Read When**: Implementing or debugging FRC snapshot/merge, removal grouping, Baseline vs New Total and Delta.
 - **Contains**: Line composition, UI grouping, decision normalization, totals semantics.
+
+---
+
+### 5. Supabase Type Generation ⭐ IMPORTANT
+- **File**: [supabase_type_generation.md](../System/supabase_type_generation.md)
+- **Size**: 150 lines | **Last Updated**: Nov 21, 2025
+- **Read When**: Adding/modifying database schema, debugging type errors, regenerating types after migrations
+
+**Contains**:
+- Type generation process and workflow
+- PostgrestFilterBuilder<never> fix (Nov 21, 2025)
+- Domain types vs generated types pattern
+- When and how to regenerate types
+- Maintenance procedures
+
+**Key for**: Understanding type safety, maintaining database schema alignment, fixing type inference issues
+
+**Related**: [Database Schema](./database_schema.md) - Schema structure
+**Related**: [SOP: Adding Migrations](../SOP/adding_migration.md) - When to regenerate
 
 ---
 

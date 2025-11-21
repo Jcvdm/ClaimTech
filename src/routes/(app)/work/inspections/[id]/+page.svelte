@@ -54,7 +54,7 @@
 		client_id: data.request?.client_id || '',
 		claim_number: data.request?.claim_number || null,
 		type: data.request?.type || 'private',
-		notes: data.inspection?.notes || data.request?.notes || null,
+		notes: data.inspection?.notes || data.request?.description || null,
 		inspection_location: data.inspection?.inspection_location || null,
 		status: data.inspection?.status || data.assessment.status,
 		assigned_engineer_id: data.inspection?.assigned_engineer_id || data.request?.assigned_engineer_id || null,

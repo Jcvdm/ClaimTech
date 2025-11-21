@@ -9,6 +9,7 @@
 	import GradientBadge from '$lib/components/data/GradientBadge.svelte';
 	import TableCell from '$lib/components/data/TableCell.svelte';
 	import EmptyState from '$lib/components/data/EmptyState.svelte';
+	import { Tabs, TabsList, TabsTrigger } from '$lib/components/ui/tabs';
 	import { Badge } from '$lib/components/ui/badge';
 	import { formatDate, formatVehicle } from '$lib/utils/formatters';
 	import {
@@ -33,6 +34,13 @@
 	// Filter state
 	type FilterType = 'all' | 'pending' | 'approved' | 'declined';
 	let selectedFilter = $state<FilterType>('all');
+
+	const filterTabItems = [
+		{ value: 'all', label: 'All' },
+		{ value: 'pending', label: 'Pending Items' },
+		{ value: 'approved', label: 'Approved Items' },
+		{ value: 'declined', label: 'Declined Items' }
+	] as const;
 
 	// Prepare data for table
 	// Use vehicle data from assessment_vehicle_identification (updated during assessment)
@@ -178,7 +186,10 @@
 
 	function handleEditAdditional(record: (typeof additionalsWithDetails)[0]) {
 		// Navigate to assessment page with Additionals tab in edit mode with loading state
-		startNavigation(record.id, `/work/assessments/${record.appointmentId}?tab=additionals&edit=true`);
+		startNavigation(
+			record.id,
+			`/work/assessments/${record.appointmentId}?tab=additionals&edit=true`
+		);
 	}
 </script>
 
@@ -188,45 +199,33 @@
 		description="Manage additional line items for finalized assessments"
 	/>
 
-	<!-- Filter Tabs -->
-	<div class="flex gap-2 border-b border-gray-200">
-		<button
-			class="px-4 py-2 text-sm font-medium transition-colors {selectedFilter === 'all'
-				? 'border-b-2 border-blue-600 text-blue-600'
-				: 'text-gray-500 hover:text-gray-700'}"
-			onclick={() => (selectedFilter = 'all')}
+	<Tabs
+		bind:value={selectedFilter}
+		class="w-full"
+		onValueChange={(value) => (selectedFilter = value as FilterType)}
+	>
+		<TabsList
+			class="flex w-full items-center justify-start gap-2 rounded-none border-b border-border bg-transparent p-0"
 		>
-			All
-			<Badge variant="secondary" class="ml-2">{filterCounts.all}</Badge>
-		</button>
-		<button
-			class="px-4 py-2 text-sm font-medium transition-colors {selectedFilter === 'pending'
-				? 'border-b-2 border-blue-600 text-blue-600'
-				: 'text-gray-500 hover:text-gray-700'}"
-			onclick={() => (selectedFilter = 'pending')}
-		>
-			Pending Items
-			<Badge variant="secondary" class="ml-2">{filterCounts.pending}</Badge>
-		</button>
-		<button
-			class="px-4 py-2 text-sm font-medium transition-colors {selectedFilter === 'approved'
-				? 'border-b-2 border-blue-600 text-blue-600'
-				: 'text-gray-500 hover:text-gray-700'}"
-			onclick={() => (selectedFilter = 'approved')}
-		>
-			Approved Items
-			<Badge variant="secondary" class="ml-2">{filterCounts.approved}</Badge>
-		</button>
-		<button
-			class="px-4 py-2 text-sm font-medium transition-colors {selectedFilter === 'declined'
-				? 'border-b-2 border-blue-600 text-blue-600'
-				: 'text-gray-500 hover:text-gray-700'}"
-			onclick={() => (selectedFilter = 'declined')}
-		>
-			Declined Items
-			<Badge variant="secondary" class="ml-2">{filterCounts.declined}</Badge>
-		</button>
-	</div>
+			{#each filterTabItems as item}
+				<TabsTrigger
+					value={item.value}
+					class="w-auto gap-2 rounded-none border-b-2 border-transparent px-4 py-2 text-sm data-[state=active]:border-rose-500"
+				>
+					<span>{item.label}</span>
+					<Badge variant="secondary">
+						{item.value === 'all'
+							? filterCounts.all
+							: item.value === 'pending'
+								? filterCounts.pending
+								: item.value === 'approved'
+									? filterCounts.approved
+									: filterCounts.declined}
+					</Badge>
+				</TabsTrigger>
+			{/each}
+		</TabsList>
+	</Tabs>
 
 	{#if additionalsWithDetails.length === 0}
 		<EmptyState

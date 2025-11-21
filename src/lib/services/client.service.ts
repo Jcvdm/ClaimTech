@@ -44,7 +44,7 @@ export class ClientService {
 			throw new Error(`Failed to fetch clients: ${error.message}`);
 		}
 
-		return data || [];
+		return (data || []) as Client[];
 	}
 
 	/**
@@ -67,7 +67,7 @@ export class ClientService {
 			throw new Error(`Failed to fetch client: ${error.message}`);
 		}
 
-		return data;
+		return data as Client;
 	}
 
 	/**
@@ -93,7 +93,7 @@ export class ClientService {
 			throw new Error(`Failed to create client: ${error.message}`);
 		}
 
-		return data;
+		return data as Client;
 	}
 
 	/**
@@ -120,7 +120,7 @@ export class ClientService {
 			throw new Error(`Failed to update client: ${error.message}`);
 		}
 
-		return data;
+		return data as Client;
 	}
 
 	/**
@@ -165,7 +165,7 @@ export class ClientService {
 			throw new Error(`Failed to search clients: ${error.message}`);
 		}
 
-		return data || [];
+		return (data || []) as Client[];
 	}
 
 	/**
@@ -191,7 +191,7 @@ export class ClientService {
 			throw new Error(`Failed to fetch clients by type: ${error.message}`);
 		}
 
-		return data || [];
+		return (data || []) as Client[];
 	}
 
 	/**

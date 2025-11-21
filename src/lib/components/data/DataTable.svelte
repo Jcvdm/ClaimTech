@@ -2,12 +2,13 @@
 	import { Button } from '$lib/components/ui/button';
 	import * as Table from '$lib/components/ui/table';
 	import { ChevronUp, ChevronDown, ChevronsUpDown } from 'lucide-svelte';
+	import type { Component } from 'svelte';
 
-	type Column<T> = {
+	type Column<T extends Record<string, any>> = {
 		key: keyof T;
 		label: string;
 		sortable?: boolean;
-		render?: (value: any, row: T) => any;
+		render?: (value: T[keyof T], row: T) => any;
 		class?: string;
 	};
 

@@ -47,51 +47,46 @@
 
 	const columns = [
 		{
-			key: 'assessment_number',
+			key: 'assessment_number' as const,
 			label: 'Assessment #',
 			sortable: true,
 			icon: Hash
 		},
 		{
-			key: 'request_number',
+			key: 'request_number' as const,
 			label: 'Request #',
 			sortable: true,
 			icon: FileText
 		},
 		{
-			key: 'client_name',
+			key: 'client_name' as const,
 			label: 'Client',
 			sortable: true,
 			icon: User
 		},
 		{
-			key: 'vehicle_display',
+			key: 'vehicle_display' as const,
 			label: 'Vehicle',
 			sortable: false,
 			icon: Car
 		},
 		{
-			key: 'type',
+			key: 'type' as const,
 			label: 'Type',
 			sortable: true,
 			icon: User
 		},
 		{
-			key: 'request_date',
+			key: 'request_date' as const,
 			label: 'Request Date',
 			sortable: true,
 			icon: Calendar
 		},
 		{
-			key: 'stage',
+			key: 'stage' as const,
 			label: 'Stage',
 			sortable: true,
 			icon: Activity
-		},
-		{
-			key: 'actions',
-			label: 'Actions',
-			sortable: false
 		}
 	];
 
@@ -140,14 +135,6 @@
 					/>
 				{:else if column.key === 'stage'}
 					<GradientBadge variant="yellow" label="Inspection Scheduled" />
-				{:else if column.key === 'actions'}
-					<ActionButtonGroup align="right">
-						<ActionIconButton
-							icon={Calendar}
-							label="Schedule Appointment"
-							onclick={() => goto(`/work/inspections/${row.id}`)}
-						/>
-					</ActionButtonGroup>
 				{:else}
 					{row[column.key]}
 				{/if}

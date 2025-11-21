@@ -299,6 +299,7 @@ export interface UpdateAssessmentInput {
 	completed_at?: string;
 	submitted_at?: string;
 	appointment_id?: string | null; // Allow updating appointment_id
+	inspection_id?: string | null; // Allow updating inspection_id
 }
 
 export interface CreateVehicleIdentificationInput {
@@ -382,7 +383,13 @@ export interface CreateTyreInput {
 	notes?: string;
 }
 
-export interface UpdateTyreInput extends Partial<Omit<CreateTyreInput, 'assessment_id'>> {}
+export interface UpdateTyreInput extends Partial<Omit<CreateTyreInput, 'assessment_id'>> {
+	notes?: string | null;
+	condition?: TyreCondition | null;
+	position_label?: string | null;
+	tyre_make?: string | null;
+	tyre_size?: string | null;
+}
 
 export interface CreateDamageRecordInput {
 	assessment_id: string;
@@ -490,6 +497,7 @@ export interface CreateEstimateInput {
 	oem_markup_percentage?: number;
 	alt_markup_percentage?: number;
 	second_hand_markup_percentage?: number;
+	outwork_markup_percentage?: number;
 	line_items?: EstimateLineItem[];
 	assessment_result?: AssessmentResultType | null;
 	notes?: string;
@@ -505,6 +513,7 @@ export interface UpdateEstimateInput extends Partial<Omit<CreateEstimateInput, '
 	total?: number;
 	repairer_id?: string | null;
 	assessment_result?: AssessmentResultType | null;
+	notes?: string | null;
 }
 
 // Estimate Photo interfaces
@@ -572,6 +581,7 @@ export interface UpdatePreIncidentEstimateInput
 	subtotal?: number;
 	vat_amount?: number;
 	total?: number;
+	notes?: string | null;
 }
 
 // Pre-Incident Estimate Photo interfaces
@@ -1071,4 +1081,11 @@ export interface CreateFRCDocumentInput {
 	label?: string | null;
 	document_type?: 'invoice' | 'attachment';
 	file_size_bytes?: number | null;
+}
+
+export interface FRCEntry {
+	id: string;
+	assessment_id: string;
+	created_at: string;
+	data?: string | null;
 }

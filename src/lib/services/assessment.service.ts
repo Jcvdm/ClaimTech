@@ -91,7 +91,7 @@ export class AssessmentService {
 					console.error('Error logging audit change:', auditError);
 				}
 
-				return data;
+				return data as Assessment;
 
 			} catch (error) {
 				// If this is the last attempt, throw the error
@@ -172,7 +172,7 @@ export class AssessmentService {
 					console.error('Error logging audit change:', auditError);
 				}
 
-				return data;
+				return data as Assessment;
 			} catch (error) {
 				if (attempt === maxRetries - 1) {
 					throw error;
@@ -213,7 +213,7 @@ export class AssessmentService {
 
 		// If found, return it
 		if (existing) {
-			return existing;
+			return existing as Assessment;
 		}
 
 		// Not found - create new assessment
@@ -260,7 +260,7 @@ export class AssessmentService {
 			throw new Error(errorMessage);
 		}
 
-		return existing;
+		return existing as Assessment;
 	}
 
 	/**
@@ -311,7 +311,7 @@ export class AssessmentService {
 			console.error('Error logging audit change:', auditError);
 		}
 
-		return data;
+		return data as Assessment;
 	}
 
 	/**
@@ -330,7 +330,7 @@ export class AssessmentService {
 			return null;
 		}
 
-		return data;
+		return data as Assessment | null;
 	}
 
 	/**
@@ -349,7 +349,7 @@ export class AssessmentService {
 			return null;
 		}
 
-		return data;
+		return data as Assessment | null;
 	}
 
 	/**
@@ -368,7 +368,7 @@ export class AssessmentService {
 			return null;
 		}
 
-		return data;
+		return data as Assessment | null;
 	}
 
 	/**

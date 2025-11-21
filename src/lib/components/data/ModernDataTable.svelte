@@ -2,13 +2,13 @@
 	import { Button } from '$lib/components/ui/button';
 	import * as Table from '$lib/components/ui/table';
 	import { ChevronUp, ChevronDown, ChevronsUpDown, Loader2 } from 'lucide-svelte';
-	import type { Snippet } from 'svelte';
+	import type { Snippet, Component } from 'svelte';
 
-	type Column<T> = {
+	type Column<T extends Record<string, any>> = {
 		key: keyof T;
 		label: string;
 		sortable?: boolean;
-		icon?: any;
+		icon?: Component | any; // Allow lucide-svelte icons which don't strictly match Component type
 		class?: string;
 	};
 

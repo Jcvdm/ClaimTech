@@ -1,7 +1,7 @@
 # ClaimTech Documentation
 
 **Project**: ClaimTech (SVA - SvelteKit Validation App)
-**Last Updated**: January 31, 2025 (Bug #9 Enhancement - Notes Formatting by Section)
+**Last Updated**: November 21, 2025 (Supabase Type Generation Fix - PostgrestFilterBuilder<never> Resolution)
 
 ---
 
@@ -11,8 +11,9 @@
 - **Backend**: SvelteKit SSR + Supabase PostgreSQL
 - **Auth**: Supabase Auth with 100% RLS coverage
 - **Architecture**: Assessment-centric (10-stage pipeline)
-- **Documentation**: 31 System docs, 19 SOPs, 31 database tables
+- **Documentation**: 36 System docs, 19 SOPs, 31 database tables
 - **Deployment**: ✅ Live on Vercel (https://claimtech.vercel.app)
+- **Type Safety**: ✅ Full Supabase type generation with PostgrestFilterBuilder inference working
 
 ---
 

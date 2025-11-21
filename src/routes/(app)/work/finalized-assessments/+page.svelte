@@ -183,11 +183,6 @@
 			label: 'Finalized',
 			sortable: true,
 			icon: Calendar
-		},
-		{
-			key: 'actions' as const,
-			label: 'Actions',
-			sortable: false
 		}
 	];
 </script>
@@ -219,7 +214,6 @@
 			loadingRowId={loadingId}
 			rowIdKey="appointmentId"
 			striped={true}
-			animated={true}
 		>
 			{#snippet cellContent(column, row)}
 				{#if column.key === 'assessmentNumber'}
@@ -257,26 +251,6 @@
 							<span class="text-sm">{formatDateTime(row.finalizedAt)}</span>
 						</div>
 					</TableCell>
-				{:else if column.key === 'actions'}
-					<ActionButtonGroup align="right">
-						<ActionIconButton
-							icon={FileText}
-							label="Generate Report"
-							onclick={() => handleGenerateReport(row)}
-							loading={generatingReport === row.id}
-						/>
-						<ActionIconButton
-							icon={Download}
-							label="Download Documents"
-							onclick={() => handleDownload(row)}
-							loading={downloadingDocs === row.id}
-						/>
-						<ActionIconButton
-							icon={Eye}
-							label="View Summary"
-							onclick={() => handleShowSummary(row)}
-						/>
-					</ActionButtonGroup>
 				{:else}
 					{row[column.key]}
 				{/if}
@@ -293,7 +267,7 @@
 </div>
 
 <!-- Summary Modal -->
-<Dialog.Root open={showSummary} onOpenChange={(open) => !open && closeSummary()}>
+<Dialog.Root open={showSummary} onOpenChange={(open: boolean) => !open && closeSummary()}>
 	<Dialog.Content class="max-w-2xl">
 		<Dialog.Header>
 			<Dialog.Title>Assessment Summary</Dialog.Title>
@@ -313,4 +287,3 @@
 		{/if}
 	</Dialog.Content>
 </Dialog.Root>
-

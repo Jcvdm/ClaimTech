@@ -9,6 +9,7 @@
 	import GradientBadge from '$lib/components/data/GradientBadge.svelte';
 	import TableCell from '$lib/components/data/TableCell.svelte';
 	import EmptyState from '$lib/components/data/EmptyState.svelte';
+	import { Tabs, TabsList, TabsTrigger } from '$lib/components/ui/tabs';
 	import { Badge } from '$lib/components/ui/badge';
 	import { formatDate } from '$lib/utils/formatters';
 	import {
@@ -31,6 +32,13 @@
 	// Status filter state - default to 'in_progress' for better UX
 	type FRCStatus = 'not_started' | 'in_progress' | 'completed';
 	let selectedStatus = $state<FRCStatus | 'all'>('in_progress');
+
+	const statusTabItems = [
+		{ value: 'all', label: 'All' },
+		{ value: 'not_started', label: 'Not Started' },
+		{ value: 'in_progress', label: 'In Progress' },
+		{ value: 'completed', label: 'Completed' }
+	] as const;
 
 	// Prepare data for table - filter out malformed records
 	const allFRCWithDetails = data.frcRecords
@@ -85,10 +93,7 @@
 	});
 
 	// Status badge configuration
-	const statusBadgeConfig: Record<
-		FRCStatus,
-		{ label: string; class: string }
-	> = {
+	const statusBadgeConfig: Record<FRCStatus, { label: string; class: string }> = {
 		not_started: {
 			label: 'Not Started',
 			class: 'bg-gray-100 text-gray-800'
@@ -106,63 +111,58 @@
 	// Table columns
 	const columns = [
 		{
-			key: 'assessmentNumber',
+			key: 'assessmentNumber' as const,
 			label: 'Assessment #',
 			sortable: true,
 			icon: Hash
 		},
 		{
-			key: 'requestNumber',
+			key: 'requestNumber' as const,
 			label: 'Request #',
 			sortable: true,
 			icon: FileText
 		},
 		{
-			key: 'clientName',
+			key: 'clientName' as const,
 			label: 'Client',
 			sortable: true,
 			icon: User
 		},
 		{
-			key: 'vehicle',
+			key: 'vehicle' as const,
 			label: 'Vehicle',
 			sortable: true,
 			icon: Car
 		},
 		{
-			key: 'registration',
+			key: 'registration' as const,
 			label: 'Registration',
 			sortable: true,
 			icon: CreditCard
 		},
 		{
-			key: 'status',
+			key: 'status' as const,
 			label: 'Status',
 			sortable: true,
 			icon: Activity
 		},
 		{
-			key: 'lineItemCount',
+			key: 'lineItemCount' as const,
 			label: 'Line Items',
 			sortable: true,
 			icon: ClipboardList
 		},
 		{
-			key: 'formattedStarted',
+			key: 'formattedStarted' as const,
 			label: 'Started',
 			sortable: true,
 			icon: Calendar
 		},
 		{
-			key: 'formattedCompleted',
+			key: 'formattedCompleted' as const,
 			label: 'Completed',
 			sortable: true,
 			icon: CheckCircle2
-		},
-		{
-			key: 'actions',
-			label: 'Actions',
-			sortable: false
 		}
 	];
 
@@ -204,45 +204,33 @@
 		description="Review and manage final repair costing for completed assessments"
 	/>
 
-	<!-- Status Filter Tabs -->
-	<div class="flex gap-2 border-b border-gray-200">
-		<button
-			class="px-4 py-2 text-sm font-medium transition-colors {selectedStatus === 'all'
-				? 'border-b-2 border-blue-600 text-blue-600'
-				: 'text-gray-500 hover:text-gray-700'}"
-			onclick={() => (selectedStatus = 'all')}
+	<Tabs
+		bind:value={selectedStatus}
+		class="w-full"
+		onValueChange={(value: string) => (selectedStatus = value as FRCStatus | 'all')}
+	>
+		<TabsList
+			class="flex w-full items-center justify-start gap-2 rounded-none border-b border-border bg-transparent p-0"
 		>
-			All
-			<Badge variant="secondary" class="ml-2">{statusCounts.all}</Badge>
-		</button>
-		<button
-			class="px-4 py-2 text-sm font-medium transition-colors {selectedStatus === 'not_started'
-				? 'border-b-2 border-blue-600 text-blue-600'
-				: 'text-gray-500 hover:text-gray-700'}"
-			onclick={() => (selectedStatus = 'not_started')}
-		>
-			Not Started
-			<Badge variant="secondary" class="ml-2">{statusCounts.not_started}</Badge>
-		</button>
-		<button
-			class="px-4 py-2 text-sm font-medium transition-colors {selectedStatus === 'in_progress'
-				? 'border-b-2 border-blue-600 text-blue-600'
-				: 'text-gray-500 hover:text-gray-700'}"
-			onclick={() => (selectedStatus = 'in_progress')}
-		>
-			In Progress
-			<Badge variant="secondary" class="ml-2">{statusCounts.in_progress}</Badge>
-		</button>
-		<button
-			class="px-4 py-2 text-sm font-medium transition-colors {selectedStatus === 'completed'
-				? 'border-b-2 border-blue-600 text-blue-600'
-				: 'text-gray-500 hover:text-gray-700'}"
-			onclick={() => (selectedStatus = 'completed')}
-		>
-			Completed
-			<Badge variant="secondary" class="ml-2">{statusCounts.completed}</Badge>
-		</button>
-	</div>
+			{#each statusTabItems as item}
+				<TabsTrigger
+					value={item.value}
+					class="w-auto gap-2 rounded-none border-b-2 border-transparent px-4 py-2 text-sm data-[state=active]:border-rose-500"
+				>
+					<span>{item.label}</span>
+					<Badge variant="secondary">
+						{item.value === 'all'
+							? statusCounts.all
+							: item.value === 'not_started'
+								? statusCounts.not_started
+								: item.value === 'in_progress'
+									? statusCounts.in_progress
+									: statusCounts.completed}
+					</Badge>
+				</TabsTrigger>
+			{/each}
+		</TabsList>
+	</Tabs>
 
 	{#if frcWithDetails.length === 0}
 		<EmptyState
@@ -268,11 +256,7 @@
 					</TableCell>
 				{:else if column.key === 'status'}
 					{@const variant =
-						row.status === 'completed'
-							? 'green'
-							: row.status === 'in_progress'
-								? 'blue'
-								: 'gray'}
+						row.status === 'completed' ? 'green' : row.status === 'in_progress' ? 'blue' : 'gray'}
 					{@const label =
 						row.status === 'completed'
 							? 'Completed'
@@ -284,19 +268,6 @@
 					<TableCell variant={row.lineItemCount > 0 ? 'default' : 'muted'}>
 						{row.lineItemCount}
 					</TableCell>
-				{:else if column.key === 'actions'}
-					<ActionButtonGroup align="right">
-						<ActionIconButton
-							icon={FileText}
-							label="View FRC Report"
-							onclick={() => handleViewReport(row)}
-						/>
-						<ActionIconButton
-							icon={Edit}
-							label="Edit FRC"
-							onclick={() => handleEditFRC(row)}
-						/>
-					</ActionButtonGroup>
 				{:else}
 					{row[column.key]}
 				{/if}

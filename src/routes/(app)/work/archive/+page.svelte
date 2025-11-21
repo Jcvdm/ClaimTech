@@ -10,6 +10,8 @@
 	import TableCell from '$lib/components/data/TableCell.svelte';
 	import EmptyState from '$lib/components/data/EmptyState.svelte';
 	import { Badge } from '$lib/components/ui/badge';
+	import { Tabs, TabsList, TabsTrigger } from '$lib/components/ui/tabs';
+	import { Input } from '$lib/components/ui/input';
 	import { formatDate, formatVehicle } from '$lib/utils/formatters';
 	import {
 		Archive,
@@ -116,7 +118,7 @@
 		const assessments = request?.assessments || [];
 		const assessment = Array.isArray(assessments) ? assessments[0] : assessments;
 		const assessmentId = assessment?.id || inspection.id; // Fallback to inspection ID if no assessment found
-		
+
 		allArchiveItems.push({
 			id: inspection.id,
 			type: 'inspection',
@@ -180,18 +182,22 @@
 	});
 
 	// Sort by completed date (most recent first)
-	allArchiveItems.sort((a, b) => new Date(b.completedDate).getTime() - new Date(a.completedDate).getTime());
+	allArchiveItems.sort(
+		(a, b) => new Date(b.completedDate).getTime() - new Date(a.completedDate).getTime()
+	);
 
 	// Filter and search archive items
 	const archiveItems = $derived(
 		allArchiveItems.filter((item) => {
 			// Status filter (completed vs cancelled)
-			const statusMatch = selectedType === 'all' ||
+			const statusMatch =
+				selectedType === 'all' ||
 				(selectedType === 'completed' && item.status === 'Completed') ||
 				(selectedType === 'cancelled' && item.status === 'Cancelled');
 
 			// Search filter
-			const searchMatch = searchQuery === '' ||
+			const searchMatch =
+				searchQuery === '' ||
 				item.number.toLowerCase().includes(searchQuery.toLowerCase()) ||
 				item.clientName.toLowerCase().includes(searchQuery.toLowerCase()) ||
 				item.vehicle.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -235,57 +241,52 @@
 	// Table columns
 	const columns = [
 		{
-			key: 'type',
+			key: 'type' as const,
 			label: 'Type',
 			sortable: true,
 			icon: ClipboardList
 		},
 		{
-			key: 'number',
+			key: 'number' as const,
 			label: 'Number',
 			sortable: true,
 			icon: Hash
 		},
 		{
-			key: 'clientName',
+			key: 'clientName' as const,
 			label: 'Client',
 			sortable: true,
 			icon: User
 		},
 		{
-			key: 'clientType',
+			key: 'clientType' as const,
 			label: 'Client Type',
 			sortable: true,
 			icon: User
 		},
 		{
-			key: 'vehicle',
+			key: 'vehicle' as const,
 			label: 'Vehicle',
 			sortable: true,
 			icon: Car
 		},
 		{
-			key: 'registration',
+			key: 'registration' as const,
 			label: 'Registration',
 			sortable: true,
 			icon: CreditCard
 		},
 		{
-			key: 'status',
+			key: 'status' as const,
 			label: 'Status',
 			sortable: true,
 			icon: CheckCircle2
 		},
 		{
-			key: 'formattedDate',
+			key: 'formattedDate' as const,
 			label: 'Completed',
 			sortable: true,
 			icon: Clock
-		},
-		{
-			key: 'actions',
-			label: 'Actions',
-			sortable: false
 		}
 	];
 
@@ -315,51 +316,55 @@
 	<!-- Search Bar -->
 	<div class="flex items-center gap-4">
 		<div class="flex-1">
-			<input
+			<Input
 				type="text"
 				placeholder="Search by number, client, vehicle, or registration..."
 				bind:value={searchQuery}
-				class="w-full rounded-md border border-gray-300 px-4 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+				class="w-full"
 			/>
 		</div>
 	</div>
 
 	<!-- Type Filter Tabs -->
-	<div class="flex gap-2 border-b border-gray-200">
-		<button
-			class="px-4 py-2 text-sm font-medium transition-colors {selectedType === 'all'
-				? 'border-b-2 border-blue-600 text-blue-600'
-				: 'text-gray-500 hover:text-gray-700'}"
-			onclick={() => (selectedType = 'all')}
+	<Tabs
+		bind:value={selectedType}
+		class="w-full"
+		onValueChange={(value: string) => (selectedType = value as ArchiveType)}
+	>
+		<TabsList
+			class="flex w-full items-center justify-start gap-2 rounded-none border-b border-border bg-transparent p-0"
 		>
-			All
-			<Badge variant="secondary" class="ml-2">{typeCounts.all}</Badge>
-		</button>
-		<button
-			class="px-4 py-2 text-sm font-medium transition-colors {selectedType === 'completed'
-				? 'border-b-2 border-blue-600 text-blue-600'
-				: 'text-gray-500 hover:text-gray-700'}"
-			onclick={() => (selectedType = 'completed')}
-		>
-			Completed
-			<Badge variant="secondary" class="ml-2">{typeCounts.completed}</Badge>
-		</button>
-		<button
-			class="px-4 py-2 text-sm font-medium transition-colors {selectedType === 'cancelled'
-				? 'border-b-2 border-blue-600 text-blue-600'
-				: 'text-gray-500 hover:text-gray-700'}"
-			onclick={() => (selectedType = 'cancelled')}
-		>
-			Cancelled
-			<Badge variant="secondary" class="ml-2">{typeCounts.cancelled}</Badge>
-		</button>
-	</div>
+			<TabsTrigger
+				value="all"
+				class="w-auto gap-2 rounded-none border-b-2 border-transparent px-4 py-2 text-sm data-[state=active]:border-rose-500"
+			>
+				<span>All</span>
+				<Badge variant="secondary">{typeCounts.all}</Badge>
+			</TabsTrigger>
+			<TabsTrigger
+				value="completed"
+				class="w-auto gap-2 rounded-none border-b-2 border-transparent px-4 py-2 text-sm data-[state=active]:border-rose-500"
+			>
+				<span>Completed</span>
+				<Badge variant="secondary">{typeCounts.completed}</Badge>
+			</TabsTrigger>
+			<TabsTrigger
+				value="cancelled"
+				class="w-auto gap-2 rounded-none border-b-2 border-transparent px-4 py-2 text-sm data-[state=active]:border-rose-500"
+			>
+				<span>Cancelled</span>
+				<Badge variant="secondary">{typeCounts.cancelled}</Badge>
+			</TabsTrigger>
+		</TabsList>
+	</Tabs>
 
 	{#if archiveItems.length === 0}
 		<EmptyState
 			icon={Archive}
 			title="No archived items found"
-			description={searchQuery ? 'Try adjusting your search or filters' : 'Completed items will appear here'}
+			description={searchQuery
+				? 'Try adjusting your search or filters'
+				: 'Completed items will appear here'}
 		/>
 	{:else}
 		<ModernDataTable data={archiveItems} {columns} onRowClick={handleRowClick} striped>
@@ -392,15 +397,6 @@
 						label={row.status}
 						icon={isCompleted ? CheckCircle2 : XCircle}
 					/>
-				{:else if column.key === 'actions'}
-					<ActionButtonGroup align="right">
-						<ActionIconButton
-							icon={Download}
-							label="Download Documents"
-							onclick={() => handleDownload(row)}
-							loading={downloadingDocs === row.id}
-						/>
-					</ActionButtonGroup>
 				{:else}
 					{row[column.key]}
 				{/if}
@@ -415,4 +411,3 @@
 		</div>
 	{/if}
 </div>
-

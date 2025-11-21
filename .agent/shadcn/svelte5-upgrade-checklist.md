@@ -57,7 +57,8 @@ These components technically work in Svelte 5 but should be re-generated from th
 - [ ] Prioritize primitive migration order; capture in a tracker.
 - [x] Re-generate `label`, `separator`, `avatar`, `breadcrumb` from Svelte 5 templates.
 - [x] Re-generate `popover` from the latest template.
-- [x] Re-generate tooltip/dropdown/select/tabs components (calendar still pending).
+- [x] Re-generate tooltip/dropdown/select/tabs/dialog/sheet/calendar components.
+- [ ] QA updated primitives for Runes edge cases (popover, dropdown, select, tabs, dialog, sheet, calendar).
 - [ ] Remove `bits-ui@2` once all wrappers are updated.
 - [ ] Publish the “Svelte 5 patterns” guide for future UI work.
 

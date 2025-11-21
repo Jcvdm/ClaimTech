@@ -1,0 +1,31 @@
+model = "gpt-5.1-codex-mini"
+model_reasoning_effort = "medium"
+approval_policy = "on-failure"
+sandbox = "workspace-write"
+
+[notice]
+"hide_gpt-5.1-codex-max_migration_prompt" = true
+
+# MCP Servers
+[mcpServers.supabase]
+url = "https://mcp.supabase.com/mcp"
+
+[mcpServers.context7]
+command = "npx"
+args = ["-y", "@upstash/context7-mcp"]
+
+[mcpServers.github]
+command = "npx"
+args = ["-y", "@modelcontextprotocol/server-github"]
+
+[mcpServers.playwright]
+command = "npx"
+args = ["-y", "@executeautomation/playwright-mcp-server"]
+
+[mcpServers.chrome]
+command = "npx"
+args = ["-y", "chrome-devtools-mcp@latest"]
+
+[features]
+rmcp_client = true
+

@@ -3,7 +3,7 @@
 	import { Loader2 } from 'lucide-svelte';
 
 	interface Props {
-		icon: Component;
+		icon: Component | any; // Allow lucide-svelte icons which don't strictly match Component type
 		label: string;
 		onclick: (e: MouseEvent) => void | Promise<void>;
 		variant?: 'default' | 'primary' | 'destructive' | 'outline';

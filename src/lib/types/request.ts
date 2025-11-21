@@ -81,7 +81,7 @@ export interface CreateRequestInput {
 export interface UpdateRequestInput extends Partial<CreateRequestInput> {
 	status?: RequestStatus;
 	current_step?: RequestStep;
-	assigned_engineer_id?: string;
+	assigned_engineer_id?: string | null;
 }
 
 export type TaskStatus = 'pending' | 'in_progress' | 'completed' | 'blocked';

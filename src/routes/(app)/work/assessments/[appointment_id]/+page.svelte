@@ -35,6 +35,7 @@
 	import { documentGenerationService } from '$lib/services/document-generation.service';
 	import { assessmentNotesService } from '$lib/services/assessment-notes.service';
 	import type {
+		Assessment,
 		VehicleIdentification,
 		Exterior360,
 		InteriorMechanical,
@@ -627,7 +628,7 @@
 					.single();
 
 				if (!error && updatedAssessment) {
-					data.assessment = updatedAssessment;
+					data.assessment = updatedAssessment as Assessment;
 				}
 			}
 		} catch (error) {
@@ -738,7 +739,7 @@
 				.single();
 
 			if (!error && updatedAssessment) {
-				data.assessment = updatedAssessment;
+				data.assessment = updatedAssessment as Assessment;
 			}
 		} catch (error) {
 			console.error('Error generating all documents:', error);
@@ -895,6 +896,10 @@
 				}
 			}}
 			onUpdateRates={handleUpdatePreIncidentRates}
+			onComplete={() => {
+				// Move to estimate tab after pre-incident estimate is complete
+				currentTab = 'estimate';
+			}}
 			onRegisterSave={(saveFn) => {
 				preIncidentEstimateTabSaveFn = saveFn;
 			}}
@@ -925,6 +930,10 @@
 			onUpdateRepairer={handleUpdateRepairer}
 			onRepairersUpdate={handleRepairersUpdate}
 			onUpdateAssessmentResult={handleUpdateAssessmentResult}
+			onComplete={() => {
+				// Move to finalize tab after estimate is complete
+				currentTab = 'finalize';
+			}}
 			onRegisterSave={(saveFn) => {
 				estimateTabSaveFn = saveFn;
 			}}
