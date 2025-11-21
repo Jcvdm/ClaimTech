@@ -1,6 +1,6 @@
 # Task Guides - Use-Case Navigation
 
-**Last Updated**: January 30, 2025
+**Last Updated**: November 20, 2025
 **Purpose**: "I want to..." based documentation navigation
 
 ---
@@ -177,6 +177,13 @@ This guide helps you find the right documentation based on what you're trying to
 1. **Understanding subprocesses** → [SOP: Assessment-Centric Architecture](../SOP/working_with_assessment_centric_architecture.md#subprocess)
 2. **Filtering patterns** → [Bug: Additionals FRC Filtering](../System/additionals_frc_filtering_fix_jan_29_2025.md)
 
+### Align FRC tab & FRC report totals
+1. **Understand FRC mechanics & decisions** → [System: FRC Mechanics](../System/frc_mechanics.md), [SOP: FRC Decisions](../SOP/frc_decisions.md), [SOP: FRC Refresh](../SOP/frc_refresh.md)
+2. **Review prior UI & logic changes** → [Task: FRC UI & Logic Refinement](../Tasks/FRC_UI_logic_refinement.md)
+3. **Trace report generation** → `src/lib/templates/frc-report-template.ts`, `src/routes/api/generate-frc-report/+server.ts`
+4. **Trace tab calculations** → `src/lib/components/assessment/FRCTab.svelte`, `src/lib/utils/frcCalculations.ts`, `src/lib/services/frc.service.ts`
+5. **Implement alignment** → Use your current FRC alignment implementation plan to ensure **New Total** (tab) and `actual_total` (FRC snapshot) converge under stable conditions, and that the FRC report uses those same aggregates.
+
 ### Badge Counts
 → [SOP: Implementing Badge Counts](../SOP/implementing_badge_counts.md)
 
@@ -261,4 +268,4 @@ This guide helps you find the right documentation based on what you're trying to
 ---
 
 **Maintenance**: Update when adding new common use cases
-**Last Review**: January 30, 2025
+**Last Review**: November 20, 2025

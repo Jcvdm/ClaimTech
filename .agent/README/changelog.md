@@ -768,6 +768,7 @@ All changes have been backward-compatible.
   - `src/lib/components/assessment/EstimateTab.svelte:620–644, 668–669, 1258–1265`
 - **VERIFICATION**:
   - ✅ Defaults propagate; totals recalc instantly; brief loading overlay; changes persist
+
 ### ✅ Bug #7 Fix - Supabase Auth Connection Timeout Resilience
 - **ISSUE**: Force finalize action and dashboard counts intermittently fail with `UND_ERR_CONNECT_TIMEOUT` (10s) to Supabase endpoints
 - **ROOT CAUSE**: Transient network/connectivity timeouts during server-side calls; single-attempt requests cause page/action failure
@@ -780,6 +781,17 @@ All changes have been backward-compatible.
 - **VERIFICATION**:
   - ✅ Force finalize succeeds under transient timeouts; errors surface only after 3 failed attempts
   - ✅ Dashboard loads even if one or more counts time out, defaulting those counts to 0
+
+### ✅ Bug #10 Fix - Additionals Letter: Removed Lines and Totals Explanation (Nov 20, 2025)
+- **ISSUE**: Removed original lines appeared in both "APPROVED ADDITIONALS" and "REMOVED ORIGINAL LINES"; footer text incorrectly implied removals were excluded from payable total.
+- **SOLUTION**:
+  - Approved table now filters strictly to `status === 'approved' && action === 'added'`.
+  - Clarified that approved removals and reversals are included as negative adjustments in totals.
+  - Footer note simplified to only mention removed lines being included as negative adjustments (declined note removed).
+- **FILES**:
+  - `src/lib/templates/additionals-letter-template.ts`
+- **DOCS**:
+  - `.agent/System/additionals_letter_template_fix_nov_20_2025.md`
 
 ### ✅ Additionals UX - Pending-Only Inline Editing
 - **FEATURE**: Enable inline editing for Additionals line items when status is `pending`

@@ -124,6 +124,8 @@
 - System: [FRC Mechanics](../System/frc_mechanics.md)
 - SOP: [FRC Refresh Snapshot](../SOP/frc_refresh.md), [FRC Decisions](../SOP/frc_decisions.md)
 - Task: [FRC UI & Logic Refinement](../Tasks/FRC_UI_logic_refinement.md)
+- System: [FRC Alignment Implementation](../System/frc_alignment_implementation_nov_20_2025.md) (NEW)
+- System: [Fix FRC Report Line Items for Removed Lines](../System/frc_report_removed_lines_update_nov_20_2025.md) (NEW)
 
 
 ## Agent-Specific Entry Points

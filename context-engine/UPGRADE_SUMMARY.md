@@ -175,12 +175,12 @@ curl -X POST http://localhost:3456/api/context \
 
 ### **Current (V1):**
 ```env
-CONTEXT_MODEL=google/gemini-flash-1.5-8b
+CONTEXT_MODEL=openai/gpt-5.1-codex-mini
 ```
 
 ### **Recommended (V2):**
 ```env
-CONTEXT_MODEL=google/gemini-2.0-flash-exp:free
+CONTEXT_MODEL=openai/gpt-5.1-codex-mini
 # or
 CONTEXT_MODEL=anthropic/claude-3.5-sonnet
 ```

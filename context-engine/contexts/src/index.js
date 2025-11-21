@@ -219,7 +219,10 @@ Output JSON: { original: "", keywords: [], related: [], category: "" }`
   }
 
   async synthesizeContext(originalQuery, searchResults, limit) {
-    const prompt = `You are a code context synthesizer. Given search results, extract the most relevant information.
+    const prompt = `You are a code context diagnostician for a large codebase.
+
+Given the search results below, analyze and diagnose all context that is relevant to the user's query.
+Prioritize the most important files and snippets, avoid redundancy, and keep explanations detailed but concise.
 
 Query: "${originalQuery}"
 
@@ -241,7 +244,11 @@ Output this exact JSON structure:
     const response = await this.ai.chat.completions.create({
       model: process.env.CONTEXT_MODEL,
       messages: [
-        { role: 'system', content: 'Output only valid JSON. Be concise.' },
+        {
+          role: 'system',
+          content:
+            'You are a code context diagnostician. Given all available search results, identify all context that is relevant to the user query, summarize it in a way that is detailed but concise, and output only valid JSON with no extra commentary.'
+        },
         { role: 'user', content: prompt }
       ],
       max_tokens: 500,

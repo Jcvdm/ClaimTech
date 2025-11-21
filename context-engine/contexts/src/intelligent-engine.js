@@ -387,7 +387,10 @@ Analyze the query and output this exact structure:
   async synthesizeWithReasoning(query, intent, initial, deps, downstream, graph) {
     const allContexts = [...initial, ...deps, ...downstream];
 
-    const prompt = `You are an intelligent code context synthesizer with reasoning capabilities.
+    const prompt = `You are an intelligent code context synthesizer and diagnostician with reasoning capabilities.
+
+Your job is to look across all retrieved contexts and the code graph, diagnose everything that is relevant to the user's goal, and present it in a way that is detailed but concise.
+Avoid redundancy and focus on the most important files, functions, and patterns.
 
 **User Query:** "${query}"
 **Intent:** ${intent.intent} - ${intent.goal}
@@ -436,7 +439,8 @@ Output this JSON:
       messages: [
         {
           role: 'system',
-          content: 'You are an expert code analyst. Output ONLY valid JSON, no markdown. Provide deep reasoning and actionable insights.'
+          content:
+            'You are an expert code analyst and context diagnostician. Given all retrieved contexts and the code graph, diagnose all relevant context for the user\'s query, provide deep but concise reasoning and actionable insights, and output ONLY valid JSON with no markdown.'
         },
         { role: 'user', content: prompt + '\n\nOutput JSON only:' }
       ],

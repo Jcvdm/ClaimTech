@@ -27,9 +27,23 @@
 	} from 'lucide-svelte';
 	import { enhance } from '$app/forms';
 	import { invalidate, invalidateAll } from '$app/navigation';
+	import {
+		Sidebar,
+		SidebarContent,
+		SidebarGroup,
+		SidebarGroupContent,
+		SidebarGroupLabel,
+		SidebarMenu,
+		SidebarMenuButton,
+		SidebarMenuItem,
+		SidebarFooter,
+		SidebarHeader,
+		SidebarRail
+	} from '$lib/components/ui/sidebar';
 
 	// Props
-	let { role = 'engineer', engineer_id = null }: { role?: string; engineer_id?: string | null } = $props();
+	let { role = 'engineer', engineer_id = null }: { role?: string; engineer_id?: string | null } =
+		$props();
 
 	type NavItem = {
 		label: string;
@@ -66,9 +80,7 @@
 		},
 		{
 			label: 'Requests',
-			items: [
-				{ label: 'New Requests', href: '/requests', icon: FileText }
-			],
+			items: [{ label: 'New Requests', href: '/requests', icon: FileText }],
 			adminOnly: true
 		},
 		{
@@ -76,7 +88,11 @@
 			items: [
 				// Note: Badge counts are rendered directly in the template using state variables
 				// The reactive state refs are used in conditional rendering below (lines 257-290)
-				{ label: role === 'engineer' ? 'Assigned Work' : 'Inspections', href: '/work/inspections', icon: ClipboardCheck },
+				{
+					label: role === 'engineer' ? 'Assigned Work' : 'Inspections',
+					href: '/work/inspections',
+					icon: ClipboardCheck
+				},
 				{ label: 'Appointments', href: '/work/appointments', icon: Calendar },
 				{ label: 'Open Assessments', href: '/work/assessments', icon: ClipboardList },
 				{ label: 'Finalized Assessments', href: '/work/finalized-assessments', icon: FileCheck },
@@ -108,9 +124,7 @@
 
 	// Filter navigation based on role
 	const navigation = $derived(
-		role === 'admin'
-			? allNavigation
-			: allNavigation.filter(group => !group.adminOnly)
+		role === 'admin' ? allNavigation : allNavigation.filter((group) => !group.adminOnly)
 	);
 
 	function isActive(href: string): boolean {
@@ -196,7 +210,10 @@
 	async function loadAssessmentCount() {
 		try {
 			const engineerIdFilter = role === 'engineer' ? engineer_id : undefined;
-			assessmentCount = await assessmentService.getInProgressCount($page.data.supabase, engineerIdFilter);
+			assessmentCount = await assessmentService.getInProgressCount(
+				$page.data.supabase,
+				engineerIdFilter
+			);
 		} catch (error) {
 			console.error('Error loading assessment count:', error);
 		}
@@ -205,7 +222,10 @@
 	async function loadFinalizedAssessmentCount() {
 		try {
 			const engineerIdFilter = role === 'engineer' ? engineer_id : undefined;
-			finalizedAssessmentCount = await assessmentService.getFinalizedCount($page.data.supabase, engineerIdFilter);
+			finalizedAssessmentCount = await assessmentService.getFinalizedCount(
+				$page.data.supabase,
+				engineerIdFilter
+			);
 		} catch (error) {
 			console.error('Error loading finalized assessment count:', error);
 		}
@@ -214,7 +234,11 @@
 	async function loadFRCCount() {
 		try {
 			const engineerIdFilter = role === 'engineer' ? engineer_id : undefined;
-			frcCount = await frcService.getCountByStatus('in_progress', $page.data.supabase, engineerIdFilter);
+			frcCount = await frcService.getCountByStatus(
+				'in_progress',
+				$page.data.supabase,
+				engineerIdFilter
+			);
 		} catch (error) {
 			console.error('Error loading FRC count:', error);
 		}
@@ -224,7 +248,10 @@
 		try {
 			const engineerIdFilter = role === 'engineer' ? engineer_id : undefined;
 			// Use stage-based count to match what the Additionals page displays
-			additionalsCount = await additionalsService.getAssessmentsAtStageCount($page.data.supabase, engineerIdFilter);
+			additionalsCount = await additionalsService.getAssessmentsAtStageCount(
+				$page.data.supabase,
+				engineerIdFilter
+			);
 		} catch (error) {
 			console.error('Error loading additionals count:', error);
 		}
@@ -245,9 +272,7 @@
 	// Helper to check if current route is an edit/heavy-input page
 	function isEditRoute(pathname: string): boolean {
 		return (
-			pathname.includes('/edit') ||
-			pathname.includes('/new') ||
-			pathname.includes('/assessments/') // Assessment detail page with heavy editing
+			pathname.includes('/edit') || pathname.includes('/new') || pathname.includes('/assessments/') // Assessment detail page with heavy editing
 		);
 	}
 
@@ -288,130 +313,130 @@
 	});
 </script>
 
-<aside class="hidden lg:block w-60 border-r bg-white flex flex-col">
-	<nav class="space-y-6 p-4 flex-1">
+<Sidebar collapsible="icon">
+	<SidebarContent>
 		{#each navigation as group}
-			<div class="space-y-1">
-				<h3 class="mb-2 px-3 text-xs font-semibold uppercase tracking-wider text-gray-500">
-					{group.label}
-				</h3>
-				<div class="space-y-1">
-					{#each group.items as item}
-						<a
-							href={item.href}
-							class={cn(
-								'flex items-center justify-between gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors',
-								isActive(item.href)
-									? 'bg-blue-50 text-blue-700'
-									: 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'
-							)}
-						>
-							<span class="flex items-center gap-3">
-								{#if item.icon}
-									<item.icon class="h-4 w-4" />
-								{/if}
-								{item.label}
-							</span>
+			<SidebarGroup>
+				<SidebarGroupLabel>{group.label}</SidebarGroupLabel>
+				<SidebarGroupContent>
+					<SidebarMenu>
+						{#each group.items as item}
+							<SidebarMenuItem>
+								<SidebarMenuButton isActive={isActive(item.href)} tooltipContent={item.label}>
+									{#snippet child({ props })}
+										<a href={item.href} {...props}>
+											{#if item.icon}
+												<item.icon />
+											{/if}
+											<span>{item.label}</span>
 
-							<!-- Show badge for New Requests with pending count -->
-							{#if item.href === '/requests' && newRequestCount > 0}
-								<span
-									class="inline-flex items-center justify-center rounded-full bg-red-600 px-2 py-0.5 text-xs font-medium text-white"
-								>
-									{newRequestCount}
-								</span>
-							{/if}
-
-							<!-- Show badge for Inspections with pending count -->
-							{#if item.href === '/work/inspections' && inspectionCount > 0}
-								<span
-									class="inline-flex items-center justify-center rounded-full bg-blue-600 px-2 py-0.5 text-xs font-medium text-white"
-								>
-									{inspectionCount}
-								</span>
-							{/if}
-
-							<!-- Show badge for Appointments with scheduled count -->
-							{#if item.href === '/work/appointments' && appointmentCount > 0}
-								<span
-									class="inline-flex items-center justify-center rounded-full bg-blue-600 px-2 py-0.5 text-xs font-medium text-white"
-								>
-									{appointmentCount}
-								</span>
-							{/if}
-
-							<!-- Show badge for Open Assessments with in-progress count -->
-							{#if item.href === '/work/assessments' && assessmentCount > 0}
-								<span
-									class="inline-flex items-center justify-center rounded-full bg-blue-600 px-2 py-0.5 text-xs font-medium text-white"
-								>
-									{assessmentCount}
-								</span>
-							{/if}
-
-							<!-- Show badge for Finalized Assessments with submitted count -->
-							{#if item.href === '/work/finalized-assessments' && finalizedAssessmentCount > 0}
-								<span
-									class="inline-flex items-center justify-center rounded-full bg-green-600 px-2 py-0.5 text-xs font-medium text-white"
-								>
-									{finalizedAssessmentCount}
-								</span>
-							{/if}
-
-							<!-- Show badge for FRC with in-progress count -->
-							{#if item.href === '/work/frc' && frcCount > 0}
-								<span
-									class="inline-flex items-center justify-center rounded-full bg-purple-600 px-2 py-0.5 text-xs font-medium text-white"
-								>
-									{frcCount}
-								</span>
-							{/if}
-
-							<!-- Show badge for Additionals with stage-based count -->
-							{#if item.href === '/work/additionals' && additionalsCount > 0}
-								<span
-									class="inline-flex items-center justify-center rounded-full bg-orange-600 px-2 py-0.5 text-xs font-medium text-white"
-								>
-									{additionalsCount}
-								</span>
-							{/if}
-						</a>
-					{/each}
-				</div>
-			</div>
+											<!-- Badges -->
+											{#if item.href === '/requests' && newRequestCount > 0}
+												<span
+													class="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-red-600 px-1 text-xs font-medium text-white"
+												>
+													{newRequestCount}
+												</span>
+											{/if}
+											{#if item.href === '/work/inspections' && inspectionCount > 0}
+												<span
+													class="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-blue-600 px-1 text-xs font-medium text-white"
+												>
+													{inspectionCount}
+												</span>
+											{/if}
+											{#if item.href === '/work/appointments' && appointmentCount > 0}
+												<span
+													class="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-blue-600 px-1 text-xs font-medium text-white"
+												>
+													{appointmentCount}
+												</span>
+											{/if}
+											{#if item.href === '/work/assessments' && assessmentCount > 0}
+												<span
+													class="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-blue-600 px-1 text-xs font-medium text-white"
+												>
+													{assessmentCount}
+												</span>
+											{/if}
+											{#if item.href === '/work/finalized-assessments' && finalizedAssessmentCount > 0}
+												<span
+													class="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-green-600 px-1 text-xs font-medium text-white"
+												>
+													{finalizedAssessmentCount}
+												</span>
+											{/if}
+											{#if item.href === '/work/frc' && frcCount > 0}
+												<span
+													class="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-purple-600 px-1 text-xs font-medium text-white"
+												>
+													{frcCount}
+												</span>
+											{/if}
+											{#if item.href === '/work/additionals' && additionalsCount > 0}
+												<span
+													class="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-orange-600 px-1 text-xs font-medium text-white"
+												>
+													{additionalsCount}
+												</span>
+											{/if}
+										</a>
+									{/snippet}
+								</SidebarMenuButton>
+							</SidebarMenuItem>
+						{/each}
+					</SidebarMenu>
+				</SidebarGroupContent>
+			</SidebarGroup>
 		{/each}
-	</nav>
+	</SidebarContent>
 
-	<!-- Logout Button at Bottom -->
-	<div class="border-t border-gray-200 p-4">
-		<form
-			method="POST"
-			action="/auth/logout"
-			use:enhance={() => {
-				// Clear polling interval before logout
-				if (pollingInterval) {
-					clearInterval(pollingInterval);
-					pollingInterval = null;
-				}
-				return async ({ update }) => {
-					// Invalidate all auth-dependent data across the app
-					// This ensures session state is cleared from client memory
-					await invalidateAll();
-					await invalidate('supabase:auth');
+	<SidebarFooter>
+		<SidebarMenu>
+			<SidebarMenuItem>
+				<SidebarMenuButton
+					tooltipContent="Sign Out"
+					onclick={() => {
+						const submitBtn = document.getElementById('sidebar-logout-submit');
+						if (submitBtn) submitBtn.click();
+					}}
+				>
+					{#snippet child({ props })}
+						<button
+							class="text-rose-600 hover:bg-rose-50 hover:text-rose-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-200"
+							{...props}
+						>
+							<LogOut />
+							<span>Sign Out</span>
+						</button>
+					{/snippet}
+				</SidebarMenuButton>
 
-					// Apply form action result (redirect to login)
-					await update();
-				};
-			}}
-		>
-			<button
-				type="submit"
-				class="flex items-center gap-3 w-full rounded-md px-3 py-2 text-sm font-medium text-red-600 hover:bg-red-50 transition-colors"
-			>
-				<LogOut class="h-4 w-4" />
-				Sign Out
-			</button>
-		</form>
-	</div>
-</aside>
+				<form
+					method="POST"
+					action="/auth/logout"
+					class="hidden"
+					use:enhance={() => {
+						// Clear polling interval before logout
+						if (pollingInterval) {
+							clearInterval(pollingInterval);
+							pollingInterval = null;
+						}
+						return async ({ update }) => {
+							// Invalidate all auth-dependent data across the app
+							// This ensures session state is cleared from client memory
+							await invalidateAll();
+							await invalidate('supabase:auth');
 
+							// Apply form action result (redirect to login)
+							await update();
+						};
+					}}
+				>
+					<button id="sidebar-logout-submit" type="submit" class="hidden">Submit</button>
+				</form>
+			</SidebarMenuItem>
+		</SidebarMenu>
+	</SidebarFooter>
+	<SidebarRail />
+</Sidebar>

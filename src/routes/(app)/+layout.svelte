@@ -1,79 +1,130 @@
 <script lang="ts">
-  import Sidebar from '$lib/components/layout/Sidebar.svelte';
-  import { LogOut, User } from 'lucide-svelte';
-  import { enhance } from '$app/forms';
-  import type { LayoutData } from './$types';
+	import Sidebar from '$lib/components/layout/Sidebar.svelte';
+	import { SidebarProvider, SidebarTrigger, SidebarInset } from '$lib/components/ui/sidebar';
+	import { Separator } from '$lib/components/ui/separator';
+	import * as Breadcrumb from '$lib/components/ui/breadcrumb';
+	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
+	import * as Avatar from '$lib/components/ui/avatar';
+	import { LogOut, User } from 'lucide-svelte';
+	import { enhance } from '$app/forms';
+	import { page } from '$app/stores';
+	import { invalidateAll, invalidate } from '$app/navigation';
+	import type { LayoutData } from './$types';
 
-  let { data, children }: { data: LayoutData; children: any } = $props();
+	let { data, children }: { data: LayoutData; children: any } = $props();
 
-  let showUserMenu = $state(false);
+	// Get user info from layout data
+	const userEmail = $derived(
+		(data.user as any)?.email || (data.session?.user as any)?.email || 'User'
+	);
+	const userName = $derived((data.user as any)?.full_name || userEmail);
+	const userRole = $derived(data.role || 'user');
 
-  // Get user info from layout data
-  const userEmail = $derived(data.user?.email || data.session?.user?.email || 'User');
-  const userName = $derived(data.user?.full_name || userEmail);
-  const userRole = $derived(data.role || 'user');
+	// Generate breadcrumbs from current path
+	const breadcrumbs = $derived(
+		$page.url.pathname
+			.split('/')
+			.filter(Boolean)
+			.map((segment, index, array) => {
+				const href = '/' + array.slice(0, index + 1).join('/');
+				return {
+					label: segment.charAt(0).toUpperCase() + segment.slice(1),
+					href
+				};
+			})
+	);
 </script>
 
-<div class="min-h-screen bg-gray-50 text-gray-900">
-  <!-- Top bar -->
-  <header class="sticky top-0 z-40 bg-white border-b border-gray-200">
-    <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 h-14 flex items-center justify-between">
-      <div class="flex items-center gap-3">
-        <div class="h-6 w-6 rounded bg-blue-600"></div>
-        <span class="font-semibold text-gray-900">Claimtech</span>
-      </div>
-      <div class="flex items-center gap-4 text-sm text-gray-600 relative">
-        <button
-          class="flex items-center gap-2 rounded-md border border-gray-300 px-3 py-1.5 hover:bg-gray-50 transition-colors"
-          onclick={() => showUserMenu = !showUserMenu}
-        >
-          <User class="h-4 w-4" />
-          <span>{userName}</span>
-        </button>
+<SidebarProvider>
+	<Sidebar role={userRole} engineer_id={data.engineer_id} />
 
-        {#if showUserMenu}
-          <div class="absolute right-0 top-full mt-2 w-48 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-50">
-            <div class="py-1">
-              <form
-                method="POST"
-                action="/auth/logout"
-                use:enhance={() => {
-                  return async ({ update }) => {
-                    await update();
-                  };
-                }}
-              >
-                <button
-                  type="submit"
-                  class="flex items-center gap-2 w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                >
-                  <LogOut class="h-4 w-4" />
-                  Sign out
-                </button>
-              </form>
-            </div>
-          </div>
-        {/if}
-      </div>
-    </div>
-  </header>
+	<SidebarInset>
+		<!-- Top bar -->
+		<header
+			class="flex h-16 shrink-0 items-center gap-2 border-b border-transparent bg-gradient-to-r from-rose-500/85 via-rose-400/75 to-rose-600/85 px-4 text-white shadow-sm transition-[width,height] ease-linear group-has-[[data-collapsible=icon]]/sidebar-wrapper:h-12"
+		>
+			<div class="flex items-center gap-2">
+				<SidebarTrigger
+					class="-ml-1 text-white hover:bg-white/10 focus-visible:bg-white/20 focus-visible:text-white"
+				/>
+				<Separator orientation="vertical" class="mr-2 h-4 border-white/40" />
+				<Breadcrumb.Root>
+					<Breadcrumb.List>
+						<Breadcrumb.Item class="hidden md:block">
+							<Breadcrumb.Link class="text-white/80 hover:text-white" href="/dashboard">
+								Home
+							</Breadcrumb.Link>
+						</Breadcrumb.Item>
+						{#each breadcrumbs as crumb}
+							<Breadcrumb.Separator class="hidden md:block text-white/40" />
+							<Breadcrumb.Item>
+								{#if crumb.href === $page.url.pathname}
+									<Breadcrumb.Page class="text-white">{crumb.label}</Breadcrumb.Page>
+								{:else}
+									<Breadcrumb.Link class="text-white/80 hover:text-white" href={crumb.href}>
+										{crumb.label}
+									</Breadcrumb.Link>
+								{/if}
+							</Breadcrumb.Item>
+						{/each}
+					</Breadcrumb.List>
+				</Breadcrumb.Root>
+			</div>
 
-  <div class="flex">
-    <Sidebar role={userRole} engineer_id={data.engineer_id} />
+			<div class="ml-auto flex items-center gap-2">
+				<DropdownMenu.Root>
+					<DropdownMenu.Trigger>
+						<div
+							class="flex cursor-pointer items-center gap-2 rounded-full p-1 pr-3 text-white transition-colors hover:bg-white/10"
+						>
+							<Avatar.Root class="h-8 w-8">
+								<Avatar.Fallback class="bg-white/20 text-white">
+									{userName.charAt(0).toUpperCase()}
+								</Avatar.Fallback>
+							</Avatar.Root>
+							<span class="hidden text-sm font-medium sm:inline-block">{userName}</span>
+						</div>
+					</DropdownMenu.Trigger>
+					<DropdownMenu.Content align="end">
+						<DropdownMenu.Item href="/company/settings">Company Settings</DropdownMenu.Item>
+						<DropdownMenu.Separator />
+						<DropdownMenu.Item
+							class="cursor-pointer"
+							onclick={() => {
+								// Trigger the hidden submit button
+								const submitBtn = document.getElementById('topbar-logout-submit');
+								if (submitBtn) submitBtn.click();
+							}}
+						>
+							<LogOut class="mr-2 h-4 w-4" />
+							<span>Sign out</span>
+						</DropdownMenu.Item>
+					</DropdownMenu.Content>
+				</DropdownMenu.Root>
 
-    <!-- Main content -->
-    <main class="flex-1 p-6">
-      {@render children()}
-    </main>
-  </div>
-</div>
+				<!-- Hidden logout form -->
+				<form
+					method="POST"
+					action="/auth/logout"
+					class="hidden"
+					use:enhance={() => {
+						return async ({ update }) => {
+							// Invalidate all auth-dependent data across the app
+							// This ensures session state is cleared from client memory
+							await invalidateAll();
+							await invalidate('supabase:auth');
+							await update();
+						};
+					}}
+				>
+					<button id="topbar-logout-submit" type="submit" class="hidden">Submit</button>
+				</form>
+			</div>
+		</header>
 
-<!-- Click outside to close menu -->
-{#if showUserMenu}
-  <button
-    class="fixed inset-0 z-40"
-    onclick={() => showUserMenu = false}
-    aria-label="Close menu"
-  ></button>
-{/if}
-
+		<!-- Main content -->
+		<div class="flex flex-1 flex-col gap-4 p-4 pt-0">
+			{@render children()}
+		</div>
+	</SidebarInset>
+</SidebarProvider>

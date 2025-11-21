@@ -5,7 +5,7 @@
 A complete AI-powered context retrieval system that:
 - Reduces token costs by 80-90%
 - Provides intelligent semantic search across your codebase
-- Uses local vector database (ChromaDB) + cheap AI model (Gemini Flash)
+- Uses local vector database (ChromaDB) + cheap AI model (openai/gpt-5.1-codex-mini via OpenRouter)
 - Includes monitoring dashboard and Docker deployment
 
 ## 📁 Project Structure
@@ -58,7 +58,7 @@ Edit `.env` and add your OpenRouter API key:
 
 ```env
 OPENROUTER_API_KEY=sk-or-v1-YOUR_KEY_HERE
-CONTEXT_MODEL=google/gemini-flash-1.5-8b
+CONTEXT_MODEL=openai/gpt-5.1-codex-mini
 PORT=3456
 DB_PATH=./db
 CONTEXT_DIR=./contexts
@@ -111,7 +111,7 @@ You should see:
 ✅ ChromaDB initialized
 📚 Loaded 450 context documents
 🚀 Context Engine running at http://localhost:3456
-📊 Using model: google/gemini-flash-1.5-8b
+📊 Using model: openai/gpt-5.1-codex-mini
 💾 Database path: ./db
 ```
 
@@ -181,9 +181,9 @@ docker-compose down
 ## 💰 Cost Breakdown
 
 **Per 1000 queries:**
-- Context retrieval: $0.11 (Gemini Flash)
+- Context retrieval: ~$0.11 (openai/gpt-5.1-codex-mini via OpenRouter)
 - Main model: $3.00 (GPT-4 with reduced context)
-- **Total: $3.11** (vs $30 without context engine)
+- **Total: ~$3.11** (vs ~$30 without context engine)
 
 **Savings: 89%**
 

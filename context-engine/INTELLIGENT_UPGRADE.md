@@ -223,7 +223,7 @@ Return comprehensive context package
 
 ```env
 # .env
-CONTEXT_MODEL=google/gemini-2.0-flash-exp:free
+CONTEXT_MODEL=openai/gpt-5.1-codex-mini
 # or
 CONTEXT_MODEL=anthropic/claude-3.5-sonnet
 ```

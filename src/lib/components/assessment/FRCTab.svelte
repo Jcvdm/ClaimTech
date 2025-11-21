@@ -32,7 +32,7 @@ import FRCLinesTable from './FRCLinesTable.svelte';
 	import { frcDocumentsService } from '$lib/services/frc-documents.service';
 	import { additionalsService } from '$lib/services/additionals.service';
 	import { formatCurrency } from '$lib/utils/formatters';
-import { calculateDeltas, calculateFRCNewTotals } from '$lib/utils/frcCalculations';
+import { calculateDeltas } from '$lib/utils/frcCalculations';
 	import { calculateSACost, calculateLabourCost, calculatePaintCost } from '$lib/utils/estimateCalculations';
 
 	interface Props {
@@ -485,25 +485,35 @@ import { calculateDeltas, calculateFRCNewTotals } from '$lib/utils/frcCalculatio
 	}
 
 	// Calculate deltas for display
-    const baselineTotals = $derived(() => {
-        if (!frc) return null;
-        const baseline_subtotal = frc.quoted_estimate_subtotal;
-        const baseline_vat = (baseline_subtotal * frc.vat_percentage) / 100;
-        const baseline_total = baseline_subtotal + baseline_vat;
-        return { subtotal: baseline_subtotal, vat: baseline_vat, total: baseline_total };
-    });
+	const baselineTotals = $derived(() => {
+		if (!frc) return null;
+		const baseline_subtotal = frc.quoted_estimate_subtotal;
+		const baseline_vat = (baseline_subtotal * frc.vat_percentage) / 100;
+		const baseline_total = baseline_subtotal + baseline_vat;
+		return { subtotal: baseline_subtotal, vat: baseline_vat, total: baseline_total };
+	});
 
-    const newTotals = $derived(() => {
-        if (!frc) return null;
-        const parts_markup = estimate.oem_markup_percentage;
-        const outwork_markup = estimate.outwork_markup_percentage;
-        return calculateFRCNewTotals(lines, { parts_markup, outwork_markup }, frc.vat_percentage);
-    });
+	// Canonical "New Total" derived directly from FRC snapshot aggregates
+	// This ensures the UI uses the same totals as the persisted FRC snapshot and report.
+	const newTotals = $derived(() => {
+		if (!frc) return null;
 
-    const deltaTotals = $derived(() => {
-        if (!baselineTotals() || !newTotals()) return null;
-        return calculateDeltas(baselineTotals()!.total, newTotals()!.total);
-    });
+		const parts_nett = (frc.actual_estimate_parts_nett ?? 0) + (frc.actual_additionals_parts_nett ?? 0);
+		const labour = (frc.actual_estimate_labour ?? 0) + (frc.actual_additionals_labour ?? 0);
+		const paint = (frc.actual_estimate_paint ?? 0) + (frc.actual_additionals_paint ?? 0);
+		const outwork_nett = (frc.actual_estimate_outwork_nett ?? 0) + (frc.actual_additionals_outwork_nett ?? 0);
+		const markup = (frc.actual_estimate_markup ?? 0) + (frc.actual_additionals_markup ?? 0);
+		const subtotal = frc.actual_subtotal ?? 0;
+		const vat_amount = frc.actual_vat_amount ?? 0;
+		const total = frc.actual_total ?? 0;
+
+		return { parts_nett, labour, paint, outwork_nett, markup, subtotal, vat_amount, total };
+	});
+
+	const deltaTotals = $derived(() => {
+		if (!baselineTotals() || !newTotals()) return null;
+		return calculateDeltas(baselineTotals()!.total, newTotals()!.total);
+	});
 
 	const partsDeltas = $derived(() => {
 		if (!frc) return null;

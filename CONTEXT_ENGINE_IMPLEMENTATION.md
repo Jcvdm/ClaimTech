@@ -10,7 +10,7 @@ A complete AI-powered context retrieval system on the `context-test` branch that
 1. **Main Context Engine** (`src/index.js`)
    - Express server with CORS support
    - ChromaDB vector database integration
-   - OpenRouter AI broker (Gemini Flash 1.5 8B)
+   - OpenRouter AI broker (openai/gpt-5.1-codex-mini)
    - Query caching system
    - RESTful API endpoints
 
@@ -64,14 +64,14 @@ A complete AI-powered context retrieval system on the `context-test` branch that
 ## 📊 Architecture
 
 ```
-┌─────────────────┐      ┌──────────────────┐      ┌─────────────────┐
-│  Claude/GPT-4   │─────▶│  Gemini Flash    │─────▶│   ChromaDB      │
-│  (Main Agent)   │      │  (Context Broker)│      │  (Vector Store) │
-└─────────────────┘      └──────────────────┘      └─────────────────┘
-      $3/1M                    $0.075/1M                    FREE
-         │                          │                          │
-         └──────────────────────────┴──────────────────────────┘
-                         Total: 80% cost reduction
+┌─────────────────┐      ┌──────────────────────────────┐      ┌─────────────────┐
+│  Claude/GPT-4   │─────▶│  GPT-5.1 Codex Mini (OpenAI)│─────▶│   ChromaDB      │
+│  (Main Agent)   │      │  (Context Broker via OR)    │      │  (Vector Store) │
+└─────────────────┘      └──────────────────────────────┘      └─────────────────┘
+      $3/1M                          ~$0.11/1M                     FREE
+         │                                  │                       │
+         └──────────────────────────────────┴───────────────────────┘
+                         Total: ~80% cost reduction
 ```
 
 ## 🚀 Quick Start
@@ -130,7 +130,7 @@ Retrieve relevant code context for a query.
   "tokensSaved": 87,
   "responseTime": 245,
   "cached": false,
-  "model": "google/gemini-flash-1.5-8b"
+"model": "openai/gpt-5.1-codex-mini"
 }
 ```
 
@@ -196,8 +196,8 @@ Edit `.env` file:
 
 ```env
 # AI Model Selection
-CONTEXT_MODEL=google/gemini-flash-1.5-8b
-# Alternatives: mistralai/mistral-small, anthropic/claude-3-haiku
+CONTEXT_MODEL=openai/gpt-5.1-codex-mini
+# Alternatives: google/gemini-flash-1.5-8b, mistralai/mistral-small, anthropic/claude-3-haiku
 
 # Server Settings
 PORT=3456

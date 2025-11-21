@@ -22,7 +22,7 @@
 	let loading = $state(false);
 	let error = $state<string | null>(null);
 	let showClientModal = $state(false);
-	let clients = $state(data.clients);
+let clients = $state(data.clients ?? []);
 
 	// Basic Information
 	let client_id = $state('');
@@ -156,13 +156,12 @@
 	}
 
 	// Client options for dropdown
-	const clientOptions = $derived(() => [
-		{ value: '', label: 'Select a client' },
-		...clients.map((c) => ({
-			value: c.id,
-			label: `${c.name} (${c.type === 'insurance' ? 'Insurance' : 'Private'})`
-		}))
-	]);
+const clientOptions = $derived.by(() =>
+	clients.map((c) => ({
+		value: c.id,
+		label: `${c.name} (${c.type === 'insurance' ? 'Insurance' : 'Private'})`
+	}))
+);
 
 
 </script>
@@ -196,6 +195,7 @@
 							name="client_id"
 							type="select"
 							bind:value={client_id}
+							placeholder="Select a client"
 							required
 							options={clientOptions}
 						/>

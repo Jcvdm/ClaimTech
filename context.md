@@ -87,8 +87,9 @@ Create `.env`:
 OPENROUTER_API_KEY=sk-or-v1-xxxxx
 
 # Choose your context broker model (ultra-cheap options)
-CONTEXT_MODEL=google/gemini-flash-1.5-8b
+CONTEXT_MODEL=openai/gpt-5.1-codex-mini
 # Alternative options:
+# CONTEXT_MODEL=google/gemini-flash-1.5-8b
 # CONTEXT_MODEL=mistralai/mistral-small
 # CONTEXT_MODEL=anthropic/claude-3-haiku-20240307
 # CONTEXT_MODEL=openai/gpt-3.5-turbo
@@ -1079,7 +1080,7 @@ services:
       - "3456:3456"
     environment:
       - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
-      - CONTEXT_MODEL=google/gemini-flash-1.5-8b
+      - CONTEXT_MODEL=openai/gpt-5.1-codex-mini
     volumes:
       - ./db:/app/db
       - ./contexts:/app/contexts
@@ -1138,7 +1139,7 @@ npm install
 # Create .env file
 cat > .env << 'EOF'
 OPENROUTER_API_KEY=sk-or-v1-YOUR_KEY_HERE
-CONTEXT_MODEL=google/gemini-flash-1.5-8b
+CONTEXT_MODEL=openai/gpt-5.1-codex-mini
 PORT=3456
 DB_PATH=./db
 CONTEXT_DIR=./contexts

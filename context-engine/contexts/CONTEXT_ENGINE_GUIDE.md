@@ -33,7 +33,7 @@ The Context Engine is an AI-powered semantic search system that provides intelli
          │    - 682 context documents
          │
          └──► OpenRouter AI
-              - Model: google/gemini-2.5-flash-lite
+              - Model: openai/gpt-5.1-codex-mini
               - Context synthesis & ranking
 
 ```
@@ -369,7 +369,7 @@ Edit `context-engine/.env`:
 ```bash
 # OpenRouter Configuration
 OPENROUTER_API_KEY=sk-or-v1-...
-CONTEXT_MODEL=google/gemini-2.5-flash-lite
+CONTEXT_MODEL=openai/gpt-5.1-codex-mini
 
 # Server Configuration
 PORT=3456
@@ -524,7 +524,7 @@ Features:
 - **Files Processed:** 186 source files
 - **Collection:** `codebase_contexts`
 - **Embedding Model:** Xenova/all-MiniLM-L6-v2 (384 dimensions)
-- **AI Model:** google/gemini-2.5-flash-lite
+- **AI Model:** openai/gpt-5.1-codex-mini
 
 ### Typical Query Performance
 
