@@ -48,8 +48,8 @@ export class AppointmentService {
 					.insert({
 						...input,
 						appointment_number: appointmentNumber,
-						status: 'scheduled',
-						duration_minutes: input.duration_minutes || 60
+				status: 'scheduled' as AppointmentStatus,
+				duration_minutes: input.duration_minutes || 60
 					})
 					.select()
 					.single();
@@ -79,7 +79,7 @@ export class AppointmentService {
 					}
 				});
 
-				return data;
+				return data as Appointment;
 
 			} catch (error) {
 				if (attempt === maxRetries - 1) {
@@ -136,7 +136,7 @@ export class AppointmentService {
 			throw new Error(`Failed to fetch appointments: ${error.message}`);
 		}
 
-		return data || [];
+		return (data as Appointment[]) || [];
 	}
 
 	/**
@@ -157,7 +157,7 @@ export class AppointmentService {
 			throw new Error(`Failed to fetch appointment: ${error.message}`);
 		}
 
-		return data;
+		return data as Appointment;
 	}
 
 	/**
@@ -191,17 +191,17 @@ export class AppointmentService {
 				metadata: {
 					appointment_number: data.appointment_number
 				}
-			});
+				});
 		}
 
-		return data;
+		return data as Appointment;
 	}
 
 	/**
 	 * Update appointment status
 	 */
 	async updateAppointmentStatus(id: string, status: AppointmentStatus, client?: ServiceClient): Promise<Appointment> {
-		const updateData: UpdateAppointmentInput = { status };
+	const updateData: UpdateAppointmentInput = { status: status as AppointmentStatus };
 
 		if (status === 'completed') {
 			updateData.completed_at = new Date().toISOString();
@@ -244,7 +244,7 @@ export class AppointmentService {
 			return null;
 		}
 
-		return data;
+		return data as Appointment | null;
 	}
 
 	/**
@@ -252,7 +252,7 @@ export class AppointmentService {
 	 */
 	async cancelAppointment(id: string, reason?: string, client?: ServiceClient): Promise<Appointment> {
 		const updateData: UpdateAppointmentInput = {
-			status: 'cancelled',
+			status: 'cancelled' as AppointmentStatus,
 			cancelled_at: new Date().toISOString()
 		};
 
@@ -260,7 +260,7 @@ export class AppointmentService {
 			updateData.cancellation_reason = reason;
 		}
 
-		return this.updateAppointment(id, updateData, client);
+		return this.updateAppointment(id, updateData as any, client);
 	}
 
 	/**
@@ -444,16 +444,21 @@ export class AppointmentService {
 
 		if (!dateChanged && !timeChanged) {
 			// No reschedule needed - just update other fields
-			return this.updateAppointment(id, input, client);
+			return this.updateAppointment(id, input as UpdateAppointmentInput, client);
 		}
 
 		// Step 3: Prepare update data with reschedule tracking
+		// Filter out null values from input to match UpdateAppointmentInput type
+		const filteredInput = Object.fromEntries(
+			Object.entries(input).filter(([, v]) => v !== null)
+		) as UpdateAppointmentInput;
+
 		const updateData: UpdateAppointmentInput = {
-			...input,
+			...filteredInput,
 			status: 'rescheduled',
 			rescheduled_from_date: currentAppointment.appointment_date, // Preserve original
 			reschedule_count: (currentAppointment.reschedule_count || 0) + 1,
-			reschedule_reason: reason || null
+			reschedule_reason: reason
 		};
 
 		// Step 4: Update appointment
@@ -473,7 +478,7 @@ export class AppointmentService {
 		await auditService.logChange({
 			entity_type: 'appointment',
 			entity_id: id,
-			action: 'rescheduled',
+			action: 'status_changed',
 			field_name: 'appointment_date',
 			old_value: currentAppointment.appointment_date,
 			new_value: input.appointment_date,
@@ -489,7 +494,7 @@ export class AppointmentService {
 			}
 		});
 
-		return updatedAppointment;
+		return updatedAppointment as Appointment;
 	}
 }
 

@@ -8,7 +8,11 @@
 		class: className,
 		value,
 		...restProps
-	}: WithoutChildrenOrChild<CalendarPrimitive.YearSelectProps> = $props();
+	}: WithoutChildrenOrChild<any> = $props();
+
+	// In Svelte 5, components are dynamic by default
+	// Extract YearSelect component from CalendarPrimitive
+	const YearSelect = (CalendarPrimitive as any).YearSelect;
 </script>
 
 <span
@@ -17,8 +21,12 @@
 		className
 	)}
 >
-	<CalendarPrimitive.YearSelect bind:ref class="absolute inset-0 opacity-0" {...restProps}>
-		{#snippet child({ props, yearItems, selectedYearItem })}
+	<YearSelect
+		bind:ref
+		class="absolute inset-0 opacity-0"
+		{...restProps}
+	>
+		{#snippet child({ props, yearItems, selectedYearItem }: { props: any; yearItems: Array<any>; selectedYearItem: any })}
 			<select {...props} {value}>
 				{#each yearItems as yearItem (yearItem.value)}
 					<option
@@ -35,9 +43,9 @@
 				class="[&>svg]:text-muted-foreground flex h-8 select-none items-center gap-1 rounded-md pl-2 pr-1 text-sm font-medium [&>svg]:size-3.5"
 				aria-hidden="true"
 			>
-				{yearItems.find((item) => item.value === value)?.label || selectedYearItem.label}
+				{yearItems.find((item: any) => item.value === value)?.label || selectedYearItem.label}
 				<ChevronDown class="size-4" />
 			</span>
 		{/snippet}
-	</CalendarPrimitive.YearSelect>
+	</YearSelect>
 </span>

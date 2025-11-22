@@ -5,12 +5,12 @@ _Last updated: 2025-11-21_
 ## 1. Framework Snapshot
 - **Svelte** `^5.0.0`
 - **SvelteKit** `^2.22.0`
-- **bits-ui** `^2.11.4` (legacy for Svelte 4)
-- **UI kit**: shadcn-style wrappers in `src/lib/components/ui`, layered on top of `bits-ui` v2
+- **bits-ui** `@next` (v3 APIs for Svelte 5)
+- **UI kit**: shadcn-style wrappers in `src/lib/components/ui`, layered on top of `bits-ui` v3
 
 ### Current State
 - Most UI primitives already use Svelte 5 runes (`$props`, `$state`, `$derived`, snippets).
-- App still depends on `bits-ui` v2, which occasionally conflicts with Runes (e.g., Date Picker trigger desyncs).
+- App now depends on `bits-ui@next` (v3), resolving previous missing-module failures; some API drift remains (calendar month/year selects, dropdown checkbox group).
 - One route (`src/routes/(app)/work/[type]/+page.svelte`) was the last `export let data` holdout and is now migrated to runes.
 
 ## 2. Legacy/Risky Areas

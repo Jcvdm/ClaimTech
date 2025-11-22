@@ -15,7 +15,7 @@ class CompanySettingsService {
 			return null;
 		}
 
-		return data;
+		return data as unknown as CompanySettings;
 	}
 
 	/**
@@ -41,7 +41,7 @@ class CompanySettingsService {
 			throw error;
 		}
 
-		return data;
+		return data as unknown as CompanySettings;
 	}
 }
 

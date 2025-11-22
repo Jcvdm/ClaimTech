@@ -46,14 +46,14 @@
 	class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
 	onclick={onCancel}
 	role="button"
-	tabindex="-1"
+	tabindex={-1}
 >
 	<!-- Modal Content -->
 	<Card
 		class="w-full max-w-md p-6 relative"
 		onclick={(e) => e.stopPropagation()}
 		role="dialog"
-		tabindex="-1"
+		tabindex={-1}
 	>
 		<!-- Close Button -->
 		<button

@@ -27,7 +27,7 @@ class Exterior360PhotosService {
 			throw new Error(`Failed to fetch exterior 360 photos: ${error.message}`);
 		}
 
-		return data || [];
+		return (data as unknown as Exterior360Photo[]) || [];
 	}
 
 	/**
@@ -52,7 +52,7 @@ class Exterior360PhotosService {
 			throw new Error(`Failed to create exterior 360 photo: ${error.message}`);
 		}
 
-		return data;
+		return data as unknown as Exterior360Photo;
 	}
 
 	/**
@@ -75,7 +75,7 @@ class Exterior360PhotosService {
 			throw new Error(`Failed to update exterior 360 photo: ${error.message}`);
 		}
 
-		return data;
+		return data as unknown as Exterior360Photo;
 	}
 
 	/**
@@ -146,7 +146,7 @@ class Exterior360PhotosService {
 			return 0;
 		}
 
-		return data ? data.display_order + 1 : 0;
+		return data ? (data.display_order || 0) + 1 : 0;
 	}
 }
 

@@ -1,16 +1,17 @@
 <script lang="ts">
-	import { DropdownMenu as DropdownMenuPrimitive } from "bits-ui";
-
+	// Note: CheckboxGroup was removed in Bits UI v3
+	// Use individual CheckboxItem components instead
 	let {
 		ref = $bindable(null),
 		value = $bindable(),
 		...restProps
-	}: DropdownMenuPrimitive.CheckboxGroupProps = $props();
+	}: {
+		ref?: any;
+		value?: any;
+		[key: string]: any;
+	} = $props();
 </script>
 
-<DropdownMenuPrimitive.CheckboxGroup
-	bind:ref
-	bind:value
-	data-slot="dropdown-menu-checkbox-group"
-	{...restProps}
-/>
+<!-- CheckboxGroup component removed in Bits UI v3 -->
+<!-- Use individual CheckboxItem components instead -->
+<div bind:this={ref} data-slot="dropdown-menu-checkbox-group" {...restProps}></div>

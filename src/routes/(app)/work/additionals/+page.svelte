@@ -238,7 +238,7 @@
 	{:else}
 		<ModernDataTable
 			data={additionalsWithDetails}
-			{columns}
+			columns={columns as any}
 			onRowClick={handleRowClick}
 			loadingRowId={loadingId}
 			rowIdKey="id"
@@ -274,7 +274,7 @@
 							maximumFractionDigits: 2
 						})}
 					</TableCell>
-				{:else if column.key === 'actions'}
+				{:else if (column.key as any) === 'actions'}
 					<ActionButtonGroup align="right">
 						<ActionIconButton
 							icon={Edit}

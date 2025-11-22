@@ -298,6 +298,7 @@ export interface UpdateAssessmentInput {
 	tabs_completed?: string[];
 	completed_at?: string;
 	submitted_at?: string;
+	cancelled_at?: string | null; // Allow cancelling assessments
 	appointment_id?: string | null; // Allow updating appointment_id
 	inspection_id?: string | null; // Allow updating inspection_id
 }
@@ -383,13 +384,7 @@ export interface CreateTyreInput {
 	notes?: string;
 }
 
-export interface UpdateTyreInput extends Partial<Omit<CreateTyreInput, 'assessment_id'>> {
-	notes?: string | null;
-	condition?: TyreCondition | null;
-	position_label?: string | null;
-	tyre_make?: string | null;
-	tyre_size?: string | null;
-}
+export interface UpdateTyreInput extends Partial<Omit<CreateTyreInput, 'assessment_id'>> {}
 
 export interface CreateDamageRecordInput {
 	assessment_id: string;
@@ -506,15 +501,7 @@ export interface CreateEstimateInput {
 	currency?: string;
 }
 
-export interface UpdateEstimateInput extends Partial<Omit<CreateEstimateInput, 'assessment_id'>> {
-	subtotal?: number;
-	sundries_amount?: number;
-	vat_amount?: number;
-	total?: number;
-	repairer_id?: string | null;
-	assessment_result?: AssessmentResultType | null;
-	notes?: string | null;
-}
+export interface UpdateEstimateInput extends Partial<Omit<CreateEstimateInput, 'assessment_id'>> {}
 
 // Estimate Photo interfaces
 export interface EstimatePhoto {
@@ -577,12 +564,7 @@ export interface CreatePreIncidentEstimateInput {
 }
 
 export interface UpdatePreIncidentEstimateInput
-	extends Partial<Omit<CreatePreIncidentEstimateInput, 'assessment_id'>> {
-	subtotal?: number;
-	vat_amount?: number;
-	total?: number;
-	notes?: string | null;
-}
+	extends Partial<Omit<CreatePreIncidentEstimateInput, 'assessment_id'>> {}
 
 // Pre-Incident Estimate Photo interfaces
 export interface PreIncidentEstimatePhoto {
@@ -711,7 +693,7 @@ export interface CreateVehicleValuesInput {
 	depreciation_percentage?: number;
 	valuation_adjustment?: number;
 	valuation_adjustment_percentage?: number;
-	condition_adjustment_percentage?: number;
+	condition_adjustment_value?: number;
 	extras?: VehicleValueExtra[];
 	valuation_pdf_url?: string;
 	valuation_pdf_path?: string;
@@ -845,9 +827,9 @@ export interface AdditionalsPhoto {
 	photo_url: string;
 	photo_path: string;
 	label?: string | null;
-	display_order: number;
-	created_at: string;
-	updated_at: string;
+	display_order: number | null;
+	created_at: string | null;
+	updated_at: string | null;
 }
 
 export interface CreateAdditionalsPhotoInput {
@@ -870,7 +852,7 @@ export interface InteriorPhoto {
 	photo_url: string;
 	photo_path: string;
 	label?: string | null;
-	display_order: number;
+	display_order: number | null;
 	created_at: string;
 	updated_at: string;
 }
@@ -921,7 +903,7 @@ export interface DamagePhoto {
 	photo_path: string;
 	label?: string | null;
 	panel?: string | null; // Which panel this damage photo shows
-	display_order: number;
+	display_order: number | null;
 	created_at: string;
 	updated_at: string;
 }

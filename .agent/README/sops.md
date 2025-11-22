@@ -1,7 +1,7 @@
 # Standard Operating Procedures Index
 
-**Last Updated**: November 9, 2025
-**Total SOPs**: 21 step-by-step guides
+**Last Updated**: November 21, 2025
+**Total SOPs**: 22 step-by-step guides
 
 ---
 
@@ -40,7 +40,41 @@ CREATE POLICY...;
 
 ---
 
-### 2. Adding Page Routes
+### 2. Supabase CLI Workflow ⭐ NEW (Nov 21, 2025)
+- **File**: [supabase_cli_workflow.md](../SOP/supabase_cli_workflow.md)
+- **Size**: ~400 lines | **Last Updated**: Nov 21, 2025
+- **Read When**: Working with database migrations, generating types, managing branches, setting up development environment
+
+**Contains**:
+- CLI setup and authentication
+- Type generation workflow (after schema changes)
+- Migration creation and application workflow
+- Database branching workflow (feature branches)
+- Local development setup
+- Troubleshooting common issues
+- Integration with npm scripts
+
+**Quick Workflows**:
+```bash
+# Generate types after schema changes
+npm run generate:types
+
+# Create and apply migration
+supabase db diff -f add_new_column
+supabase db push
+
+# Work on feature branch
+supabase db branch create feature-x
+supabase db branch switch feature-x
+# ... make changes ...
+supabase db branch delete feature-x
+```
+
+**Related**: [System/supabase_cli.md](../System/supabase_cli.md) - Complete CLI reference
+
+---
+
+### 3. Adding Page Routes
 - **File**: [adding_page_route.md](../SOP/adding_page_route.md)
 - **Size**: 742 lines
 - **Read When**: Creating new pages, API endpoints, dynamic routes

@@ -45,9 +45,10 @@
 		{months}
 		{monthFormat}
 		value={month.month}
-		onchange={(e) => {
+		onchange={(e: Event) => {
 			if (!placeholder) return;
-			const v = Number.parseInt(e.currentTarget.value);
+			const target = e.currentTarget as HTMLSelectElement;
+			const v = Number.parseInt(target.value);
 			const newPlaceholder = placeholder.set({ month: v });
 			placeholder = newPlaceholder.subtract({ months: monthIndex });
 		}}

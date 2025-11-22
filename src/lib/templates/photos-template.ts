@@ -1,4 +1,4 @@
-import type { Assessment, CompanySettings } from '$lib/types/assessment';
+import type { Assessment, CompanySettings, VehicleIdentification } from '$lib/types/assessment';
 import { formatDateNumeric } from '$lib/utils/formatters';
 
 interface PhotoSection {
@@ -11,12 +11,16 @@ interface PhotoSection {
 
 interface PhotosData {
 	assessment: Assessment;
+	vehicleIdentification: VehicleIdentification | null;
 	companySettings: CompanySettings | null;
 	sections: PhotoSection[];
 }
 
 export function generatePhotosHTML(data: PhotosData): string {
-	const { assessment, companySettings, sections } = data;
+	const { assessment, vehicleIdentification, companySettings, sections } = data;
+
+	// Calculate total photos for summary
+	const totalPhotos = sections.reduce((acc, section) => acc + section.photos.length, 0);
 
 	const renderPhotoSection = (section: PhotoSection) => {
 		if (section.photos.length === 0) return '';
@@ -55,61 +59,115 @@ export function generatePhotosHTML(data: PhotosData): string {
 		}
 
 		body {
-			font-family: Arial, sans-serif;
+			font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
 			font-size: 10pt;
 			line-height: 1.4;
-			color: #000;
+			color: #1f2937;
 		}
 
-		.header {
-			background-color: #1e40af;
-			color: white;
-			padding: 20px;
-			text-align: center;
-			margin-bottom: 20px;
+		/* Summary Page Styles */
+		.summary-page {
+			height: 100vh;
+			display: flex;
+			flex-direction: column;
+			padding: 40px;
+			position: relative;
+			color: #1f2937;
 		}
 
-		.header h1 {
+		.summary-header {
+			display: flex;
+			justify-content: space-between;
+			align-items: flex-start;
+			margin-bottom: 60px;
+			border-bottom: 4px solid #e11d48;
+			padding-bottom: 20px;
+		}
+
+		.logo-placeholder {
 			font-size: 24pt;
+			font-weight: bold;
+			color: #e11d48;
+			letter-spacing: -1px;
+		}
+
+		.summary-title {
+			font-size: 36pt;
+			font-weight: 800;
+			color: #111827;
 			margin-bottom: 10px;
+			line-height: 1.1;
 		}
 
-		.company-info {
-			font-size: 9pt;
-			margin-top: 10px;
+		.summary-subtitle {
+			font-size: 14pt;
+			color: #6b7280;
+			font-weight: 500;
 		}
 
-		.photos-title {
-			background-color: #3b82f6;
-			color: white;
-			padding: 10px;
+		.summary-grid {
+			display: grid;
+			grid-template-columns: repeat(2, 1fr);
+			gap: 40px;
+			margin-top: 40px;
+		}
+
+		.summary-card {
+			background: #fff;
+			border: 1px solid #e5e7eb;
+			border-radius: 8px;
+			padding: 25px;
+			box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+		}
+
+		.summary-card-title {
+			font-size: 10pt;
+			text-transform: uppercase;
+			letter-spacing: 1px;
+			color: #6b7280;
+			margin-bottom: 10px;
+			font-weight: 600;
+		}
+
+		.summary-card-value {
+			font-size: 18pt;
+			font-weight: 700;
+			color: #111827;
+		}
+
+		.summary-footer {
+			margin-top: auto;
 			text-align: center;
+			color: #9ca3af;
+			font-size: 9pt;
+			border-top: 1px solid #e5e7eb;
+			padding-top: 20px;
+		}
+
+		/* Standard Page Styles */
+		.standard-page {
+			padding: 40px;
+		}
+
+		.standard-header {
+			display: flex;
+			justify-content: space-between;
+			align-items: center;
+			padding-bottom: 15px;
+			border-bottom: 2px solid #e11d48;
+			margin-bottom: 30px;
+		}
+
+		.standard-header-company {
 			font-size: 16pt;
 			font-weight: bold;
-			margin-bottom: 20px;
+			color: #111827;
 		}
 
-		.info-box {
-			background-color: #f3f4f6;
-			padding: 15px;
-			margin-bottom: 20px;
-			border-left: 4px solid #3b82f6;
-		}
-
-		.info-row {
-			display: inline-block;
-			margin-right: 30px;
-			margin-bottom: 5px;
-		}
-
-		.info-label {
-			font-weight: bold;
-			color: #374151;
-		}
-
-		.info-value {
-			color: #000;
-			margin-left: 5px;
+		.standard-header-details {
+			text-align: right;
+			font-size: 9pt;
+			color: #6b7280;
 		}
 
 		.section {
@@ -118,12 +176,15 @@ export function generatePhotosHTML(data: PhotosData): string {
 		}
 
 		.section-title {
-			background-color: #dbeafe;
-			padding: 10px;
-			font-weight: bold;
+			background-color: #fff;
+			padding: 8px 0;
+			font-weight: 700;
 			font-size: 12pt;
-			border-left: 4px solid #3b82f6;
-			margin-bottom: 15px;
+			border-bottom: 2px solid #e11d48;
+			margin-bottom: 20px;
+			color: #111827;
+			text-transform: uppercase;
+			letter-spacing: 0.5px;
 		}
 
 		.photos-grid {
@@ -134,19 +195,21 @@ export function generatePhotosHTML(data: PhotosData): string {
 		}
 
 		.photo-item {
-			border: 1px solid #d1d5db;
+			border: 1px solid #e5e7eb;
 			padding: 10px;
 			background-color: #fff;
 			text-align: center;
+			border-radius: 4px;
 		}
 
 		.photo-item img {
 			max-width: 100%;
 			height: auto;
-			max-height: 400px;
+			max-height: 350px;
 			object-fit: contain;
 			display: block;
 			margin: 0 auto;
+			border-radius: 2px;
 		}
 
 		.photo-caption {
@@ -154,15 +217,16 @@ export function generatePhotosHTML(data: PhotosData): string {
 			font-size: 9pt;
 			color: #6b7280;
 			font-style: italic;
+			font-weight: 500;
 		}
 
 		.footer {
-			margin-top: 30px;
+			margin-top: 40px;
 			padding-top: 20px;
-			border-top: 2px solid #3b82f6;
+			border-top: 1px solid #e5e7eb;
 			text-align: center;
-			font-size: 9pt;
-			color: #6b7280;
+			font-size: 8pt;
+			color: #9ca3af;
 		}
 
 		.page-break {
@@ -170,59 +234,93 @@ export function generatePhotosHTML(data: PhotosData): string {
 		}
 
 		@media print {
+			* {
+				-webkit-print-color-adjust: exact !important;
+				print-color-adjust: exact !important;
+			}
 			.section {
+				page-break-inside: avoid;
+			}
+			.photo-item {
 				page-break-inside: avoid;
 			}
 		}
 	</style>
 </head>
 <body>
-	<!-- Header -->
-	<div class="header">
-		<h1>${companySettings?.company_name || 'Claimtech'}</h1>
-		<div class="company-info">
-			${companySettings?.po_box || 'P.O. Box 12345'}<br>
-			${companySettings?.city || 'Johannesburg'}, ${companySettings?.province || 'Gauteng'}<br>
-			${companySettings?.postal_code || '2000'}<br>
-			Tel: ${companySettings?.phone || '+27 (0) 11 123 4567'}
+	<!-- Summary Page -->
+	<div class="summary-page">
+		<div class="summary-header">
+			<div class="logo-placeholder">
+				${companySettings?.company_name || 'CLAIMTECH'}
+			</div>
+			<div style="text-align: right;">
+				<div style="font-weight: bold; color: #e11d48;">${assessment.assessment_number}</div>
+				<div style="color: #6b7280; font-size: 9pt;">${formatDateNumeric(assessment.created_at)}</div>
+			</div>
+		</div>
+
+		<div>
+			<div class="summary-title">ASSESSMENT PHOTOGRAPHS</div>
+			<div class="summary-subtitle">Photographic Evidence Record</div>
+		</div>
+
+		<div class="summary-grid">
+			<div class="summary-card">
+				<div class="summary-card-title">Vehicle Details</div>
+				<div class="summary-card-value" style="font-size: 14pt;">
+					${vehicleIdentification?.vehicle_year || ''} ${vehicleIdentification?.vehicle_make || ''}<br>
+					${vehicleIdentification?.vehicle_model || ''}
+				</div>
+				<div style="margin-top: 10px; color: #6b7280; font-size: 10pt;">
+					Report: ${assessment.report_number || 'N/A'}
+				</div>
+			</div>
+
+			<div class="summary-card">
+				<div class="summary-card-title">Total Photos</div>
+				<div class="summary-card-value" style="color: #e11d48;">
+					${totalPhotos}
+				</div>
+				<div style="margin-top: 5px; color: #6b7280; font-size: 9pt;">Images Captured</div>
+			</div>
+		</div>
+
+		<div class="summary-footer">
+			${companySettings?.company_name || 'Claimtech'} | ${companySettings?.email || 'info@claimtech.co.za'} | ${companySettings?.website || 'www.claimtech.co.za'}
 		</div>
 	</div>
 
-	<!-- Photos Title -->
-	<div class="photos-title">
-		ASSESSMENT PHOTOGRAPHS
-	</div>
+	<div class="page-break"></div>
 
-	<!-- Assessment Information -->
-	<div class="info-box">
-		<div class="info-row">
-			<span class="info-label">Assessment No.:</span>
-			<span class="info-value">${assessment.assessment_number}</span>
+	<!-- Standard Page -->
+	<div class="standard-page">
+		<!-- Standard Header -->
+		<div class="standard-header">
+			<div class="standard-header-company">
+				${companySettings?.company_name || 'Claimtech'}
+			</div>
+			<div class="standard-header-details">
+				<div><strong>Assessment No:</strong> ${assessment.assessment_number}</div>
+				<div><strong>Date:</strong> ${formatDateNumeric(assessment.created_at)}</div>
+			</div>
 		</div>
-		<div class="info-row">
-			<span class="info-label">Report No.:</span>
-			<span class="info-value">${assessment.report_number || 'N/A'}</span>
+
+		<!-- Photo Sections -->
+		${sections.map((section) => renderPhotoSection(section)).join('')}
+
+		${sections.every((s) => s.photos.length === 0) ? `
+		<div class="section">
+			<p style="text-align: center; color: #6b7280; padding: 40px;">No photographs available for this assessment.</p>
 		</div>
-		<div class="info-row">
-			<span class="info-label">Date:</span>
-			<span class="info-value">${formatDateNumeric(assessment.created_at)}</span>
+		` : ''}
+
+		<!-- Footer -->
+		<div class="footer">
+			<p>This document was generated by ${companySettings?.company_name || 'Claimtech'}</p>
+			<p>${companySettings?.email || 'info@claimtech.co.za'} | ${companySettings?.website || 'www.claimtech.co.za'}</p>
+			<p>Generated on ${formatDateNumeric(new Date().toISOString())}</p>
 		</div>
-	</div>
-
-	<!-- Photo Sections -->
-	${sections.map((section) => renderPhotoSection(section)).join('')}
-
-	${sections.every((s) => s.photos.length === 0) ? `
-	<div class="section">
-		<p style="text-align: center; color: #6b7280; padding: 40px;">No photographs available for this assessment.</p>
-	</div>
-	` : ''}
-
-	<!-- Footer -->
-	<div class="footer">
-		<p>This document was generated by ${companySettings?.company_name || 'Claimtech'}</p>
-		<p>${companySettings?.email || 'info@claimtech.co.za'} | ${companySettings?.website || 'www.claimtech.co.za'}</p>
-		<p>Document generated on ${formatDateNumeric(new Date().toISOString())}</p>
 	</div>
 </body>
 </html>

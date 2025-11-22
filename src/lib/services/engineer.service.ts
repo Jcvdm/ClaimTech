@@ -22,7 +22,7 @@ export class EngineerService {
 			throw new Error(`Failed to fetch engineers: ${error.message}`);
 		}
 
-		return data || [];
+		return (data as Engineer[]) || [];
 	}
 
 	/**
@@ -45,7 +45,7 @@ export class EngineerService {
 			throw new Error(`Failed to fetch engineer: ${error.message}`);
 		}
 
-		return data;
+		return data as Engineer;
 	}
 
 	/**
@@ -68,7 +68,7 @@ export class EngineerService {
 			throw new Error(`Failed to create engineer: ${error.message}`);
 		}
 
-		return data;
+		return data as Engineer;
 	}
 
 	/**
@@ -92,7 +92,7 @@ export class EngineerService {
 			throw new Error(`Failed to update engineer: ${error.message}`);
 		}
 
-		return data;
+		return data as Engineer;
 	}
 
 	/**
@@ -134,7 +134,7 @@ export class EngineerService {
 			throw new Error(`Failed to fetch engineer by email: ${error.message}`);
 		}
 
-		return data;
+		return data as unknown as Engineer;
 	}
 
 	/**
@@ -160,7 +160,7 @@ export class EngineerService {
 			throw new Error(`Failed to fetch engineers: ${error.message}`);
 		}
 
-		return data || [];
+		return (data as Engineer[]) || [];
 	}
 }
 

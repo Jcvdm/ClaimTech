@@ -117,14 +117,14 @@
 	function handleRepairerChange() {
 		const selectedRepairer = repairers.find((r) => r.id === localRepairerId);
 		if (selectedRepairer) {
-			// Auto-populate rates from repairer's defaults
-			localLabourRate = selectedRepairer.default_labour_rate;
-			localPaintRate = selectedRepairer.default_paint_rate;
-			localVatPercentage = selectedRepairer.default_vat_percentage;
-			localOemMarkup = selectedRepairer.default_oem_markup_percentage;
-			localAltMarkup = selectedRepairer.default_alt_markup_percentage;
-			localSecondHandMarkup = selectedRepairer.default_second_hand_markup_percentage;
-			localOutworkMarkup = selectedRepairer.default_outwork_markup_percentage;
+			// Auto-populate rates from repairer's defaults (with fallbacks)
+			localLabourRate = selectedRepairer.default_labour_rate ?? 500;
+			localPaintRate = selectedRepairer.default_paint_rate ?? 2000;
+			localVatPercentage = selectedRepairer.default_vat_percentage ?? 15;
+			localOemMarkup = selectedRepairer.default_oem_markup_percentage ?? 25;
+			localAltMarkup = selectedRepairer.default_alt_markup_percentage ?? 25;
+			localSecondHandMarkup = selectedRepairer.default_second_hand_markup_percentage ?? 25;
+			localOutworkMarkup = selectedRepairer.default_outwork_markup_percentage ?? 25;
 
 			// Show notification
 			showAutoPopulateNotification = true;
@@ -172,14 +172,14 @@
 			// Select the new repairer
 			localRepairerId = newRepairer.id;
 
-			// Auto-populate rates
-			localLabourRate = newRepairer.default_labour_rate;
-			localPaintRate = newRepairer.default_paint_rate;
-			localVatPercentage = newRepairer.default_vat_percentage;
-			localOemMarkup = newRepairer.default_oem_markup_percentage;
-			localAltMarkup = newRepairer.default_alt_markup_percentage;
-			localSecondHandMarkup = newRepairer.default_second_hand_markup_percentage;
-			localOutworkMarkup = newRepairer.default_outwork_markup_percentage;
+			// Auto-populate rates (with fallbacks)
+			localLabourRate = newRepairer.default_labour_rate ?? 500;
+			localPaintRate = newRepairer.default_paint_rate ?? 2000;
+			localVatPercentage = newRepairer.default_vat_percentage ?? 15;
+			localOemMarkup = newRepairer.default_oem_markup_percentage ?? 25;
+			localAltMarkup = newRepairer.default_alt_markup_percentage ?? 25;
+			localSecondHandMarkup = newRepairer.default_second_hand_markup_percentage ?? 25;
+			localOutworkMarkup = newRepairer.default_outwork_markup_percentage ?? 25;
 
 			// Update repairer
 			onUpdateRepairer(newRepairer.id);

@@ -4,6 +4,8 @@ import { generatePDF } from '$lib/utils/pdf-generator';
 import { generateReportHTML } from '$lib/templates/report-template';
 import { createStreamingResponse } from '$lib/utils/streaming-response';
 import { formatDateNumeric } from '$lib/utils/formatters';
+import { getVehicleDetails, getClientDetails, getInsuredDetails } from '$lib/utils/report-data-helpers';
+import { normalizeAssessment, normalizeCompanySettings, normalizeVehicleIdentification } from '$lib/utils/type-normalizers';
 
 // Helper function to format assessment notes grouped by section
 function formatAssessmentNotesBySection(notes: any[]): string {
@@ -132,26 +134,26 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 				.single(),
 			locals.supabase.from('assessment_damage').select('*').eq('assessment_id', assessmentId).single(),
 			locals.supabase.from('company_settings').select('*').single(),
-			locals.supabase.from('appointments').select('*').eq('id', assessment.appointment_id).single(),
+			assessment.appointment_id ? locals.supabase.from('appointments').select('*').eq('id', assessment.appointment_id).single() : Promise.resolve({ data: null, error: null }),
 			locals.supabase.from('requests').select('*').eq('id', assessment.request_id).single(),
-			locals.supabase.from('inspections').select('*').eq('id', assessment.inspection_id).single(),
+			assessment.inspection_id ? locals.supabase.from('inspections').select('*').eq('id', assessment.inspection_id).single() : Promise.resolve({ data: null, error: null }),
 			assessment.request_id
 				? locals.supabase
 						.from('requests')
 						.select('client_id')
 						.eq('id', assessment.request_id)
 						.single()
-						.then(({ data }) =>
+						.then(async ({ data }) =>
 							data
-								? locals.supabase.from('clients').select('*').eq('id', data.client_id).single()
+								? await locals.supabase.from('clients').select('*').eq('id', data.client_id).single()
 								: { data: null, error: null }
 						)
 				: Promise.resolve({ data: null, error: null }),
 			locals.supabase.from('assessment_estimates').select('*').eq('assessment_id', assessmentId).single(),
 			locals.supabase.from('assessment_estimates').select('repairer_id').eq('assessment_id', assessmentId).single()
-				.then(({ data }) =>
+				.then(async ({ data }) =>
 					data?.repairer_id
-						? locals.supabase.from('repairers').select('*').eq('id', data.repairer_id).single()
+						? await locals.supabase.from('repairers').select('*').eq('id', data.repairer_id).single()
 						: { data: null }
 				),
 			locals.supabase
@@ -189,58 +191,59 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 			// NEW: Format assessment notes grouped by section
 			const formattedNotes = formatAssessmentNotesBySection(assessmentNotes || []);
 
-			// Generate report number if not exists
-			let reportNumber = assessment.report_number;
-			if (!reportNumber) {
-				const year = new Date().getFullYear();
-				const { count } = await locals.supabase
-					.from('assessments')
-					.select('*', { count: 'exact', head: true })
-					.like('report_number', `REP-${year}-%`);
+			// Normalize data using centralized helpers
+			const normalizedAssessment = normalizeAssessment(assessment);
+			const normalizedVehicleIdentification = normalizeVehicleIdentification(vehicleIdentification);
+			const normalizedCompanySettings = normalizeCompanySettings(companySettings);
+			const vehicleDetails = getVehicleDetails(normalizedVehicleIdentification as any, requestData as any, inspection as any);
+			const clientDetails = getClientDetails(client as any);
+			const insuredDetails = getInsuredDetails(requestData as any);
 
-				const nextNumber = (count || 0) + 1;
-				reportNumber = `REP-${year}-${nextNumber.toString().padStart(5, '0')}`;
-
-				// Update assessment with report number
-				await locals.supabase
-					.from('assessments')
-					.update({ report_number: reportNumber })
-					.eq('id', assessmentId);
-			}
-
-			yield { status: 'processing', progress: 45, message: 'Generating HTML template...' };
-
-			// Determine T&Cs to use (client-specific or company defaults)
-			// Fallback pattern: client T&Cs → company T&Cs → empty
-			const termsAndConditions = client?.assessment_terms_and_conditions || companySettings?.assessment_terms_and_conditions || null;
-
-			// Generate HTML
+			// Generate HTML with normalized data
 			const html = generateReportHTML({
-				assessment: { ...assessment, report_number: reportNumber },
-				vehicleIdentification,
-				exterior360,
-				interiorMechanical,
-				damageRecord,
-				companySettings: companySettings ? {
-					...companySettings,
-					assessment_terms_and_conditions: termsAndConditions
-				} : companySettings,
-				request: requestData,
-				inspection,
-				client,
-				estimate,
-				repairer,
-				tyres,
-				vehicleValues, // NEW
-				assessmentNotes: formattedNotes, // NEW
-				engineer // NEW
+				assessment: (normalizedAssessment || {}) as any,
+				vehicleIdentification: (normalizedVehicleIdentification || {}) as any,
+				exterior360: (exterior360 || {}) as any,
+				interiorMechanical: (interiorMechanical || {}) as any,
+				damageRecord: (damageRecord || {}) as any,
+				companySettings: (normalizedCompanySettings || {}) as any,
+				request: (requestData || {}) as any,
+				inspection: (inspection || {}) as any,
+				client: (client || {}) as any,
+				estimate: (estimate || {}) as any,
+				repairer: (repairer || {}) as any,
+				tyres: (tyres || []) as any,
+				vehicleValues: (vehicleValues || {}) as any,
+				assessmentNotes: formattedNotes,
+				engineer: (engineer || {}) as any,
+				vehicleDetails,
+				clientDetails,
+				insuredDetails
 			});
 
-			yield { status: 'processing', progress: 60, message: 'Rendering PDF (this may take 1-2 minutes)...' };
+			yield { status: 'processing', progress: 40, message: 'Generating PDF...' };
 
-			// Generate PDF - wrap in try-catch to handle Puppeteer errors
+			// Generate report number if not exists
+			let reportNumber = assessment.report_number;
 			let pdfBuffer: Buffer;
 			try {
+				if (!reportNumber) {
+					const year = new Date().getFullYear();
+					const { count } = await locals.supabase
+						.from('assessments')
+						.select('*', { count: 'exact', head: true })
+						.like('report_number', `REP-${year}-%`);
+
+					const nextNumber = (count || 0) + 1;
+					reportNumber = `REP-${year}-${nextNumber.toString().padStart(5, '0')}`;
+
+					// Update assessment with report number
+					await locals.supabase
+						.from('assessments')
+						.update({ report_number: reportNumber })
+						.eq('id', assessmentId);
+				}
+
 				pdfBuffer = await generatePDF(html, {
 					format: 'A4',
 					margin: {

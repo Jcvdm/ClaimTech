@@ -125,10 +125,7 @@ export const GET: RequestHandler = async () => {
 			];
 		}
 
-		throw error(500, {
-			message: 'Puppeteer test failed',
-			details: errorDetails
-		});
+		throw error(500, `Puppeteer test failed: ${JSON.stringify(errorDetails)}`);
 	}
 };
 

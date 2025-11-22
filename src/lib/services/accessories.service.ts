@@ -34,7 +34,7 @@ export class AccessoriesService {
 			console.error('Error logging audit change:', auditError);
 		}
 
-		return data;
+		return data as unknown as VehicleAccessory;
 	}
 
 	/**
@@ -52,7 +52,7 @@ export class AccessoriesService {
 			return null;
 		}
 
-		return data;
+		return data as unknown as VehicleAccessory | null;
 	}
 
 	/**
@@ -70,7 +70,7 @@ export class AccessoriesService {
 			return [];
 		}
 
-		return data || [];
+		return (data as unknown as VehicleAccessory[]) || [];
 	}
 
 	/**
@@ -105,7 +105,7 @@ export class AccessoriesService {
 			console.error('Error logging audit change:', auditError);
 		}
 
-		return data;
+		return data as unknown as VehicleAccessory;
 	}
 
 	/**

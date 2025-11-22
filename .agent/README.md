@@ -1,8 +1,8 @@
 # ClaimTech Documentation
 
 **Project**: ClaimTech (SVA - SvelteKit Validation App)
-**Last Updated**: November 21, 2025 (Svelte 5 Type Errors: 449 → 403, 10.2% reduction)
-**Status**: 🔄 Svelte 5 Migration - Type Error Fixes In Progress
+**Last Updated**: November 22, 2025 (Svelte 5 Migration Complete: 449 → 0 errors ✅)
+**Status**: ✅ Svelte 5 Migration Complete - 0 Errors, 28 Warnings (Accessibility Focus)
 
 ---
 
@@ -34,13 +34,15 @@
 ### 📚 [System Documentation](./README/system_docs.md)
 Complete index of architecture, database, security, UI patterns, and bug postmortems (30 files).
 
-### 🌹 Shadcn UI Playbook (.agent/shadui)
+### 🌹 Shadcn UI Playbook (.agent/shadcn)
+- **pdr.md** – Project Development Report tracking Svelte 5 migration progress (449 → 0 errors ✅)
+- **svelte5-error-patterns.md** – Comprehensive guide to Svelte 5 error patterns and fixes
 - **sidebar-modernization.md** – notes on modernizing the dashboard sidebar with shadcn-svelte primitives and rose token theming.
 - **top-bar-research.md** – captures the comparison with shadcn/ui’s header and the rose gradient update we applied in the layout.
 - **login-modernization.md** – planning doc for the hero-driven login card and rose-accent form styles.
-- **date-picker.md** ? explains why Incident date selection now uses `Popover` + `Calendar` for Svelte 5 compatibility.
-- **requests-flow-alignment.md** ? records the tabs/alert/dialog alignment for the Requests list and New Request form.
-- **svelte5-upgrade-checklist.md** ? end-to-end plan for moving from bits-ui v2 to Svelte 5-native shadcn components.
+- **date-picker.md** – explains why Incident date selection now uses `Popover` + `Calendar` for Svelte 5 compatibility.
+- **requests-flow-alignment.md** – records the tabs/alert/dialog alignment for the Requests list and New Request form.
+- **svelte5-upgrade-checklist.md** – end-to-end plan for moving from bits-ui v2 to Svelte 5-native shadcn components.
 
 ### 📝 [Standard Operating Procedures](./README/sops.md)
 Step-by-step guides for database operations, services, authentication, UI features, and debugging (19 files).
@@ -72,7 +74,22 @@ Common questions and troubleshooting.
 
 ---
 
-## Supabase MCP Integration
+## Supabase Integration
+
+### Supabase CLI
+Command-line tool for managing database migrations, generating types, and working with branches.
+
+**Quick Start**:
+```bash
+npm run generate:types  # Generate TypeScript types from database
+supabase db diff -f migration_name  # Create migration
+supabase db push  # Apply migrations to remote
+```
+
+**Documentation**: [System/supabase_cli.md](./System/supabase_cli.md)
+**Workflow Guide**: [SOP/supabase_cli_workflow.md](./SOP/supabase_cli_workflow.md)
+
+### Supabase MCP Integration
 
 Supabase MCP server is configured for direct database access during development:
 

@@ -3,7 +3,8 @@ import type {
 	Assessment,
 	AssessmentStage,
 	CreateAssessmentInput,
-	UpdateAssessmentInput
+	UpdateAssessmentInput,
+	AssessmentStatus
 } from '$lib/types/assessment';
 import type { ServiceClient } from '$lib/types/service';
 import { auditService } from './audit.service';
@@ -595,7 +596,7 @@ export class AssessmentService {
 			}
 		}
 
-		return data;
+		return data as Assessment;
 	}
 
 	/**
@@ -606,7 +607,7 @@ export class AssessmentService {
 		status: 'in_progress' | 'completed' | 'submitted' | 'archived' | 'cancelled',
 		client?: ServiceClient
 	): Promise<Assessment> {
-		const updateData: UpdateAssessmentInput = { status };
+	const updateData: UpdateAssessmentInput = { status: status as AssessmentStatus };
 
 		if (status === 'completed') {
 			updateData.completed_at = new Date().toISOString();
@@ -672,9 +673,9 @@ export class AssessmentService {
 
 		const { data, error } = await db
 			.from('assessments')
-			.update({
+		.update({
 				estimate_finalized_at: timestamp,
-				status: 'submitted',
+				status: 'submitted' as AssessmentStatus,
 				submitted_at: timestamp,
 				// Snapshot rates and markups at finalization
 				finalized_labour_rate: estimate.labour_rate,
@@ -719,7 +720,7 @@ export class AssessmentService {
 			}
 		});
 
-		return data;
+		return data as Assessment;
 	}
 
 	/**
@@ -769,7 +770,7 @@ export class AssessmentService {
 			return [];
 		}
 
-		return data || [];
+		return (data as Assessment[]) || [];
 	}
 
 	/**

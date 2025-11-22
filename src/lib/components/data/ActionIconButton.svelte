@@ -66,6 +66,6 @@
 	{#if loading}
 		<Loader2 class="{iconSizeClasses[size]} animate-spin" />
 	{:else}
-		<svelte:component this={icon} class={iconSizeClasses[size]} />
+		{@render icon({ class: iconSizeClasses[size] })}
 	{/if}
 </button>

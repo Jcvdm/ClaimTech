@@ -22,7 +22,7 @@ class FRCDocumentsService {
 			throw error;
 		}
 
-		return data || [];
+		return (data as unknown as FRCDocument[]) || [];
 	}
 
 	/**
@@ -61,7 +61,7 @@ class FRCDocumentsService {
 			}
 		});
 
-		return data;
+		return data as unknown as FRCDocument;
 	}
 
 	/**
@@ -110,7 +110,7 @@ class FRCDocumentsService {
 
 		// Delete from storage
 		try {
-			await storageService.deleteFile(document.document_path);
+			await storageService.deletePhoto(document.document_path, 'documents');
 		} catch (err) {
 			console.warn('Failed to delete file from storage:', err);
 			// Continue with database deletion even if storage deletion fails
@@ -162,7 +162,7 @@ class FRCDocumentsService {
 			throw new Error(`Failed to update document label: ${error.message}`);
 		}
 
-		return data;
+		return data as unknown as FRCDocument;
 	}
 }
 

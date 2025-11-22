@@ -2,7 +2,8 @@ import type {
   Assessment,
   CompanySettings,
   AssessmentAdditionals,
-  AdditionalLineItem
+  AdditionalLineItem,
+  VehicleIdentification
 } from '$lib/types/assessment';
 import { formatCurrency, formatDateNumeric } from '$lib/utils/formatters';
 import { escapeHtmlWithLineBreaks } from '$lib/utils/sanitize';
@@ -14,10 +15,11 @@ interface AdditionalsLetterData {
   request: any;
   client: any;
   repairer: any;
+  vehicleIdentification: VehicleIdentification | null;
 }
 
 export function generateAdditionalsLetterHTML(data: AdditionalsLetterData): string {
-  const { assessment, additionals, companySettings, request, client, repairer } = data;
+  const { assessment, additionals, companySettings, request, client, repairer, vehicleIdentification } = data;
 
   // Filter items by status and action
   // Approved table: only show true approved additions (exclude removals and reversals)
@@ -56,14 +58,14 @@ export function generateAdditionalsLetterHTML(data: AdditionalsLetterData): stri
 
     return `
       <tr style="border-bottom:1px solid #e5e7eb;${strikethrough}">
-        <td style="padding:6px;font-size:9pt;">${item.process_type}</td>
-        <td style="padding:6px;font-size:9pt;">${partTypeBadge}${item.description || ''}${notes}</td>
-        <td style="padding:6px;font-size:9pt;text-align:right;">${show(item.part_price_nett)}</td>
-        <td style="padding:6px;font-size:9pt;text-align:right;">${show(item.strip_assemble)}</td>
-        <td style="padding:6px;font-size:9pt;text-align:right;">${show(item.labour_cost)}</td>
-        <td style="padding:6px;font-size:9pt;text-align:right;">${show(item.paint_cost)}</td>
-        <td style="padding:6px;font-size:9pt;text-align:right;">${show(item.outwork_charge_nett)}</td>
-        <td style="padding:6px;font-size:9pt;text-align:right;">${formatCurrency(item.total)}</td>
+        <td style="padding:10px 6px;font-size:9pt;">${item.process_type}</td>
+        <td style="padding:10px 6px;font-size:9pt;">${partTypeBadge}${item.description || ''}${notes}</td>
+        <td style="padding:10px 6px;font-size:9pt;text-align:right;">${show(item.part_price_nett)}</td>
+        <td style="padding:10px 6px;font-size:9pt;text-align:right;">${show(item.strip_assemble)}</td>
+        <td style="padding:10px 6px;font-size:9pt;text-align:right;">${show(item.labour_cost)}</td>
+        <td style="padding:10px 6px;font-size:9pt;text-align:right;">${show(item.paint_cost)}</td>
+        <td style="padding:10px 6px;font-size:9pt;text-align:right;">${show(item.outwork_charge_nett)}</td>
+        <td style="padding:10px 6px;font-size:9pt;text-align:right;">${formatCurrency(item.total)}</td>
       </tr>
     `;
   };
@@ -80,6 +82,12 @@ export function generateAdditionalsLetterHTML(data: AdditionalsLetterData): stri
     ? removedItems.map((i) => renderLine(i, false, true)).join('')
     : `<tr><td colspan="8" style="text-align:center;padding:12px;">No removed items</td></tr>`;
 
+  // Fix property access for VehicleIdentification
+  const vehicleMake = vehicleIdentification?.vehicle_make || 'N/A';
+  const vehicleModel = vehicleIdentification?.vehicle_model || '';
+  const vehicleYear = vehicleIdentification?.vehicle_year || 'N/A';
+  const registrationNumber = vehicleIdentification?.registration_number || 'N/A';
+
   return `
 <!DOCTYPE html>
 <html lang="en">
@@ -88,165 +96,429 @@ export function generateAdditionalsLetterHTML(data: AdditionalsLetterData): stri
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Additionals Letter - ${assessment.assessment_number}</title>
   <style>
-    body { font-family: Arial, sans-serif; font-size: 9pt; color:#000; }
-    .header { background:#1e40af;color:#fff;padding:15px;text-align:center;margin-bottom:15px; }
-    .header h1 { font-size: 18pt; margin-bottom:6px; }
-    .company-info { font-size:8pt;margin-top:6px; }
-    .title { background:#3b82f6;color:#fff;padding:8px;text-align:center;font-size:13pt;font-weight:bold;margin-bottom:15px; }
-    .section { margin-bottom:18px; }
-    .section-title { background:#dbeafe;padding:8px;font-weight:bold;font-size:11pt;border-left:4px solid #3b82f6;margin-bottom:10px; }
-    .info-box { border:1px solid #d1d5db;padding:10px;background:#f9fafb;margin-bottom:10px; }
-    .row { display:flex; gap:10px; }
-    .col { flex:1; }
-    .info-row { display:flex; padding:3px 0; }
-    .label { font-weight:bold; min-width:120px; color:#374151; font-size:8pt; }
-    .value { font-size:8pt; }
-    table { width:100%; border-collapse:collapse; font-size:8pt; margin-bottom:12px; }
-    th, td { border:1px solid #9ca3af; padding:6px 4px; }
-    th { background:#1e40af;color:#fff;font-weight:bold; }
-    .totals-table td { padding:8px; border:1px solid #d1d5db; }
-    .totals-label { font-weight:bold; background:#f3f4f6; width:60%; }
-    .totals-value { text-align:right; font-weight:bold; }
-    .grand-total { background:#1e40af;color:#fff; font-size:11pt; }
-    .footer { margin-top:24px; padding-top:12px; border-top:2px solid #3b82f6; text-align:center; font-size:7pt; color:#6b7280; }
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      font-size: 10pt;
+      line-height: 1.4;
+      color: #1f2937;
+    }
+
+    /* Summary Page Styles */
+    .summary-page {
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      padding: 40px;
+      position: relative;
+      color: #1f2937;
+    }
+
+    .summary-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 60px;
+      border-bottom: 4px solid #e11d48;
+      padding-bottom: 20px;
+    }
+
+    .logo-placeholder {
+      font-size: 24pt;
+      font-weight: bold;
+      color: #e11d48;
+      letter-spacing: -1px;
+    }
+
+    .summary-title {
+      font-size: 36pt;
+      font-weight: 800;
+      color: #111827;
+      margin-bottom: 10px;
+      line-height: 1.1;
+    }
+
+    .summary-subtitle {
+      font-size: 14pt;
+      color: #6b7280;
+      font-weight: 500;
+    }
+
+    .summary-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 40px;
+      margin-top: 40px;
+    }
+
+    .summary-card {
+      background: #fff;
+      border: 1px solid #e5e7eb;
+      border-radius: 8px;
+      padding: 25px;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    }
+
+    .summary-card-title {
+      font-size: 10pt;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: #6b7280;
+      margin-bottom: 10px;
+      font-weight: 600;
+    }
+
+    .summary-card-value {
+      font-size: 18pt;
+      font-weight: 700;
+      color: #111827;
+    }
+
+    .summary-footer {
+      margin-top: auto;
+      text-align: center;
+      color: #9ca3af;
+      font-size: 9pt;
+      border-top: 1px solid #e5e7eb;
+      padding-top: 20px;
+    }
+
+    /* Standard Page Styles */
+    .standard-page {
+      padding: 40px;
+    }
+
+    .standard-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-bottom: 15px;
+      border-bottom: 2px solid #e11d48;
+      margin-bottom: 30px;
+    }
+
+    .standard-header-company {
+      font-size: 16pt;
+      font-weight: bold;
+      color: #111827;
+    }
+
+    .standard-header-details {
+      text-align: right;
+      font-size: 9pt;
+      color: #6b7280;
+    }
+
+    .section {
+      margin-bottom: 30px;
+      page-break-inside: avoid;
+    }
+
+    .section-title {
+      background-color: #fff;
+      padding: 8px 0;
+      font-weight: 700;
+      font-size: 12pt;
+      border-bottom: 2px solid #e11d48;
+      margin-bottom: 20px;
+      color: #111827;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .info-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+      margin-bottom: 20px;
+    }
+
+    .info-row {
+      display: flex;
+      padding: 8px 0;
+      border-bottom: 1px solid #f3f4f6;
+    }
+
+    .info-label {
+      font-weight: 600;
+      min-width: 160px;
+      color: #6b7280;
+    }
+
+    .info-value {
+      color: #111827;
+      flex: 1;
+      font-weight: 500;
+    }
+
+    /* Table Styles */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 20px;
+      font-size: 9pt;
+    }
+
+    th, td {
+      border-bottom: 1px solid #e5e7eb;
+      padding: 10px 6px;
+      text-align: left;
+      vertical-align: top;
+    }
+
+    th {
+      background-color: #f9fafb;
+      font-weight: 600;
+      color: #374151;
+      text-transform: uppercase;
+      font-size: 8pt;
+      letter-spacing: 0.5px;
+    }
+
+    tbody tr:nth-child(even) {
+      background-color: #f9fafb;
+    }
+
+    .totals-table td {
+      padding: 12px;
+      border: 1px solid #e5e7eb;
+    }
+
+    .grand-total td {
+      background-color: #e11d48;
+      color: #fff;
+      font-weight: bold;
+      font-size: 11pt;
+      border-color: #e11d48;
+    }
+
+    .footer {
+      margin-top: 40px;
+      padding-top: 20px;
+      border-top: 1px solid #e5e7eb;
+      text-align: center;
+      font-size: 8pt;
+      color: #9ca3af;
+    }
+
+    .page-break {
+      page-break-after: always;
+    }
   </style>
 </head>
 <body>
-  <div class="header">
-    <h1>${companySettings?.company_name || 'Claimtech'}</h1>
-    <div class="company-info">
-      ${companySettings?.po_box || ''} ${companySettings?.city ? `| ${companySettings.city}` : ''} ${companySettings?.province || ''} ${companySettings?.postal_code || ''}<br>
-      Tel: ${companySettings?.phone || ''}${companySettings?.fax ? ` | Fax: ${companySettings.fax}` : ''}
-    </div>
-  </div>
-
-  <div class="title">ADDITIONALS LETTER</div>
-
-  <div class="section">
-    <div class="section-title">SUMMARY</div>
-    <div class="row">
-      <div class="col info-box">
-        <div class="info-row"><span class="label">Report No.:</span><span class="value">${assessment.report_number || assessment.assessment_number}</span></div>
-        <div class="info-row"><span class="label">Claim No.:</span><span class="value">${request?.claim_number || 'N/A'}</span></div>
-        <div class="info-row"><span class="label">Date:</span><span class="value">${formatDateNumeric(assessment.created_at)}</span></div>
+  <!-- Summary Page -->
+  <div class="summary-page">
+    <div class="summary-header">
+      <div class="logo-placeholder">
+        ${companySettings?.company_name || 'CLAIMTECH'}
       </div>
-      <div class="col info-box">
-        <div class="info-row"><span class="label">Assessor/Engineer:</span><span class="value">${assessment.assessor_name || 'N/A'}</span></div>
-        <div class="info-row"><span class="label">Contact:</span><span class="value">${assessment.assessor_contact || 'N/A'}</span></div>
-        <div class="info-row"><span class="label">Email:</span><span class="value">${assessment.assessor_email || 'N/A'}</span></div>
+      <div style="text-align: right;">
+        <div style="font-weight: bold; color: #e11d48;">${assessment.assessment_number}</div>
+        <div style="color: #6b7280; font-size: 9pt;">${formatDateNumeric(new Date().toISOString())}</div>
       </div>
     </div>
-    <div class="row">
-      <div class="col info-box">
-        <div class="info-row"><span class="label">Insurer/Client:</span><span class="value">${client?.name || 'N/A'}</span></div>
+
+    <div>
+      <div class="summary-title">ADDITIONALS LETTER</div>
+      <div class="summary-subtitle">Supplementary Repair Authorization</div>
+    </div>
+
+    <div class="summary-grid">
+      <div class="summary-card">
+        <div class="summary-card-title">Vehicle Details</div>
+        <div class="summary-card-value" style="font-size: 14pt;">
+          ${vehicleYear} ${vehicleMake}<br>
+          ${vehicleModel}
+        </div>
+        <div style="margin-top: 10px; color: #6b7280; font-size: 10pt;">
+          Reg: ${registrationNumber}
+        </div>
       </div>
-      ${repairer ? `<div class="col info-box"><div class="info-row"><span class="label">Repairer:</span><span class="value">${repairer.name}</span></div></div>` : ''}
+
+      <div class="summary-card">
+        <div class="summary-card-title">Approved Total</div>
+        <div class="summary-card-value" style="color: #059669;">
+          ${formatCurrency(totalApproved)}
+        </div>
+        <div style="margin-top: 5px; color: #6b7280; font-size: 9pt;">Incl. VAT</div>
+      </div>
+
+      <div class="summary-card">
+        <div class="summary-card-title">Approved Items</div>
+        <div class="summary-card-value">
+          ${approvedItems.length}
+        </div>
+        <div style="margin-top: 5px; color: #6b7280; font-size: 9pt;">Line Items</div>
+      </div>
+
+      <div class="summary-card">
+        <div class="summary-card-title">Client Reference</div>
+        <div class="summary-card-value" style="font-size: 14pt;">
+          ${request?.claim_number || '-'}
+        </div>
+        <div style="margin-top: 5px; color: #6b7280; font-size: 9pt;">Claim Number</div>
+      </div>
+    </div>
+
+    <div class="summary-footer">
+      ${companySettings?.company_name || 'Claimtech'} | ${companySettings?.email || 'info@claimtech.co.za'} | ${companySettings?.website || 'www.claimtech.co.za'}
     </div>
   </div>
 
-  <div class="section">
-    <div class="section-title">APPROVED ADDITIONALS</div>
-    <table>
-      <thead>
-        <tr>
-          <th style="width:8%">CODE</th>
-          <th style="width:34%">DESCRIPTION</th>
-          <th style="width:10%">PARTS</th>
-          <th style="width:10%">S&A</th>
-          <th style="width:10%">LABOUR</th>
-          <th style="width:10%">PAINT</th>
-          <th style="width:10%">OUTWORK</th>
-          <th style="width:8%">TOTAL</th>
-        </tr>
-      </thead>
-      <tbody>
-        ${approvedTable}
-      </tbody>
-    </table>
-  </div>
+  <div class="page-break"></div>
 
-  <div class="section">
-    <div class="section-title">DECLINED ADDITIONALS</div>
-    <table>
-      <thead>
-        <tr>
-          <th style="width:8%">CODE</th>
-          <th style="width:34%">DESCRIPTION & NOTES</th>
-          <th style="width:10%">PARTS</th>
-          <th style="width:10%">S&A</th>
-          <th style="width:10%">LABOUR</th>
-          <th style="width:10%">PAINT</th>
-          <th style="width:10%">OUTWORK</th>
-          <th style="width:8%">TOTAL</th>
-        </tr>
-      </thead>
-      <tbody>
-        ${declinedTable}
-      </tbody>
-    </table>
-  </div>
-
-  <div class="section">
-    <div class="section-title">REMOVED ORIGINAL LINES</div>
-    <p style="font-size:8pt;color:#6b7280;margin-bottom:8px;">Original estimate lines removed due to parts unavailability or other reasons. These items are shown here for audit trail purposes and are included in the calculation summary above as negative adjustments that reduce the payable total.</p>
-    <table>
-      <thead>
-        <tr>
-          <th style="width:8%">CODE</th>
-          <th style="width:34%">DESCRIPTION</th>
-          <th style="width:10%">PARTS</th>
-          <th style="width:10%">S&A</th>
-          <th style="width:10%">LABOUR</th>
-          <th style="width:10%">PAINT</th>
-          <th style="width:10%">OUTWORK</th>
-          <th style="width:8%">TOTAL</th>
-        </tr>
-      </thead>
-      <tbody>
-        ${removedTable}
-      </tbody>
-    </table>
-  </div>
-
-  <div class="section">
-    <div class="section-title">CALCULATION SUMMARY</div>
-    <p style="font-size:8pt;color:#6b7280;margin-bottom:8px;">
-      <strong>Note:</strong> Column values shown are nett amounts (before markup). The totals below include markup applied to parts and outwork at the aggregate level, then VAT is calculated on the subtotal. Approved removals and reversals are included as negative adjustments.
-    </p>
-    <table class="totals-table" style="width:100%;margin-bottom:12px;">
-      <tr>
-        <td style="width:50%;padding:8px;border:1px solid #d1d5db;background:#f3f4f6;font-weight:bold;">Approved Items Subtotal (nett + markup):</td>
-        <td style="width:50%;padding:8px;border:1px solid #d1d5db;text-align:right;font-weight:bold;">${formatCurrency(subtotalApproved)}</td>
-      </tr>
-      <tr>
-        <td style="width:50%;padding:8px;border:1px solid #d1d5db;background:#f3f4f6;font-weight:bold;">VAT (${additionals?.vat_percentage ?? 15}%):</td>
-        <td style="width:50%;padding:8px;border:1px solid #d1d5db;text-align:right;font-weight:bold;">${formatCurrency(vatApproved)}</td>
-      </tr>
-      <tr class="grand-total">
-        <td style="width:50%;padding:8px;border:1px solid #1e40af;background:#1e40af;color:#fff;font-weight:bold;font-size:11pt;">TOTAL PAYABLE (approved only):</td>
-        <td style="width:50%;padding:8px;border:1px solid #1e40af;background:#1e40af;color:#fff;text-align:right;font-weight:bold;font-size:11pt;">${formatCurrency(totalApproved)}</td>
-      </tr>
-    </table>
-    <div style="font-size:8pt;color:#6b7280;background:#f0fdf4;border:1px solid #86efac;padding:8px;border-radius:4px;">
-      <strong>Notes about payable total:</strong>
-      <ul style="margin:4px 0;padding-left:20px;">
-        <li>Removed original lines: ${removedItems.length} item(s) – included above as negative adjustments that reduce the payable total.</li>
-      </ul>
+  <!-- Standard Page -->
+  <div class="standard-page">
+    
+    <!-- Standard Header -->
+    <div class="standard-header">
+      <div class="standard-header-company">
+        ${companySettings?.company_name || 'Claimtech'}
+      </div>
+      <div class="standard-header-details">
+        <div><strong>Report No:</strong> ${assessment.assessment_number}</div>
+        <div><strong>Date:</strong> ${formatDateNumeric(new Date().toISOString())}</div>
+      </div>
     </div>
-  </div>
 
-  ${companySettings?.additionals_terms_and_conditions ? `
-  <div class="section" style="page-break-inside:avoid;">
-    <div class="section-title">DISCLAIMER</div>
-    <div style="font-size:9pt; line-height:1.5; color:#333; border:1px solid #ddd; padding:12px; background:#f9f9f9; white-space:pre-wrap;">
-      ${escapeHtmlWithLineBreaks(companySettings.additionals_terms_and_conditions)}
+    <!-- Summary Information -->
+    <div class="section">
+      <div class="section-title">SUMMARY INFORMATION</div>
+      <div class="info-grid">
+        <div class="info-row">
+          <span class="info-label">Report No.:</span>
+          <span class="info-value">${assessment.report_number || assessment.assessment_number}</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">Assessor:</span>
+          <span class="info-value">${assessment.assessor_name || 'N/A'}</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">Claim No.:</span>
+          <span class="info-value">${request?.claim_number || 'N/A'}</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">Insurer:</span>
+          <span class="info-value">${client?.name || 'N/A'}</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">Repairer:</span>
+          <span class="info-value">${repairer?.name || 'N/A'}</span>
+        </div>
+      </div>
     </div>
-  </div>
-  ` : ''}
 
-  <div class="footer">
-    <p>${companySettings?.company_name || 'Claimtech'} | ${companySettings?.email || ''} | ${companySettings?.website || ''}</p>
-    <p>Generated on ${formatDateNumeric(new Date().toISOString())}</p>
+    <!-- Approved Additionals -->
+    <div class="section">
+      <div class="section-title">APPROVED ADDITIONALS</div>
+      <table>
+        <thead>
+          <tr>
+            <th style="width:8%">CODE</th>
+            <th style="width:34%">DESCRIPTION</th>
+            <th style="width:10%">PARTS</th>
+            <th style="width:10%">S&A</th>
+            <th style="width:10%">LABOUR</th>
+            <th style="width:10%">PAINT</th>
+            <th style="width:10%">OUTWORK</th>
+            <th style="width:8%">TOTAL</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${approvedTable}
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Declined Additionals -->
+    <div class="section">
+      <div class="section-title">DECLINED ADDITIONALS</div>
+      <table>
+        <thead>
+          <tr>
+            <th style="width:8%">CODE</th>
+            <th style="width:34%">DESCRIPTION & NOTES</th>
+            <th style="width:10%">PARTS</th>
+            <th style="width:10%">S&A</th>
+            <th style="width:10%">LABOUR</th>
+            <th style="width:10%">PAINT</th>
+            <th style="width:10%">OUTWORK</th>
+            <th style="width:8%">TOTAL</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${declinedTable}
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Removed Original Lines -->
+    <div class="section">
+      <div class="section-title">REMOVED ORIGINAL LINES</div>
+      <p style="font-size:9pt;color:#6b7280;margin-bottom:15px;">
+        Original estimate lines removed due to parts unavailability or other reasons. These items are excluded from the settlement total.
+      </p>
+      <table>
+        <thead>
+          <tr>
+            <th style="width:8%">CODE</th>
+            <th style="width:34%">DESCRIPTION</th>
+            <th style="width:10%">PARTS</th>
+            <th style="width:10%">S&A</th>
+            <th style="width:10%">LABOUR</th>
+            <th style="width:10%">PAINT</th>
+            <th style="width:10%">OUTWORK</th>
+            <th style="width:8%">TOTAL</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${removedTable}
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Calculation Summary -->
+    <div class="section">
+      <div class="section-title">CALCULATION SUMMARY</div>
+      <p style="font-size:9pt;color:#6b7280;margin-bottom:15px;">
+        <strong>Note:</strong> Column values shown are nett amounts (before markup). The totals below include markup applied to parts and outwork at the aggregate level, then VAT is calculated on the subtotal.
+      </p>
+      <table class="totals-table">
+        <tr>
+          <td style="width:50%; background:#f9fafb; font-weight:bold;">Approved Items Subtotal (nett + markup):</td>
+          <td style="width:50%; text-align:right; font-weight:bold;">${formatCurrency(subtotalApproved)}</td>
+        </tr>
+        <tr>
+          <td style="width:50%; background:#f9fafb; font-weight:bold;">VAT (${additionals?.vat_percentage ?? 15}%):</td>
+          <td style="width:50%; text-align:right; font-weight:bold;">${formatCurrency(vatApproved)}</td>
+        </tr>
+        <tr class="grand-total">
+          <td>TOTAL PAYABLE (approved only):</td>
+          <td style="text-align:right;">${formatCurrency(totalApproved)}</td>
+        </tr>
+      </table>
+    </div>
+
+    ${companySettings?.additionals_terms_and_conditions ? `
+    <div class="section" style="page-break-inside:avoid;">
+      <div class="section-title">DISCLAIMER</div>
+      <div style="font-size:9pt; line-height:1.5; color:#4b5563; border:1px solid #e5e7eb; padding:15px; background:#f9fafb; white-space:pre-wrap; text-align: justify;">
+        ${escapeHtmlWithLineBreaks(companySettings.additionals_terms_and_conditions)}
+      </div>
+    </div>
+    ` : ''}
+
+    <div class="footer">
+      <p>This report was generated by ${companySettings?.company_name || 'Claimtech'}</p>
+      <p>${companySettings?.email || 'info@claimtech.co.za'} | ${companySettings?.website || 'www.claimtech.co.za'}</p>
+      <p>Generated on ${formatDateNumeric(new Date().toISOString())}</p>
+    </div>
   </div>
 </body>
 </html>

@@ -3,7 +3,8 @@ import { auditService } from './audit.service';
 import type {
 	Inspection,
 	CreateInspectionInput,
-	UpdateInspectionInput
+	UpdateInspectionInput,
+	InspectionStatus
 } from '$lib/types/inspection';
 import type { Request } from '$lib/types/request';
 import type { ServiceClient } from '$lib/types/service';
@@ -75,8 +76,8 @@ export class InspectionService {
 					.insert({
 						...inspectionData,
 						inspection_number: inspectionNumber,
-						status: 'pending'
-					})
+				status: 'pending' as InspectionStatus,
+			})
 					.select()
 					.single();
 
@@ -104,7 +105,7 @@ export class InspectionService {
 					}
 				});
 
-				return data;
+				return data as Inspection;
 
 			} catch (error) {
 				if (attempt === maxRetries - 1) {
@@ -139,7 +140,7 @@ export class InspectionService {
 			throw new Error(`Failed to fetch inspections: ${error.message}`);
 		}
 
-		return data || [];
+		return (data as Inspection[]) || [];
 	}
 
 	/**
@@ -184,7 +185,7 @@ export class InspectionService {
 		if (appError) {
 			console.error('Error fetching appointments:', appError);
 			// Continue without filtering if appointments query fails
-			return inspections;
+			return (inspections as Inspection[]);
 		}
 
 		// Filter out inspections that have appointments
@@ -192,7 +193,7 @@ export class InspectionService {
 			appointments?.map((a) => a.inspection_id) || []
 		);
 
-		return inspections.filter((i) => !inspectionsWithAppointments.has(i.id));
+		return (inspections as Inspection[]).filter((i) => !inspectionsWithAppointments.has(i.id));
 	}
 
 	/**
@@ -215,7 +216,7 @@ export class InspectionService {
 			throw new Error(`Failed to fetch inspection: ${error.message}`);
 		}
 
-		return data;
+		return data as Inspection;
 	}
 
 	/**
@@ -236,7 +237,7 @@ export class InspectionService {
 			throw new Error(`Failed to update inspection: ${error.message}`);
 		}
 
-		return data;
+		return data as Inspection;
 	}
 
 	/**
@@ -250,7 +251,7 @@ export class InspectionService {
 		// Get old inspection for audit logging
 		const oldInspection = await this.getInspection(id, client);
 
-		const updated = await this.updateInspection(id, { status }, client);
+	const updated = await this.updateInspection(id, { status: status as InspectionStatus }, client);
 
 		// Log status change
 		if (oldInspection && status !== oldInspection.status) {
@@ -309,9 +310,9 @@ export class InspectionService {
 	): Promise<Inspection> {
 		const db = client ?? supabase;
 
-		const updateData: any = {
+	const updateData: any = {
 			assigned_engineer_id: engineerId,
-			status: 'scheduled'
+			status: 'scheduled' as InspectionStatus 
 		};
 
 		if (scheduledDate) {
@@ -343,7 +344,7 @@ export class InspectionService {
 			}
 		});
 
-		return data;
+		return data as Inspection;
 	}
 
 	/**

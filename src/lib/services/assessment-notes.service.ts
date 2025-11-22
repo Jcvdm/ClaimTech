@@ -25,7 +25,7 @@ class AssessmentNotesService {
 			throw new Error(`Failed to fetch assessment notes: ${error.message}`);
 		}
 
-		return data || [];
+		return (data as AssessmentNote[]) || [];
 	}
 
 	/**
@@ -43,7 +43,7 @@ class AssessmentNotesService {
 			throw new Error(`Failed to fetch assessment note: ${error.message}`);
 		}
 
-		return data;
+		return data as AssessmentNote;
 	}
 
 	/**
@@ -83,7 +83,7 @@ class AssessmentNotesService {
 			console.error('Error logging audit change:', auditError);
 		}
 
-		return data;
+		return data as AssessmentNote;
 	}
 
 	/**
@@ -178,7 +178,7 @@ class AssessmentNotesService {
 			console.error('Error logging audit change:', auditError);
 		}
 
-		return data;
+		return data as AssessmentNote;
 	}
 
 	/**

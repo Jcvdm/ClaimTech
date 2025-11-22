@@ -3,6 +3,8 @@ import type { RequestHandler } from './$types';
 import { generatePDF } from '$lib/utils/pdf-generator';
 import { generateFRCReportHTML } from '$lib/templates/frc-report-template';
 import { createStreamingResponse } from '$lib/utils/streaming-response';
+import { getClientByRequestId, getRepairerForEstimate } from '$lib/utils/supabase-query-helpers';
+import { normalizeEstimate, normalizeCompanySettings, normalizeAssessment } from '$lib/utils/type-normalizers';
 
 export const POST: RequestHandler = async ({ request, locals }) => {
 	const body = await request.json();
@@ -71,13 +73,12 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 			yield { status: 'processing', progress: 25, message: 'Loading related data...' };
 			console.log(`[${new Date().toISOString()}] [Request ${requestId}] Progress 25% yielded successfully`);
 
-			// Fetch related data
+			// Fetch related data (excluding client and repairer which have nested dependencies)
 			const [
 				{ data: vehicleIdentification },
 				{ data: estimate },
 				{ data: additionals },
-				{ data: companySettings },
-				{ data: client }
+				{ data: companySettings }
 			] = await Promise.all([
 				locals.supabase
 					.from('assessment_vehicle_identification')
@@ -86,29 +87,27 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 					.single(),
 				locals.supabase.from('assessment_estimates').select('*').eq('assessment_id', assessmentId).single(),
 				locals.supabase.from('assessment_additionals').select('*').eq('assessment_id', assessmentId).single(),
-				locals.supabase.from('company_settings').select('*').single(),
-				assessment.request_id
-					? locals.supabase
-							.from('requests')
-							.select('client_id')
-							.eq('id', assessment.request_id)
-							.single()
-							.then(({ data }) =>
-								data
-									? locals.supabase.from('clients').select('*').eq('id', data.client_id).single()
-									: { data: null, error: null }
-							)
-					: Promise.resolve({ data: null, error: null })
+				locals.supabase.from('company_settings').select('*').single()
 			]);
 
 			console.log(`[${new Date().toISOString()}] [Request ${requestId}] Yielding progress: 40%`);
 			yield { status: 'processing', progress: 40, message: 'Loading repairer and documents...' };
 			console.log(`[${new Date().toISOString()}] [Request ${requestId}] Progress 40% yielded successfully`);
 
-			// Fetch repairer using estimate data
-			const { data: repairer } = estimate?.repairer_id
-				? await locals.supabase.from('repairers').select('*').eq('id', estimate.repairer_id).single()
-				: { data: null };
+			// Fetch client and repairer sequentially (they have nested dependencies)
+			const { data: client } = await getClientByRequestId(
+				assessment.request_id,
+				locals.supabase
+			);
+
+			const normalizedEstimate = normalizeEstimate(estimate);
+			const normalizedCompanySettings = normalizeCompanySettings(companySettings);
+			const normalizedAssessment = normalizeAssessment(assessment);
+
+			const { data: repairer } = await getRepairerForEstimate(
+				normalizedEstimate,
+				locals.supabase
+			);
 
 			// Fetch FRC documents
 			const { data: frcDocuments } = await locals.supabase
@@ -123,22 +122,22 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
 			// Determine T&Cs to use (client-specific or company defaults)
 			// Fallback pattern: client T&Cs → company T&Cs → empty
-			const termsAndConditions = client?.frc_terms_and_conditions || companySettings?.frc_terms_and_conditions || null;
+			const termsAndConditions = (client as any)?.frc_terms_and_conditions || normalizedCompanySettings?.frc_terms_and_conditions || null;
 
 			// Generate HTML
 			console.log(`[${new Date().toISOString()}] [Request ${requestId}] Generating HTML template...`);
 			const html = generateFRCReportHTML({
-				assessment,
-				frc,
-				vehicleIdentification,
-				estimate,
-				additionals,
-				repairer,
-				companySettings: companySettings ? {
-					...companySettings,
+				assessment: (normalizedAssessment || {}) as any,
+				frc: (frc || {}) as any,
+				vehicleIdentification: (vehicleIdentification || {}) as any,
+				estimate: (normalizedEstimate || {}) as any,
+				additionals: (additionals || {}) as any,
+				repairer: (repairer || {}) as any,
+				companySettings: normalizedCompanySettings ? {
+					...normalizedCompanySettings,
 					frc_terms_and_conditions: termsAndConditions
-				} : companySettings,
-				frcDocuments: frcDocuments || []
+				} as any : normalizedCompanySettings,
+				frcDocuments: (frcDocuments || []) as any
 			});
 
 			console.log(`[${new Date().toISOString()}] [Request ${requestId}] Yielding progress: 60%`);

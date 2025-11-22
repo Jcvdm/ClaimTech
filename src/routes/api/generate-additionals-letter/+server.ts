@@ -3,6 +3,9 @@ import type { RequestHandler } from './$types';
 import { generatePDF } from '$lib/utils/pdf-generator';
 import { generateAdditionalsLetterHTML } from '$lib/templates/additionals-letter-template';
 import { createStreamingResponse } from '$lib/utils/streaming-response';
+import { getClientByRequestId, getRepairerForEstimate } from '$lib/utils/supabase-query-helpers';
+import type { Assessment } from '$lib/types/assessment';
+import { normalizeEstimate, normalizeCompanySettings } from '$lib/utils/type-normalizers';
 
 export const POST: RequestHandler = async ({ request, locals }) => {
   const body = await request.json();
@@ -34,45 +37,45 @@ export const POST: RequestHandler = async ({ request, locals }) => {
         { data: additionals },
         { data: companySettings },
         { data: requestData },
-        { data: client }
+        { data: estimate },
+        { data: vehicleIdentification }
       ] = await Promise.all([
         locals.supabase.from('assessment_additionals').select('*').eq('assessment_id', assessmentId).single(),
         locals.supabase.from('company_settings').select('*').single(),
         locals.supabase.from('requests').select('*').eq('id', assessment.request_id).single(),
-        assessment.request_id
-          ? locals.supabase
-              .from('requests')
-              .select('client_id')
-              .eq('id', assessment.request_id)
-              .single()
-              .then(({ data }) => (data ? locals.supabase.from('clients').select('*').eq('id', data.client_id).single() : { data: null }))
-          : Promise.resolve({ data: null })
+        locals.supabase.from('assessment_estimates').select('*').eq('assessment_id', assessmentId).single(),
+        locals.supabase.from('assessment_vehicle_identification').select('*').eq('assessment_id', assessmentId).single()
       ]);
 
       yield { status: 'processing', progress: 35, message: 'Loading repairer...' };
 
-      const { data: estimate } = await locals.supabase
-        .from('assessment_estimates')
-        .select('*')
-        .eq('assessment_id', assessmentId)
-        .single();
+      // Fetch client and repairer sequentially
+      const { data: client } = await getClientByRequestId(
+        assessment.request_id,
+        locals.supabase
+      );
 
-      const { data: repairer } = estimate?.repairer_id
-        ? await locals.supabase.from('repairers').select('*').eq('id', estimate.repairer_id).single()
-        : { data: null };
+      const normalizedEstimate = normalizeEstimate(estimate);
+      const normalizedCompanySettings = normalizeCompanySettings(companySettings);
+
+      const { data: repairer } = await getRepairerForEstimate(
+        normalizedEstimate,
+        locals.supabase
+      );
 
       yield { status: 'processing', progress: 45, message: 'Generating HTML template...' };
 
       // Terms resolution: client override → company settings → empty
-      const terms = client?.additionals_terms_and_conditions || companySettings?.additionals_terms_and_conditions || null;
+      const terms = (client as any)?.additionals_terms_and_conditions || normalizedCompanySettings?.additionals_terms_and_conditions || null;
 
       const html = generateAdditionalsLetterHTML({
-        assessment,
-        additionals,
-        companySettings: companySettings ? { ...companySettings, additionals_terms_and_conditions: terms } : companySettings,
-        request: requestData,
-        client,
-        repairer
+        assessment: (assessment || {}) as any,
+        additionals: (additionals || {}) as any,
+        vehicleIdentification: (vehicleIdentification || {}) as any,
+        companySettings: normalizedCompanySettings ? { ...normalizedCompanySettings, additionals_terms_and_conditions: terms } as any : normalizedCompanySettings,
+        request: (requestData || {}) as any,
+        client: (client || {}) as any,
+        repairer: (repairer || {}) as any
       });
 
       yield { status: 'processing', progress: 60, message: 'Rendering PDF...' };

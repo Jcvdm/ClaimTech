@@ -2,6 +2,7 @@
 	import FormField from './FormField.svelte';
 	import { Card } from '$lib/components/ui/card';
 	import { DatePicker } from '$lib/components/ui/date-picker';
+	import { parseDate, type DateValue } from '@internationalized/date';
 
 	type Props = {
 		date_of_loss: string;
@@ -18,6 +19,18 @@
 		incident_description = $bindable(),
 		incident_location = $bindable()
 	}: Props = $props();
+
+	// Convert string date to DateValue for DatePicker
+	let dateValue = $state<DateValue | undefined>(
+		date_of_loss ? parseDate(date_of_loss) : undefined
+	);
+
+	// Sync changes back to string
+	$effect(() => {
+		if (dateValue) {
+			date_of_loss = dateValue.toString();
+		}
+	});
 
 	const incidentTypes = [
 		{ value: '', label: 'Select incident type' },
@@ -44,10 +57,8 @@
 			</label>
 			<DatePicker
 				name="date_of_loss"
-				labelId="incident-date-of-loss-label"
-				triggerId="incident-date-of-loss-trigger"
 				placeholder="Select date"
-				bind:value={date_of_loss}
+				bind:value={dateValue}
 			/>
 			</div>
 

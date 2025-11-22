@@ -32,7 +32,7 @@ export class TyresService {
 			console.error('Error logging audit change:', auditError);
 		}
 
-		return data;
+		return data as Tyre;
 	}
 
 	/**
@@ -51,7 +51,7 @@ export class TyresService {
 			return null;
 		}
 
-		return data;
+		return data as Tyre | null;
 	}
 
 	/**
@@ -70,7 +70,7 @@ export class TyresService {
 			return [];
 		}
 
-		return data || [];
+		return (data as Tyre[]) || [];
 	}
 
 	/**
@@ -82,7 +82,7 @@ export class TyresService {
 		// Supabase strips undefined values, which can cause empty updates
 		const cleanedInput = Object.fromEntries(
 			Object.entries(input).map(([key, value]) => [key, value === undefined ? null : value])
-		) as UpdateTyreInput;
+		) as any;
 
 		const { data, error } = await db
 			.from('assessment_tyres')
@@ -107,7 +107,7 @@ export class TyresService {
 			console.error('Error logging audit change:', auditError);
 		}
 
-		return data;
+		return data as Tyre;
 	}
 
 	/**
@@ -172,7 +172,7 @@ export class TyresService {
 				throw new Error(`Failed to create tyre: ${error.message}`);
 			}
 
-			tyres.push(data);
+			tyres.push(data as Tyre);
 		}
 
 		return tyres;

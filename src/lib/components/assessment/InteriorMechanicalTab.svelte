@@ -30,27 +30,34 @@
 	const onPhotosUpdate = $derived(props.onPhotosUpdate);
 
 	// Initialize localStorage draft for critical fields
-	const mileageDraft = useDraft(`assessment-${assessmentId}-mileage`);
-	const transmissionDraft = useDraft(`assessment-${assessmentId}-transmission`);
-	const interiorConditionDraft = useDraft(`assessment-${assessmentId}-interior-condition`);
+	let mileageDraft = useDraft('');
+	let transmissionDraft = useDraft('');
+	let interiorConditionDraft = useDraft('');
+
+	// Update draft keys when assessmentId changes
+	$effect(() => {
+		mileageDraft = useDraft(`assessment-${assessmentId}-mileage`);
+		transmissionDraft = useDraft(`assessment-${assessmentId}-transmission`);
+		interiorConditionDraft = useDraft(`assessment-${assessmentId}-interior-condition`);
+	});
 
 	// Photos
-	let engineBayPhotoUrl = $state(data?.engine_bay_photo_url || '');
-	let batteryPhotoUrl = $state(data?.battery_photo_url || '');
-	let oilLevelPhotoUrl = $state(data?.oil_level_photo_url || '');
-	let coolantPhotoUrl = $state(data?.coolant_photo_url || '');
-	let mileagePhotoUrl = $state(data?.mileage_photo_url || '');
-	let gearLeverPhotoUrl = $state(data?.gear_lever_photo_url || '');
+	let engineBayPhotoUrl = $state('');
+	let batteryPhotoUrl = $state('');
+	let oilLevelPhotoUrl = $state('');
+	let coolantPhotoUrl = $state('');
+	let mileagePhotoUrl = $state('');
+	let gearLeverPhotoUrl = $state('');
 
 	// Data
-	let mileageReading = $state(data?.mileage_reading?.toString() || '');
-	let interiorCondition = $state(data?.interior_condition || '');
-	let transmissionType = $state(data?.transmission_type || '');
-	let vehicleHasPower = $state(data?.vehicle_has_power !== null ? data?.vehicle_has_power?.toString() : '');
-	let srsSystem = $state(data?.srs_system || '');
-	let steering = $state(data?.steering || '');
-	let brakes = $state(data?.brakes || '');
-	let handbrake = $state(data?.handbrake || '');
+	let mileageReading = $state('');
+	let interiorCondition = $state('');
+	let transmissionType = $state('');
+	let vehicleHasPower = $state('');
+	let srsSystem = $state('');
+	let steering = $state('');
+	let brakes = $state('');
+	let handbrake = $state('');
 
 	// Sync local state with data prop when it changes (after save)
 	$effect(() => {

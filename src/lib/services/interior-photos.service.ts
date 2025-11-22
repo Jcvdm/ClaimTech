@@ -27,7 +27,7 @@ class InteriorPhotosService {
 			throw new Error(`Failed to fetch interior photos: ${error.message}`);
 		}
 
-		return data || [];
+		return (data as unknown as InteriorPhoto[]) || [];
 	}
 
 	/**
@@ -52,7 +52,7 @@ class InteriorPhotosService {
 			throw new Error(`Failed to create interior photo: ${error.message}`);
 		}
 
-		return data;
+		return data as unknown as InteriorPhoto;
 	}
 
 	/**
@@ -75,7 +75,7 @@ class InteriorPhotosService {
 			throw new Error(`Failed to update interior photo: ${error.message}`);
 		}
 
-		return data;
+		return data as unknown as InteriorPhoto;
 	}
 
 	/**
@@ -146,7 +146,7 @@ class InteriorPhotosService {
 			return 0;
 		}
 
-		return data ? data.display_order + 1 : 0;
+		return data ? (data.display_order || 0) + 1 : 0;
 	}
 }
 

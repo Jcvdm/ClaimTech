@@ -10,16 +10,16 @@
 	import RequiredFieldsWarning from './RequiredFieldsWarning.svelte';
 	import BettermentModal from './BettermentModal.svelte';
     import { Plus, Trash2, Check, CircleAlert, CircleCheck, CircleX, Info, Percent, ShieldCheck, Package, Recycle, RefreshCw } from 'lucide-svelte';
-	import type {
-		Estimate,
-		EstimateLineItem,
-		EstimatePhoto,
-		VehicleValues,
-		VehicleIdentification,
-		AssessmentResultType
-	} from '$lib/types/assessment';
-
-	import type { Repairer } from '$lib/types/repairer';
+import type {
+	Estimate,
+	EstimateLineItem,
+	EstimatePhoto,
+	VehicleValues,
+	VehicleIdentification,
+	AssessmentResultType
+} from '$lib/types/assessment';
+import type { VehicleDetails } from '$lib/utils/report-data-helpers';
+import type { Repairer } from '$lib/types/repairer';
 	import { getProcessTypeOptions, getProcessTypeConfig, getProcessTypeBadgeColor } from '$lib/constants/processTypes';
 	import { createEmptyLineItem, calculateLineItemTotal, calculateBetterment } from '$lib/utils/estimateCalculations';
 	import {
@@ -63,6 +63,7 @@
 		onComplete: () => void;
 		onRegisterSave?: (saveFn: () => Promise<void>) => void; // Expose save function to parent
 		onNotesUpdate?: () => void; // Callback to refresh notes display
+		vehicleDetails?: VehicleDetails | null;
 	}
 
 	// Make props reactive using $derived pattern
@@ -80,6 +81,7 @@
 	const onPhotosUpdate = $derived(props.onPhotosUpdate);
 	const onRepairersUpdate = $derived(props.onRepairersUpdate);
 	const onRegisterSave = $derived(props.onRegisterSave);
+	const vehicleDetails = $derived(props.vehicleDetails);
 
 
 	// Option A: Full-tab local buffer (no per-field PATCH)
@@ -223,7 +225,7 @@
 	async function handleBettermentSave(percentages: any) {
 		if (!bettermentItem || !localEstimate) return;
 
-		const idx = localEstimate.line_items.findIndex((i) => i.id === bettermentItem.id);
+		const idx = localEstimate.line_items.findIndex((i) => i.id === bettermentItem!.id);
 		if (idx === -1) return;
 
 		// Update betterment percentages
@@ -297,16 +299,16 @@
 			return;
 		}
 
-		// Prepare vehicle details
-		const vehicleDetails = vehicleIdentification ? {
-			vin_number: vehicleIdentification.vin_number,
-			vehicle_year: vehicleIdentification.vehicle_year,
-			vehicle_make: vehicleIdentification.vehicle_make,
-			vehicle_model: vehicleIdentification.vehicle_model
+		// Prepare vehicle details from normalized vehicleDetails
+		const csvVehicleDetails = vehicleDetails ? {
+			vin_number: vehicleDetails.vin,
+			vehicle_year: vehicleDetails.year,
+			vehicle_make: vehicleDetails.make,
+			vehicle_model: vehicleDetails.model
 		} : undefined;
 
 		// Generate plain text
-		partsListText = generatePartsListText(partsOnly, vehicleDetails, {
+		partsListText = generatePartsListText(partsOnly, csvVehicleDetails, {
 			assessmentNumber: assessmentNumber,
 			companyName: 'Claimtech', // TODO: Get from company settings
 			companyEmail: 'info@claimtech.co.za' // TODO: Get from company settings
@@ -682,7 +684,7 @@
 	{:else}
 		<!-- Warranty Status Hint -->
 		{#if vehicleValues && warrantyInfo()}
-			{@const warranty = warrantyInfo()}
+			{@const warranty = warrantyInfo()!}
 			{@const statusClasses = getWarrantyStatusClasses(warranty.color)}
 			<Card class="p-4 {statusClasses.bg} border-2 {statusClasses.border}">
 				<div class="flex items-start gap-3">
@@ -1183,7 +1185,7 @@
 
 					<!-- Total with Color Coding -->
 					{#if thresholdResult()}
-						{@const threshold = thresholdResult()}
+						{@const threshold = thresholdResult()!}
 						{@const colorClasses = getThresholdColorClasses(threshold.color)}
 						<div class="pt-3 space-y-3">
 							<div class="flex items-center justify-between">

@@ -9,6 +9,7 @@ import type {
 import { PROCESS_TYPE_CONFIGS } from '$lib/constants/processTypes';
 import { formatCurrency, formatDateNumeric } from '$lib/utils/formatters';
 import { escapeHtmlWithLineBreaks } from '$lib/utils/sanitize';
+import type { VehicleDetails, ClientDetails, InsuredDetails } from '$lib/utils/report-data-helpers';
 
 interface EstimateData {
 	assessment: Assessment;
@@ -19,6 +20,9 @@ interface EstimateData {
 	request: any;
 	client: any;
 	repairer: any;
+	vehicleDetails: VehicleDetails;
+	clientDetails: ClientDetails;
+	insuredDetails: InsuredDetails;
 }
 
 export function generateEstimateHTML(data: EstimateData): string {
@@ -30,7 +34,10 @@ export function generateEstimateHTML(data: EstimateData): string {
 		companySettings,
 		request,
 		client,
-		repairer
+		repairer,
+		vehicleDetails,
+		clientDetails,
+		insuredDetails
 	} = data;
 
 	// Convert database values to numbers (they come as strings from PostgreSQL DECIMAL type)
@@ -120,11 +127,13 @@ export function generateEstimateHTML(data: EstimateData): string {
 		const groups = groupLineItemsByCategory(items);
 		let html = '';
 
+		const headerStyle = "font-weight: bold !important; font-size: 10pt !important; padding: 12px 8px !important; border-bottom: 2px solid #e11d48 !important; background-color: #fff !important; color: #111827 !important; text-transform: uppercase !important; letter-spacing: 0.5px !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important;";
+
 		// NEW PARTS
 		if (groups.newParts.length > 0) {
 			html += `
 			<tr class="group-header">
-				<td colspan="8" style="font-weight: bold !important; font-size: 10pt !important; padding: 12px 8px !important; border-top: 2px solid #1e40af !important; border-bottom: 1px solid #d1d5db !important; background-color: #f3f4f6 !important; color: #1f2937 !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important;">
+				<td colspan="9" style="${headerStyle}">
 					NEW PARTS
 				</td>
 			</tr>
@@ -136,7 +145,7 @@ export function generateEstimateHTML(data: EstimateData): string {
 		if (groups.repairs.length > 0) {
 			html += `
 			<tr class="group-header">
-				<td colspan="8" style="font-weight: bold !important; font-size: 10pt !important; padding: 12px 8px !important; border-top: 2px solid #1e40af !important; border-bottom: 1px solid #d1d5db !important; background-color: #f3f4f6 !important; color: #1f2937 !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important;">
+				<td colspan="9" style="${headerStyle}">
 					REPAIRS
 				</td>
 			</tr>
@@ -148,7 +157,7 @@ export function generateEstimateHTML(data: EstimateData): string {
 		if (groups.paintBlend.length > 0) {
 			html += `
 			<tr class="group-header">
-				<td colspan="8" style="font-weight: bold !important; font-size: 10pt !important; padding: 12px 8px !important; border-top: 2px solid #1e40af !important; border-bottom: 1px solid #d1d5db !important; background-color: #f3f4f6 !important; color: #1f2937 !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important;">
+				<td colspan="9" style="${headerStyle}">
 					PAINT & BLEND
 				</td>
 			</tr>
@@ -160,7 +169,7 @@ export function generateEstimateHTML(data: EstimateData): string {
 		if (groups.other.length > 0) {
 			html += `
 			<tr class="group-header">
-				<td colspan="8" style="font-weight: bold !important; font-size: 10pt !important; padding: 12px 8px !important; border-top: 2px solid #1e40af !important; border-bottom: 1px solid #d1d5db !important; background-color: #f3f4f6 !important; color: #1f2937 !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important;">
+				<td colspan="9" style="${headerStyle}">
 					OTHER SERVICES
 				</td>
 			</tr>
@@ -186,543 +195,518 @@ export function generateEstimateHTML(data: EstimateData): string {
 		}
 
 		body {
-			font-family: Arial, sans-serif;
-			font-size: 9pt;
-			line-height: 1.3;
-			color: #000;
+			font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+			font-size: 10pt;
+			line-height: 1.4;
+			color: #1f2937;
 		}
 
-		.header {
-			background-color: #1e40af;
-			color: white;
-			padding: 15px;
-			text-align: center;
-			margin-bottom: 15px;
+		/* Summary Page Styles */
+		.summary-page {
+			height: 100vh;
+			display: flex;
+			flex-direction: column;
+			padding: 40px;
+			position: relative;
+			color: #1f2937;
 		}
 
-		.header h1 {
-			font-size: 20pt;
-			margin-bottom: 8px;
+		.summary-header {
+			display: flex;
+			justify-content: space-between;
+			align-items: flex-start;
+			margin-bottom: 60px;
+			border-bottom: 4px solid #e11d48;
+			padding-bottom: 20px;
 		}
 
-		.company-info {
-			font-size: 8pt;
-			margin-top: 8px;
-		}
-
-		.estimate-title {
-			background-color: #3b82f6;
-			color: white;
-			padding: 8px;
-			text-align: center;
-			font-size: 14pt;
+		.logo-placeholder {
+			font-size: 24pt;
 			font-weight: bold;
-			margin-bottom: 15px;
+			color: #e11d48;
+			letter-spacing: -1px;
 		}
 
-		/* Unified section styles for consistency with assessment report */
-		.section {
-			margin-bottom: 20px;
-			page-break-inside: avoid;
-		}
-
-		.section-title {
-			background-color: #dbeafe;
-			padding: 8px;
-			font-weight: bold;
-			font-size: 11pt;
-			border-left: 4px solid #3b82f6;
+		.summary-title {
+			font-size: 36pt;
+			font-weight: 800;
+			color: #111827;
 			margin-bottom: 10px;
+			line-height: 1.1;
 		}
 
-		.info-section {
+		.summary-subtitle {
+			font-size: 14pt;
+			color: #6b7280;
+			font-weight: 500;
+		}
+
+		.summary-grid {
+			display: grid;
+			grid-template-columns: repeat(2, 1fr);
+			gap: 40px;
+			margin-top: 40px;
+		}
+
+		.summary-card {
+			background: #fff;
+			border: 1px solid #e5e7eb;
+			border-radius: 8px;
+			padding: 25px;
+			box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+		}
+
+		.summary-card-title {
+			font-size: 10pt;
+			text-transform: uppercase;
+			letter-spacing: 1px;
+			color: #6b7280;
+			margin-bottom: 10px;
+			font-weight: 600;
+		}
+
+		.summary-card-value {
+			font-size: 18pt;
+			font-weight: 700;
+			color: #111827;
+		}
+
+		.summary-footer {
+			margin-top: auto;
+			text-align: center;
+			color: #9ca3af;
+			font-size: 9pt;
+			border-top: 1px solid #e5e7eb;
+			padding-top: 20px;
+		}
+
+		/* Standard Page Styles */
+		.standard-page {
+			padding: 40px;
+		}
+
+		.standard-header {
+			display: flex;
+			justify-content: space-between;
+			align-items: center;
+			padding-bottom: 15px;
+			border-bottom: 2px solid #e11d48;
+			margin-bottom: 30px;
+		}
+
+		.standard-header-company {
+			font-size: 16pt;
+			font-weight: bold;
+			color: #111827;
+		}
+
+		.standard-header-details {
+			text-align: right;
+			font-size: 9pt;
+			color: #6b7280;
+		}
+
+		.info-grid {
 			display: grid;
 			grid-template-columns: 1fr 1fr;
-			gap: 15px;
-			margin-bottom: 15px;
-		}
-
-		.info-box {
-			border: 1px solid #d1d5db;
-			padding: 10px;
-			background-color: #f9fafb;
-		}
-
-		.info-box h3 {
-			font-size: 10pt;
-			color: #1e40af;
-			margin-bottom: 8px;
-			border-bottom: 2px solid #3b82f6;
-			padding-bottom: 4px;
+			gap: 20px;
+			margin-bottom: 30px;
+			padding: 20px;
+			background: #f9fafb;
+			border: 1px solid #e5e7eb;
+			border-radius: 6px;
 		}
 
 		.info-row {
 			display: flex;
-			padding: 3px 0;
+			padding: 4px 0;
 		}
 
 		.info-label {
-			font-weight: bold;
-			min-width: 100px;
-			color: #374151;
-			font-size: 8pt;
+			font-weight: 600;
+			min-width: 140px;
+			color: #6b7280;
 		}
 
 		.info-value {
-			color: #000;
-			font-size: 8pt;
-		}
-
-		.rates-section {
-			background-color: #dbeafe;
-			padding: 10px;
-			margin-bottom: 15px;
-			border-left: 4px solid #3b82f6;
-		}
-
-		.rates-section h3 {
-			font-size: 10pt;
-			margin-bottom: 5px;
-		}
-
-		table {
-			width: 100%;
-			border-collapse: collapse;
-			margin-bottom: 15px;
-			font-size: 8pt;
-		}
-
-		th, td {
-			border: 1px solid #9ca3af;
-			padding: 6px 4px;
-			text-align: left;
-		}
-
-		th {
-			background-color: #1e40af;
-			color: white;
-			font-weight: bold;
-			font-size: 8pt;
-		}
-
-		.category-header {
-			background-color: #3b82f6;
-			color: white;
-			font-weight: bold;
-			padding: 6px;
-			font-size: 9pt;
-		}
-
-		.group-header td {
-			font-weight: bold;
-			font-size: 10pt;
-			padding: 12px 8px;
-			border-top: 2px solid #1e40af;
-			border-bottom: 1px solid #d1d5db;
-			background-color: #f3f4f6;
-			color: #1f2937;
-			page-break-inside: avoid;
-			page-break-after: avoid;
-		}
-
-		.subtotal-row {
-			background-color: #f3f4f6;
-			font-weight: bold;
-		}
-
-		/* Container for totals sections - uses flexbox for PDF compatibility */
-		.totals-container {
-			display: flex;
-			justify-content: flex-end;
-			gap: 20px;
-			margin-top: 20px;
-			margin-bottom: 20px;
-			page-break-inside: avoid;
-		}
-
-		.breakdown-section {
-			width: 300px;
-			page-break-inside: avoid;
-		}
-
-		.totals-section {
-			width: 300px;
-			page-break-inside: avoid;
-		}
-
-		.totals-table {
-			width: 100%;
-			border-collapse: collapse;
-		}
-
-		.totals-table td {
-			padding: 8px;
-			border: 1px solid #d1d5db;
-		}
-
-		.totals-label {
-			font-weight: bold;
-			background-color: #f3f4f6;
-			width: 60%;
-		}
-
-		.totals-value {
-			text-align: right;
-			font-weight: bold;
-		}
-
-		.grand-total {
-			background-color: #1e40af;
-			color: white;
-			font-size: 11pt;
-		}
-
-		.breakdown-table {
-			width: 100%;
-			border-collapse: collapse;
-			font-size: 9pt;
-		}
-
-		.breakdown-table td {
-			padding: 6px 8px;
-			border-bottom: 1px solid #e5e7eb;
-		}
-
-		.breakdown-label {
-			color: #6b7280;
-		}
-
-		.breakdown-value {
-			text-align: right;
+			color: #111827;
+			flex: 1;
 			font-weight: 500;
 		}
 
-		.breakdown-markup {
-			color: #059669;
+		/* Table Styles */
+		table {
+			width: 100%;
+			border-collapse: collapse;
+			margin-bottom: 20px;
+			font-size: 9pt;
+			table-layout: fixed; /* Enforce column widths */
+		}
+
+		thead {
+			display: table-header-group; /* Repeat header on new pages */
+		}
+
+		tr {
+			page-break-inside: avoid; /* Prevent row splitting */
+		}
+
+		tbody tr:nth-child(even) {
+			background-color: #f9fafb; /* Zebra striping */
+		}
+
+		th, td {
+			border-bottom: 1px solid #e5e7eb;
+			padding: 10px 6px;
+			text-align: left;
+			vertical-align: top;
+			word-wrap: break-word;
+		}
+
+		th {
+			background-color: #f3f4f6;
+			font-weight: 700;
+			color: #374151;
+			text-transform: uppercase;
+			font-size: 8pt;
+			letter-spacing: 0.5px;
+			border-top: 2px solid #111827;
+			border-bottom: 2px solid #111827;
+		}
+
+		/* Totals Styles */
+		.totals-container {
+			display: flex;
+			justify-content: flex-end;
+			gap: 40px;
+			margin-top: 30px;
+			page-break-inside: avoid; /* Keep totals block together */
+			background: #fff;
+		}
+
+		.breakdown-section, .totals-section {
+			width: 350px;
+		}
+
+		.breakdown-table td, .totals-table td {
+			padding: 8px 0;
+			border-bottom: 1px solid #f3f4f6;
+		}
+
+		.breakdown-label, .totals-label {
+			color: #6b7280;
+			font-weight: 500;
+		}
+
+		.breakdown-value, .totals-value {
+			text-align: right;
 			font-weight: 600;
+			color: #111827;
 		}
 
-		.breakdown-betterment {
-			color: #dc2626;
-			font-weight: 600;
-		}
-
-		.breakdown-header {
-			font-weight: bold;
-			color: #1f2937;
-			border-bottom: 2px solid #d1d5db;
-			padding-bottom: 8px;
-		}
-
-		.notes-section {
-			clear: both;
-			margin-top: 20px;
-			padding-top: 20px;
-			border-top: 2px solid #d1d5db;
+		.grand-total td {
+			border-top: 2px solid #e11d48;
+			border-bottom: none;
+			padding-top: 15px;
+			font-size: 12pt;
+			font-weight: 700;
+			color: #e11d48;
 		}
 
 		.notes-box {
-			border: 1px solid #d1d5db;
-			padding: 10px;
+			border: 1px solid #e5e7eb;
+			padding: 20px;
 			background-color: #f9fafb;
 			min-height: 60px;
 			white-space: pre-wrap;
-			font-size: 8pt;
+			border-radius: 6px;
+			color: #374151;
 		}
 
 		.footer {
-			margin-top: 30px;
-			padding-top: 15px;
-			border-top: 2px solid #3b82f6;
+			margin-top: 40px;
+			padding-top: 20px;
+			border-top: 1px solid #e5e7eb;
 			text-align: center;
-			font-size: 7pt;
-			color: #6b7280;
+			font-size: 8pt;
+			color: #9ca3af;
 		}
 
 		.page-break {
 			page-break-after: always;
 		}
 
-		/* Print-specific CSS for PDF rendering */
+		.tcs-container {
+			page-break-before: always;
+			page-break-inside: avoid;
+		}
+
+		/* Print-specific CSS */
 		@media print {
 			* {
 				-webkit-print-color-adjust: exact !important;
 				print-color-adjust: exact !important;
-				color-adjust: exact !important;
 			}
-
-			.totals-container,
-			.breakdown-section,
-			.totals-section,
-			.breakdown-table,
-			.totals-table,
-			.group-header {
-				page-break-inside: avoid !important;
+			
+			thead {
+				display: table-header-group;
 			}
-
-			.group-header td {
-				background-color: #f3f4f6 !important;
-				color: #1f2937 !important;
-				border-top: 2px solid #1e40af !important;
-				border-bottom: 1px solid #d1d5db !important;
+			
+			tr {
+				page-break-inside: avoid;
 			}
-
-			.grand-total {
-				background-color: #1e40af !important;
-				color: white !important;
-			}
-
-			.breakdown-markup {
-				color: #059669 !important;
-			}
-
-			.breakdown-betterment {
-				color: #dc2626 !important;
-			}
-		}
-
-		/* Force color rendering in all contexts */
-		* {
-			-webkit-print-color-adjust: exact;
-			print-color-adjust: exact;
-			color-adjust: exact;
 		}
 	</style>
 </head>
 <body>
-	<!-- Header -->
-	<div class="header">
-		<h1>${companySettings?.company_name || 'Claimtech'}</h1>
-		<div class="company-info">
-			${companySettings?.po_box || 'P.O. Box 12345'} | 
-			${companySettings?.city || 'Johannesburg'}, ${companySettings?.province || 'Gauteng'} ${companySettings?.postal_code || '2000'}<br>
-			Tel: ${companySettings?.phone || '+27 (0) 11 123 4567'}
-			${companySettings?.fax ? ` | Fax: ${companySettings.fax}` : ''}
+	<!-- Summary Page -->
+	<div class="summary-page">
+		<div class="summary-header">
+			<div class="logo-placeholder">
+				${companySettings?.company_name || 'CLAIMTECH'}
+			</div>
+			<div style="text-align: right;">
+				<div style="font-weight: bold; color: #e11d48;">${assessment.assessment_number}</div>
+				<div style="color: #6b7280; font-size: 9pt;">${formatDateNumeric(assessment.created_at)}</div>
+			</div>
+		</div>
+
+		<div>
+			<div class="summary-title">REPAIR ESTIMATE</div>
+			<div class="summary-subtitle">Detailed Repair Cost Breakdown</div>
+		</div>
+
+		<div class="summary-grid">
+			<div class="summary-card">
+				<div class="summary-card-title">Vehicle Details</div>
+				<div class="summary-card-value" style="font-size: 14pt;">
+					${vehicleDetails.year || ''} ${vehicleDetails.make || ''}<br>
+					${vehicleDetails.model || ''}
+				</div>
+				<div style="margin-top: 10px; color: #6b7280; font-size: 10pt;">
+					Reg: ${vehicleDetails.registration || '-'}
+				</div>
+			</div>
+
+			<div class="summary-card">
+				<div class="summary-card-title">Assessment Outcome</div>
+				<div class="summary-card-value" style="color: ${
+					estimate?.assessment_result === 'repair' ? '#059669' :
+					estimate?.assessment_result === 'code_2' ? '#d97706' :
+					estimate?.assessment_result === 'code_3' || estimate?.assessment_result === 'total_loss' ? '#dc2626' : '#374151'
+				};">
+					${estimate?.assessment_result ? (
+						estimate.assessment_result === 'repair' ? 'Repairable' : 
+						estimate.assessment_result === 'code_2' ? 'Code 2 (Write-off)' : 
+						estimate.assessment_result === 'code_3' ? 'Code 3 (Write-off)' : 
+						estimate.assessment_result === 'total_loss' ? 'Total Loss' : 
+						estimate.assessment_result
+					) : 'Pending'}
+				</div>
+			</div>
+
+			<div class="summary-card">
+				<div class="summary-card-title">Estimated Repair Cost</div>
+				<div class="summary-card-value" style="color: #e11d48;">
+					${estimate ? formatCurrency(estimate.total) : '-'}
+				</div>
+				<div style="margin-top: 5px; color: #6b7280; font-size: 9pt;">Incl. VAT</div>
+			</div>
+
+			<div class="summary-card">
+				<div class="summary-card-title">Client Reference</div>
+				<div class="summary-card-value" style="font-size: 14pt;">
+					${request?.claim_number || '-'}
+				</div>
+				<div style="margin-top: 5px; color: #6b7280; font-size: 9pt;">Claim Number</div>
+			</div>
+		</div>
+
+		${estimate?.notes ? `
+		<div style="margin-top: 40px; padding: 20px; background: #fff1f2; border-left: 4px solid #e11d48; border-radius: 4px;">
+			<div style="font-weight: bold; color: #9f1239; margin-bottom: 5px;">Estimate Notes</div>
+			<div style="color: #881337;">
+				${estimate.notes.length > 300 ? estimate.notes.substring(0, 300) + '...' : estimate.notes}
+			</div>
+		</div>
+		` : ''}
+
+		<div class="summary-footer">
+			${companySettings?.company_name || 'Claimtech'} | ${companySettings?.email || 'info@claimtech.co.za'} | ${companySettings?.website || 'www.claimtech.co.za'}
 		</div>
 	</div>
 
-	<!-- Estimate Title -->
-	<div class="estimate-title">
-		REPAIR ESTIMATE
-	</div>
+	<div class="page-break"></div>
 
-	<!-- Executive Summary -->
-	<div class="section">
-		<div class="section-title">EXECUTIVE SUMMARY</div>
-		<div class="info-section">
+	<!-- Standard Page -->
+	<div class="standard-page">
+		
+		<!-- Standard Header -->
+		<div class="standard-header">
+			<div class="standard-header-company">
+				${companySettings?.company_name || 'Claimtech'}
+			</div>
+			<div class="standard-header-details">
+				<div><strong>Estimate No:</strong> ${assessment.assessment_number}</div>
+				<div><strong>Date:</strong> ${formatDateNumeric(assessment.created_at)}</div>
+			</div>
+		</div>
+
+		<!-- Combined Info Block -->
+		<div class="info-grid">
+			<!-- Column 1: Claim & Vehicle -->
 			<div>
-				<div style="font-size: 9pt; color: #6b7280;">Vehicle</div>
-				<div style="font-size: 11pt; font-weight: 600;">${vehicleIdentification?.make || request?.vehicle_make || 'N/A'} ${vehicleIdentification?.model || request?.vehicle_model || ''}</div>
+				<div style="font-weight: bold; color: #111827; margin-bottom: 10px; border-bottom: 1px solid #e5e7eb; padding-bottom: 5px;">CLAIM & VEHICLE DETAILS</div>
+				<div class="info-row">
+					<span class="info-label">Claim No.:</span>
+					<span class="info-value">${insuredDetails.claimNumber || 'N/A'}</span>
+				</div>
+				<div class="info-row">
+					<span class="info-label">Vehicle:</span>
+					<span class="info-value">${vehicleDetails.year || ''} ${vehicleDetails.make || ''} ${vehicleDetails.model || ''}</span>
+				</div>
+				<div class="info-row">
+					<span class="info-label">Registration:</span>
+					<span class="info-value">${vehicleDetails.registration || 'N/A'}</span>
+				</div>
+				<div class="info-row">
+					<span class="info-label">VIN:</span>
+					<span class="info-value">${vehicleDetails.vin || 'N/A'}</span>
+				</div>
 			</div>
+
+			<!-- Column 2: Repairer & Rates -->
 			<div>
-				<div style="font-size: 9pt; color: #6b7280;">Claim Number</div>
-				<div style="font-size: 11pt; font-weight: 600;">${request?.claim_number || 'N/A'}</div>
-			</div>
-			<div>
-				<div style="font-size: 9pt; color: #6b7280;">Outcome</div>
-				<div style="font-size: 11pt; font-weight: 600;">${estimate?.assessment_result ? (estimate.assessment_result === 'repairable' ? 'Repairable' : estimate.assessment_result === 'borderline_writeoff' ? 'Borderline Write-off' : estimate.assessment_result === 'total_writeoff' ? 'Total Write-off' : estimate.assessment_result) : 'Pending'}</div>
-			</div>
-			<div>
-				<div style="font-size: 9pt; color: #6b7280;">Estimated Repair Cost</div>
-				<div style="font-size: 11pt; font-weight: 600; color: #1e40af;">${estimate ? formatCurrency(estimate.total) : '-'}</div>
-			</div>
-		</div>
-	</div>
-
-	<!-- Information Section -->
-	<div class="info-section">
-		<!-- Claim Information -->
-		<div class="info-box">
-			<h3>CLAIM INFORMATION</h3>
-			<div class="info-row">
-				<span class="info-label">Report No.:</span>
-				<span class="info-value">${assessment.report_number || assessment.assessment_number}</span>
-			</div>
-			<div class="info-row">
-				<span class="info-label">Claim No.:</span>
-				<span class="info-value">${request?.claim_number || 'N/A'}</span>
-			</div>
-			<div class="info-row">
-				<span class="info-label">Date:</span>
-				<span class="info-value">${formatDateNumeric(assessment.created_at)}</span>
-			</div>
-			<div class="info-row">
-				<span class="info-label">Instructed By:</span>
-				<span class="info-value">${client?.name || 'N/A'}</span>
-			</div>
-		</div>
-
-		<!-- Vehicle Information -->
-		<div class="info-box">
-			<h3>VEHICLE INFORMATION</h3>
-			<div class="info-row">
-				<span class="info-label">Make:</span>
-				<span class="info-value">${vehicleIdentification?.make || request?.vehicle_make || 'N/A'}</span>
-			</div>
-			<div class="info-row">
-				<span class="info-label">Model:</span>
-				<span class="info-value">${vehicleIdentification?.model || request?.vehicle_model || 'N/A'}</span>
-			</div>
-			<div class="info-row">
-				<span class="info-label">Year:</span>
-				<span class="info-value">${vehicleIdentification?.year || request?.vehicle_year || 'N/A'}</span>
-			</div>
-			<div class="info-row">
-				<span class="info-label">Reg No.:</span>
-				<span class="info-value">${vehicleIdentification?.registration_number || request?.vehicle_registration || 'N/A'}</span>
-			</div>
-			<div class="info-row">
-				<span class="info-label">VIN:</span>
-				<span class="info-value">${vehicleIdentification?.vin_number || 'N/A'}</span>
-			</div>
-		</div>
-	</div>
-
-	<!-- Repairer Information -->
-	${repairer ? `
-	<div class="info-box" style="margin-bottom: 15px;">
-		<h3>REPAIRER INFORMATION</h3>
-		<div class="info-row">
-			<span class="info-label">Name:</span>
-			<span class="info-value">${repairer.name}</span>
-		</div>
-		<div class="info-row">
-			<span class="info-label">Address:</span>
-			<span class="info-value">${repairer.address || 'N/A'}</span>
-		</div>
-		<div class="info-row">
-			<span class="info-label">Contact:</span>
-			<span class="info-value">${repairer.phone || 'N/A'}</span>
-		</div>
-	</div>
-	` : ''}
-
-	<!-- Labour Rates -->
-	<div class="rates-section">
-		<h3>LABOUR RATES</h3>
-		<div class="info-row">
-			<span class="info-label">Labour Rate:</span>
-			<span class="info-value">${formatCurrency(estimate?.labour_rate || 0)} per hour</span>
-		</div>
-		<div class="info-row">
-			<span class="info-label">Paint Rate:</span>
-			<span class="info-value">${formatCurrency(estimate?.paint_rate || 0)} per hour</span>
-		</div>
-	</div>
-
-	<!-- Line Items Table -->
-	<table>
-		<thead>
-			<tr>
-				<th style="width: 7%;">CODE</th>
-				<th style="width: 28%;">DESCRIPTION</th>
-				<th style="width: 7%;">TYPE</th>
-				<th style="width: 9%;">PARTS</th>
-				<th style="width: 9%;">S&A</th>
-				<th style="width: 9%;">LABOUR</th>
-				<th style="width: 9%;">PAINT</th>
-				<th style="width: 9%;">OUTWORK</th>
-				<th style="width: 12%;">TOTAL</th>
-			</tr>
-		</thead>
-		<tbody>
-			${lineItems.length > 0 ? renderGroupedLineItems(lineItems) : `
-			<tr>
-				<td colspan="8" style="text-align: center; padding: 20px;">No line items</td>
-			</tr>
-			`}
-		</tbody>
-	</table>
-
-	<!-- Totals Container (Flexbox for PDF compatibility) -->
-	<div class="totals-container">
-		<!-- Totals Breakdown Section -->
-		<div class="breakdown-section">
-			<table class="breakdown-table">
-				<tr class="breakdown-header">
-					<td colspan="2">TOTALS BREAKDOWN</td>
-				</tr>
-				<tr>
-					<td class="breakdown-label">Parts Total (nett)</td>
-					<td class="breakdown-value">${formatCurrency(partsNett)}</td>
-				</tr>
-				<tr>
-					<td class="breakdown-label">S&A Total</td>
-					<td class="breakdown-value">${formatCurrency(saTotal)}</td>
-				</tr>
-				<tr>
-					<td class="breakdown-label">Labour Total</td>
-					<td class="breakdown-value">${formatCurrency(labourTotal)}</td>
-				</tr>
-				<tr>
-					<td class="breakdown-label">Paint Total</td>
-					<td class="breakdown-value">${formatCurrency(paintTotal)}</td>
-				</tr>
-				<tr>
-					<td class="breakdown-label">Outwork Total (nett)</td>
-					<td class="breakdown-value">${formatCurrency(outworkNett)}</td>
-				</tr>
-				<tr>
-					<td class="breakdown-label">Markup Total</td>
-					<td class="breakdown-value breakdown-markup">${formatCurrency(markupTotal)}</td>
-				</tr>
-				${bettermentTotal > 0 ? `
-				<tr>
-					<td class="breakdown-label">Betterment Deduction</td>
-					<td class="breakdown-value" style="color: #dc2626; font-weight: 600;">-${formatCurrency(bettermentTotal)}</td>
-				</tr>
+				<div style="font-weight: bold; color: #111827; margin-bottom: 10px; border-bottom: 1px solid #e5e7eb; padding-bottom: 5px;">REPAIRER & RATES</div>
+				${repairer ? `
+				<div class="info-row">
+					<span class="info-label">Repairer:</span>
+					<span class="info-value">${repairer.name}</span>
+				</div>
 				` : ''}
-			</table>
+				<div class="info-row">
+					<span class="info-label">Labour Rate:</span>
+					<span class="info-value">${formatCurrency(estimate?.labour_rate || 0)}/hr</span>
+				</div>
+				<div class="info-row">
+					<span class="info-label">Paint Rate:</span>
+					<span class="info-value">${formatCurrency(estimate?.paint_rate || 0)}/hr</span>
+				</div>
+			</div>
 		</div>
 
-		<!-- Totals Section -->
-		<div class="totals-section">
-			<table class="totals-table">
+		<!-- Line Items Table -->
+		<table>
+			<thead>
 				<tr>
-					<td class="totals-label">Subtotal:</td>
-					<td class="totals-value">${formatCurrency(subtotal)}</td>
+					<th style="width: 8%;">CODE</th>
+					<th style="width: 27%;">DESCRIPTION</th>
+					<th style="width: 7%; text-align: center;">TYPE</th>
+					<th style="width: 9%; text-align: right;">PARTS</th>
+					<th style="width: 9%; text-align: right;">S&A</th>
+					<th style="width: 9%; text-align: right;">LABOUR</th>
+					<th style="width: 9%; text-align: right;">PAINT</th>
+					<th style="width: 9%; text-align: right;">OUTWORK</th>
+					<th style="width: 13%; text-align: right;">TOTAL</th>
 				</tr>
+			</thead>
+			<tbody>
+				${lineItems.length > 0 ? renderGroupedLineItems(lineItems) : `
 				<tr>
-					<td class="totals-label">Sundries (${estimate ? (estimate.sundries_percentage ?? (companySettings?.sundries_percentage ?? 1)) : (companySettings?.sundries_percentage ?? 1)}%):</td>
-					<td class="totals-value">${formatCurrency(estimate ? (estimate.sundries_amount || 0) : 0)}</td>
+					<td colspan="9" style="text-align: center; padding: 20px;">No line items</td>
 				</tr>
-				<tr>
-					<td class="totals-label">VAT (${estimate ? (estimate.vat_percentage ?? 15) : 15}%):</td>
-					<td class="totals-value">${formatCurrency(vat)}</td>
-				</tr>
-				<tr class="grand-total">
-					<td class="totals-label">GRAND TOTAL:</td>
-					<td class="totals-value">${formatCurrency(grandTotal)}</td>
-				</tr>
-			</table>
+				`}
+			</tbody>
+		</table>
+
+		<!-- Totals -->
+		<div class="totals-container">
+			<!-- Totals Breakdown Section -->
+			<div class="breakdown-section">
+				<table class="breakdown-table">
+					<tr>
+						<td colspan="2" style="font-weight: bold; border-bottom: 2px solid #e5e7eb; padding-bottom: 10px; margin-bottom: 10px; display: block;">TOTALS BREAKDOWN</td>
+					</tr>
+					<tr>
+						<td class="breakdown-label">Parts Total (nett)</td>
+						<td class="breakdown-value">${formatCurrency(partsNett)}</td>
+					</tr>
+					<tr>
+						<td class="breakdown-label">S&A Total</td>
+						<td class="breakdown-value">${formatCurrency(saTotal)}</td>
+					</tr>
+					<tr>
+						<td class="breakdown-label">Labour Total</td>
+						<td class="breakdown-value">${formatCurrency(labourTotal)}</td>
+					</tr>
+					<tr>
+						<td class="breakdown-label">Paint Total</td>
+						<td class="breakdown-value">${formatCurrency(paintTotal)}</td>
+					</tr>
+					<tr>
+						<td class="breakdown-label">Outwork Total (nett)</td>
+						<td class="breakdown-value">${formatCurrency(outworkNett)}</td>
+					</tr>
+					<tr>
+						<td class="breakdown-label">Markup Total</td>
+						<td class="breakdown-value" style="color: #059669;">${formatCurrency(markupTotal)}</td>
+					</tr>
+					${bettermentTotal > 0 ? `
+					<tr>
+						<td class="breakdown-label">Betterment Deduction</td>
+						<td class="breakdown-value" style="color: #dc2626;">-${formatCurrency(bettermentTotal)}</td>
+					</tr>
+					` : ''}
+				</table>
+			</div>
+
+			<!-- Totals Section -->
+			<div class="totals-section">
+				<table class="totals-table">
+					<tr>
+						<td class="totals-label">Subtotal:</td>
+						<td class="totals-value">${formatCurrency(subtotal)}</td>
+					</tr>
+					<tr>
+						<td class="totals-label">Sundries (${estimate ? (estimate.sundries_percentage ?? (companySettings?.sundries_percentage ?? 1)) : (companySettings?.sundries_percentage ?? 1)}%):</td>
+						<td class="totals-value">${formatCurrency(estimate ? (estimate.sundries_amount || 0) : 0)}</td>
+					</tr>
+					<tr>
+						<td class="totals-label">VAT (${estimate ? (estimate.vat_percentage ?? 15) : 15}%):</td>
+						<td class="totals-value">${formatCurrency(vat)}</td>
+					</tr>
+					<tr class="grand-total">
+						<td class="totals-label" style="color: #e11d48;">GRAND TOTAL:</td>
+						<td class="totals-value">${formatCurrency(grandTotal)}</td>
+					</tr>
+				</table>
+			</div>
 		</div>
-	</div>
 
-	<!-- Clearfix to ensure proper layout -->
-	<div style="clear: both; height: 0; overflow: hidden;"></div>
-
-	<!-- Notes Section -->
-	${estimate?.notes ? `
-	<div class="notes-section">
-		<h3 style="margin-bottom: 10px;">NOTES</h3>
-		<div class="notes-box">${estimate.notes}</div>
-	</div>
-	` : ''}
-
-	<!-- Terms & Conditions -->
-	${companySettings?.estimate_terms_and_conditions ? `
-	<div class="section" style="margin-top: 30px; page-break-inside: avoid;">
-		<div class="section-title">TERMS & CONDITIONS</div>
-		<div style="font-size: 9pt; line-height: 1.5; color: #333; border: 1px solid #ddd; padding: 12px; background: #f9f9f9; white-space: pre-wrap;">
-			${escapeHtmlWithLineBreaks(companySettings.estimate_terms_and_conditions)}
+		<!-- Notes Section -->
+		${estimate?.notes ? `
+		<div class="section" style="margin-top: 40px;">
+			<div class="section-title">NOTES</div>
+			<div class="notes-box">${estimate.notes}</div>
 		</div>
-	</div>
-	` : ''}
+		` : ''}
 
-	<!-- Footer -->
-	<div class="footer">
-		<p style="margin-top: 10px;">${companySettings?.company_name || 'Claimtech'} | ${companySettings?.email || 'info@claimtech.co.za'} | ${companySettings?.website || 'www.claimtech.co.za'}</p>
-		<p>Estimate generated on ${formatDateNumeric(new Date().toISOString())}</p>
+		<!-- Terms & Conditions -->
+		${companySettings?.estimate_terms_and_conditions ? `
+		<div class="tcs-container">
+			<div class="section-title">TERMS & CONDITIONS</div>
+			<div style="font-size: 8pt; line-height: 1.4; color: #4b5563; border: 1px solid #e5e7eb; padding: 15px; background: #f9fafb; white-space: pre-wrap; text-align: justify;">
+				${escapeHtmlWithLineBreaks(companySettings.estimate_terms_and_conditions)}
+			</div>
+		</div>
+		` : ''}
+
+		<!-- Footer -->
+		<div class="footer">
+			<p>This estimate was generated by ${companySettings?.company_name || 'Claimtech'}</p>
+			<p>${companySettings?.email || 'info@claimtech.co.za'} | ${companySettings?.website || 'www.claimtech.co.za'}</p>
+			<p>Generated on ${formatDateNumeric(new Date().toISOString())}</p>
+		</div>
 	</div>
 </body>
 </html>

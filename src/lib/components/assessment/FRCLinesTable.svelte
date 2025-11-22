@@ -117,10 +117,11 @@ import type { FinalRepairCosting, FRCLineItem, FRCDocument } from '$lib/types/as
 
 						<!-- Description -->
                         <Table.Cell class="px-3 py-3">
+                            <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
                             <div
                                 class="rounded-md focus:outline-none focus:ring-2 focus:ring-primary/50 {isRemovedOrDeclined ? '' : 'cursor-pointer'}"
-                                role={isRemovedOrDeclined ? undefined : 'button'}
-                                tabindex={isRemovedOrDeclined ? undefined : 0}
+                                role={!isRemovedOrDeclined ? 'button' : undefined}
+                                tabindex={!isRemovedOrDeclined ? 0 : undefined}
                                 onclick={() => { if (!isRemovedOrDeclined) openRowActions(line); }}
                                 onkeydown={(e) => { if (!isRemovedOrDeclined && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); openRowActions(line); } }}
                             >

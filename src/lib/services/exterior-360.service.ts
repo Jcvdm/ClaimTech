@@ -36,7 +36,7 @@ export class Exterior360Service {
 			console.error('Error logging audit change:', auditError);
 		}
 
-		return data;
+		return data as unknown as Exterior360;
 	}
 
 	/**
@@ -55,7 +55,7 @@ export class Exterior360Service {
 			return null;
 		}
 
-		return data;
+		return data as unknown as Exterior360 | null;
 	}
 
 	/**
@@ -95,7 +95,7 @@ export class Exterior360Service {
 			console.error('Error logging audit change:', auditError);
 		}
 
-		return data;
+		return data as unknown as Exterior360;
 	}
 
 	/**
@@ -107,7 +107,7 @@ export class Exterior360Service {
 		if (existing) {
 			return this.update(assessmentId, input, client);
 		} else {
-			return this.create({ assessment_id: assessmentId, ...input }, client);
+			return this.create({ assessment_id: assessmentId, ...input, additional_photos: input.additional_photos || [] }, client);
 		}
 	}
 }

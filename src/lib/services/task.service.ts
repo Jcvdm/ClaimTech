@@ -25,7 +25,7 @@ export class TaskService {
 			throw new Error(`Failed to fetch tasks: ${error.message}`);
 		}
 
-		return data || [];
+		return (data as unknown as RequestTask[]) || [];
 	}
 
 	/**
@@ -48,7 +48,7 @@ export class TaskService {
 			throw new Error(`Failed to fetch task: ${error.message}`);
 		}
 
-		return data;
+		return data as unknown as RequestTask;
 	}
 
 	/**
@@ -71,7 +71,7 @@ export class TaskService {
 			throw new Error(`Failed to create task: ${error.message}`);
 		}
 
-		return data;
+		return data as unknown as RequestTask;
 	}
 
 	/**
@@ -95,7 +95,7 @@ export class TaskService {
 			throw new Error(`Failed to update task: ${error.message}`);
 		}
 
-		return data;
+		return data as unknown as RequestTask;
 	}
 
 	/**
@@ -145,7 +145,7 @@ export class TaskService {
 			throw new Error(`Failed to fetch tasks by engineer: ${error.message}`);
 		}
 
-		return data || [];
+		return (data as unknown as RequestTask[]) || [];
 	}
 
 	/**
@@ -165,7 +165,7 @@ export class TaskService {
 			throw new Error(`Failed to fetch tasks by status: ${error.message}`);
 		}
 
-		return data || [];
+		return (data as unknown as RequestTask[]) || [];
 	}
 
 	/**
@@ -188,7 +188,7 @@ export class TaskService {
 			throw new Error(`Failed to fetch overdue tasks: ${error.message}`);
 		}
 
-		return data || [];
+		return (data as unknown as RequestTask[]) || [];
 	}
 }
 

@@ -27,7 +27,7 @@ class PreIncidentEstimatePhotosService {
 			throw new Error(`Failed to fetch pre-incident estimate photos: ${error.message}`);
 		}
 
-		return data || [];
+		return (data as unknown as PreIncidentEstimatePhoto[]) || [];
 	}
 
 	/**
@@ -52,7 +52,7 @@ class PreIncidentEstimatePhotosService {
 			throw new Error(`Failed to create pre-incident estimate photo: ${error.message}`);
 		}
 
-		return data;
+		return data as unknown as PreIncidentEstimatePhoto;
 	}
 
 	/**
@@ -79,7 +79,7 @@ class PreIncidentEstimatePhotosService {
 			throw new Error(`Failed to update pre-incident estimate photo: ${error.message}`);
 		}
 
-		return data;
+		return data as unknown as PreIncidentEstimatePhoto;
 	}
 
 	/**
@@ -153,7 +153,7 @@ class PreIncidentEstimatePhotosService {
 			return 0;
 		}
 
-		return data ? data.display_order + 1 : 0;
+		return data ? (data.display_order || 0) + 1 : 0;
 	}
 }
 

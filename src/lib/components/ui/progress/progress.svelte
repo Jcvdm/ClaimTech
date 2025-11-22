@@ -35,6 +35,6 @@
 	<div
 		class="h-full w-full flex-1 bg-blue-600 transition-all duration-300 ease-in-out"
 		style="transform: translateX(-{100 - percentage}%)"
-	/>
+	></div>
 </div>
 

@@ -199,6 +199,8 @@
 	{#if photos.value.length === 0}
 		<!-- Empty state: Large centered upload zone -->
 		<div
+			role="region"
+			aria-label="Photo upload drop zone"
 			class="relative border-2 border-dashed rounded-lg p-8 text-center transition-colors {isDragging
 				? 'border-blue-500 bg-blue-50'
 				: 'border-gray-300 hover:border-gray-400'}"
@@ -249,6 +251,9 @@
 		<div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 max-h-[600px] overflow-y-auto p-1">
 			<!-- Upload zone as first grid cell -->
 			<div
+				role="button"
+				tabindex="0"
+				aria-label="Upload additional photos"
 				class="relative w-full aspect-square border-2 border-dashed rounded-lg transition-colors cursor-pointer {isDragging
 					? 'border-blue-500 bg-blue-50'
 					: 'border-gray-300 hover:border-gray-400 bg-gray-50'}"
@@ -257,6 +262,7 @@
 				ondragleave={handleDragLeave}
 				ondrop={handleDrop}
 				onclick={triggerFileInput}
+				onkeydown={(e) => (e.key === 'Enter' || e.key === ' ') && triggerFileInput()}
 			>
 				{#if uploading}
 					<div class="absolute inset-0 flex flex-col items-center justify-center p-4">

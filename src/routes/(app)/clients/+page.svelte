@@ -85,7 +85,7 @@
 		<div class="rounded-lg border bg-white">
 			<DataTable
 				data={data.clients}
-				{columns}
+				columns={columns as any}
 				onRowClick={handleRowClick}
 				emptyMessage="No clients found"
 			/>

@@ -1,5 +1,7 @@
 import { error } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
+import { getClientByRequestId, getRepairerForEstimate } from '$lib/utils/supabase-query-helpers';
+import { normalizeEstimate } from '$lib/utils/type-normalizers';
 
 export const load: PageServerLoad = async ({ params, locals }) => {
 	const assessmentId = params.id;
@@ -15,13 +17,12 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 		throw error(404, 'Assessment not found');
 	}
 
-	// Fetch related data
+	// Fetch related data (excluding client and repairer which have nested dependencies)
 	const [
 		{ data: vehicleIdentification },
 		{ data: estimate },
 		{ data: companySettings },
-		{ data: requestData },
-		{ data: client }
+		{ data: requestData }
 	] = await Promise.all([
 		locals.supabase
 			.from('assessment_vehicle_identification')
@@ -30,33 +31,29 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 			.single(),
 		locals.supabase.from('assessment_estimates').select('*').eq('assessment_id', assessmentId).single(),
 		locals.supabase.from('company_settings').select('*').single(),
-		locals.supabase.from('requests').select('*').eq('id', assessment.request_id).single(),
-		assessment.request_id
-			? locals.supabase
-					.from('requests')
-					.select('client_id')
-					.eq('id', assessment.request_id)
-					.single()
-					.then(({ data }) =>
-						data
-							? locals.supabase.from('clients').select('*').eq('id', data.client_id).single()
-							: { data: null }
-					)
-			: Promise.resolve({ data: null })
+		locals.supabase.from('requests').select('*').eq('id', assessment.request_id).single()
 	]);
 
-	// Fetch repairer
-	const { data: repairer } = estimate?.repairer_id
-		? await locals.supabase.from('repairers').select('*').eq('id', estimate.repairer_id).single()
-		: { data: null };
+	// Fetch client and repairer sequentially (they have nested dependencies)
+	const { data: client } = await getClientByRequestId(
+		assessment.request_id,
+		locals.supabase
+	);
+
+	const normalizedEstimate = normalizeEstimate(estimate);
+
+	const { data: repairer } = await getRepairerForEstimate(
+		normalizedEstimate,
+		locals.supabase
+	);
 
 	// Get line items from estimate JSONB
-	const lineItems = estimate?.line_items || [];
+	const lineItems = (normalizedEstimate?.line_items as any[]) || [];
 
 	return {
 		assessment,
 		vehicleIdentification,
-		estimate,
+		estimate: normalizedEstimate,
 		lineItems,
 		companySettings,
 		request: requestData,

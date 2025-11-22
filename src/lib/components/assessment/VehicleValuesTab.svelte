@@ -7,13 +7,16 @@
 	import { debounce } from '$lib/utils/useUnsavedChanges.svelte';
 	import { useDraft } from '$lib/utils/useDraft.svelte';
 	import { onMount } from 'svelte';
-	import type {
-		VehicleValues,
-		VehicleValueExtra,
-		WarrantyStatus,
-		ServiceHistoryStatus
-	} from '$lib/types/assessment';
-	import type { Client } from '$lib/types/client';
+import type {
+	VehicleValues,
+	VehicleValueExtra,
+	WarrantyStatus,
+	ServiceHistoryStatus,
+	VehicleIdentification,
+	InteriorMechanical
+} from '$lib/types/assessment';
+import type { Client } from '$lib/types/client';
+import type { VehicleDetails } from '$lib/utils/report-data-helpers';
 	import { validateVehicleValues } from '$lib/utils/validation';
 	import {
 		formatCurrency,
@@ -40,6 +43,7 @@
 			vehicle_mileage?: number | null;
 		};
 		onUpdate: (data: Partial<VehicleValues>) => void;
+		vehicleDetails?: VehicleDetails | null;
 	}
 
 	// Make props reactive using $derived pattern
@@ -53,69 +57,61 @@
 	const interiorMechanical = $derived(props.interiorMechanical);
 	const requestInfo = $derived(props.requestInfo);
 	const onUpdate = $derived(props.onUpdate);
+	const vehicleDetails = $derived(props.vehicleDetails);
 
 	// Initialize localStorage draft for critical fields
-	const sourcedFromDraft = useDraft(`assessment-${assessmentId}-sourced-from`);
-	const sourcedDateDraft = useDraft(`assessment-${assessmentId}-sourced-date`);
-	const tradeValueDraft = useDraft(`assessment-${assessmentId}-trade-value`);
-	const marketValueDraft = useDraft(`assessment-${assessmentId}-market-value`);
-	const retailValueDraft = useDraft(`assessment-${assessmentId}-retail-value`);
+	let sourcedFromDraft = useDraft('');
+	let sourcedDateDraft = useDraft('');
+	let tradeValueDraft = useDraft('');
+	let marketValueDraft = useDraft('');
+	let retailValueDraft = useDraft('');
+
+	// Update draft keys when assessmentId changes
+	$effect(() => {
+		sourcedFromDraft = useDraft(`assessment-${assessmentId}-sourced-from`);
+		sourcedDateDraft = useDraft(`assessment-${assessmentId}-sourced-date`);
+		tradeValueDraft = useDraft(`assessment-${assessmentId}-trade-value`);
+		marketValueDraft = useDraft(`assessment-${assessmentId}-market-value`);
+		retailValueDraft = useDraft(`assessment-${assessmentId}-retail-value`);
+	});
 
 	// Source information
-	let sourcedFrom = $state(data?.sourced_from || '');
-	let sourcedCode = $state(data?.sourced_code || '');
-	let sourcedDate = $state(data?.sourced_date || '');
+	let sourcedFrom = $state('');
+	let sourcedCode = $state('');
+	let sourcedDate = $state('');
 
 	// Warranty / Service Details
-	let warrantyStatus = $state<WarrantyStatus | ''>(data?.warranty_status || '');
-	let warrantyPeriodYears = $state(data?.warranty_period_years || null);
-	let warrantyStartDate = $state(data?.warranty_start_date || '');
-	let warrantyEndDate = $state(data?.warranty_end_date || '');
-	let warrantyExpiryMileage = $state(data?.warranty_expiry_mileage || '');
-	let serviceHistoryStatus = $state<ServiceHistoryStatus | ''>(
-		data?.service_history_status || ''
-	);
-	let warrantyNotes = $state(data?.warranty_notes || '');
+	let warrantyStatus = $state<WarrantyStatus | ''>('');
+	let warrantyPeriodYears = $state<number | null>(null);
+	let warrantyStartDate = $state('');
+	let warrantyEndDate = $state('');
+	let warrantyExpiryMileage = $state('');
+	let serviceHistoryStatus = $state<ServiceHistoryStatus | ''>('');
+	let warrantyNotes = $state('');
 
 	// Base values
-	let tradeValue = $state(data?.trade_value || 0);
-	let marketValue = $state(data?.market_value || 0);
-	let retailValue = $state(data?.retail_value || 0);
+	let tradeValue = $state(0);
+	let marketValue = $state(0);
+	let retailValue = $state(0);
 
 	// Optional fields
-	let newListPrice = $state(data?.new_list_price || 0);
-	let depreciationPercentage = $state(data?.depreciation_percentage || 0);
+	let newListPrice = $state(0);
+	let depreciationPercentage = $state(0);
 
 	// Adjustments
-	let valuationAdjustment = $state(data?.valuation_adjustment || 0);
-	let valuationAdjustmentPercentage = $state(data?.valuation_adjustment_percentage || 0);
-	let conditionAdjustmentValue = $state(data?.condition_adjustment_value || 0);
+	let valuationAdjustment = $state(0);
+	let valuationAdjustmentPercentage = $state(0);
+	let conditionAdjustmentValue = $state(0);
 
 	// Extras - ensure all extras have IDs
-	const initializeExtras = (): VehicleValueExtra[] => {
-		if (!data || !data.extras) {
-			return [];
-		}
-
-		// Handle case where extras might be a string or other non-array type
-		if (!Array.isArray(data.extras)) {
-			console.warn('VehicleValuesTab - extras is not an array:', data.extras);
-			return [];
-		}
-
-		return data.extras.map((extra: any) => ({
-			...extra,
-			id: extra.id || crypto.randomUUID() // Ensure ID exists
-		}));
-	};
-	let extras = $state<VehicleValueExtra[]>(initializeExtras());
+	let extras = $state<VehicleValueExtra[]>([]);
 
 	// PDF
-	let valuationPdfUrl = $state(data?.valuation_pdf_url || '');
-	let valuationPdfPath = $state(data?.valuation_pdf_path || '');
+	let valuationPdfUrl = $state('');
+	let valuationPdfPath = $state('');
 
 	// Remarks
-	let remarks = $state(data?.remarks || '');
+	let remarks = $state('');
 
 	// Derived month from date
 	const sourcedMonth = $derived(sourcedDate ? getMonthFromDate(sourcedDate) : '');
@@ -373,50 +369,40 @@
 			<div class="mt-4 grid gap-4 md:grid-cols-4">
 				<div>
 					<p class="text-sm text-gray-600">Make</p>
-					<!-- Prefer assessment data over request data (fallback pattern) -->
-					<p class="font-medium text-gray-900">
-						{vehicleIdentification?.vehicle_make || requestInfo.vehicle_make || 'N/A'}
-					</p>
+					<!-- Normalized from vehicleDetails -->
+					<p class="font-medium text-gray-900">{vehicleDetails?.make || 'N/A'}</p>
 				</div>
 				<div>
 					<p class="text-sm text-gray-600">Model</p>
-					<!-- Prefer assessment data over request data (fallback pattern) -->
-					<p class="font-medium text-gray-900">
-						{vehicleIdentification?.vehicle_model || requestInfo.vehicle_model || 'N/A'}
-					</p>
+					<!-- Normalized from vehicleDetails -->
+					<p class="font-medium text-gray-900">{vehicleDetails?.model || 'N/A'}</p>
 				</div>
 				<div>
 					<p class="text-sm text-gray-600">Year</p>
-					<!-- Prefer assessment data over request data (fallback pattern) -->
-					<p class="font-medium text-gray-900">
-						{vehicleIdentification?.vehicle_year || requestInfo.vehicle_year || 'N/A'}
-					</p>
+					<!-- Normalized from vehicleDetails -->
+					<p class="font-medium text-gray-900">{vehicleDetails?.year || 'N/A'}</p>
 				</div>
 				<div>
 					<p class="text-sm text-gray-600">Mileage</p>
-					<!-- Prefer interior mechanical data over request data (fallback pattern) -->
+					<!-- Prefer interior mechanical data over vehicleDetails -->
 					<p class="font-medium text-gray-900">
 						{interiorMechanical?.mileage_reading
 							? interiorMechanical.mileage_reading.toLocaleString() + ' km'
-							: requestInfo.vehicle_mileage
-								? requestInfo.vehicle_mileage.toLocaleString() + ' km'
+							: vehicleDetails?.mileage
+								? vehicleDetails.mileage.toLocaleString() + ' km'
 								: 'N/A'}
 					</p>
 				</div>
 			</div>
 			<div class="mt-4">
 				<p class="text-sm text-gray-600">VIN</p>
-				<!-- Prefer assessment data over request data (fallback pattern) -->
-				<p class="font-medium text-gray-900">
-					{vehicleIdentification?.vin_number || requestInfo.vehicle_vin || 'N/A'}
-				</p>
+				<!-- Normalized from vehicleDetails -->
+				<p class="font-medium text-gray-900">{vehicleDetails?.vin || 'N/A'}</p>
 			</div>
 			<div class="mt-4">
 				<p class="text-sm text-gray-600">Registration</p>
-				<!-- Prefer assessment data over request data (fallback pattern) -->
-				<p class="font-medium text-gray-900">
-					{vehicleIdentification?.registration_number || requestInfo.vehicle_registration || 'N/A'}
-				</p>
+				<!-- Normalized from vehicleDetails -->
+				<p class="font-medium text-gray-900">{vehicleDetails?.registration || 'N/A'}</p>
 			</div>
 		</Card>
 	{/if}
@@ -456,7 +442,7 @@
 				onchange={debouncedSave}
 			/>
 			<div>
-				<label class="mb-2 block text-sm font-medium text-gray-700">Month (Auto-calculated)</label>
+				<div class="mb-2 block text-sm font-medium text-gray-700">Month (Auto-calculated)</div>
 				<div class="rounded-md border border-gray-300 bg-gray-50 px-3 py-2 text-sm text-gray-700">
 					{sourcedMonth || 'Select a date'}
 				</div>
@@ -510,8 +496,8 @@
 			</div>
 
 			<!-- Date Range: From - To -->
-			<div>
-				<label class="mb-2 block text-sm font-medium text-gray-700">Date</label>
+			<fieldset>
+				<legend class="mb-2 block text-sm font-medium text-gray-700">Date</legend>
 				<div class="grid gap-4 md:grid-cols-2">
 					<FormField
 						name="warranty_start_date"
@@ -526,7 +512,7 @@
 						bind:value={warrantyEndDate}
 					/>
 				</div>
-			</div>
+			</fieldset>
 
 			<!-- Expiry Mileage -->
 			<FormField

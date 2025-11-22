@@ -26,7 +26,7 @@ export class VehicleValuesService {
 			return null;
 		}
 
-		return data;
+		return data as unknown as VehicleValues | null;
 	}
 
 	/**
@@ -117,7 +117,7 @@ export class VehicleValuesService {
 			console.error('Error logging audit change:', auditError);
 		}
 
-		return data;
+		return data as unknown as VehicleValues;
 	}
 
 	/**
@@ -148,7 +148,7 @@ export class VehicleValuesService {
 		const valuation_adjustment = input.valuation_adjustment !== undefined ? input.valuation_adjustment : current.valuation_adjustment || 0;
 		const valuation_adjustment_percentage = input.valuation_adjustment_percentage !== undefined ? input.valuation_adjustment_percentage : current.valuation_adjustment_percentage || 0;
 		const condition_adjustment_value = input.condition_adjustment_value !== undefined ? input.condition_adjustment_value : current.condition_adjustment_value || 0;
-		const extras = input.extras !== undefined ? input.extras : (current.extras as VehicleValueExtra[]) || [];
+		const extras = input.extras !== undefined ? input.extras : (current.extras as unknown as VehicleValueExtra[]) || [];
 
 		// Calculate all values
 		const calculated = calculateVehicleValues({
@@ -194,7 +194,7 @@ export class VehicleValuesService {
 			console.error('Error logging audit change:', auditError);
 		}
 
-		return data;
+		return data as unknown as VehicleValues;
 	}
 
 	/**
@@ -271,7 +271,7 @@ export class VehicleValuesService {
 			return null;
 		}
 
-		return data;
+		return data as unknown as VehicleValues | null;
 	}
 
 	/**

@@ -259,6 +259,11 @@ import { calculateDeltas } from '$lib/utils/frcCalculations';
 		adjustError = null;
 
 		// Validate
+		if (!adjustingLine) {
+			adjustError = 'No line selected for adjustment';
+			return;
+		}
+
 		if (!adjustReason || adjustReason.trim() === '') {
 			adjustError = 'Adjust reason is required';
 			return;
@@ -272,11 +277,11 @@ import { calculateDeltas } from '$lib/utils/frcCalculations';
 
 		// Backup for rollback
 		const previousLines = [...lines];
-		const rates = getRatesFor(adjustingLine);
+		const rates = getRatesFor(adjustingLine!);
 
 		try {
 			// 1. Optimistic update - update UI immediately
-			const lineIndex = lines.findIndex(l => l.id === adjustingLine.id);
+			const lineIndex = lines.findIndex(l => l.id === adjustingLine!.id);
 			if (lineIndex !== -1) {
 				lines[lineIndex] = {
 					...lines[lineIndex],

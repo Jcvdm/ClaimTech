@@ -102,7 +102,7 @@
 					datetime_display: formatDateWithWeekday(appointment.appointment_date),
 					time_display: formatTimeDisplay(
 						appointment.appointment_time,
-						appointment.duration_minutes
+						appointment.duration_minutes || undefined
 					),
 					dateKey,
 					isOverdue: isAppointmentOverdue(
@@ -162,7 +162,7 @@
 		selectedAssessment = assessment;
 		scheduleDate = assessment.appointment_date.split('T')[0]; // Extract YYYY-MM-DD
 		scheduleTime = assessment.appointment_time || '';
-		scheduleDuration = assessment.duration_minutes;
+		scheduleDuration = assessment.duration_minutes || 60;
 		scheduleLocationAddress = assessment.location_address || '';
 		scheduleLocationCity = assessment.location_city || '';
 		scheduleLocationProvince = (assessment.location_province as Province) || '';
@@ -412,7 +412,7 @@
 
 			<!-- Appointment Type (read-only) -->
 			<div class="space-y-2">
-				<label class="text-sm font-medium text-gray-900">Appointment Type</label>
+				<div class="text-sm font-medium text-gray-900">Appointment Type</div>
 				<div
 					class="flex h-10 w-full items-center rounded-md border border-gray-300 bg-gray-50 px-3 py-2 text-sm text-gray-700"
 				>

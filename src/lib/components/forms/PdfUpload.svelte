@@ -29,7 +29,7 @@
 	let uploadProgress = $state(0);
 	let error = $state<string | null>(null);
 	let isDragging = $state(false);
-	let fileInput: HTMLInputElement;
+	let fileInput = $state<HTMLInputElement | undefined>(undefined);
 
 	// Modal state
 	let showModal = $state(false);
@@ -162,7 +162,7 @@
 
 <div class="space-y-2">
 	{#if label}
-		<label class="block text-sm font-medium text-gray-700">{label}</label>
+		<label for="pdf-upload" class="block text-sm font-medium text-gray-700">{label}</label>
 	{/if}
 
 	{#if value}
@@ -214,6 +214,7 @@
 	{:else}
 		<!-- Upload area -->
 		<div
+			id="pdf-upload"
 			class="relative rounded-lg border-2 border-dashed transition-colors {isDragging
 				? 'border-blue-500 bg-blue-50'
 				: 'border-gray-300 bg-white'} {disabled ? 'cursor-not-allowed opacity-50' : 'cursor-pointer hover:border-gray-400'}"
@@ -222,8 +223,14 @@
 			ondragleave={handleDragLeave}
 			ondrop={handleDrop}
 			onclick={triggerFileInput}
+			onkeydown={(e) => {
+				if (!disabled && (e.key === 'Enter' || e.key === ' ')) {
+					e.preventDefault();
+					triggerFileInput();
+				}
+			}}
 			role="button"
-			tabindex="0"
+			tabindex={disabled ? -1 : 0}
 		>
 			<input
 				type="file"

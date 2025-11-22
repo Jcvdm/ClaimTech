@@ -7,6 +7,7 @@ import type {
 	CreateRequestInput,
 	UpdateRequestInput,
 	RequestStatus,
+	RequestType,
 	RequestStep
 } from '$lib/types/request';
 import type { Assessment } from '$lib/types/assessment';
@@ -70,7 +71,7 @@ export class RequestService {
 			throw new Error(`Failed to fetch requests: ${error.message}`);
 		}
 
-		return data || [];
+		return (data as Request[]) || [];
 	}
 
 	/**
@@ -88,7 +89,7 @@ export class RequestService {
 			throw new Error(`Failed to fetch request: ${error.message}`);
 		}
 
-		return data;
+		return data as Request;
 	}
 
 	/**
@@ -110,7 +111,7 @@ export class RequestService {
 			throw new Error(`Failed to fetch request: ${error.message}`);
 		}
 
-		return data;
+		return data as Request;
 	}
 
 	/**
@@ -140,8 +141,8 @@ export class RequestService {
 					.insert({
 						...input,
 						request_number: requestNumber,
-						status: 'draft',
-						current_step: 'request'
+			status: 'draft' as RequestStatus,
+				current_step: 'request' as RequestStep,
 					})
 					.select()
 					.single();
@@ -161,7 +162,7 @@ export class RequestService {
 				}
 
 				// Success - request created
-				request = data;
+				request = data as Request;
 				break; // Exit retry loop
 			} catch (error) {
 				if (attempt === maxRetries - 1) {
@@ -270,14 +271,14 @@ export class RequestService {
 			});
 		}
 
-		return data;
+		return data as Request;
 	}
 
 	/**
 	 * Update request status
 	 */
 	async updateRequestStatus(id: string, status: RequestStatus, client?: ServiceClient): Promise<Request | null> {
-		return this.updateRequest(id, { status }, client);
+	return this.updateRequest(id, { status: status as RequestStatus }, client);
 	}
 
 	/**
@@ -298,7 +299,7 @@ export class RequestService {
 		const currentIndex = steps.indexOf(request.current_step);
 
 		if (currentIndex < steps.length - 1) {
-			return this.updateRequest(id, { current_step: steps[currentIndex + 1] }, client);
+		return this.updateRequest(id, { current_step: steps[currentIndex + 1] as RequestStep }, client);
 		}
 
 		return request;
@@ -320,7 +321,7 @@ export class RequestService {
 			throw new Error(`Failed to fetch requests by client: ${error.message}`);
 		}
 
-		return data || [];
+		return (data as Request[]) || [];
 	}
 
 	/**
@@ -339,7 +340,7 @@ export class RequestService {
 			throw new Error(`Failed to fetch requests by engineer: ${error.message}`);
 		}
 
-		return data || [];
+		return (data as Request[]) || [];
 	}
 
 	/**
@@ -360,7 +361,7 @@ export class RequestService {
 			throw new Error(`Failed to search requests: ${error.message}`);
 		}
 
-		return data || [];
+		return (data as Request[]) || [];
 	}
 
 	/**
@@ -407,7 +408,7 @@ export class RequestService {
 			return [];
 		}
 
-		return data || [];
+		return (data as Request[]) || [];
 	}
 }
 

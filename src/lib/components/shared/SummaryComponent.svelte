@@ -3,10 +3,11 @@
 	import { Badge } from '$lib/components/ui/badge';
 	import StatusBadge from '$lib/components/data/StatusBadge.svelte';
 	import { CircleCheck, CircleX, CircleAlert, Info, CircleOff } from 'lucide-svelte';
-	import type { Inspection } from '$lib/types/inspection';
-	import type { Request } from '$lib/types/request';
-	import type { Client } from '$lib/types/client';
-	import type { Assessment, VehicleValues, Estimate } from '$lib/types/assessment';
+import type { Inspection } from '$lib/types/inspection';
+import type { Request } from '$lib/types/request';
+import type { Client } from '$lib/types/client';
+import type { Assessment, VehicleValues, Estimate } from '$lib/types/assessment';
+import type { VehicleDetails } from '$lib/utils/report-data-helpers';
 	import {
 		calculateEstimateThreshold,
 		getThresholdColorClasses,
@@ -36,6 +37,7 @@
 		// Vehicle identification and interior mechanical data for comprehensive panel
 		vehicleIdentification?: any | null;
 		interiorMechanical?: any | null;
+		vehicleDetails?: VehicleDetails | null;
 
 		// Display options
 		showAssessmentData?: boolean;
@@ -51,13 +53,14 @@
 		preIncidentEstimate = null,
 		vehicleIdentification = null,
 		interiorMechanical = null,
+		vehicleDetails = null,
 		showAssessmentData = false
 	}: Props = $props();
 
-	// Derive request and client from assessment when available (preferred)
-	// Fall back to explicit props for backward compatibility
-	const derivedRequest = $derived(assessment?.request || request);
-	const derivedClient = $derived(assessment?.request?.client || client);
+	// Derive request and client from props (assessment doesn't have request relationship)
+	// Use explicit props for request and client
+	const derivedRequest = $derived(request);
+	const derivedClient = $derived(client);
 
 	// Use inspection for backward compatibility (when assessment not provided)
 	const derivedInspection = $derived(inspection);
@@ -207,33 +210,27 @@
 		<div class="mt-4 grid gap-4 md:grid-cols-4">
 			<div>
 				<p class="text-sm text-gray-600">Make</p>
-				<!-- Prefer assessment data over request data (fallback pattern) -->
-				<p class="font-medium text-gray-900">
-					{vehicleIdentification?.vehicle_make || derivedRequest?.vehicle_make || 'N/A'}
-				</p>
+				<!-- Normalized from vehicleDetails -->
+				<p class="font-medium text-gray-900">{vehicleDetails?.make || 'N/A'}</p>
 			</div>
 			<div>
 				<p class="text-sm text-gray-600">Model</p>
-				<!-- Prefer assessment data over request data (fallback pattern) -->
-				<p class="font-medium text-gray-900">
-					{vehicleIdentification?.vehicle_model || derivedRequest?.vehicle_model || 'N/A'}
-				</p>
+				<!-- Normalized from vehicleDetails -->
+				<p class="font-medium text-gray-900">{vehicleDetails?.model || 'N/A'}</p>
 			</div>
 			<div>
 				<p class="text-sm text-gray-600">Year</p>
-				<!-- Prefer assessment data over request data (fallback pattern) -->
-				<p class="font-medium text-gray-900">
-					{vehicleIdentification?.vehicle_year || derivedRequest?.vehicle_year || 'N/A'}
-				</p>
+				<!-- Normalized from vehicleDetails -->
+				<p class="font-medium text-gray-900">{vehicleDetails?.year || 'N/A'}</p>
 			</div>
 			<div>
 				<p class="text-sm text-gray-600">Mileage</p>
-				<!-- Prefer interior mechanical data over request data (fallback pattern) -->
+				<!-- Prefer interior mechanical data over vehicleDetails -->
 				<p class="font-medium text-gray-900">
 					{interiorMechanical?.mileage_reading
 						? interiorMechanical.mileage_reading.toLocaleString() + ' km'
-						: derivedRequest?.vehicle_mileage
-							? derivedRequest.vehicle_mileage.toLocaleString() + ' km'
+						: vehicleDetails?.mileage
+							? vehicleDetails.mileage.toLocaleString() + ' km'
 							: 'N/A'}
 				</p>
 			</div>
@@ -242,19 +239,15 @@
 		<!-- Row 3: VIN -->
 		<div class="mt-4">
 			<p class="text-sm text-gray-600">VIN</p>
-			<!-- Prefer assessment data over request data (fallback pattern) -->
-			<p class="font-medium text-gray-900">
-				{vehicleIdentification?.vin_number || derivedRequest?.vehicle_vin || 'N/A'}
-			</p>
+			<!-- Normalized from vehicleDetails -->
+			<p class="font-medium text-gray-900">{vehicleDetails?.vin || 'N/A'}</p>
 		</div>
 
 		<!-- Row 4: Registration -->
 		<div class="mt-4">
 			<p class="text-sm text-gray-600">Registration</p>
-			<!-- Prefer assessment data over request data (fallback pattern) -->
-			<p class="font-medium text-gray-900">
-				{vehicleIdentification?.registration_number || derivedRequest?.vehicle_registration || 'N/A'}
-			</p>
+			<!-- Normalized from vehicleDetails -->
+			<p class="font-medium text-gray-900">{vehicleDetails?.registration || 'N/A'}</p>
 		</div>
 	</Card>
 
@@ -408,7 +401,7 @@
 
 		<!-- Warranty Status -->
 		{#if vehicleValues && warrantyInfo()}
-			{@const warranty = warrantyInfo()}
+			{@const warranty = warrantyInfo() || { color: 'gray', icon: 'info', label: 'Unknown' }}
 			{@const statusClasses = getWarrantyStatusClasses(warranty.color)}
 			<Card class="p-4 {statusClasses.bg} border-2 {statusClasses.border}">
 				<div class="flex items-start gap-3">

@@ -22,7 +22,7 @@ export class RepairerService {
 			throw new Error(`Failed to fetch repairers: ${error.message}`);
 		}
 
-		return data || [];
+		return (data as unknown as Repairer[]) || [];
 	}
 
 	/**
@@ -45,7 +45,7 @@ export class RepairerService {
 			throw new Error(`Failed to fetch repairer: ${error.message}`);
 		}
 
-		return data;
+		return data as unknown as Repairer;
 	}
 
 	/**
@@ -68,7 +68,7 @@ export class RepairerService {
 			throw new Error(`Failed to create repairer: ${error.message}`);
 		}
 
-		return data;
+		return data as unknown as Repairer;
 	}
 
 	/**
@@ -92,7 +92,7 @@ export class RepairerService {
 			throw new Error(`Failed to update repairer: ${error.message}`);
 		}
 
-		return data;
+		return data as unknown as Repairer;
 	}
 
 	/**
@@ -137,7 +137,7 @@ export class RepairerService {
 			throw new Error(`Failed to search repairers: ${error.message}`);
 		}
 
-		return data || [];
+		return (data as unknown as Repairer[]) || [];
 	}
 }
 

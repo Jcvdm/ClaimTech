@@ -6,7 +6,7 @@
 	type Props = {
 		label: string;
 		name: string;
-		type?: 'text' | 'email' | 'number' | 'date' | 'select' | 'textarea';
+		type?: 'text' | 'email' | 'number' | 'date' | 'select' | 'textarea' | 'tel';
 		value?: string | number | undefined;
 		placeholder?: string;
 		required?: boolean;
@@ -19,6 +19,7 @@
 		step?: string;
 		min?: string;
 		max?: string;
+		maxlength?: number;
 		onchange?: (value: string) => void;
 		oninput?: (e: Event) => void;
 	};
@@ -39,6 +40,7 @@
 		step,
 		min,
 		max,
+		maxlength,
 		onchange,
 		oninput
 	}: Props = $props();
@@ -98,6 +100,7 @@
 			{required}
 			{disabled}
 			{rows}
+			{maxlength}
 			bind:value
 			onchange={handleChange}
 			oninput={handleInput}

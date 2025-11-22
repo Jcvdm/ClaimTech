@@ -34,7 +34,7 @@ export class PreIncidentEstimateService {
 			return null;
 		}
 
-		return data;
+		return data as unknown as PreIncidentEstimate | null;
 	}
 
 	/**
@@ -88,7 +88,7 @@ export class PreIncidentEstimateService {
 				alt_markup_percentage: input.alt_markup_percentage || 25.0,
 				second_hand_markup_percentage: input.second_hand_markup_percentage || 25.0,
 				outwork_markup_percentage: input.outwork_markup_percentage || 25.0,
-				line_items: lineItems,
+				line_items: lineItems as any,
 				subtotal,
 				vat_percentage: vatPercentage,
 				vat_amount: vatAmount,
@@ -119,7 +119,7 @@ export class PreIncidentEstimateService {
 			console.error('Error logging audit change:', auditError);
 		}
 
-		return data;
+		return data as unknown as PreIncidentEstimate;
 	}
 
 	/**
@@ -207,7 +207,7 @@ export class PreIncidentEstimateService {
 			console.error('Error logging audit change:', auditError);
 		}
 
-		return data;
+		return data as unknown as PreIncidentEstimate;
 	}
 
 	/**
@@ -375,7 +375,7 @@ export class PreIncidentEstimateService {
 			return null;
 		}
 
-		return data;
+		return data as unknown as PreIncidentEstimate | null;
 	}
 
 	/**
@@ -402,7 +402,7 @@ export class PreIncidentEstimateService {
 		const { data, error } = await supabase
 			.from('pre_incident_estimates')
 			.update({
-				line_items: updatedLineItems,
+				line_items: updatedLineItems as any,
 				subtotal,
 				vat_amount: vatAmount,
 				total
@@ -416,7 +416,7 @@ export class PreIncidentEstimateService {
 			throw new Error(`Failed to recalculate totals: ${error.message}`);
 		}
 
-		return data;
+		return data as unknown as PreIncidentEstimate;
 	}
 }
 

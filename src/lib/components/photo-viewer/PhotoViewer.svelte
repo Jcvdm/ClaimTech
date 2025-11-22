@@ -1,14 +1,14 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
 	import { browser } from '$app/environment';
-	import type { EstimatePhoto, PreIncidentEstimatePhoto, AdditionalsPhoto } from '$lib/types/assessment';
+	import type { EstimatePhoto, PreIncidentEstimatePhoto, AdditionalsPhoto, InteriorPhoto } from '$lib/types/assessment';
 	import { storageService } from '$lib/services/storage.service';
 
 	// Dynamic import for browser-only library
 	let BiggerPicture: any;
 
 	// Generic photo type that works with all photo types
-	type Photo = EstimatePhoto | PreIncidentEstimatePhoto | AdditionalsPhoto;
+	type Photo = EstimatePhoto | PreIncidentEstimatePhoto | AdditionalsPhoto | InteriorPhoto;
 
 	interface Props {
 		photos: Photo[];

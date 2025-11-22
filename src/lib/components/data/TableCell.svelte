@@ -34,7 +34,7 @@
 <div class="flex items-center gap-2 {bold ? 'font-semibold' : ''} {variantClasses[variant]} {className}">
 	{#if icon}
 		<div class="flex h-8 w-8 items-center justify-center rounded-full bg-blue-50">
-			<svelte:component this={icon} class="h-4 w-4 {iconColor}" />
+			{@render icon({ class: `h-4 w-4 ${iconColor}` })}
 		</div>
 	{/if}
 	<span>

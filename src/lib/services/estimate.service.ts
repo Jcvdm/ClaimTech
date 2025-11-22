@@ -98,7 +98,7 @@ export class EstimateService {
 			return null;
 		}
 
-		return data;
+		return data as unknown as Estimate | null;
 	}
 
 	/**
@@ -170,7 +170,7 @@ export class EstimateService {
 				repairer_id: input.repairer_id || null,
 				labour_rate: labourRate,
 				paint_rate: paintRate,
-                line_items: lineItems,
+                line_items: lineItems as any,
                 subtotal,
                 sundries_percentage: input.sundries_percentage ?? 1.0,
                 sundries_amount: sundriesAmount,
@@ -204,7 +204,7 @@ export class EstimateService {
 			console.error('Error logging audit change:', auditError);
 		}
 
-		return data;
+		return data as unknown as Estimate;
 	}
 
 	/**
@@ -305,7 +305,7 @@ export class EstimateService {
 			console.error('Error logging audit change:', auditError);
 		}
 
-		return data;
+		return data as unknown as Estimate;
 	}
 
 	/**
@@ -500,7 +500,7 @@ export class EstimateService {
 			return null;
 		}
 
-		return data;
+		return data as unknown as Estimate | null;
 	}
 
 	/**
@@ -532,8 +532,8 @@ export class EstimateService {
 
 		const { data, error } = await supabase
 			.from('assessment_estimates')
-            .update({
-                line_items: updatedLineItems,
+			.update({
+                line_items: updatedLineItems as any,
                 subtotal,
                 sundries_amount: sundriesAmount,
                 vat_amount: vatAmount,
@@ -548,7 +548,7 @@ export class EstimateService {
 			throw new Error(`Failed to recalculate totals: ${error.message}`);
 		}
 
-		return data;
+		return data as unknown as Estimate;
 	}
 }
 

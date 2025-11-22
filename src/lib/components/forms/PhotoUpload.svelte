@@ -186,12 +186,12 @@
 
 <div class="space-y-2">
 	{#if label}
-		<label class="block text-sm font-medium text-gray-700">
+		<div class="block text-sm font-medium text-gray-700">
 			{label}
 			{#if required}
 				<span class="text-red-500">*</span>
 			{/if}
-		</label>
+		</div>
 	{/if}
 
 	{#if currentPhotoUrl}

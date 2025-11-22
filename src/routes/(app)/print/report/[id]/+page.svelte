@@ -46,7 +46,7 @@
 	});
 
 	// Generate HTML from template
-	const htmlContent = generateReportHTML(data);
+	const htmlContent = generateReportHTML(data as any);
 </script>
 
 <svelte:head>

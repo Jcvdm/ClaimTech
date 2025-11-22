@@ -3,6 +3,9 @@ import type { RequestHandler } from './$types';
 import { generatePDF } from '$lib/utils/pdf-generator';
 import { generateEstimateHTML } from '$lib/templates/estimate-template';
 import { createStreamingResponse } from '$lib/utils/streaming-response';
+import { getClientByRequestId, getRepairerForEstimate } from '$lib/utils/supabase-query-helpers';
+import { normalizeEstimate, normalizeCompanySettings, normalizeAssessment } from '$lib/utils/type-normalizers';
+import { getVehicleDetails, getClientDetails, getInsuredDetails } from '$lib/utils/report-data-helpers';
 
 export const POST: RequestHandler = async ({ request, locals }) => {
 	const body = await request.json();
@@ -50,13 +53,13 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 			yield { status: 'processing', progress: 15, message: 'Loading estimate data...' };
 			console.log(`[${new Date().toISOString()}] [Request ${requestId}] Progress 15% yielded successfully`);
 
-			// Fetch related data (Step 1: fetch everything except repairer)
+			// Fetch related data (Step 1: fetch everything except client and repairer)
 		const [
 			{ data: vehicleIdentification, error: vehicleError },
 			{ data: estimate, error: estimateError },
 			{ data: companySettings, error: settingsError },
 			{ data: requestData, error: requestError },
-			{ data: client, error: clientError }
+			{ data: inspection, error: inspectionError }
 		] = await Promise.all([
 			locals.supabase
 				.from('assessment_vehicle_identification')
@@ -66,36 +69,35 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 			locals.supabase.from('assessment_estimates').select('*').eq('assessment_id', assessmentId).single(),
 			locals.supabase.from('company_settings').select('*').single(),
 			locals.supabase.from('requests').select('*').eq('id', assessment.request_id).single(),
-			assessment.request_id
-				? locals.supabase
-						.from('requests')
-						.select('client_id')
-						.eq('id', assessment.request_id)
-						.single()
-						.then(({ data }) =>
-							data
-								? locals.supabase.from('clients').select('*').eq('id', data.client_id).single()
-								: { data: null }
-						)
-				: Promise.resolve({ data: null })
-			]);
+			assessment.inspection_id ? locals.supabase.from('inspections').select('*').eq('id', assessment.inspection_id).single() : Promise.resolve({ data: null, error: null })
+		]);
 
-			// Check for errors
-			if (estimateError) {
-				console.error('Estimate fetch error:', estimateError);
-			}
+		// Check for errors
+		if (estimateError) {
+			console.error('Estimate fetch error:', estimateError);
+		}
 
-			console.log(`[${new Date().toISOString()}] [Request ${requestId}] Yielding progress: 35%`);
-			yield { status: 'processing', progress: 35, message: 'Loading repairer and line items...' };
-			console.log(`[${new Date().toISOString()}] [Request ${requestId}] Progress 35% yielded successfully`);
+		console.log(`[${new Date().toISOString()}] [Request ${requestId}] Yielding progress: 35%`);
+		yield { status: 'processing', progress: 35, message: 'Loading repairer and line items...' };
+		console.log(`[${new Date().toISOString()}] [Request ${requestId}] Progress 35% yielded successfully`);
 
-			// Step 2: Fetch repairer using estimate data (now that estimate is available)
-			const { data: repairer } = estimate?.repairer_id
-				? await locals.supabase.from('repairers').select('*').eq('id', estimate.repairer_id).single()
-				: { data: null };
+		// Step 2: Fetch client and repairer sequentially (now that we have assessment data)
+		const { data: client, error: clientError } = await getClientByRequestId(
+			assessment.request_id,
+			locals.supabase
+		);
+
+		const normalizedEstimate = normalizeEstimate(estimate);
+		const normalizedCompanySettings = normalizeCompanySettings(companySettings);
+		const normalizedAssessment = normalizeAssessment(assessment);
+
+		const { data: repairer, error: repairerError } = await getRepairerForEstimate(
+			normalizedEstimate,
+			locals.supabase
+		);
 
 			// Line items are stored in the estimate JSONB column
-			const lineItems = estimate?.line_items || [];
+			const lineItems = (normalizedEstimate?.line_items as any[]) || [];
 
 			console.log(`[${new Date().toISOString()}] [Request ${requestId}] Yielding progress: 45%`);
 			yield { status: 'processing', progress: 45, message: 'Generating HTML template...' };
@@ -103,22 +105,30 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
 			// Determine T&Cs to use (client-specific or company defaults)
 			// Fallback pattern: client T&Cs → company T&Cs → empty
-			const termsAndConditions = client?.estimate_terms_and_conditions || companySettings?.estimate_terms_and_conditions || null;
+			const termsAndConditions = (client as any)?.estimate_terms_and_conditions || normalizedCompanySettings?.estimate_terms_and_conditions || null;
+
+			// Prepare vehicle, client, and insured details
+			const vehicleDetails = getVehicleDetails(vehicleIdentification as any, requestData as any, inspection as any);
+			const clientDetails = getClientDetails(client as any);
+			const insuredDetails = getInsuredDetails(requestData as any);
 
 			// Generate HTML
 			console.log(`[${new Date().toISOString()}] [Request ${requestId}] Generating HTML template...`);
 			const html = generateEstimateHTML({
-				assessment,
-				vehicleIdentification,
-				estimate,
+				assessment: (normalizedAssessment || {}) as any,
+				vehicleIdentification: (vehicleIdentification || {}) as any,
+				estimate: (normalizedEstimate || {}) as any,
 				lineItems,
-				companySettings: companySettings ? {
-					...companySettings,
+				companySettings: normalizedCompanySettings ? {
+					...normalizedCompanySettings,
 					estimate_terms_and_conditions: termsAndConditions
-				} : companySettings,
-				request: requestData,
-				client,
-				repairer
+				} as any : normalizedCompanySettings,
+				request: (requestData || {}) as any,
+				client: (client || {}) as any,
+				repairer: (repairer || {}) as any,
+				vehicleDetails,
+				clientDetails,
+				insuredDetails
 			});
 
 			console.log(`[${new Date().toISOString()}] [Request ${requestId}] Yielding progress: 60%`);

@@ -8,6 +8,7 @@
 		Request,
 		Client
 	} from '$lib/types';
+	import type { VehicleDetails } from '$lib/utils/report-data-helpers';
 
 	interface Props {
 		assessment: Assessment;
@@ -19,6 +20,7 @@
 		client: Client | null;
 		vehicleIdentification: any | null;
 		interiorMechanical: any | null;
+		vehicleDetails?: VehicleDetails | null;
 	}
 
 	// Make props reactive using $derived pattern
@@ -34,6 +36,7 @@
 	const client = $derived(props.client);
 	const vehicleIdentification = $derived(props.vehicleIdentification);
 	const interiorMechanical = $derived(props.interiorMechanical);
+	const vehicleDetails = $derived(props.vehicleDetails);
 </script>
 
 <div class="space-y-6">
@@ -53,6 +56,7 @@
 			{preIncidentEstimate}
 			{vehicleIdentification}
 			{interiorMechanical}
+			{vehicleDetails}
 			showAssessmentData={true}
 		/>
 	</div>

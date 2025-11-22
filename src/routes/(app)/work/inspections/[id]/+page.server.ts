@@ -43,7 +43,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 		}
 
 		// Load available engineers filtered by province (use inspection or request data)
-		let availableEngineers = [];
+		let availableEngineers: any[] = [];
 		const province = inspection?.vehicle_province || request.vehicle_province;
 		if (province) {
 			availableEngineers = await engineerService.listEngineersByProvince(

@@ -32,7 +32,7 @@
 		<span class="h-1.5 w-1.5 rounded-full bg-white"></span>
 	{/if}
 	{#if icon}
-		<svelte:component this={icon} class="h-3 w-3" />
+		{@render icon({ class: 'h-3 w-3' })}
 	{/if}
 	{label}
 </span>

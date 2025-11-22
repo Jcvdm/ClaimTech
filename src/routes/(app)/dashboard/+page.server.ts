@@ -87,7 +87,7 @@ export const load: PageServerLoad = async ({ locals, parent }) => {
 		),
         withTimeout(
 			() => withRetry(() => appointmentService.getAppointmentCount(
-				isEngineer ? { status: 'scheduled', engineer_id } : { status: 'scheduled' },
+				isEngineer ? { status: 'scheduled', engineer_id: engineer_id ?? undefined } : { status: 'scheduled' },
 				locals.supabase
 			)),
 			15000,
@@ -120,10 +120,10 @@ export const load: PageServerLoad = async ({ locals, parent }) => {
 	// Load recent items for activity feed
 	// Engineers only see their assigned work
 	const [recentRequests, recentInspections, recentAppointments, recentAssessments] = await Promise.all([
-		isEngineer ? [] : requestService.listRequests({ status: 'submitted' }, locals.supabase).then(items => items.slice(0, 5)),
-		isEngineer ? [] : inspectionService.listInspections({ status: 'pending' }, locals.supabase).then(items => items.slice(0, 5)),
+		isEngineer ? Promise.resolve([]) : requestService.listRequests({ status: 'submitted' }, locals.supabase).then(items => items.slice(0, 5)),
+		isEngineer ? Promise.resolve([]) : inspectionService.listInspections({ status: 'pending' }, locals.supabase).then(items => items.slice(0, 5)),
 		appointmentService.listAppointments(
-			isEngineer ? { status: 'scheduled', engineer_id } : { status: 'scheduled' },
+			isEngineer ? { status: 'scheduled', engineer_id: engineer_id ?? undefined } : { status: 'scheduled' },
 			locals.supabase
 		).then(items => items.slice(0, 5)),
 		assessmentService.getInProgressAssessments(locals.supabase, isEngineer ? engineer_id : undefined).then(items => items.slice(0, 5))

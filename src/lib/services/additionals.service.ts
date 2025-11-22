@@ -36,7 +36,7 @@ class AdditionalsService {
 			throw error;
 		}
 
-		return data;
+		return data as unknown as AssessmentAdditionals | null;
 	}
 
 	/**
@@ -47,7 +47,7 @@ class AdditionalsService {
 
 		const { data, error } = await db
 			.from('assessment_additionals')
-			.insert({
+	.insert({
 				assessment_id: assessmentId,
 				repairer_id: estimate.repairer_id,
 				labour_rate: estimate.labour_rate,
@@ -57,7 +57,7 @@ class AdditionalsService {
 				alt_markup_percentage: estimate.alt_markup_percentage,
 				second_hand_markup_percentage: estimate.second_hand_markup_percentage,
 				outwork_markup_percentage: estimate.outwork_markup_percentage,
-				line_items: []
+				line_items: [] as any
 			})
 			.select()
 			.single();
@@ -76,7 +76,7 @@ class AdditionalsService {
 			new_value: 'additionals_record_created'
 		});
 
-		return data;
+		return data as unknown as AssessmentAdditionals;
 	}
 
 	/**
@@ -152,7 +152,7 @@ class AdditionalsService {
 			}
 		});
 
-		return data;
+		return data as unknown as AssessmentAdditionals;
 	}
 
 	/**
@@ -221,7 +221,7 @@ class AdditionalsService {
 		const { data, error } = await db
 			.from('assessment_additionals')
 			.update({
-				line_items: updatedLineItems,
+				line_items: updatedLineItems as any,
 				...totals,
 				updated_at: new Date().toISOString()
 			})
@@ -246,7 +246,7 @@ class AdditionalsService {
 			}
 		});
 
-		return data;
+		return data as unknown as AssessmentAdditionals;
 	}
 
 	/**
@@ -274,7 +274,7 @@ class AdditionalsService {
 		const { data, error } = await db
 			.from('assessment_additionals')
 			.update({
-				line_items: updatedLineItems,
+				line_items: updatedLineItems as any,
 				updated_at: new Date().toISOString()
 			})
 			.eq('assessment_id', assessmentId)
@@ -299,7 +299,7 @@ class AdditionalsService {
 			}
 		});
 
-		return data;
+		return data as unknown as AssessmentAdditionals;
 	}
 
 	/**
@@ -337,7 +337,7 @@ class AdditionalsService {
 		const { data, error } = await db
 			.from('assessment_additionals')
 			.update({
-				line_items: updatedLineItems,
+				line_items: updatedLineItems as any,
 				...totals,
 				updated_at: new Date().toISOString()
 			})
@@ -362,7 +362,7 @@ class AdditionalsService {
 			}
 		});
 
-		return data;
+		return data as unknown as AssessmentAdditionals;
 	}
 
 	/**
@@ -405,7 +405,7 @@ class AdditionalsService {
 		const { data, error } = await db
 			.from('assessment_additionals')
 			.update({
-				line_items: updatedLineItems,
+				line_items: updatedLineItems as any,
 				...totals,
 				updated_at: new Date().toISOString()
 			})
@@ -431,7 +431,7 @@ class AdditionalsService {
 			}
 		});
 
-		return data;
+		return data as unknown as AssessmentAdditionals;
 	}
 
 	/**
@@ -454,7 +454,7 @@ class AdditionalsService {
 		const { data, error } = await db
 			.from('assessment_additionals')
 			.update({
-				line_items: updatedLineItems,
+				line_items: updatedLineItems as any,
 				updated_at: new Date().toISOString()
 			})
 			.eq('assessment_id', assessmentId)
@@ -477,7 +477,7 @@ class AdditionalsService {
 			}
 		});
 
-		return data;
+		return data as unknown as AssessmentAdditionals;
 	}
 
 	/**
@@ -552,7 +552,7 @@ class AdditionalsService {
 		const { data, error } = await db
 			.from('assessment_additionals')
 			.update({
-				line_items: updatedLineItems,
+				line_items: updatedLineItems as any,
 				...totals,
 				updated_at: new Date().toISOString()
 			})
@@ -578,7 +578,7 @@ class AdditionalsService {
 			}
 		});
 
-		return data;
+		return data as unknown as AssessmentAdditionals;
 	}
 
 	/**
@@ -639,7 +639,7 @@ class AdditionalsService {
 		const { data, error } = await db
 			.from('assessment_additionals')
 			.update({
-				line_items: updatedLineItems,
+				line_items: updatedLineItems as any,
 				...totals,
 				updated_at: new Date().toISOString()
 			})
@@ -665,7 +665,7 @@ class AdditionalsService {
 			}
 		});
 
-		return data;
+		return data as unknown as AssessmentAdditionals;
 	}
 
 	/**
@@ -740,7 +740,7 @@ class AdditionalsService {
 		const { data, error } = await db
 			.from('assessment_additionals')
 			.update({
-				line_items: updatedLineItems,
+				line_items: updatedLineItems as any,
 				...totals,
 				updated_at: new Date().toISOString()
 			})
@@ -767,7 +767,7 @@ class AdditionalsService {
 			}
 		});
 
-		return data;
+		return data as unknown as AssessmentAdditionals;
 	}
 
 	/**
@@ -891,7 +891,7 @@ class AdditionalsService {
     const { data, error } = await db
       .from('assessment_additionals')
       .update({
-        line_items: newLineItems,
+        line_items: newLineItems as any,
         updated_at: new Date().toISOString()
       })
       .eq('assessment_id', assessmentId)
@@ -906,7 +906,7 @@ class AdditionalsService {
     await auditService.logChange({
       entity_type: 'estimate',
       entity_id: assessmentId,
-      action: 'additionals_line_item_updated_pending',
+      action: 'line_item_updated',
       metadata: {
         line_item_id: lineItemId,
         description: finalItem.description,
@@ -915,7 +915,7 @@ class AdditionalsService {
       }
     });
 
-    return data;
+    return data as unknown as AssessmentAdditionals;
   }
 
   /**
@@ -1001,7 +1001,7 @@ class AdditionalsService {
 			query = db
 				.from('assessments')
 				.select('id, appointments!inner(engineer_id), assessment_additionals!inner(id, line_items)')
-				.eq('appointments.engineer_id', engineer_id);
+				.eq('appointments.engineer_id', engineer_id) as any;
 		}
 
 		const { data, error } = await query;
@@ -1014,11 +1014,11 @@ class AdditionalsService {
 		if (!data) return 0;
 
 		// Filter to only those with pending items
-		const withPending = data.filter((record) => {
+		const withPending = data.filter((record: any) => {
 			const additionals = record.assessment_additionals;
 			if (!additionals) return false;
 
-			const lineItems = additionals.line_items as AdditionalLineItem[];
+			const lineItems = additionals.line_items as unknown as AdditionalLineItem[];
 			if (!lineItems || !Array.isArray(lineItems)) return false;
 
 			return lineItems.some((item) => item.status === 'pending');

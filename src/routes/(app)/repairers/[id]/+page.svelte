@@ -174,18 +174,18 @@
 				<div>
 					<p class="text-sm font-medium text-gray-500">Labour Rate (per hour)</p>
 					<p class="mt-1 text-sm text-gray-900">
-						{formatCurrency(data.repairer.default_labour_rate)}
+						{formatCurrency(data.repairer.default_labour_rate ?? 0)}
 					</p>
 				</div>
 				<div>
 					<p class="text-sm font-medium text-gray-500">Paint Rate (per panel)</p>
 					<p class="mt-1 text-sm text-gray-900">
-						{formatCurrency(data.repairer.default_paint_rate)}
+						{formatCurrency(data.repairer.default_paint_rate ?? 0)}
 					</p>
 				</div>
 				<div>
 					<p class="text-sm font-medium text-gray-500">VAT %</p>
-					<p class="mt-1 text-sm text-gray-900">{data.repairer.default_vat_percentage}%</p>
+					<p class="mt-1 text-sm text-gray-900">{data.repairer.default_vat_percentage ?? 0}%</p>
 				</div>
 			</div>
 		</Card>
@@ -195,22 +195,22 @@
 			<div class="grid gap-6 md:grid-cols-4">
 				<div>
 					<p class="text-sm font-medium text-gray-500">OEM Markup</p>
-					<p class="mt-1 text-sm text-gray-900">{data.repairer.default_oem_markup_percentage}%</p>
+					<p class="mt-1 text-sm text-gray-900">{data.repairer.default_oem_markup_percentage ?? 0}%</p>
 				</div>
 				<div>
 					<p class="text-sm font-medium text-gray-500">Aftermarket Markup</p>
-					<p class="mt-1 text-sm text-gray-900">{data.repairer.default_alt_markup_percentage}%</p>
+					<p class="mt-1 text-sm text-gray-900">{data.repairer.default_alt_markup_percentage ?? 0}%</p>
 				</div>
 				<div>
 					<p class="text-sm font-medium text-gray-500">Second Hand Markup</p>
 					<p class="mt-1 text-sm text-gray-900">
-						{data.repairer.default_second_hand_markup_percentage}%
+						{data.repairer.default_second_hand_markup_percentage ?? 0}%
 					</p>
 				</div>
 				<div>
 					<p class="text-sm font-medium text-gray-500">Outwork Markup</p>
 					<p class="mt-1 text-sm text-gray-900">
-						{data.repairer.default_outwork_markup_percentage}%
+						{data.repairer.default_outwork_markup_percentage ?? 0}%
 					</p>
 				</div>
 			</div>

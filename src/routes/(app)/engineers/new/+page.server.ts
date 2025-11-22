@@ -46,7 +46,7 @@ export const actions: Actions = {
 			name,
 			email,
 			phone: phone || undefined,
-			province: province || undefined,
+			province: (province || undefined) as import('$lib/types/engineer').Province | undefined,
 			specialization: specialization || undefined,
 			company_name: company_name || undefined,
 			company_type: company_type as any || undefined,

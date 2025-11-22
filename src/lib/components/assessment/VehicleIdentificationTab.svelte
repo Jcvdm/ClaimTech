@@ -5,22 +5,24 @@
 	import RequiredFieldsWarning from './RequiredFieldsWarning.svelte';
 	import { debounce } from '$lib/utils/useUnsavedChanges.svelte';
 	import { useDraft } from '$lib/utils/useDraft.svelte';
-	import { onMount } from 'svelte';
-	import type { VehicleIdentification } from '$lib/types/assessment';
-	import { validateVehicleIdentification } from '$lib/utils/validation';
+import { onMount } from 'svelte';
+import type { VehicleIdentification } from '$lib/types/assessment';
+import type { VehicleDetails } from '$lib/utils/report-data-helpers';
+import { validateVehicleIdentification } from '$lib/utils/validation';
 
-	interface Props {
-		data: VehicleIdentification | null;
-		assessmentId: string;
-		vehicleInfo?: {
-			registration?: string | null;
-			vin?: string | null;
-			make?: string | null;
-			model?: string | null;
-			year?: number | null;
-		};
-		onUpdate: (data: Partial<VehicleIdentification>) => void;
-	}
+interface Props {
+	data: VehicleIdentification | null;
+	assessmentId: string;
+	vehicleInfo?: {
+		registration?: string | null;
+		vin?: string | null;
+		make?: string | null;
+		model?: string | null;
+		year?: number | null;
+	};
+	onUpdate: (data: Partial<VehicleIdentification>) => void;
+	vehicleDetails?: VehicleDetails | null;
+}
 
 	// Make props reactive using $derived pattern
 	// This ensures component reacts to parent prop updates without re-mount
@@ -30,54 +32,86 @@
 	const assessmentId = $derived(props.assessmentId);
 	const vehicleInfo = $derived(props.vehicleInfo);
 	const onUpdate = $derived(props.onUpdate);
+	const vehicleDetails = $derived(props.vehicleDetails);
 
 	// Initialize localStorage draft for critical fields
-	const registrationDraft = useDraft(`assessment-${assessmentId}-registration`);
-	const vinDraft = useDraft(`assessment-${assessmentId}-vin`);
-	const engineDraft = useDraft(`assessment-${assessmentId}-engine`);
-	const makeDraft = useDraft(`assessment-${assessmentId}-make`);
-	const modelDraft = useDraft(`assessment-${assessmentId}-model`);
-	const yearDraft = useDraft(`assessment-${assessmentId}-year`);
+	let registrationDraft = useDraft('');
+	let vinDraft = useDraft('');
+	let engineDraft = useDraft('');
+	let makeDraft = useDraft('');
+	let modelDraft = useDraft('');
+	let yearDraft = useDraft('');
+
+	// Update draft keys when assessmentId changes
+	$effect(() => {
+		registrationDraft = useDraft(`assessment-${assessmentId}-registration`);
+		vinDraft = useDraft(`assessment-${assessmentId}-vin`);
+		engineDraft = useDraft(`assessment-${assessmentId}-engine`);
+		makeDraft = useDraft(`assessment-${assessmentId}-make`);
+		modelDraft = useDraft(`assessment-${assessmentId}-model`);
+		yearDraft = useDraft(`assessment-${assessmentId}-year`);
+	});
 
 	// Vehicle info fields (editable)
-	let vehicleMake = $state(data?.vehicle_make || vehicleInfo?.make || '');
-	let vehicleModel = $state(data?.vehicle_model || vehicleInfo?.model || '');
-	let vehicleYear = $state<number | undefined>(data?.vehicle_year || vehicleInfo?.year || undefined);
+	let vehicleMake = $state('');
+	let vehicleModel = $state('');
+	let vehicleYear = $state<number | undefined>(undefined);
 
-	let registrationNumber = $state(data?.registration_number || vehicleInfo?.registration || '');
-	let vinNumber = $state(data?.vin_number || vehicleInfo?.vin || '');
-	let engineNumber = $state(data?.engine_number || '');
-	let licenseDiscExpiry = $state(data?.license_disc_expiry || '');
-	let driverLicenseNumber = $state(data?.driver_license_number || '');
+	let registrationNumber = $state('');
+	let vinNumber = $state('');
+	let engineNumber = $state('');
+	let licenseDiscExpiry = $state('');
+	let driverLicenseNumber = $state('');
 
 	// Photo URLs
-	let registrationPhotoUrl = $state(data?.registration_photo_url || '');
-	let vinPhotoUrl = $state(data?.vin_photo_url || '');
-	let engineNumberPhotoUrl = $state(data?.engine_number_photo_url || '');
-	let licenseDiscPhotoUrl = $state(data?.license_disc_photo_url || '');
-	let driverLicensePhotoUrl = $state(data?.driver_license_photo_url || '');
+	let registrationPhotoUrl = $state('');
+	let vinPhotoUrl = $state('');
+	let engineNumberPhotoUrl = $state('');
+	let licenseDiscPhotoUrl = $state('');
+	let driverLicensePhotoUrl = $state('');
 
 	// Sync local state with data prop when it changes (after save)
 	$effect(() => {
 		if (data) {
 			// Only update if there's no draft (draft takes precedence)
+			// Priority: data > vehicleDetails > vehicleInfo
 			if (!registrationDraft.hasDraft() && data.registration_number) {
 				registrationNumber = data.registration_number;
+			} else if (!registrationDraft.hasDraft() && vehicleDetails?.registration) {
+				registrationNumber = vehicleDetails.registration;
+			} else if (!registrationDraft.hasDraft() && vehicleInfo?.registration) {
+				registrationNumber = vehicleInfo.registration;
 			}
 			if (!vinDraft.hasDraft() && data.vin_number) {
 				vinNumber = data.vin_number;
+			} else if (!vinDraft.hasDraft() && vehicleDetails?.vin) {
+				vinNumber = vehicleDetails.vin;
+			} else if (!vinDraft.hasDraft() && vehicleInfo?.vin) {
+				vinNumber = vehicleInfo.vin;
 			}
 			if (!engineDraft.hasDraft() && data.engine_number) {
 				engineNumber = data.engine_number;
 			}
 			if (!makeDraft.hasDraft() && data.vehicle_make) {
 				vehicleMake = data.vehicle_make;
+			} else if (!makeDraft.hasDraft() && vehicleDetails?.make) {
+				vehicleMake = vehicleDetails.make;
+			} else if (!makeDraft.hasDraft() && vehicleInfo?.make) {
+				vehicleMake = vehicleInfo.make;
 			}
 			if (!modelDraft.hasDraft() && data.vehicle_model) {
 				vehicleModel = data.vehicle_model;
+			} else if (!modelDraft.hasDraft() && vehicleDetails?.model) {
+				vehicleModel = vehicleDetails.model;
+			} else if (!modelDraft.hasDraft() && vehicleInfo?.model) {
+				vehicleModel = vehicleInfo.model;
 			}
 			if (!yearDraft.hasDraft() && data.vehicle_year) {
 				vehicleYear = data.vehicle_year;
+			} else if (!yearDraft.hasDraft() && vehicleDetails?.year) {
+				vehicleYear = vehicleDetails.year;
+			} else if (!yearDraft.hasDraft() && vehicleInfo?.year) {
+				vehicleYear = vehicleInfo.year;
 			}
 
 			// Always update photo URLs from data

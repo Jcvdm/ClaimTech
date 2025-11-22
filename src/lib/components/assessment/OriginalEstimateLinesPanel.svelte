@@ -127,9 +127,6 @@
 										<p class="text-sm font-medium text-gray-900 {isRemoved ? 'line-through' : ''}">
 											{item.description}
 										</p>
-										{#if item.part_number}
-											<p class="text-xs text-gray-500 mt-0.5">Part: {item.part_number}</p>
-										{/if}
 									</div>
 								</Table.Cell>
 								<Table.Cell class="text-right">

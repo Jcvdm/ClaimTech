@@ -57,14 +57,11 @@
 			uploadProgress = 0;
 
 			// Upload to storage
-			const result = await storageService.uploadPhoto(
+			const result = await storageService.uploadAssessmentPhoto(
 				file,
 				assessmentId,
 				category,
-				subcategory,
-				(progress) => {
-					uploadProgress = progress;
-				}
+				subcategory
 			);
 
 			// Set optimistic display
@@ -105,7 +102,7 @@
 
 <!-- Label -->
 {#if label}
-	<label class="mb-2 block text-sm font-medium text-gray-700">
+	<label for="photo-upload" class="mb-2 block text-sm font-medium text-gray-700">
 		{label}
 		{#if required}
 			<span class="text-red-500">*</span>
@@ -117,6 +114,7 @@
 {#if currentPhotoUrl}
 	<!-- Preview with click to view -->
 	<button
+		id="photo-upload"
 		type="button"
 		onclick={openPhotoViewer}
 		disabled={disabled}

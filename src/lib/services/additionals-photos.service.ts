@@ -28,7 +28,7 @@ class AdditionalsPhotosService {
 			throw new Error(`Failed to fetch additionals photos: ${error.message}`);
 		}
 
-		return data || [];
+		return (data as unknown as AdditionalsPhoto[]) || [];
 	}
 
 	/**
@@ -54,7 +54,7 @@ class AdditionalsPhotosService {
 			throw new Error(`Failed to create additionals photo: ${error.message}`);
 		}
 
-		return data;
+		return data as unknown as AdditionalsPhoto;
 	}
 
 	/**
@@ -82,7 +82,7 @@ class AdditionalsPhotosService {
 			throw new Error(`Failed to update additionals photo: ${error.message}`);
 		}
 
-		return data;
+		return data as unknown as AdditionalsPhoto;
 	}
 
 	/**
@@ -160,7 +160,7 @@ class AdditionalsPhotosService {
 			return 0;
 		}
 
-		return data ? data.display_order + 1 : 0;
+		return data ? (data.display_order ?? 0) + 1 : 0;
 	}
 }
 

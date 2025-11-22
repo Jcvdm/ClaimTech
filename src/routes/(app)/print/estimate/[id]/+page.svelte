@@ -47,7 +47,7 @@
 	});
 
 	// Generate HTML from template
-	const htmlContent = generateEstimateHTML(data);
+	const htmlContent = generateEstimateHTML(data as any);
 </script>
 
 <svelte:head>

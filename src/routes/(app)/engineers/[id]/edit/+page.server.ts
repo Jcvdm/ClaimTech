@@ -43,7 +43,7 @@ export const actions: Actions = {
 			const engineerData = {
 				name,
 				phone: phone || undefined,
-				province: province || undefined,
+				province: (province || undefined) as import('$lib/types/engineer').Province | undefined,
 				specialization: specialization || undefined,
 				company_name: company_name || undefined,
 				company_type: company_type as any || undefined

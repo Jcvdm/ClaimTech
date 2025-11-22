@@ -105,7 +105,7 @@
 		<div class="rounded-lg border bg-white">
 			<DataTable
 				data={engineersWithDetails}
-				{columns}
+				columns={columns as any}
 				onRowClick={handleRowClick}
 				emptyMessage="No engineers found"
 			/>

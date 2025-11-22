@@ -36,7 +36,7 @@ export class VehicleIdentificationService {
 			console.error('Error logging audit change:', auditError);
 		}
 
-		return data;
+		return data as unknown as VehicleIdentification;
 	}
 
 	/**
@@ -55,7 +55,7 @@ export class VehicleIdentificationService {
 			return null;
 		}
 
-		return data;
+		return data as unknown as VehicleIdentification | null;
 	}
 
 	/**
@@ -99,7 +99,7 @@ export class VehicleIdentificationService {
 			console.error('Error logging audit change:', auditError);
 		}
 
-		return data;
+		return data as unknown as VehicleIdentification;
 	}
 
 	/**

@@ -36,7 +36,7 @@ export class InteriorMechanicalService {
 			console.error('Error logging audit change:', auditError);
 		}
 
-		return data;
+		return data as unknown as InteriorMechanical;
 	}
 
 	/**
@@ -55,7 +55,7 @@ export class InteriorMechanicalService {
 			return null;
 		}
 
-		return data;
+		return data as unknown as InteriorMechanical | null;
 	}
 
 	/**
@@ -99,7 +99,7 @@ export class InteriorMechanicalService {
 			console.error('Error logging audit change:', auditError);
 		}
 
-		return data;
+		return data as unknown as InteriorMechanical;
 	}
 
 	/**

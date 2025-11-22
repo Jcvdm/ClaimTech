@@ -2,6 +2,7 @@ import { error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import JSZip from 'jszip';
 import { createStreamingResponse } from '$lib/utils/streaming-response';
+import { normalizeAssessment } from '$lib/utils/type-normalizers';
 
 export const POST: RequestHandler = async ({ request, locals }) => {
 	const body = await request.json();
@@ -151,13 +152,8 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 					filename: `${photoCounter++}_Registration.jpg`
 				});
 			}
-			if (vehicleIdentification?.odometer_photo_url) {
-				photoTasks.push({
-					url: vehicleIdentification.odometer_photo_url,
-					folder: '01_Vehicle_Identification',
-					filename: `${photoCounter++}_Odometer.jpg`
-				});
-			}
+			// Note: odometer_photo_url field does not exist in assessment_vehicle_identification table
+			// Odometer reading is captured in assessment_interior_mechanical.mileage_photo_url
 
 			// Collect Exterior 360 Photos
 			photoCounter = 1;
@@ -175,16 +171,16 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 					filename: `${photoCounter++}_Rear_View.jpg`
 				});
 			}
-			if (exterior360?.left_side_photo_url) {
+			if (exterior360?.left_photo_url) {
 				photoTasks.push({
-					url: exterior360.left_side_photo_url,
+					url: exterior360.left_photo_url,
 					folder: '02_Exterior_360',
 					filename: `${photoCounter++}_Left_Side.jpg`
 				});
 			}
-			if (exterior360?.right_side_photo_url) {
+			if (exterior360?.right_photo_url) {
 				photoTasks.push({
-					url: exterior360.right_side_photo_url,
+					url: exterior360.right_photo_url,
 					folder: '02_Exterior_360',
 					filename: `${photoCounter++}_Right_Side.jpg`
 				});
@@ -227,16 +223,16 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 					filename: `${photoCounter++}_Dashboard.jpg`
 				});
 			}
-			if (interiorMechanical?.front_seats_photo_url) {
+			if (interiorMechanical && interiorMechanical.interior_front_photo_url) {
 				photoTasks.push({
-					url: interiorMechanical.front_seats_photo_url,
+					url: interiorMechanical.interior_front_photo_url as string,
 					folder: '03_Interior_Mechanical',
 					filename: `${photoCounter++}_Front_Seats.jpg`
 				});
 			}
-			if (interiorMechanical?.rear_seats_photo_url) {
+			if (interiorMechanical && interiorMechanical.interior_rear_photo_url) {
 				photoTasks.push({
-					url: interiorMechanical.rear_seats_photo_url,
+					url: interiorMechanical.interior_rear_photo_url as string,
 					folder: '03_Interior_Mechanical',
 					filename: `${photoCounter++}_Rear_Seats.jpg`
 				});
@@ -300,11 +296,10 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 			if (estimatePhotos && estimatePhotos.length > 0) {
 				photoCounter = 1;
 				for (const photo of estimatePhotos) {
-					const description = photo.description
-						? photo.description.replace(/[^a-zA-Z0-9]/g, '_')
-						: 'Damage';
+					const description = (photo.label || 'Damage')
+						.replace(/[^a-zA-Z0-9]/g, '_');
 					photoTasks.push({
-						url: photo.photo_url,
+						url: photo.photo_url as string,
 						folder: '05_Damage_Documentation',
 						filename: `${photoCounter++}_${description}.jpg`
 					});
@@ -315,11 +310,10 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 			if (preIncidentPhotos && preIncidentPhotos.length > 0) {
 				photoCounter = 1;
 				for (const photo of preIncidentPhotos) {
-					const description = photo.description
-						? photo.description.replace(/[^a-zA-Z0-9]/g, '_')
-						: 'PreIncident';
+					const description = (photo.label || 'PreIncident')
+						.replace(/[^a-zA-Z0-9]/g, '_');
 					photoTasks.push({
-						url: photo.photo_url,
+						url: photo.photo_url as string,
 						folder: '06_Pre_Incident',
 						filename: `${photoCounter++}_${description}.jpg`
 					});

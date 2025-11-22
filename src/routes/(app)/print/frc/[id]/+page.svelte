@@ -46,7 +46,7 @@
 	});
 
 	// Generate HTML from template
-	const htmlContent = generateFRCReportHTML(data);
+	const htmlContent = generateFRCReportHTML(data as any);
 </script>
 
 <svelte:head>

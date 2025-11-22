@@ -40,13 +40,16 @@
 		Exterior360,
 		InteriorMechanical,
 		Tyre,
+		UpdateTyreInput,
 		DamageRecord,
 		VehicleValues,
 		Estimate,
+		UpdateEstimateInput,
 		EstimateLineItem,
 		AccessoryType,
 		AssessmentResultType,
-		VehicleAccessory
+		VehicleAccessory,
+		UpdatePreIncidentEstimateInput
 	} from '$lib/types/assessment';
 
 	let { data }: { data: PageData } = $props();
@@ -241,7 +244,7 @@
 	// Tyres handlers
 	async function handleUpdateTyre(id: string, updateData: Partial<Tyre>) {
 		try {
-			const updatedTyre = await tyresService.update(id, updateData);
+			const updatedTyre = await tyresService.update(id, updateData as UpdateTyreInput);
 			// Create new array instead of mutating (triggers $derived reactivity)
 			const index = data.tyres.findIndex((t) => t.id === id);
 			if (index !== -1) {
@@ -323,7 +326,7 @@
 				// Service updates DB and returns updated estimate
 				const updatedEstimate = await preIncidentEstimateService.update(
 					preIncidentEstimate.id,
-					updateData
+					updateData as UpdatePreIncidentEstimateInput
 				);
 
 				// Update local $state variable (triggers Svelte reactivity in child components)
@@ -451,7 +454,7 @@
 		try {
 			if (estimate) {
 				// Service updates DB and returns updated estimate
-				const updatedEstimate = await estimateService.update(estimate.id, updateData);
+				const updatedEstimate = await estimateService.update(estimate.id, updateData as UpdateEstimateInput);
 
 				// Update local $state variable (triggers Svelte reactivity in child components)
 				estimate = updatedEstimate;
@@ -782,6 +785,7 @@
 			client={data.client}
 			vehicleIdentification={data.vehicleIdentification}
 			interiorMechanical={data.interiorMechanical}
+			vehicleDetails={data.vehicleDetails}
 		/>
 	{:else if currentTab === 'identification'}
 		<VehicleIdentificationTab
@@ -795,6 +799,7 @@
 				year: data.inspection?.vehicle_year
 			}}
 			onUpdate={handleUpdateVehicleIdentification}
+			vehicleDetails={data.vehicleDetails}
 		/>
 	{:else if currentTab === '360'}
 		<Exterior360Tab
@@ -878,6 +883,7 @@
 				vehicle_mileage: data.request?.vehicle_mileage
 			}}
 			onUpdate={handleUpdateVehicleValues}
+			vehicleDetails={data.vehicleDetails}
 		/>
 	{:else if currentTab === 'pre-incident'}
 		<PreIncidentEstimateTab
@@ -942,6 +948,7 @@
 				const updatedNotes = await assessmentNotesService.getNotesByAssessment(data.assessment.id);
 				notes = updatedNotes; // Update local state to trigger reactivity
 			}}
+			vehicleDetails={data.vehicleDetails}
 		/>
 	{:else if currentTab === 'finalize'}
 		<FinalizeTab

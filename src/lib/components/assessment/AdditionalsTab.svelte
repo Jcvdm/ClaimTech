@@ -30,11 +30,11 @@
 		AdditionalLineItem,
 		Estimate,
 		EstimateLineItem,
-		Repairer,
 		VehicleValues,
 		AdditionalsPhoto,
 		DocumentGenerationStatus
 	} from '$lib/types/assessment';
+	import type { Repairer } from '$lib/types/repairer';
 	import { additionalsService } from '$lib/services/additionals.service';
 	import { additionalsPhotosService } from '$lib/services/additionals-photos.service';
 	import { documentGenerationService } from '$lib/services/document-generation.service';
@@ -598,7 +598,7 @@
 		</Card>
 
 		<!-- Rates Mismatch Warning Banner -->
-		{#if ratesDiffer()}
+		{#if ratesDiffer() && additionals}
 			<Card class="border-2 border-yellow-400 bg-yellow-50 p-4">
 				<div class="flex items-start gap-3">
 					<AlertTriangle class="mt-0.5 h-5 w-5 flex-shrink-0 text-yellow-600" />
@@ -611,20 +611,20 @@
 						<div class="mt-3 grid grid-cols-2 gap-4 text-xs">
 							<div class="space-y-1">
 								<p class="font-semibold text-yellow-900">Original Rates (Additionals):</p>
-								{#if estimate.repairer_id !== additionals.repairer_id}
+								{#if estimate.repairer_id !== additionals?.repairer_id}
 									<p class="text-yellow-700">
-										Repairer: {repairers.find((r) => r.id === additionals.repairer_id)?.name ||
+										Repairer: {repairers.find((r) => r.id === additionals?.repairer_id)?.name ||
 											'None'}
 									</p>
 								{/if}
-								{#if estimate.labour_rate !== additionals.labour_rate}
-									<p class="text-yellow-700">Labour: R{additionals.labour_rate}/hr</p>
+								{#if estimate.labour_rate !== additionals?.labour_rate}
+									<p class="text-yellow-700">Labour: R{additionals?.labour_rate}/hr</p>
 								{/if}
-								{#if estimate.paint_rate !== additionals.paint_rate}
-									<p class="text-yellow-700">Paint: R{additionals.paint_rate}/panel</p>
+								{#if estimate.paint_rate !== additionals?.paint_rate}
+									<p class="text-yellow-700">Paint: R{additionals?.paint_rate}/panel</p>
 								{/if}
-								{#if estimate.vat_percentage !== additionals.vat_percentage}
-									<p class="text-yellow-700">VAT: {additionals.vat_percentage}%</p>
+								{#if estimate.vat_percentage !== additionals?.vat_percentage}
+									<p class="text-yellow-700">VAT: {additionals?.vat_percentage}%</p>
 								{/if}
 								{#if estimate.oem_markup_percentage !== additionals.oem_markup_percentage}
 									<p class="text-yellow-700">OEM Markup: {additionals.oem_markup_percentage}%</p>

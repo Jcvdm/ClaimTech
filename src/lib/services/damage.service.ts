@@ -40,7 +40,7 @@ export class DamageService {
 			console.error('Error logging audit change:', auditError);
 		}
 
-		return data;
+		return data as unknown as DamageRecord;
 	}
 
 	/**
@@ -59,7 +59,7 @@ export class DamageService {
 			return null;
 		}
 
-		return data;
+		return data as unknown as DamageRecord | null;
 	}
 
 	/**
@@ -78,7 +78,7 @@ export class DamageService {
 			return null;
 		}
 
-		return data;
+		return data as unknown as DamageRecord | null;
 	}
 
 	/**
@@ -98,7 +98,7 @@ export class DamageService {
 			return [];
 		}
 
-		return data || [];
+		return (data as unknown as DamageRecord[]) || [];
 	}
 
 	/**
@@ -155,7 +155,7 @@ export class DamageService {
 			console.error('Error logging audit change:', auditError);
 		}
 
-		return data;
+		return data as unknown as DamageRecord;
 	}
 
 	/**

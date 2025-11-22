@@ -1,7 +1,7 @@
 # System Documentation Index
 
-**Last Updated**: November 21, 2025 (Supabase Type Generation Fix - PostgrestFilterBuilder<never> Resolution)
-**Total Files**: 36 System documentation files
+**Last Updated**: November 21, 2025 (Supabase CLI Integration - Type Generation & Workflow)
+**Total Files**: 37 System documentation files
 
 ---
 
@@ -129,7 +129,20 @@ Comprehensive system documentation covering architecture, database design, secur
 - **Read When**: Setting up dev environment, running commands
 - **Contains**: npm scripts, environment variables, dev server commands
 
-### 2. MCP Setup ⭐ NEW
+### 2. Supabase CLI Guide ⭐ NEW (Nov 21, 2025)
+- **File**: [supabase_cli.md](../System/supabase_cli.md)
+- **Size**: ~350 lines | **Last Updated**: Nov 21, 2025
+- **Read When**: Setting up Supabase CLI, generating types, creating migrations, working with branches
+- **Contains**: Installation, authentication, project setup, database operations, type generation, branching, local development
+- **Quick Commands**:
+  - `npm run generate:types` - Generate TypeScript types
+  - `supabase db diff -f name` - Create migration
+  - `supabase db push` - Apply migrations
+  - `supabase db branch create/switch/delete` - Database branching
+
+**Related**: [SOP: Supabase CLI Workflow](../SOP/supabase_cli_workflow.md) - Development workflows
+
+### 3. MCP Setup ⭐ NEW
 - **File**: [mcp_setup.md](../System/mcp_setup.md)
 - **Read When**: Using Claude Code with Supabase MCP
 - **Contains**: Supabase MCP configuration, direct database access, query capabilities, migration management

@@ -27,7 +27,7 @@ class EstimatePhotosService {
 			throw new Error(`Failed to fetch estimate photos: ${error.message}`);
 		}
 
-		return data || [];
+		return (data as unknown as EstimatePhoto[]) || [];
 	}
 
 	/**
@@ -52,7 +52,7 @@ class EstimatePhotosService {
 			throw new Error(`Failed to create estimate photo: ${error.message}`);
 		}
 
-		return data;
+		return data as unknown as EstimatePhoto;
 	}
 
 	/**
@@ -75,7 +75,7 @@ class EstimatePhotosService {
 			throw new Error(`Failed to update estimate photo: ${error.message}`);
 		}
 
-		return data;
+		return data as unknown as EstimatePhoto;
 	}
 
 	/**
@@ -146,7 +146,7 @@ class EstimatePhotosService {
 			return 0;
 		}
 
-		return data ? data.display_order + 1 : 0;
+		return data ? (data.display_order || 0) + 1 : 0;
 	}
 }
 

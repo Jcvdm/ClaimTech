@@ -24,6 +24,7 @@ import { clientService } from '$lib/services/client.service';
 import { repairerService } from '$lib/services/repairer.service';
 import { companySettingsService } from '$lib/services/company-settings.service';
 import { EngineerService } from '$lib/services/engineer.service';
+import { getVehicleDetails, getClientDetails, getInsuredDetails } from '$lib/utils/report-data-helpers';
 
 const engineerService = new EngineerService();
 
@@ -114,14 +115,14 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 		] = await Promise.all([
 			vehicleIdentificationService.getByAssessment(assessment.id, locals.supabase),
 			exterior360Service.getByAssessment(assessment.id, locals.supabase),
-			accessoriesService.listByAssessment(assessment.id, locals.supabase),
+			accessoriesService.listByAssessment(assessment.id),
 			interiorMechanicalService.getByAssessment(assessment.id, locals.supabase),
 			tyresService.listByAssessment(assessment.id, locals.supabase),
 			damageService.getByAssessment(assessment.id, locals.supabase),
 			vehicleValuesService.getByAssessment(assessment.id, locals.supabase),
 			preIncidentEstimateService.getByAssessment(assessment.id, locals.supabase),
 			estimateService.getByAssessment(assessment.id, locals.supabase),
-			assessmentNotesService.getNotesByAssessment(assessment.id, locals.supabase),
+			assessmentNotesService.getNotesByAssessment(assessment.id),
 			inspectionService.getInspection(appointment.inspection_id, locals.supabase),
 			requestService.getRequest(appointment.request_id, locals.supabase),
 			repairerService.listRepairers(true, locals.supabase),
@@ -163,6 +164,11 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 		// Load client for write-off percentages
 		const client = request ? await clientService.getClient(request.client_id, locals.supabase) : null;
 
+		// Get vehicle details (pass database type directly to avoid type mismatch)
+		const vehicleDetails = getVehicleDetails(vehicleIdentification as any, request as any, inspection as any);
+		const clientDetails = getClientDetails(client as any);
+		const insuredDetails = getInsuredDetails(request as any);
+
 		return {
 			appointment,
 			assessment,
@@ -186,7 +192,10 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 			client,
 			repairers,
 			companySettings,
-			engineer
+			engineer,
+			vehicleDetails,
+			clientDetails,
+			insuredDetails
 		};
 	} catch (err) {
 		console.error('Error loading assessment:', err);

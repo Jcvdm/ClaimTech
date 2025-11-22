@@ -106,7 +106,7 @@ export function generatePreIncidentEstimateHTML(data: PreIncidentEstimateData): 
 	<div class="page">
 		<div class="header">
 			<div class="title">PRE-INCIDENT DAMAGE ESTIMATE</div>
-			<div class="subtitle">Assessment: ${assessment.assessment_number} | Date: ${formatDateNumeric(new Date())}</div>
+			<div class="subtitle">Assessment: ${assessment.assessment_number} | Date: ${formatDateNumeric(new Date().toISOString())}</div>
 		</div>
 
 		<!-- Vehicle Information -->
@@ -114,12 +114,12 @@ export function generatePreIncidentEstimateHTML(data: PreIncidentEstimateData): 
 			<div class="section-title">VEHICLE INFORMATION</div>
 			<table>
 				<tr>
-					<td style="width: 50%;"><strong>Make/Model:</strong> ${vehicleIdentification?.make || 'N/A'} ${vehicleIdentification?.model || ''}</td>
-					<td style="width: 50%;"><strong>Year:</strong> ${vehicleIdentification?.year || 'N/A'}</td>
+					<td style="width: 50%;"><strong>Make/Model:</strong> ${vehicleIdentification?.vehicle_make || 'N/A'} ${vehicleIdentification?.vehicle_model || ''}</td>
+					<td style="width: 50%;"><strong>Year:</strong> ${vehicleIdentification?.vehicle_year || 'N/A'}</td>
 				</tr>
 				<tr>
-					<td><strong>VIN:</strong> ${vehicleIdentification?.vin || 'N/A'}</td>
-					<td><strong>Registration:</strong> ${vehicleIdentification?.registration || 'N/A'}</td>
+					<td><strong>VIN:</strong> ${vehicleIdentification?.vin_number || 'N/A'}</td>
+					<td><strong>Registration:</strong> ${vehicleIdentification?.registration_number || 'N/A'}</td>
 				</tr>
 			</table>
 		</div>

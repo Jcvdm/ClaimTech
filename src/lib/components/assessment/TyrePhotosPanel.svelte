@@ -98,7 +98,7 @@
 					assessment_id: assessmentId,
 					photo_url: url,
 					photo_path: path,
-					label: null
+					label: undefined
 				});
 
 				// Add to optimistic array
@@ -159,6 +159,8 @@
 	<div class="space-y-4">
 		<!-- Upload Zone -->
 		<div
+			role="button"
+			tabindex="0"
 			class="relative rounded-lg border-2 border-dashed transition-colors {isDragging
 				? 'border-blue-500 bg-blue-50'
 				: 'border-gray-300 bg-gray-50'} {uploading ? 'opacity-50' : ''}"
@@ -166,6 +168,12 @@
 			ondragover={handleDragOver}
 			ondragleave={handleDragLeave}
 			ondrop={handleDrop}
+			onkeydown={(e) => {
+				if (e.key === 'Enter' || e.key === ' ') {
+					e.preventDefault();
+					triggerFileInput();
+				}
+			}}
 		>
 			<div class="flex flex-col items-center justify-center p-6">
 				{#if uploading}
@@ -236,7 +244,7 @@
 <!-- Photo Viewer -->
 {#if selectedPhotoIndex !== null}
 	<PhotoViewer
-		photos={photos.value}
+		photos={photos.value as any}
 		startIndex={selectedPhotoIndex}
 		onClose={closePhotoViewer}
 		onDelete={handlePhotoDelete}

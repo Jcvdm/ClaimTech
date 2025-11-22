@@ -1,0 +1,920 @@
+﻿
+> claimtech@0.0.1 check
+> svelte-kit sync && svelte-check --tsconfig ./tsconfig.json
+
+Loading svelte-check in workspace: c:\Users\Jcvdm\Desktop\Jaco\Programming\sites\Claimtech
+Getting Svelte diagnostics...
+
+c:\Users\Jcvdm\Desktop\Jaco\Programming\sites\Claimtech\[32msrc\lib\components\ui\calendar\calendar.svelte[39m:46:1
+[33mWarn[39m: `<svelte:component>` is deprecated in runes mode ÔÇö components are dynamic by default
+https://svelte.dev/e/svelte_component_deprecated (svelte)
+[36m-->
+[35m<svelte:component
+	this={CalendarPrimitive.Root as any}
+	bind:value={value as never}
+	bind:ref
+	bind:placeholder
+	{weekdayFormat}
+	{disableDaysOutsideMonth}
+	class={cn(
+		"bg-background group/calendar p-3 [--cell-size:--spacing(8)] [[data-slot=card-content]_&]:bg-transparent [[data-slot=popover-content]_&]:bg-transparent",
+		className
+	)}
+	{locale}
+	{...restProps}
+	{monthFormat}
+	{yearFormat}
+>
+	{#snippet children({ months, weekdays }: { months: Array<any>; weekdays: Array<string> })}
+		<Calendar.Months>
+			<Calendar.Nav>
+				<Calendar.PrevButton variant={buttonVariant} />
+				<Calendar.NextButton variant={buttonVariant} />
+			</Calendar.Nav>
+			{#each months as month, monthIndex (month)}
+				<Calendar.Month>
+					<Calendar.Header>
+						<Calendar.Caption
+							{captionLayout}
+							months={monthsProp}
+							{monthFormat}
+							{years}
+							{yearFormat}
+							month={month.value}
+							bind:placeholder
+							{locale}
+							{monthIndex}
+						/>
+					</Calendar.Header>
+					<Calendar.Grid>
+						<Calendar.GridHead>
+							<Calendar.GridRow class="select-none">
+								{#each weekdays as weekday (weekday)}
+									<Calendar.HeadCell>
+										{weekday.slice(0, 2)}
+									</Calendar.HeadCell>
+								{/each}
+							</Calendar.GridRow>
+						</Calendar.GridHead>
+						<Calendar.GridBody>
+							{#each month.weeks as weekDates (weekDates)}
+								<Calendar.GridRow class="mt-2 w-full">
+									{#each weekDates as date (date)}
+										<Calendar.Cell {date} month={month.value}>
+											{#if day}
+												{@render day({
+													day: date,
+													outsideMonth: !isEqualMonth(date, month.value),
+												})}
+											{:else}
+												<Calendar.Day />
+											{/if}
+										</Calendar.Cell>
+									{/each}
+								</Calendar.GridRow>
+							{/each}
+						</Calendar.GridBody>
+					</Calendar.Grid>
+				</Calendar.Month>
+			{/each}
+		</Calendar.Months>
+	{/snippet}
+</svelte:component>[36m[39m
+
+c:\Users\Jcvdm\Desktop\Jaco\Programming\sites\Claimtech\[32msrc\lib\components\ui\calendar\calendar-month-select.svelte[39m:21:2
+[33mWarn[39m: `<svelte:component>` is deprecated in runes mode ÔÇö components are dynamic by default
+https://svelte.dev/e/svelte_component_deprecated (svelte)
+[36m>
+	[35m<svelte:component
+		this={(CalendarPrimitive as any).MonthSelect}
+		bind:ref
+		class="absolute inset-0 opacity-0"
+		{...restProps}
+	>
+		{#snippet child({ props, monthItems, selectedMonthItem }: { props: any; monthItems: Array<any>; selectedMonthItem: any })}
+			<select {...props} {value} {onchange}>
+				{#each monthItems as monthItem (monthItem.value)}
+					<option
+						value={monthItem.value}
+						selected={value !== undefined
+							? monthItem.value === value
+							: monthItem.value === selectedMonthItem.value}
+					>
+						{monthItem.label}
+					</option>
+				{/each}
+			</select>
+			<span
+				class="[&>svg]:text-muted-foreground flex h-8 select-none items-center gap-1 rounded-md pl-2 pr-1 text-sm font-medium [&>svg]:size-3.5"
+				aria-hidden="true"
+			>
+				{monthItems.find((item: any) => item.value === value)?.label || selectedMonthItem.label}
+				<ChevronDown class="size-4" />
+			</span>
+		{/snippet}
+	</svelte:component>[36m
+</span>[39m
+
+c:\Users\Jcvdm\Desktop\Jaco\Programming\sites\Claimtech\[32msrc\lib\components\ui\calendar\calendar-year-select.svelte[39m:20:2
+[33mWarn[39m: `<svelte:component>` is deprecated in runes mode ÔÇö components are dynamic by default
+https://svelte.dev/e/svelte_component_deprecated (svelte)
+[36m>
+	[35m<svelte:component
+		this={(CalendarPrimitive as any).YearSelect}
+		bind:ref
+		class="absolute inset-0 opacity-0"
+		{...restProps}
+	>
+		{#snippet child({ props, yearItems, selectedYearItem }: { props: any; yearItems: Array<any>; selectedYearItem: any })}
+			<select {...props} {value}>
+				{#each yearItems as yearItem (yearItem.value)}
+					<option
+						value={yearItem.value}
+						selected={value !== undefined
+							? yearItem.value === value
+							: yearItem.value === selectedYearItem.value}
+					>
+						{yearItem.label}
+					</option>
+				{/each}
+			</select>
+			<span
+				class="[&>svg]:text-muted-foreground flex h-8 select-none items-center gap-1 rounded-md pl-2 pr-1 text-sm font-medium [&>svg]:size-3.5"
+				aria-hidden="true"
+			>
+				{yearItems.find((item: any) => item.value === value)?.label || selectedYearItem.label}
+				<ChevronDown class="size-4" />
+			</span>
+		{/snippet}
+	</svelte:component>[36m
+</span>[39m
+
+c:\Users\Jcvdm\Desktop\Jaco\Programming\sites\Claimtech\[32msrc\lib\components\ui\file-dropzone\FileDropzone.svelte[39m:60:6
+[33mWarn[39m: `cameraInput` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates
+https://svelte.dev/e/non_reactive_update (svelte)
+[36m	let fileInput: HTMLInputElement;
+	let [35mcameraInput: HTMLInputElement[36m;[39m
+
+c:\Users\Jcvdm\Desktop\Jaco\Programming\sites\Claimtech\[32msrc\lib\components\ui\progress\progress.svelte[39m:35:2
+[33mWarn[39m: Self-closing HTML tags for non-void elements are ambiguous ÔÇö use `<div ...></div>` rather than `<div ... />`
+https://svelte.dev/e/element_invalid_self_closing_tag (svelte)
+[36m>
+	[35m<div
+		class="h-full w-full flex-1 bg-blue-600 transition-all duration-300 ease-in-out"
+		style="transform: translateX(-{100 - percentage}%)"
+	/>[36m
+</div>[39m
+
+c:\Users\Jcvdm\Desktop\Jaco\Programming\sites\Claimtech\[32msrc\routes\(app)\work\assessments\[appointment_id]\+page.server.ts[39m:169:74
+[31mError[39m: Argument of type 'VehicleIdentification | null' is not assignable to parameter of type '{ assessment_id: string; created_at: string | null; driver_license_number: string | null; driver_license_photo_url: string | null; engine_number: string | null; engine_number_photo_url: string | null; ... 10 more ...; vin_photo_url: string | null; } | null'.
+  Type 'VehicleIdentification' is not assignable to type '{ assessment_id: string; created_at: string | null; driver_license_number: string | null; driver_license_photo_url: string | null; engine_number: string | null; engine_number_photo_url: string | null; ... 10 more ...; vin_photo_url: string | null; }'.
+    Types of property 'driver_license_number' are incompatible.
+      Type 'string | null | undefined' is not assignable to type 'string | null'.
+        Type 'undefined' is not assignable to type 'string | null'. 
+[36m		// Normalize data using centralized helpers
+		const normalizedVehicleIdentification = normalizeVehicleIdentification([35mvehicleIdentification[36m);
+		const vehicleDetails = getVehicleDetails(normalizedVehicleIdentification as any, request as any, inspection as any);[39m
+
+c:\Users\Jcvdm\Desktop\Jaco\Programming\sites\Claimtech\[32msrc\routes\api\generate-additionals-letter\+server.ts[39m:69:50
+[31mError[39m: Argument of type '{ assessment: any; additionals: any; companySettings: any; request: any; client: any; repairer: any; }' is not assignable to parameter of type 'AdditionalsLetterData'.
+  Property 'vehicleIdentification' is missing in type '{ assessment: any; additionals: any; companySettings: any; request: any; client: any; repairer: any; }' but required in type 'AdditionalsLetterData'. 
+[36m
+      const html = generateAdditionalsLetterHTML([35m{
+        assessment: (assessment || {}) as any,
+        additionals: (additionals || {}) as any,
+        companySettings: normalizedCompanySettings ? { ...normalizedCompanySettings, additionals_terms_and_conditions: terms } as any : normalizedCompanySettings,
+        request: (requestData || {}) as any,
+        client: (client || {}) as any,
+        repairer: (repairer || {}) as any
+      }[36m);[39m
+
+c:\Users\Jcvdm\Desktop\Jaco\Programming\sites\Claimtech\[32msrc\routes\api\generate-estimate\+server.ts[39m:109:38
+[31mError[39m: Argument of type '{ assessment: any; vehicleIdentification: any; estimate: any; lineItems: any[]; companySettings: any; request: any; client: any; repairer: any; }' is not assignable to parameter of type 'EstimateData'.
+  Type '{ assessment: any; vehicleIdentification: any; estimate: any; lineItems: any[]; companySettings: any; request: any; client: any; repairer: any; }' is missing the following properties from type 'EstimateData': vehicleDetails, clientDetails, insuredDetails 
+[36m			console.log(`[${new Date().toISOString()}] [Request ${requestId}] Generating HTML template...`);
+			const html = generateEstimateHTML([35m{
+				assessment: (normalizedAssessment || {}) as any,
+				vehicleIdentification: (vehicleIdentification || {}) as any,
+				estimate: (normalizedEstimate || {}) as any,
+				lineItems,
+				companySettings: normalizedCompanySettings ? {
+					...normalizedCompanySettings,
+					estimate_terms_and_conditions: termsAndConditions
+				} as any : normalizedCompanySettings,
+				request: (requestData || {}) as any,
+				client: (client || {}) as any,
+				repairer: (repairer || {}) as any
+			}[36m);[39m
+
+c:\Users\Jcvdm\Desktop\Jaco\Programming\sites\Claimtech\[32msrc\routes\api\generate-photos-pdf\+server.ts[39m:184:29
+[31mError[39m: Property 'odometer_photo_url' does not exist on type '{ assessment_id: string; created_at: string | null; driver_license_number: string | null; driver_license_photo_url: string | null; engine_number: string | null; engine_number_photo_url: string | null; ... 10 more ...; vin_photo_url: string | null; }'. 
+[36m	}
+	if (vehicleIdentification?.[35modometer_photo_url[36m) {
+		identificationPhotoPromises.push([39m
+
+c:\Users\Jcvdm\Desktop\Jaco\Programming\sites\Claimtech\[32msrc\routes\api\generate-photos-pdf\+server.ts[39m:186:51
+[31mError[39m: Property 'odometer_photo_url' does not exist on type '{ assessment_id: string; created_at: string | null; driver_license_number: string | null; driver_license_photo_url: string | null; engine_number: string | null; engine_number_photo_url: string | null; ... 10 more ...; vin_photo_url: string | null; }'. 
+[36m		identificationPhotoPromises.push(
+			convertProxyUrlToDataUrl(vehicleIdentification.[35modometer_photo_url[36m, locals).then(dataUrl =>
+				dataUrl ? { url: dataUrl, caption: 'Odometer Reading' } : null[39m
+
+c:\Users\Jcvdm\Desktop\Jaco\Programming\sites\Claimtech\[32msrc\routes\api\generate-photos-pdf\+server.ts[39m:238:30
+[31mError[39m: Property 'front_seats_photo_url' does not exist on type '{ assessment_id: string; battery_photo_url: string | null; brakes: string | null; coolant_photo_url: string | null; created_at: string | null; dashboard_photo_url: string | null; ... 14 more ...; vehicle_has_power: boolean | null; }'. 
+[36m		{ url: interiorMechanical?.dashboard_photo_url, caption: 'Dashboard' },
+		{ url: interiorMechanical?.[35mfront_seats_photo_url[36m, caption: 'Front Seats' },
+		{ url: interiorMechanical?.rear_seats_photo_url, caption: 'Rear Seats' },[39m
+
+c:\Users\Jcvdm\Desktop\Jaco\Programming\sites\Claimtech\[32msrc\routes\api\generate-photos-pdf\+server.ts[39m:239:30
+[31mError[39m: Property 'rear_seats_photo_url' does not exist on type '{ assessment_id: string; battery_photo_url: string | null; brakes: string | null; coolant_photo_url: string | null; created_at: string | null; dashboard_photo_url: string | null; ... 14 more ...; vehicle_has_power: boolean | null; }'. 
+[36m		{ url: interiorMechanical?.front_seats_photo_url, caption: 'Front Seats' },
+		{ url: interiorMechanical?.[35mrear_seats_photo_url[36m, caption: 'Rear Seats' },
+		{ url: interiorMechanical?.gear_lever_photo_url, caption: 'Gear Lever' },[39m
+
+c:\Users\Jcvdm\Desktop\Jaco\Programming\sites\Claimtech\[32msrc\routes\api\generate-photos-pdf\+server.ts[39m:336:21
+[31mError[39m: Property 'description' does not exist on type '{ created_at: string; display_order: number | null; estimate_id: string; id: string; label: string | null; photo_path: string; photo_url: string; updated_at: string; }'. 
+[36m					url: dataUrl,
+					caption: photo.[35mdescription[36m || 'Damage Photo'
+				} : null[39m
+
+c:\Users\Jcvdm\Desktop\Jaco\Programming\sites\Claimtech\[32msrc\routes\api\generate-photos-pdf\+server.ts[39m:356:21
+[31mError[39m: Property 'description' does not exist on type '{ created_at: string | null; display_order: number | null; estimate_id: string; id: string; label: string | null; photo_path: string; photo_url: string; updated_at: string | null; }'. 
+[36m					url: dataUrl,
+					caption: photo.[35mdescription[36m || 'Pre-Incident Photo'
+				} : null[39m
+
+c:\Users\Jcvdm\Desktop\Jaco\Programming\sites\Claimtech\[32msrc\routes\api\generate-photos-zip\+server.ts[39m:155:31
+[31mError[39m: Property 'odometer_photo_url' does not exist on type '{ assessment_id: string; created_at: string | null; driver_license_number: string | null; driver_license_photo_url: string | null; engine_number: string | null; engine_number_photo_url: string | null; ... 10 more ...; vin_photo_url: string | null; }'. 
+[36m			}
+			if (vehicleIdentification?.[35modometer_photo_url[36m) {
+				photoTasks.push({[39m
+
+c:\Users\Jcvdm\Desktop\Jaco\Programming\sites\Claimtech\[32msrc\routes\api\generate-photos-zip\+server.ts[39m:157:33
+[31mError[39m: Property 'odometer_photo_url' does not exist on type '{ assessment_id: string; created_at: string | null; driver_license_number: string | null; driver_license_photo_url: string | null; engine_number: string | null; engine_number_photo_url: string | null; ... 10 more ...; vin_photo_url: string | null; }'. 
+[36m				photoTasks.push({
+					url: vehicleIdentification.[35modometer_photo_url[36m,
+					folder: '01_Vehicle_Identification',[39m
+
+c:\Users\Jcvdm\Desktop\Jaco\Programming\sites\Claimtech\[32msrc\routes\api\generate-photos-zip\+server.ts[39m:231:28
+[31mError[39m: Property 'front_seats_photo_url' does not exist on type '{ assessment_id: string; battery_photo_url: string | null; brakes: string | null; coolant_photo_url: string | null; created_at: string | null; dashboard_photo_url: string | null; ... 14 more ...; vehicle_has_power: boolean | null; }'. 
+[36m			}
+			if (interiorMechanical?.[35mfront_seats_photo_url[36m) {
+				photoTasks.push({[39m
+
+c:\Users\Jcvdm\Desktop\Jaco\Programming\sites\Claimtech\[32msrc\routes\api\generate-photos-zip\+server.ts[39m:233:30
+[31mError[39m: Property 'front_seats_photo_url' does not exist on type '{ assessment_id: string; battery_photo_url: string | null; brakes: string | null; coolant_photo_url: string | null; created_at: string | null; dashboard_photo_url: string | null; ... 14 more ...; vehicle_has_power: boolean | null; }'. 
+[36m				photoTasks.push({
+					url: interiorMechanical.[35mfront_seats_photo_url[36m,
+					folder: '03_Interior_Mechanical',[39m
+
+c:\Users\Jcvdm\Desktop\Jaco\Programming\sites\Claimtech\[32msrc\routes\api\generate-photos-zip\+server.ts[39m:238:28
+[31mError[39m: Property 'rear_seats_photo_url' does not exist on type '{ assessment_id: string; battery_photo_url: string | null; brakes: string | null; coolant_photo_url: string | null; created_at: string | null; dashboard_photo_url: string | null; ... 14 more ...; vehicle_has_power: boolean | null; }'. 
+[36m			}
+			if (interiorMechanical?.[35mrear_seats_photo_url[36m) {
+				photoTasks.push({[39m
+
+c:\Users\Jcvdm\Desktop\Jaco\Programming\sites\Claimtech\[32msrc\routes\api\generate-photos-zip\+server.ts[39m:240:30
+[31mError[39m: Property 'rear_seats_photo_url' does not exist on type '{ assessment_id: string; battery_photo_url: string | null; brakes: string | null; coolant_photo_url: string | null; created_at: string | null; dashboard_photo_url: string | null; ... 14 more ...; vehicle_has_power: boolean | null; }'. 
+[36m				photoTasks.push({
+					url: interiorMechanical.[35mrear_seats_photo_url[36m,
+					folder: '03_Interior_Mechanical',[39m
+
+c:\Users\Jcvdm\Desktop\Jaco\Programming\sites\Claimtech\[32msrc\routes\api\generate-photos-zip\+server.ts[39m:304:32
+[31mError[39m: Property 'description' does not exist on type '{ created_at: string; display_order: number | null; estimate_id: string; id: string; label: string | null; photo_path: string; photo_url: string; updated_at: string; }'. 
+[36m				for (const photo of estimatePhotos) {
+					const description = photo.[35mdescription[36m
+						? photo.description.replace(/[^a-zA-Z0-9]/g, '_')[39m
+
+c:\Users\Jcvdm\Desktop\Jaco\Programming\sites\Claimtech\[32msrc\routes\api\generate-photos-zip\+server.ts[39m:305:15
+[31mError[39m: Property 'description' does not exist on type '{ created_at: string; display_order: number | null; estimate_id: string; id: string; label: string | null; photo_path: string; photo_url: string; updated_at: string; }'. 
+[36m					const description = photo.description
+						? photo.[35mdescription[36m.replace(/[^a-zA-Z0-9]/g, '_')
+						: 'Damage';[39m
+
+c:\Users\Jcvdm\Desktop\Jaco\Programming\sites\Claimtech\[32msrc\routes\api\generate-photos-zip\+server.ts[39m:319:32
+[31mError[39m: Property 'description' does not exist on type '{ created_at: string | null; display_order: number | null; estimate_id: string; id: string; label: string | null; photo_path: string; photo_url: string; updated_at: string | null; }'. 
+[36m				for (const photo of preIncidentPhotos) {
+					const description = photo.[35mdescription[36m
+						? photo.description.replace(/[^a-zA-Z0-9]/g, '_')[39m
+
+c:\Users\Jcvdm\Desktop\Jaco\Programming\sites\Claimtech\[32msrc\routes\api\generate-photos-zip\+server.ts[39m:320:15
+[31mError[39m: Property 'description' does not exist on type '{ created_at: string | null; display_order: number | null; estimate_id: string; id: string; label: string | null; photo_path: string; photo_url: string; updated_at: string | null; }'. 
+[36m					const description = photo.description
+						? photo.[35mdescription[36m.replace(/[^a-zA-Z0-9]/g, '_')
+						: 'PreIncident';[39m
+
+c:\Users\Jcvdm\Desktop\Jaco\Programming\sites\Claimtech\[32msrc\routes\api\test-puppeteer\+server.ts[39m:130:4
+[31mError[39m: No overload matches this call.
+  Overload 1 of 2, '(status: number, body: Error): never', gave the following error.
+    Object literal may only specify known properties, and 'details' does not exist in type 'Error'.
+  Overload 2 of 2, '(status: number, body?: string | Error | undefined): never', gave the following error.
+    Object literal may only specify known properties, and 'details' does not exist in type 'Error'. 
+[36m			message: 'Puppeteer test failed',
+			[35mdetails[36m: errorDetails
+		});[39m
+
+c:\Users\Jcvdm\Desktop\Jaco\Programming\sites\Claimtech\[32msrc\lib\components\assessment\AdditionalsPhotosPanel.svelte[39m:201:3
+[33mWarn[39m: `<div>` with a dragenter, dragover, dragleave or drop handler must have an ARIA role
+https://svelte.dev/e/a11y_no_static_element_interactions (svelte)
+[36m		<!-- Empty state: Large centered upload zone -->
+		[35m<div
+			class="relative border-2 border-dashed rounded-lg p-8 text-center transition-colors {isDragging
+				? 'border-blue-500 bg-blue-50'
+				: 'border-gray-300 hover:border-gray-400'}"
+			ondragenter={handleDragEnter}
+			ondragover={handleDragOver}
+			ondragleave={handleDragLeave}
+			ondrop={handleDrop}
+		>
+			{#if uploading}
+				<div class="space-y-3">
+					<Loader2 class="mx-auto h-12 w-12 text-blue-600 animate-spin" />
+					<p class="text-sm font-medium text-gray-700">Uploading photos...</p>
+					<div class="w-full bg-gray-200 rounded-full h-2">
+						<div
+							class="h-full bg-blue-500 transition-all duration-300 rounded-full"
+							style="width: {uploadProgress}%"
+						></div>
+					</div>
+					<p class="text-xs text-gray-500">{uploadProgress}%</p>
+				</div>
+			{:else if isDragging}
+				<div>
+					<Upload class="mx-auto h-12 w-12 text-blue-500" />
+					<p class="mt-2 text-sm font-medium text-blue-600">Drop photos here to upload</p>
+				</div>
+			{:else}
+				<Upload class="mx-auto h-12 w-12 text-gray-400" />
+				<p class="mt-2 text-sm text-gray-600">
+					Drag & drop photos or <button
+						type="button"
+						onclick={triggerFileInput}
+						class="font-medium text-blue-600 hover:text-blue-800"
+					>
+						browse
+					</button>
+				</p>
+				<p class="mt-1 text-xs text-gray-500">
+					Supports: JPG, PNG, GIF ÔÇó Multiple files supported
+				</p>
+				<Button onclick={triggerFileInput} class="mt-4">
+					<Upload class="mr-2 h-4 w-4" />
+					Upload Photos
+				</Button>
+			{/if}
+		</div>[36m
+	{:else}[39m
+
+c:\Users\Jcvdm\Desktop\Jaco\Programming\sites\Claimtech\[32msrc\lib\components\assessment\AdditionalsPhotosPanel.svelte[39m:251:4
+[33mWarn[39m: Visible, non-interactive elements with a click event must be accompanied by a keyboard event handler. Consider whether an interactive element such as `<button type="button">` or `<a>` might be more appropriate
+https://svelte.dev/e/a11y_click_events_have_key_events (svelte)
+[36m			<!-- Upload zone as first grid cell -->
+			[35m<div
+				class="relative w-full aspect-square border-2 border-dashed rounded-lg transition-colors cursor-pointer {isDragging
+					? 'border-blue-500 bg-blue-50'
+					: 'border-gray-300 hover:border-gray-400 bg-gray-50'}"
+				ondragenter={handleDragEnter}
+				ondragover={handleDragOver}
+				ondragleave={handleDragLeave}
+				ondrop={handleDrop}
+				onclick={triggerFileInput}
+			>
+				{#if uploading}
+					<div class="absolute inset-0 flex flex-col items-center justify-center p-4">
+						<Loader2 class="h-8 w-8 text-blue-600 animate-spin" />
+						<p class="mt-2 text-xs font-medium text-gray-700">Uploading...</p>
+						<div class="w-full max-w-[80px] bg-gray-200 rounded-full h-1.5 mt-2">
+							<div
+								class="h-full bg-blue-500 transition-all duration-300 rounded-full"
+								style="width: {uploadProgress}%"
+							></div>
+						</div>
+					</div>
+				{:else if isDragging}
+					<div class="absolute inset-0 flex flex-col items-center justify-center p-4">
+						<Upload class="h-8 w-8 text-blue-500" />
+						<p class="mt-2 text-xs font-medium text-blue-600 text-center">Drop here</p>
+					</div>
+				{:else}
+					<div class="absolute inset-0 flex flex-col items-center justify-center p-4">
+						<Upload class="h-8 w-8 text-gray-400" />
+						<p class="mt-2 text-xs text-gray-600 text-center font-medium">Add Photos</p>
+					</div>
+				{/if}
+			</div>[36m[39m
+
+c:\Users\Jcvdm\Desktop\Jaco\Programming\sites\Claimtech\[32msrc\lib\components\assessment\AdditionalsPhotosPanel.svelte[39m:251:4
+[33mWarn[39m: `<div>` with a dragenter, dragover, dragleave, drop or click handler must have an ARIA role
+https://svelte.dev/e/a11y_no_static_element_interactions (svelte)
+[36m			<!-- Upload zone as first grid cell -->
+			[35m<div
+				class="relative w-full aspect-square border-2 border-dashed rounded-lg transition-colors cursor-pointer {isDragging
+					? 'border-blue-500 bg-blue-50'
+					: 'border-gray-300 hover:border-gray-400 bg-gray-50'}"
+				ondragenter={handleDragEnter}
+				ondragover={handleDragOver}
+				ondragleave={handleDragLeave}
+				ondrop={handleDrop}
+				onclick={triggerFileInput}
+			>
+				{#if uploading}
+					<div class="absolute inset-0 flex flex-col items-center justify-center p-4">
+						<Loader2 class="h-8 w-8 text-blue-600 animate-spin" />
+						<p class="mt-2 text-xs font-medium text-gray-700">Uploading...</p>
+						<div class="w-full max-w-[80px] bg-gray-200 rounded-full h-1.5 mt-2">
+							<div
+								class="h-full bg-blue-500 transition-all duration-300 rounded-full"
+								style="width: {uploadProgress}%"
+							></div>
+						</div>
+					</div>
+				{:else if isDragging}
+					<div class="absolute inset-0 flex flex-col items-center justify-center p-4">
+						<Upload class="h-8 w-8 text-blue-500" />
+						<p class="mt-2 text-xs font-medium text-blue-600 text-center">Drop here</p>
+					</div>
+				{:else}
+					<div class="absolute inset-0 flex flex-col items-center justify-center p-4">
+						<Upload class="h-8 w-8 text-gray-400" />
+						<p class="mt-2 text-xs text-gray-600 text-center font-medium">Add Photos</p>
+					</div>
+				{/if}
+			</div>[36m[39m
+
+c:\Users\Jcvdm\Desktop\Jaco\Programming\sites\Claimtech\[32msrc\lib\components\assessment\ReversalReasonModal.svelte[39m:45:1
+[33mWarn[39m: Visible, non-interactive elements with a click event must be accompanied by a keyboard event handler. Consider whether an interactive element such as `<button type="button">` or `<a>` might be more appropriate
+https://svelte.dev/e/a11y_click_events_have_key_events (svelte)
+[36m<!-- Modal Overlay -->
+[35m<div
+	class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+	onclick={onCancel}
+	role="button"
+	tabindex={-1}
+>
+	<!-- Modal Content -->
+	<Card
+		class="w-full max-w-md p-6 relative"
+		onclick={(e) => e.stopPropagation()}
+		role="dialog"
+		tabindex={-1}
+	>
+		<!-- Close Button -->
+		<button
+			onclick={onCancel}
+			class="absolute top-4 right-4 text-gray-400 hover:text-gray-600"
+			aria-label="Close"
+		>
+			<X class="h-5 w-5" />
+		</button>
+
+		<!-- Header -->
+		<div class="mb-4">
+			<h2 class="text-xl font-semibold text-gray-900">{title}</h2>
+			<p class="text-sm text-gray-600 mt-1">{description}</p>
+		</div>
+
+		<!-- Form -->
+		<div class="space-y-4">
+			<div>
+				<label for="reason" class="block text-sm font-medium text-gray-700 mb-1">
+					Reason <span class="text-red-500">*</span>
+				</label>
+				<textarea
+					id="reason"
+					bind:value={reason}
+					placeholder="Enter reason for reversal (minimum 10 characters)..."
+					rows="4"
+					class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+					oninput={() => (error = '')}
+				></textarea>
+				{#if error}
+					<p class="text-sm text-red-600 mt-1">{error}</p>
+				{/if}
+			</div>
+
+			<!-- Actions -->
+			<div class="flex gap-2 justify-end">
+				<Button variant="outline" onclick={onCancel}>Cancel</Button>
+				<Button onclick={handleConfirm}>Confirm Reversal</Button>
+			</div>
+		</div>
+	</Card>
+</div>[36m[39m
+
+c:\Users\Jcvdm\Desktop\Jaco\Programming\sites\Claimtech\[32msrc\lib\components\assessment\DocumentCard.svelte[39m:50:5
+[33mWarn[39m: `<svelte:component>` is deprecated in runes mode ÔÇö components are dynamic by default
+https://svelte.dev/e/svelte_component_deprecated (svelte)
+[36m			<div class="rounded-lg bg-blue-50 p-3">
+				[35m<svelte:component this={icon} class="h-6 w-6 text-blue-600" />[36m
+			</div>[39m
+
+c:\Users\Jcvdm\Desktop\Jaco\Programming\sites\Claimtech\[32msrc\lib\components\assessment\AdditionalsTab.svelte[39m:616:53
+[31mError[39m: 'additionals' is possibly 'null'. (ts)
+[36m									<p class="text-yellow-700">
+										Repairer: {repairers.find((r) => r.id === [35madditionals[36m.repairer_id)?.name ||
+											'None'}[39m
+
+c:\Users\Jcvdm\Desktop\Jaco\Programming\sites\Claimtech\[32msrc\lib\components\assessment\AssessmentLayout.svelte[39m:231:6
+[33mWarn[39m: `<svelte:component>` is deprecated in runes mode ÔÇö components are dynamic by default
+https://svelte.dev/e/svelte_component_deprecated (svelte)
+[36m				>
+					[35m<svelte:component this={tab.icon} class="h-3 w-3 sm:h-4 sm:w-4" />[36m
+					<span class="hidden sm:inline">{tab.label}</span>[39m
+
+c:\Users\Jcvdm\Desktop\Jaco\Programming\sites\Claimtech\[32msrc\lib\components\assessment\AssessmentLayout.svelte[39m:247:4
+[33mWarn[39m: Using `<slot>` to render parent content is deprecated. Use `{@render ...}` tags instead
+https://svelte.dev/e/slot_element_deprecated (svelte)
+[36m		<div class="mx-auto w-[98%] sm:w-[95%] md:w-[92%] lg:w-[90%] max-w-[1600px]">
+			[35m<slot />[36m
+		</div>[39m
+
+c:\Users\Jcvdm\Desktop\Jaco\Programming\sites\Claimtech\[32msrc\lib\components\assessment\NoteBubble.svelte[39m:139:5
+[33mWarn[39m: `<svelte:component>` is deprecated in runes mode ÔÇö components are dynamic by default
+https://svelte.dev/e/svelte_component_deprecated (svelte)
+[36m			<div class="flex items-center gap-2 flex-wrap">
+				[35m<svelte:component this={getNoteIcon(note.note_type)} class="h-4 w-4 opacity-60" />[36m
+				{#if note.note_title}[39m
+
+c:\Users\Jcvdm\Desktop\Jaco\Programming\sites\Claimtech\[32msrc\lib\components\assessment\DamageTab.svelte[39m:30:52
+[33mWarn[39m: This reference only captures the initial value of `assessmentId`. Did you mean to reference it inside a closure instead?
+https://svelte.dev/e/state_referenced_locally (svelte)
+[36m	// Initialize localStorage draft for critical fields
+	const mismatchNotesDraft = useDraft(`assessment-${[35massessmentId[36m}-mismatch-notes`);
+	const damageDescriptionDraft = useDraft(`assessment-${assessmentId}-damage-description`);[39m
+
+c:\Users\Jcvdm\Desktop\Jaco\Programming\sites\Claimtech\[32msrc\lib\components\assessment\DamageTab.svelte[39m:31:56
+[33mWarn[39m: This reference only captures the initial value of `assessmentId`. Did you mean to reference it inside a closure instead?
+https://svelte.dev/e/state_referenced_locally (svelte)
+[36m	const mismatchNotesDraft = useDraft(`assessment-${assessmentId}-mismatch-notes`);
+	const damageDescriptionDraft = useDraft(`assessment-${[35massessmentId[36m}-damage-description`);[39m
+
+c:\Users\Jcvdm\Desktop\Jaco\Programming\sites\Claimtech\[32msrc\lib\components\assessment\DamageTab.svelte[39m:34:50
+[33mWarn[39m: This reference only captures the initial value of `damageRecord`. Did you mean to reference it inside a derived instead?
+https://svelte.dev/e/state_referenced_locally (svelte)
+[36m	// Local state variables for all fields
+	let matchesDescription = $state<boolean | null>([35mdamageRecord[36m?.matches_description ?? null);
+	let mismatchNotes = $state(damageRecord?.mismatch_notes || '');[39m
+
+c:\Users\Jcvdm\Desktop\Jaco\Programming\sites\Claimtech\[32msrc\lib\components\assessment\DamageTab.svelte[39m:35:29
+[33mWarn[39m: This reference only captures the initial value of `damageRecord`. Did you mean to reference it inside a derived instead?
+https://svelte.dev/e/state_referenced_locally (svelte)
+[36m	let matchesDescription = $state<boolean | null>(damageRecord?.matches_description ?? null);
+	let mismatchNotes = $state([35mdamageRecord[36m?.mismatch_notes || '');
+	let damageArea = $state(damageRecord?.damage_area || '');[39m
+
+c:\Users\Jcvdm\Desktop\Jaco\Programming\sites\Claimtech\[32msrc\lib\components\assessment\DamageTab.svelte[39m:36:26
+[33mWarn[39m: This reference only captures the initial value of `damageRecord`. Did you mean to reference it inside a derived instead?
+https://svelte.dev/e/state_referenced_locally (svelte)
+[36m	let mismatchNotes = $state(damageRecord?.mismatch_notes || '');
+	let damageArea = $state([35mdamageRecord[36m?.damage_area || '');
+	let damageType = $state(damageRecord?.damage_type || '');[39m
+
+c:\Users\Jcvdm\Desktop\Jaco\Programming\sites\Claimtech\[32msrc\lib\components\assessment\DamageTab.svelte[39m:37:26
+[33mWarn[39m: This reference only captures the initial value of `damageRecord`. Did you mean to reference it inside a derived instead?
+https://svelte.dev/e/state_referenced_locally (svelte)
+[36m	let damageArea = $state(damageRecord?.damage_area || '');
+	let damageType = $state([35mdamageRecord[36m?.damage_type || '');
+	let severity = $state(damageRecord?.severity || '');[39m
+
+c:\Users\Jcvdm\Desktop\Jaco\Programming\sites\Claimtech\[32msrc\lib\components\assessment\DamageTab.svelte[39m:38:24
+[33mWarn[39m: This reference only captures the initial value of `damageRecord`. Did you mean to reference it inside a derived instead?
+https://svelte.dev/e/state_referenced_locally (svelte)
+[36m	let damageType = $state(damageRecord?.damage_type || '');
+	let severity = $state([35mdamageRecord[36m?.severity || '');
+	let damageDescription = $state(damageRecord?.damage_description || '');[39m
+
+c:\Users\Jcvdm\Desktop\Jaco\Programming\sites\Claimtech\[32msrc\lib\components\assessment\DamageTab.svelte[39m:39:33
+[33mWarn[39m: This reference only captures the initial value of `damageRecord`. Did you mean to reference it inside a derived instead?
+https://svelte.dev/e/state_referenced_locally (svelte)
+[36m	let severity = $state(damageRecord?.severity || '');
+	let damageDescription = $state([35mdamageRecord[36m?.damage_description || '');
+	let estimatedRepairDurationDays = $state(damageRecord?.estimated_repair_duration_days || null);[39m
+
+c:\Users\Jcvdm\Desktop\Jaco\Programming\sites\Claimtech\[32msrc\lib\components\assessment\DamageTab.svelte[39m:40:43
+[33mWarn[39m: This reference only captures the initial value of `damageRecord`. Did you mean to reference it inside a derived instead?
+https://svelte.dev/e/state_referenced_locally (svelte)
+[36m	let damageDescription = $state(damageRecord?.damage_description || '');
+	let estimatedRepairDurationDays = $state([35mdamageRecord[36m?.estimated_repair_duration_days || null);
+	let locationDescription = $state(damageRecord?.location_description || '');[39m
+
+c:\Users\Jcvdm\Desktop\Jaco\Programming\sites\Claimtech\[32msrc\lib\components\assessment\DamageTab.svelte[39m:41:35
+[33mWarn[39m: This reference only captures the initial value of `damageRecord`. Did you mean to reference it inside a derived instead?
+https://svelte.dev/e/state_referenced_locally (svelte)
+[36m	let estimatedRepairDurationDays = $state(damageRecord?.estimated_repair_duration_days || null);
+	let locationDescription = $state([35mdamageRecord[36m?.location_description || '');
+	let affectedPanels = $state<string[]>(damageRecord?.affected_panels || []);[39m
+
+c:\Users\Jcvdm\Desktop\Jaco\Programming\sites\Claimtech\[32msrc\lib\components\assessment\DamageTab.svelte[39m:42:40
+[33mWarn[39m: This reference only captures the initial value of `damageRecord`. Did you mean to reference it inside a derived instead?
+https://svelte.dev/e/state_referenced_locally (svelte)
+[36m	let locationDescription = $state(damageRecord?.location_description || '');
+	let affectedPanels = $state<string[]>([35mdamageRecord[36m?.affected_panels || []);[39m
+
+c:\Users\Jcvdm\Desktop\Jaco\Programming\sites\Claimtech\[32msrc\lib\components\assessment\DocumentGenerationProgress.svelte[39m:74:6
+[33mWarn[39m: `<svelte:component>` is deprecated in runes mode ÔÇö components are dynamic by default
+https://svelte.dev/e/svelte_component_deprecated (svelte)
+[36m				<div class="flex items-center gap-3">
+					[35m<svelte:component 
+						this={getStatusIcon(doc.data.status)} 
+						class="w-5 h-5 {getStatusColor(doc.data.status)} {doc.data.status === 'processing' ? 'animate-spin' : ''}"
+					/>[36m
+					<svelte:component this={doc.icon} class="w-4 h-4 text-gray-500" />[39m
+
+c:\Users\Jcvdm\Desktop\Jaco\Programming\sites\Claimtech\[32msrc\lib\components\assessment\DocumentGenerationProgress.svelte[39m:78:6
+[33mWarn[39m: `<svelte:component>` is deprecated in runes mode ÔÇö components are dynamic by default
+https://svelte.dev/e/svelte_component_deprecated (svelte)
+[36m					/>
+					[35m<svelte:component this={doc.icon} class="w-4 h-4 text-gray-500" />[36m
+					<span class="font-medium">{doc.label}</span>[39m
+
+c:\Users\Jcvdm\Desktop\Jaco\Programming\sites\Claimtech\[32msrc\lib\components\assessment\EstimatePhotosPanel.svelte[39m:226:3
+[33mWarn[39m: `<div>` with a dragenter, dragover, dragleave or drop handler must have an ARIA role
+https://svelte.dev/e/a11y_no_static_element_interactions (svelte)
+[36m		<!-- Empty state: Large centered upload zone -->
+		[35m<div
+			class="relative border-2 border-dashed rounded-lg p-8 text-center transition-colors {isDragging
+				? 'border-blue-500 bg-blue-50'
+				: 'border-gray-300 hover:border-gray-400'}"
+			ondragenter={handleDragEnter}
+			ondragover={handleDragOver}
+			ondragleave={handleDragLeave}
+			ondrop={handleDrop}
+		>
+			{#if uploading}
+				<div class="space-y-3">
+					<Loader2 class="mx-auto h-12 w-12 text-blue-600 animate-spin" />
+					<p class="text-sm font-medium text-gray-700">Uploading photos...</p>
+					<div class="w-full bg-gray-200 rounded-full h-2">
+						<div
+							class="h-full bg-blue-500 transition-all duration-300 rounded-full"
+							style="width: {uploadProgress}%"
+						></div>
+					</div>
+					<p class="text-xs text-gray-500">{uploadProgress}%</p>
+				</div>
+			{:else if isDragging}
+				<div>
+					<Upload class="mx-auto h-12 w-12 text-blue-500" />
+					<p class="mt-2 text-sm font-medium text-blue-600">Drop photos here to upload</p>
+				</div>
+			{:else}
+				<Upload class="mx-auto h-12 w-12 text-gray-400" />
+				<p class="mt-2 text-sm text-gray-600">
+					Drag & drop photos or <button
+						type="button"
+						onclick={triggerFileInput}
+						class="font-medium text-blue-600 hover:text-blue-800"
+					>
+						browse
+					</button>
+				</p>
+				<p class="mt-1 text-xs text-gray-500">
+					Supports: JPG, PNG, GIF ÔÇó Multiple files supported
+				</p>
+				<Button onclick={triggerFileInput} class="mt-4">
+					<Upload class="mr-2 h-4 w-4" />
+					Upload Photos
+				</Button>
+			{/if}
+		</div>[36m
+	{:else}[39m
+
+c:\Users\Jcvdm\Desktop\Jaco\Programming\sites\Claimtech\[32msrc\lib\components\assessment\EstimatePhotosPanel.svelte[39m:276:4
+[33mWarn[39m: Visible, non-interactive elements with a click event must be accompanied by a keyboard event handler. Consider whether an interactive element such as `<button type="button">` or `<a>` might be more appropriate
+https://svelte.dev/e/a11y_click_events_have_key_events (svelte)
+[36m			<!-- Upload zone as first grid cell -->
+			[35m<div
+				class="relative w-full aspect-square border-2 border-dashed rounded-lg transition-colors cursor-pointer {isDragging
+					? 'border-blue-500 bg-blue-50'
+					: 'border-gray-300 hover:border-gray-400 bg-gray-50'}"
+				ondragenter={handleDragEnter}
+				ondragover={handleDragOver}
+				ondragleave={handleDragLeave}
+				ondrop={handleDrop}
+				onclick={triggerFileInput}
+			>
+				{#if uploading}
+					<div class="absolute inset-0 flex flex-col items-center justify-center p-4">
+						<Loader2 class="h-8 w-8 text-blue-600 animate-spin" />
+						<p class="mt-2 text-xs font-medium text-gray-700">Uploading...</p>
+						<div class="w-full max-w-[80px] bg-gray-200 rounded-full h-1.5 mt-2">
+							<div
+								class="h-full bg-blue-500 transition-all duration-300 rounded-full"
+								style="width: {uploadProgress}%"
+							></div>
+						</div>
+					</div>
+				{:else if isDragging}
+					<div class="absolute inset-0 flex flex-col items-center justify-center p-4">
+						<Upload class="h-8 w-8 text-blue-500" />
+						<p class="mt-2 text-xs font-medium text-blue-600 text-center">Drop here</p>
+					</div>
+				{:else}
+					<div class="absolute inset-0 flex flex-col items-center justify-center p-4">
+						<Upload class="h-8 w-8 text-gray-400" />
+						<p class="mt-2 text-xs text-gray-600 text-center font-medium">Add Photos</p>
+					</div>
+				{/if}
+			</div>[36m[39m
+
+c:\Users\Jcvdm\Desktop\Jaco\Programming\sites\Claimtech\[32msrc\lib\components\assessment\EstimatePhotosPanel.svelte[39m:276:4
+[33mWarn[39m: `<div>` with a dragenter, dragover, dragleave, drop or click handler must have an ARIA role
+https://svelte.dev/e/a11y_no_static_element_interactions (svelte)
+[36m			<!-- Upload zone as first grid cell -->
+			[35m<div
+				class="relative w-full aspect-square border-2 border-dashed rounded-lg transition-colors cursor-pointer {isDragging
+					? 'border-blue-500 bg-blue-50'
+					: 'border-gray-300 hover:border-gray-400 bg-gray-50'}"
+				ondragenter={handleDragEnter}
+				ondragover={handleDragOver}
+				ondragleave={handleDragLeave}
+				ondrop={handleDrop}
+				onclick={triggerFileInput}
+			>
+				{#if uploading}
+					<div class="absolute inset-0 flex flex-col items-center justify-center p-4">
+						<Loader2 class="h-8 w-8 text-blue-600 animate-spin" />
+						<p class="mt-2 text-xs font-medium text-gray-700">Uploading...</p>
+						<div class="w-full max-w-[80px] bg-gray-200 rounded-full h-1.5 mt-2">
+							<div
+								class="h-full bg-blue-500 transition-all duration-300 rounded-full"
+								style="width: {uploadProgress}%"
+							></div>
+						</div>
+					</div>
+				{:else if isDragging}
+					<div class="absolute inset-0 flex flex-col items-center justify-center p-4">
+						<Upload class="h-8 w-8 text-blue-500" />
+						<p class="mt-2 text-xs font-medium text-blue-600 text-center">Drop here</p>
+					</div>
+				{:else}
+					<div class="absolute inset-0 flex flex-col items-center justify-center p-4">
+						<Upload class="h-8 w-8 text-gray-400" />
+						<p class="mt-2 text-xs text-gray-600 text-center font-medium">Add Photos</p>
+					</div>
+				{/if}
+			</div>[36m[39m
+
+c:\Users\Jcvdm\Desktop\Jaco\Programming\sites\Claimtech\[32msrc\lib\components\assessment\EstimateTab.svelte[39m:690:5
+[33mWarn[39m: This element is implicitly closed by the following `</Card>`, which can cause an unexpected DOM structure. Add an explicit `</div>` to avoid surprises.
+https://svelte.dev/e/element_implicitly_closed (svelte)
+[36m			<Card class="p-4 {statusClasses.bg} border-2 {statusClasses.border}">
+				[35m<div class="flex items-start gap-3">[36m
+					<div class="mt-0.5">[39m
+
+c:\Users\Jcvdm\Desktop\Jaco\Programming\sites\Claimtech\[32msrc\lib\components\assessment\Exterior360PhotosPanel.svelte[39m:224:3
+[33mWarn[39m: `<div>` with a dragenter, dragover, dragleave or drop handler must have an ARIA role
+https://svelte.dev/e/a11y_no_static_element_interactions (svelte)
+[36m		<!-- Empty state: Large centered upload zone -->
+		[35m<div
+			class="relative border-2 border-dashed rounded-lg p-8 text-center transition-colors {isDragging
+				? 'border-blue-500 bg-blue-50'
+				: 'border-gray-300 hover:border-gray-400'}"
+			ondragenter={handleDragEnter}
+			ondragover={handleDragOver}
+			ondragleave={handleDragLeave}
+			ondrop={handleDrop}
+		>
+			{#if uploading}
+				<div class="space-y-3">
+					<Loader2 class="mx-auto h-12 w-12 text-blue-600 animate-spin" />
+					<p class="text-sm font-medium text-gray-700">Uploading photos...</p>
+					<div class="w-full bg-gray-200 rounded-full h-2">
+						<div
+							class="h-full bg-blue-500 transition-all duration-300 rounded-full"
+							style="width: {uploadProgress}%"
+						></div>
+					</div>
+					<p class="text-xs text-gray-500">{uploadProgress}%</p>
+				</div>
+			{:else if isDragging}
+				<div>
+					<Upload class="mx-auto h-12 w-12 text-blue-500" />
+					<p class="mt-2 text-sm font-medium text-blue-600">Drop photos here to upload</p>
+				</div>
+			{:else}
+				<Upload class="mx-auto h-12 w-12 text-gray-400" />
+				<p class="mt-2 text-sm text-gray-600">
+					Drag & drop photos or <button
+						type="button"
+						onclick={triggerFileInput}
+						class="font-medium text-blue-600 hover:text-blue-800"
+					>
+						browse
+					</button>
+				</p>
+				<p class="mt-1 text-xs text-gray-500">
+					Supports: JPG, PNG, GIF ÔÇó Multiple files supported
+				</p>
+				<Button onclick={triggerFileInput} class="mt-4">
+					<Upload class="mr-2 h-4 w-4" />
+					Upload Photos
+				</Button>
+			{/if}
+		</div>[36m
+	{:else}[39m
+
+c:\Users\Jcvdm\Desktop\Jaco\Programming\sites\Claimtech\[32msrc\lib\components\assessment\Exterior360PhotosPanel.svelte[39m:274:4
+[33mWarn[39m: Visible, non-interactive elements with a click event must be accompanied by a keyboard event handler. Consider whether an interactive element such as `<button type="button">` or `<a>` might be more appropriate
+https://svelte.dev/e/a11y_click_events_have_key_events (svelte)
+[36m			<!-- Upload zone as first grid cell -->
+			[35m<div
+				class="relative w-full aspect-square border-2 border-dashed rounded-lg transition-colors cursor-pointer {isDragging
+					? 'border-blue-500 bg-blue-50'
+					: 'border-gray-300 hover:border-gray-400 bg-gray-50'}"
+				ondragenter={handleDragEnter}
+				ondragover={handleDragOver}
+				ondragleave={handleDragLeave}
+				ondrop={handleDrop}
+				onclick={triggerFileInput}
+			>
+				{#if uploading}
+					<div class="absolute inset-0 flex flex-col items-center justify-center p-4">
+						<Loader2 class="h-8 w-8 text-blue-600 animate-spin" />
+						<p class="mt-2 text-xs font-medium text-gray-700">Uploading...</p>
+						<div class="w-full max-w-[80px] bg-gray-200 rounded-full h-1.5 mt-2">
+							<div
+								class="h-full bg-blue-500 transition-all duration-300 rounded-full"
+								style="width: {uploadProgress}%"
+							></div>
+						</div>
+					</div>
+				{:else if isDragging}
+					<div class="absolute inset-0 flex flex-col items-center justify-center p-4">
+						<Upload class="h-8 w-8 text-blue-500" />
+						<p class="mt-2 text-xs font-medium text-blue-600 text-center">Drop here</p>
+					</div>
+				{:else}
+					<div class="absolute inset-0 flex flex-col items-center justify-center p-4">
+						<Upload class="h-8 w-8 text-gray-400" />
+						<p class="mt-2 text-xs text-gray-600 text-center font-medium">Add Photos</p>
+					</div>
+				{/if}
+			</div>[36m[39m
+
+c:\Users\Jcvdm\Desktop\Jaco\Programming\sites\Claimtech\[32msrc\lib\components\assessment\Exterior360PhotosPanel.svelte[39m:274:4
+[33mWarn[39m: `<div>` with a dragenter, dragover, dragleave, drop or click handler must have an ARIA role
+https://svelte.dev/e/a11y_no_static_element_interactions (svelte)
+[36m			<!-- Upload zone as first grid cell -->
+			[35m<div
+				class="relative w-full aspect-square border-2 border-dashed rounded-lg transition-colors cursor-pointer {isDragging
+					? 'border-blue-500 bg-blue-50'
+					: 'border-gray-300 hover:border-gray-400 bg-gray-50'}"
+				ondragenter={handleDragEnter}
+				ondragover={handleDragOver}
+				ondragleave={handleDragLeave}
+				ondrop={handleDrop}
+				onclick={triggerFileInput}
+			>
+				{#if uploading}
+					<div class="absolute inset-0 flex flex-col items-center justify-center p-4">
+						<Loader2 class="h-8 w-8 text-blue-600 animate-spin" />
+						<p class="mt-2 text-xs font-medium text-gray-700">Uploading...</p>
+						<div class="w-full max-w-[80px] bg-gray-200 rounded-full h-1.5 mt-2">
+							<div
+								class="h-full bg-blue-500 transition-all duration-300 rounded-full"
+								style="width: {uploadProgress}%"
+							></div>
+						</div>
+					</div>
+				{:else if isDragging}
+					<div class="absolute inset-0 flex flex-col items-center justify-center p-4">
+						<Upload class="h-8 w-8 text-blue-500" />
+						<p class="mt-2 text-xs font-medium text-blue-600 text-center">Drop here</p>
+					</div>
+				{:else}
+					<div class="absolute inset-0 flex flex-col items-center justify-center p-4">
+						<Upload class="h-8 w-8 text-gray-400" />
+						<p class="mt-2 text-xs text-gray-600 text-center font-medium">Add Photos</p>
+					</div>
+				{/if}
+			</div>[36m[39m
+
+c:\Users\Jcvdm\Desktop\Jaco\Programming\sites\Claimtech\[32msrc\lib\components\assessment\Exterior360Tab.svelte[39m:53:48
+[33mWarn[39m: This reference only captures the initial value of `assessmentId`. Did you mean to reference it inside a closure instead?
+https://svelte.dev/e/state_referenced_locally (svelte)
+[36m	// Initialize localStorage draft for critical fields
+	const conditionDraft = useDraft(`assessment-${[35massessmentId[36m}-condition`);
+	const colorDraft = useDraft(`assessment-${assessmentId}-color`);[39m
+
+c:\Users\Jcvdm\Desktop\Jaco\Programming\sites\Claimtech\[32msrc\lib\components\assessment\Exterior360Tab.svelte[39m:54:44
+[33mWarn[39m: This reference only captures the initial value of `assessmentId`. Did you mean to reference it inside a closure instead?
+https://svelte.dev/e/state_referenced_locally (svelte)
+[36m	const conditionDraft = useDraft(`assessment-${assessmentId}-condition`);
+	const colorDraft = useDraft(`assessment-${[35massessmentId[36m}-color`);[39m
+
+c:\Users\Jcvdm\Desktop\Jaco\Programming\sites\Claimtech\[32msrc\lib\components\assessment\Exterior360Tab.svelte[39m:56:32
+[33mWarn[39m: This reference only captures the initial value of `data`. Did you mean to reference it inside a derived instead?
+https://svelte.dev/e/state_referenced_locally (svelte)
+[36m
+	let overallCondition = $state([35mdata[36m?.overall_condition || '');
+	let vehicleColor = $state(data?.vehicle_color || '');[39m
+
+c:\Users\Jcvdm\Desktop\Jaco\Programming\sites\Claimtech\[32msrc\lib\components\assessment\Exterior360Tab.svelte[39m:57:28
+[33mWarn[39m: This reference only captures the initial value of `data`. Did you mean to reference it inside a derived instead?
+https://svelte.dev/e/state_referenced_locally (svelte)
+[36m	let overallCondition = $state(data?.overall_condition || '');
+	let vehicleColor = $state([35mdata[36m?.vehicle_color || '');[39m
+
+====================================
+[31msvelte-check found 21 errors and 37 warnings in 23 files
+[39m

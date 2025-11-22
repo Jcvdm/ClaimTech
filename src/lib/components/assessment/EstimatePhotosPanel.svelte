@@ -224,6 +224,8 @@
 	{#if photos.value.length === 0}
 		<!-- Empty state: Large centered upload zone -->
 		<div
+			role="region"
+			aria-label="Photo upload drop zone"
 			class="relative border-2 border-dashed rounded-lg p-8 text-center transition-colors {isDragging
 				? 'border-blue-500 bg-blue-50'
 				: 'border-gray-300 hover:border-gray-400'}"

@@ -9,6 +9,7 @@ import type {
 } from '$lib/types/assessment';
 import { formatCurrency, formatDateNumeric } from '$lib/utils/formatters';
 import { escapeHtmlWithLineBreaks } from '$lib/utils/sanitize';
+import type { VehicleDetails, ClientDetails, InsuredDetails } from '$lib/utils/report-data-helpers';
 
 interface ReportData {
 	assessment: Assessment;
@@ -26,6 +27,9 @@ interface ReportData {
 	vehicleValues: VehicleValues | null; // NEW
 	assessmentNotes: string; // NEW - concatenated notes
 	engineer: any; // NEW - engineer with user info
+	vehicleDetails: VehicleDetails;
+	clientDetails: ClientDetails;
+	insuredDetails: InsuredDetails;
 }
 
 export function generateReportHTML(data: ReportData): string {
@@ -44,7 +48,10 @@ export function generateReportHTML(data: ReportData): string {
 		tyres,
 		vehicleValues,
 		assessmentNotes,
-		engineer
+		engineer,
+		vehicleDetails,
+		clientDetails,
+		insuredDetails
 	} = data;
 
 	const row = (label: string, value: string | number | null | undefined) => {
@@ -72,75 +79,145 @@ export function generateReportHTML(data: ReportData): string {
 		}
 
 		body {
-			font-family: Arial, sans-serif;
+			font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
 			font-size: 10pt;
 			line-height: 1.4;
-			color: #000;
+			color: #1f2937;
 		}
 
-		.header {
-			background-color: #1e40af;
-			color: white;
-			padding: 20px;
-			text-align: center;
-			margin-bottom: 20px;
+		/* Brand Colors */
+		.bg-rose { background-color: #e11d48; }
+		.text-rose { color: #e11d48; }
+		.border-rose { border-color: #e11d48; }
+		
+		.bg-blue { background-color: #1e40af; }
+		.text-blue { color: #1e40af; }
+		.border-blue { border-color: #1e40af; }
+
+		/* Summary Page Styles */
+		.summary-page {
+			height: 100vh;
+			display: flex;
+			flex-direction: column;
+			padding: 40px;
+			position: relative;
+			color: #1f2937;
 		}
 
-		.header h1 {
+		.summary-header {
+			display: flex;
+			justify-content: space-between;
+			align-items: flex-start;
+			margin-bottom: 60px;
+			border-bottom: 4px solid #e11d48;
+			padding-bottom: 20px;
+		}
+
+		.logo-placeholder {
 			font-size: 24pt;
-			margin-bottom: 10px;
-		}
-
-		.company-info {
-			font-size: 9pt;
-			margin-top: 10px;
-		}
-
-		.report-title {
-			background-color: #3b82f6;
-			color: white;
-			padding: 10px;
-			text-align: center;
-			font-size: 16pt;
 			font-weight: bold;
-			margin-bottom: 20px;
+			color: #e11d48;
+			letter-spacing: -1px;
+		}
+
+		.summary-title {
+			font-size: 36pt;
+			font-weight: 800;
+			color: #111827;
+			margin-bottom: 10px;
+			line-height: 1.1;
+		}
+
+		.summary-subtitle {
+			font-size: 14pt;
+			color: #6b7280;
+			font-weight: 500;
+		}
+
+		.summary-grid {
+			display: grid;
+			grid-template-columns: repeat(2, 1fr);
+			gap: 40px;
+			margin-top: 40px;
+		}
+
+		.summary-card {
+			background: #fff;
+			border: 1px solid #e5e7eb;
+			border-radius: 8px;
+			padding: 25px;
+			box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+		}
+
+		.summary-card-title {
+			font-size: 10pt;
+			text-transform: uppercase;
+			letter-spacing: 1px;
+			color: #6b7280;
+			margin-bottom: 10px;
+			font-weight: 600;
+		}
+
+		.summary-card-value {
+			font-size: 18pt;
+			font-weight: 700;
+			color: #111827;
+		}
+
+		.summary-footer {
+			margin-top: auto;
+			text-align: center;
+			color: #9ca3af;
+			font-size: 9pt;
+			border-top: 1px solid #e5e7eb;
+			padding-top: 20px;
+		}
+
+		/* Standard Page Styles */
+		.standard-page {
+			padding: 40px;
 		}
 
 		.section {
-			margin-bottom: 20px;
+			margin-bottom: 30px;
 			page-break-inside: avoid;
 		}
 
 		.section-title {
-			background-color: #dbeafe;
-			padding: 8px;
-			font-weight: bold;
-			font-size: 11pt;
-			border-left: 4px solid #3b82f6;
-			margin-bottom: 10px;
+			background-color: #fff;
+			padding: 8px 0;
+			font-weight: 700;
+			font-size: 12pt;
+			border-bottom: 2px solid #e11d48;
+			margin-bottom: 20px;
+			color: #111827;
+			text-transform: uppercase;
+			letter-spacing: 0.5px;
 		}
 
 		.info-grid {
 			display: grid;
 			grid-template-columns: 1fr 1fr;
-			gap: 10px;
-			margin-bottom: 15px;
+			gap: 20px;
+			margin-bottom: 20px;
 		}
 
 		.info-row {
 			display: flex;
-			padding: 5px 0;
-			border-bottom: 1px solid #e5e7eb;
+			padding: 8px 0;
+			border-bottom: 1px solid #f3f4f6;
 		}
 
 		.info-label {
-			font-weight: bold;
-			min-width: 150px;
-			color: #374151;
+			font-weight: 600;
+			min-width: 160px;
+			color: #6b7280;
 		}
 
 		.info-value {
-			color: #000;
+			color: #111827;
+			flex: 1;
+			font-weight: 500;
 		}
 
 		.full-width {
@@ -150,296 +227,332 @@ export function generateReportHTML(data: ReportData): string {
 		table {
 			width: 100%;
 			border-collapse: collapse;
-			margin-bottom: 15px;
+			margin-bottom: 20px;
 		}
 
 		th, td {
-			border: 1px solid #d1d5db;
-			padding: 8px;
+			border-bottom: 1px solid #e5e7eb;
+			padding: 12px 8px;
 			text-align: left;
 		}
 
 		th {
-			background-color: #f3f4f6;
-			font-weight: bold;
+			background-color: #f9fafb;
+			font-weight: 600;
+			color: #374151;
+			text-transform: uppercase;
+			font-size: 9pt;
+			letter-spacing: 0.5px;
+		}
+		
+		td {
+			color: #1f2937;
 		}
 
 		.notes-box {
-			border: 1px solid #d1d5db;
-			padding: 10px;
+			border: 1px solid #e5e7eb;
+			padding: 20px;
 			background-color: #f9fafb;
 			min-height: 60px;
 			white-space: pre-wrap;
+			border-radius: 6px;
+			color: #374151;
 		}
 
 		.footer {
-			margin-top: 30px;
+			margin-top: 40px;
 			padding-top: 20px;
-			border-top: 2px solid #3b82f6;
+			border-top: 1px solid #e5e7eb;
 			text-align: center;
-			font-size: 9pt;
-			color: #6b7280;
+			font-size: 8pt;
+			color: #9ca3af;
 		}
 
 		.page-break {
 			page-break-after: always;
 		}
+		
+		.tcs-container {
+			page-break-before: always;
+			page-break-inside: avoid;
+		}
 	</style>
 </head>
 <body>
-	<!-- Header -->
-	<div class="header">
-		<h1>${companySettings?.company_name || 'Claimtech'}</h1>
-		<div class="company-info">
-			${companySettings?.po_box || 'P.O. Box 12345'}<br>
-			${companySettings?.city || 'Johannesburg'}, ${companySettings?.province || 'Gauteng'}<br>
-			${companySettings?.postal_code || '2000'}<br>
-			Tel: ${companySettings?.phone || '+27 (0) 11 123 4567'}
-			${companySettings?.fax ? ` | Fax: ${companySettings.fax}` : ''}
+	<!-- Summary Page (Rose Theme) -->
+	<div class="summary-page">
+		<div class="summary-header">
+			<div class="logo-placeholder">
+				${companySettings?.company_name || 'CLAIMTECH'}
+			</div>
+			<div style="text-align: right;">
+				<div style="font-weight: bold; color: #e11d48;">${assessment.report_number || assessment.assessment_number}</div>
+				<div style="color: #6b7280; font-size: 9pt;">${formatDateNumeric(assessment.created_at)}</div>
+			</div>
+		</div>
+
+		<div>
+			<div class="summary-title">DAMAGE INSPECTION<br>REPORT</div>
+			<div class="summary-subtitle">Comprehensive Assessment & Repair Estimate</div>
+		</div>
+
+		<div class="summary-grid">
+			<div class="summary-card">
+				<div class="summary-card-title">Vehicle Details</div>
+					<div class="summary-card-value" style="font-size: 14pt;">
+						${vehicleDetails.year || ''} ${vehicleDetails.make || ''}<br>
+						${vehicleDetails.model || ''}
+					</div>
+					<div style="margin-top: 10px; color: #6b7280; font-size: 10pt;">
+						Reg: ${vehicleDetails.registration || '-'}
+				</div>
+			</div>
+
+			<div class="summary-card">
+				<div class="summary-card-title">Assessment Outcome</div>
+				<div class="summary-card-value" style="color: ${
+					estimate?.assessment_result === 'repair' ? '#059669' :
+					estimate?.assessment_result === 'code_2' ? '#d97706' :
+					estimate?.assessment_result === 'code_3' || estimate?.assessment_result === 'total_loss' ? '#dc2626' : '#374151'
+				};">
+					${estimate?.assessment_result ? (
+						estimate.assessment_result === 'repair' ? 'Repairable' : 
+						estimate.assessment_result === 'code_2' ? 'Code 2 (Write-off)' : 
+						estimate.assessment_result === 'code_3' ? 'Code 3 (Write-off)' : 
+						estimate.assessment_result === 'total_loss' ? 'Total Loss' : 
+						estimate.assessment_result
+					) : 'Pending'}
+				</div>
+			</div>
+
+			<div class="summary-card">
+				<div class="summary-card-title">Estimated Repair Cost</div>
+				<div class="summary-card-value" style="color: #e11d48;">
+					${estimate ? formatCurrency(estimate.total) : '-'}
+				</div>
+				<div style="margin-top: 5px; color: #6b7280; font-size: 9pt;">Incl. VAT</div>
+			</div>
+
+			<div class="summary-card">
+				<div class="summary-card-title">Client Reference</div>
+				<div class="summary-card-value" style="font-size: 14pt;">
+					${request?.claim_number || '-'}
+				</div>
+				<div style="margin-top: 5px; color: #6b7280; font-size: 9pt;">Claim Number</div>
+			</div>
+		</div>
+
+		<div style="margin-top: 40px; padding: 20px; background: #fff1f2; border-left: 4px solid #e11d48; border-radius: 4px;">
+			<div style="font-weight: bold; color: #9f1239; margin-bottom: 5px;">Assessor's Note</div>
+			<div style="color: #881337;">
+				${assessmentNotes ? (assessmentNotes.length > 300 ? assessmentNotes.substring(0, 300) + '...' : assessmentNotes) : 'No specific notes.'}
+			</div>
+		</div>
+
+		<div class="summary-footer">
+			${companySettings?.company_name || 'Claimtech'} | ${companySettings?.email || 'info@claimtech.co.za'} | ${companySettings?.website || 'www.claimtech.co.za'}
 		</div>
 	</div>
 
-	<!-- Report Title -->
-	<div class="report-title">
-		DAMAGE INSPECTION REPORT
-	</div>
-
-	<!-- Executive Summary -->
-	<div class="section">
-		<div class="section-title">EXECUTIVE SUMMARY</div>
-		<div class="info-grid">
-			${(() => {
-				const vehicleDisplay = `${vehicleIdentification?.make || request?.vehicle_make || ''} ${vehicleIdentification?.model || request?.vehicle_model || ''}`.trim();
-				return row('Vehicle:', vehicleDisplay);
-			})()}
-			${row('Claim Number:', request?.claim_number || '')}
-			<div class="info-row">
-				<span class="info-label">Outcome:</span>
-				<span class="info-value" style="font-weight: bold; color: ${
-					estimate?.assessment_result === 'repairable' ? '#059669' :
-					estimate?.assessment_result === 'borderline_writeoff' ? '#d97706' :
-					estimate?.assessment_result === 'total_writeoff' ? '#dc2626' : '#374151'
-				};">${estimate?.assessment_result ? (estimate.assessment_result === 'repairable' ? 'Repairable' : estimate.assessment_result === 'borderline_writeoff' ? 'Borderline Write-off' : estimate.assessment_result === 'total_writeoff' ? 'Total Write-off' : estimate.assessment_result) : 'Pending'}</span>
-			</div>
-			<div class="info-row">
-				<span class="info-label">Estimated Repair Cost:</span>
-				<span class="info-value" style="font-weight: 600; color: #1e40af;">${estimate ? formatCurrency(estimate.total) : '-'}</span>
-			</div>
-			${vehicleValues ? `
-			<div class="info-row">
-				<span class="info-label">Pre-Incident Market Value:</span>
-				<span class="info-value">${formatCurrency(vehicleValues.market_total_adjusted_value)}</span>
-			</div>
-			` : ''}
-		</div>
-	</div>
-
-	<!-- Report Information -->
-	<div class="section">
-		<div class="section-title">REPORT INFORMATION</div>
-		<div class="info-grid">
-			<div class="info-row">
-				<span class="info-label">Report No.:</span>
-				<span class="info-value">${assessment.report_number || assessment.assessment_number}</span>
-			</div>
-			<div class="info-row">
-				<span class="info-label">Inspection Date:</span>
-				<span class="info-value">${formatDateNumeric(assessment.created_at)}</span>
-			</div>
-			${row('Assessor:', engineer?.users?.full_name || '')}
-			${row('Contact:', engineer?.users?.phone || engineer?.users?.email || '')}
-		</div>
-	</div>
-
-	<!-- Claim Information -->
-	<div class="section">
-		<div class="section-title">CLAIM INFORMATION</div>
-		<div class="info-grid">
-			${row('Claim Number:', request?.claim_number || '')}
-			${row('Request Number:', request?.request_number || '')}
-			${row('Date of Loss:', request?.date_of_loss ? formatDateNumeric(request.date_of_loss) : '')}
-			${row('Instructed By:', client?.name || '')}
-		</div>
-	</div>
-
-	<!-- Vehicle Information -->
-	<div class="section">
-		<div class="section-title">VEHICLE INFORMATION</div>
-		<div class="info-grid">
-			${row('Make:', vehicleIdentification?.make || request?.vehicle_make || '')}
-			${row('Model:', vehicleIdentification?.model || request?.vehicle_model || '')}
-			${row('Year:', vehicleIdentification?.year || request?.vehicle_year || '')}
-			${row('Registration:', vehicleIdentification?.registration_number || request?.vehicle_registration || '')}
-			${row('VIN:', vehicleIdentification?.vin_number || '')}
-			${row('Engine Number:', vehicleIdentification?.engine_number || '')}
-			${row('Color:', vehicleIdentification?.color || '')}
-			${row('Odometer:', interiorMechanical?.mileage_reading ? `${interiorMechanical.mileage_reading.toLocaleString()} km` : '')}
-		</div>
-	</div>
-
-	<!-- Page Break -->
 	<div class="page-break"></div>
 
-	<!-- Vehicle Condition -->
-	<div class="section">
-		<div class="section-title">VEHICLE CONDITION</div>
-		<div class="info-grid">
-			${row('Overall Condition:', exterior360?.overall_condition || '')}
-			<div class="info-row">
-				<span class="info-label">Service History:</span>
-				<span class="info-value">${vehicleIdentification?.service_history_available ? 'Available' : 'Not Available'}</span>
+	<!-- Standard Report Content (Rose/Gray Theme) -->
+	<div class="standard-page">
+		
+		<!-- Report Information -->
+		<div class="section">
+			<div class="section-title">REPORT INFORMATION</div>
+			<div class="info-grid">
+				<div class="info-row">
+					<span class="info-label">Report No.:</span>
+					<span class="info-value">${assessment.report_number || assessment.assessment_number}</span>
+				</div>
+				<div class="info-row">
+					<span class="info-label">Inspection Date:</span>
+					<span class="info-value">${formatDateNumeric(assessment.created_at)}</span>
+				</div>
+				${row('Assessor:', engineer?.users?.full_name || '')}
+				${row('Contact:', engineer?.users?.phone || engineer?.users?.email || '')}
 			</div>
 		</div>
-		${exterior360?.condition_notes ? `
-		<div class="info-row full-width">
-			<span class="info-label">Condition Notes:</span>
-		</div>
-		<div class="notes-box">${exterior360.condition_notes}</div>
-		` : ''}
-	</div>
 
-	<!-- Interior & Mechanical -->
-	<div class="section">
-		<div class="section-title">INTERIOR & MECHANICAL</div>
-		<div class="info-grid">
-			${row('Transmission:', interiorMechanical?.transmission_type || '')}
-			${row('Vehicle Power:', interiorMechanical?.vehicle_power_status || '')}
-			${row('Engine Condition:', interiorMechanical?.engine_condition || '')}
-			${row('Electronics:', interiorMechanical?.electronics_condition || '')}
+		<!-- Claim Information -->
+		<div class="section">
+			<div class="section-title">CLAIM INFORMATION</div>
+			<div class="info-grid">
+				${row('Claim Number:', request?.claim_number || '')}
+				${row('Request Number:', request?.request_number || '')}
+				${row('Date of Loss:', request?.date_of_loss ? formatDateNumeric(request.date_of_loss) : '')}
+				${row('Instructed By:', client?.name || '')}
+			</div>
 		</div>
-	</div>
 
-	<!-- Tires & Rims -->
-	${tyres && tyres.length > 0 ? `
-	<div class="section">
-		<div class="section-title">TIRES & RIMS</div>
-		<table style="width: 100%; border-collapse: collapse; margin-top: 10px;">
-			<thead>
-				<tr style="background-color: #f3f4f6; border-bottom: 2px solid #1e40af;">
-					<th style="padding: 8px; text-align: left; font-size: 9pt; font-weight: bold;">Position</th>
-					<th style="padding: 8px; text-align: left; font-size: 9pt; font-weight: bold;">Make</th>
-					<th style="padding: 8px; text-align: left; font-size: 9pt; font-weight: bold;">Size</th>
-					<th style="padding: 8px; text-align: left; font-size: 9pt; font-weight: bold;">Condition</th>
-					<th style="padding: 8px; text-align: right; font-size: 9pt; font-weight: bold;">Tread Depth</th>
-					<th style="padding: 8px; text-align: left; font-size: 9pt; font-weight: bold;">Rim Condition</th>
-				</tr>
-			</thead>
-			<tbody>
-				${tyres.map((tyre: any) => `
-				<tr style="border-bottom: 1px solid #e5e7eb;">
-					<td style="padding: 6px; font-size: 9pt;">${cell(tyre.position_label || tyre.position)}</td>
-					<td style="padding: 6px; font-size: 9pt;">${cell(tyre.tyre_make)}</td>
-					<td style="padding: 6px; font-size: 9pt;">${cell(tyre.tyre_size)}</td>
-					<td style="padding: 6px; font-size: 9pt;">${tyre.condition ? tyre.condition.charAt(0).toUpperCase() + tyre.condition.slice(1) : '-'}</td>
-					<td style="padding: 6px; font-size: 9pt; text-align: right;">${tyre.tread_depth_mm ? `${tyre.tread_depth_mm}mm` : '-'}</td>
-					<td style="padding: 6px; font-size: 9pt;">${tyre.rim_condition ? tyre.rim_condition.charAt(0).toUpperCase() + tyre.rim_condition.slice(1) : '-'}</td>
-				</tr>
+		<!-- Vehicle Information -->
+		<div class="section">
+			<div class="section-title">VEHICLE INFORMATION</div>
+			<div class="info-grid">
+				${row('Make:', vehicleDetails.make || '')}
+				${row('Model:', vehicleDetails.model || '')}
+				${row('Year:', vehicleDetails.year || '')}
+				${row('Registration:', vehicleDetails.registration || '')}
+				${row('VIN:', vehicleDetails.vin || '')}
+				${row('Engine Number:', vehicleIdentification?.engine_number || '')}
+				${row('Color:', vehicleDetails.color || '')}
+				${row('Odometer:', vehicleDetails.mileage ? `${vehicleDetails.mileage.toLocaleString()} km` : '')}
+			</div>
+		</div>
+
+		<!-- Vehicle Condition -->
+		<div class="section">
+			<div class="section-title">VEHICLE CONDITION</div>
+			<div class="info-grid">
+				${row('Overall Condition:', exterior360?.overall_condition || '')}
+				<div class="info-row">
+					<span class="info-label">Service History:</span>
+					<span class="info-value">${vehicleValues?.service_history_status ? vehicleValues.service_history_status.replace(/_/g, ' ').toUpperCase() : 'UNKNOWN'}</span>
+				</div>
+			</div>
+
+		</div>
+
+		<!-- Interior & Mechanical -->
+		<div class="section">
+			<div class="section-title">INTERIOR & MECHANICAL</div>
+			<div class="info-grid">
+				${row('Transmission:', interiorMechanical?.transmission_type || '')}
+				${row('Vehicle Power:', interiorMechanical?.vehicle_has_power ? 'Yes' : 'No')}
+				${row('SRS System:', interiorMechanical?.srs_system || '')}
+				${row('Steering:', interiorMechanical?.steering || '')}
+			</div>
+		</div>
+
+		<!-- Tires & Rims -->
+		${tyres && tyres.length > 0 ? `
+		<div class="section">
+			<div class="section-title">TIRES & RIMS</div>
+			<table style="width: 100%; border-collapse: collapse; margin-top: 10px;">
+				<thead>
+					<tr style="background-color: #f9fafb; border-bottom: 2px solid #e5e7eb;">
+						<th style="padding: 8px; text-align: left; font-size: 9pt; font-weight: bold;">Position</th>
+						<th style="padding: 8px; text-align: left; font-size: 9pt; font-weight: bold;">Make</th>
+						<th style="padding: 8px; text-align: left; font-size: 9pt; font-weight: bold;">Size</th>
+						<th style="padding: 8px; text-align: left; font-size: 9pt; font-weight: bold;">Condition</th>
+						<th style="padding: 8px; text-align: right; font-size: 9pt; font-weight: bold;">Tread Depth</th>
+						<th style="padding: 8px; text-align: left; font-size: 9pt; font-weight: bold;">Rim Condition</th>
+					</tr>
+				</thead>
+				<tbody>
+					${tyres.map((tyre: any) => `
+					<tr style="border-bottom: 1px solid #e5e7eb;">
+						<td style="padding: 6px; font-size: 9pt;">${cell(tyre.position_label || tyre.position)}</td>
+						<td style="padding: 6px; font-size: 9pt;">${cell(tyre.tyre_make)}</td>
+						<td style="padding: 6px; font-size: 9pt;">${cell(tyre.tyre_size)}</td>
+						<td style="padding: 6px; font-size: 9pt;">${tyre.condition ? tyre.condition.charAt(0).toUpperCase() + tyre.condition.slice(1) : '-'}</td>
+						<td style="padding: 6px; font-size: 9pt; text-align: right;">${tyre.tread_depth_mm ? `${tyre.tread_depth_mm}mm` : '-'}</td>
+						<td style="padding: 6px; font-size: 9pt;">${tyre.rim_condition ? tyre.rim_condition.charAt(0).toUpperCase() + tyre.rim_condition.slice(1) : '-'}</td>
+					</tr>
+					`).join('')}
+				</tbody>
+			</table>
+			${tyres.some((t: any) => t.notes) ? `
+			<div style="margin-top: 10px;">
+				<div style="font-weight: bold; font-size: 9pt; margin-bottom: 5px;">Notes:</div>
+				${tyres.filter((t: any) => t.notes).map((tyre: any) => `
+				<div style="font-size: 9pt; margin-bottom: 5px;">
+					<strong>${tyre.position_label || tyre.position}:</strong> ${tyre.notes}
+				</div>
 				`).join('')}
-			</tbody>
-		</table>
-		${tyres.some((t: any) => t.notes) ? `
-		<div style="margin-top: 10px;">
-			<div style="font-weight: bold; font-size: 9pt; margin-bottom: 5px;">Notes:</div>
-			${tyres.filter((t: any) => t.notes).map((tyre: any) => `
-			<div style="font-size: 9pt; margin-bottom: 5px;">
-				<strong>${tyre.position_label || tyre.position}:</strong> ${tyre.notes}
-			</div>
-			`).join('')}
-		</div>
-		` : ''}
-	</div>
-	` : ''}
-
-	<!-- Damage Assessment -->
-	<div class="section">
-		<div class="section-title">DAMAGE ASSESSMENT</div>
-		<div class="info-grid">
-			<div class="info-row">
-				<span class="info-label">Incident Matches:</span>
-				<span class="info-value">${damageRecord?.incident_match ? 'Yes' : 'No'}</span>
-			</div>
-			<div class="info-row">
-				<span class="info-label">Pre-Existing Damage:</span>
-				<span class="info-value">${damageRecord?.pre_existing_damage ? 'Yes' : 'No'}</span>
-			</div>
-		</div>
-		${damageRecord?.damage_description ? `
-		<div class="info-row full-width">
-			<span class="info-label">Damage Description:</span>
-		</div>
-		<div class="notes-box">${damageRecord.damage_description}</div>
-		` : ''}
-	</div>
-
-	<!-- Warranty & Vehicle Values -->
-	${vehicleValues ? `
-	<div class="section">
-		<div class="section-title">WARRANTY & VEHICLE VALUES</div>
-
-		<!-- Warranty Information -->
-		<div class="info-grid">
-			${row('Warranty Status:', vehicleValues.warranty_status ? vehicleValues.warranty_status.charAt(0).toUpperCase() + vehicleValues.warranty_status.slice(1) : '')}
-			${row('Warranty Period:', vehicleValues.warranty_period_years ? vehicleValues.warranty_period_years + ' years' : '')}
-			${vehicleValues.warranty_start_date ? `
-			<div class="info-row">
-				<span class="info-label">Warranty Start:</span>
-				<span class="info-value">${formatDateNumeric(vehicleValues.warranty_start_date)}</span>
-			</div>
-			` : ''}
-			${vehicleValues.warranty_end_date ? `
-			<div class="info-row">
-				<span class="info-label">Warranty End:</span>
-				<span class="info-value">${formatDateNumeric(vehicleValues.warranty_end_date)}</span>
 			</div>
 			` : ''}
 		</div>
+		` : ''}
 
-		<!-- Vehicle Values Table -->
-		<table style="width: 100%; margin-top: 15px;">
-			<thead>
-				<tr style="background-color: #f3f4f6;">
-					<th style="padding: 8px;">Value Type</th>
-					<th style="padding: 8px; text-align: right;">Trade</th>
-					<th style="padding: 8px; text-align: right;">Market</th>
-					<th style="padding: 8px; text-align: right;">Retail</th>
-				</tr>
-			</thead>
-			<tbody>
-				<tr>
-					<td style="padding: 6px; font-weight: bold;">Pre-Incident Value</td>
-					<td style="padding: 6px; text-align: right;">${formatCurrency(vehicleValues.trade_total_adjusted_value)}</td>
-					<td style="padding: 6px; text-align: right;">${formatCurrency(vehicleValues.market_total_adjusted_value)}</td>
-					<td style="padding: 6px; text-align: right;">${formatCurrency(vehicleValues.retail_total_adjusted_value)}</td>
-				</tr>
-				<tr>
-					<td style="padding: 6px; font-weight: bold;">Borderline Write-off</td>
-					<td style="padding: 6px; text-align: right;">${formatCurrency(vehicleValues.borderline_writeoff_trade)}</td>
-					<td style="padding: 6px; text-align: right;">${formatCurrency(vehicleValues.borderline_writeoff_market)}</td>
-					<td style="padding: 6px; text-align: right;">${formatCurrency(vehicleValues.borderline_writeoff_retail)}</td>
-				</tr>
-				<tr>
-					<td style="padding: 6px; font-weight: bold;">Total Write-off</td>
-					<td style="padding: 6px; text-align: right;">${formatCurrency(vehicleValues.total_writeoff_trade)}</td>
-					<td style="padding: 6px; text-align: right;">${formatCurrency(vehicleValues.total_writeoff_market)}</td>
-					<td style="padding: 6px; text-align: right;">${formatCurrency(vehicleValues.total_writeoff_retail)}</td>
-				</tr>
-				<tr>
-					<td style="padding: 6px; font-weight: bold;">Salvage Value</td>
-					<td style="padding: 6px; text-align: right;">${formatCurrency(vehicleValues.salvage_trade)}</td>
-					<td style="padding: 6px; text-align: right;">${formatCurrency(vehicleValues.salvage_market)}</td>
-					<td style="padding: 6px; text-align: right;">${formatCurrency(vehicleValues.salvage_retail)}</td>
-				</tr>
-			</tbody>
-		</table>
+		<!-- Damage Assessment -->
+		<div class="section">
+			<div class="section-title">DAMAGE ASSESSMENT</div>
+			<div class="info-grid">
+				<div class="info-row">
+					<span class="info-label">Incident Matches:</span>
+					<span class="info-value">${damageRecord?.matches_description ? 'Yes' : 'No'}</span>
+				</div>
+			</div>
+			${damageRecord?.damage_description ? `
+			<div class="info-row full-width">
+				<span class="info-label">Damage Description:</span>
+			</div>
+			<div class="notes-box">${damageRecord.damage_description}</div>
+			` : ''}
+		</div>
 
-		${vehicleValues.warranty_notes ? `
-		<div style="margin-top: 10px;">
-			<div style="font-weight: bold; margin-bottom: 5px;">Warranty Notes:</div>
-			<div class="notes-box">${vehicleValues.warranty_notes}</div>
+		<!-- Warranty & Vehicle Values -->
+		${vehicleValues ? `
+		<div class="section">
+			<div class="section-title">WARRANTY & VEHICLE VALUES</div>
+
+			<!-- Warranty Information -->
+			<div class="info-grid">
+				${row('Warranty Status:', vehicleValues.warranty_status ? vehicleValues.warranty_status.charAt(0).toUpperCase() + vehicleValues.warranty_status.slice(1) : '')}
+				${row('Warranty Period:', vehicleValues.warranty_period_years ? vehicleValues.warranty_period_years + ' years' : '')}
+				${vehicleValues.warranty_start_date ? `
+				<div class="info-row">
+					<span class="info-label">Warranty Start:</span>
+					<span class="info-value">${formatDateNumeric(vehicleValues.warranty_start_date)}</span>
+				</div>
+				` : ''}
+				${vehicleValues.warranty_end_date ? `
+				<div class="info-row">
+					<span class="info-label">Warranty End:</span>
+					<span class="info-value">${formatDateNumeric(vehicleValues.warranty_end_date)}</span>
+				</div>
+				` : ''}
+			</div>
+
+			<!-- Vehicle Values Table -->
+			<table style="width: 100%; margin-top: 15px;">
+				<thead>
+					<tr style="background-color: #f9fafb;">
+						<th style="padding: 8px;">Value Type</th>
+						<th style="padding: 8px; text-align: right;">Trade</th>
+						<th style="padding: 8px; text-align: right;">Market</th>
+						<th style="padding: 8px; text-align: right;">Retail</th>
+					</tr>
+				</thead>
+				<tbody>
+					<tr>
+						<td style="padding: 6px; font-weight: bold;">Pre-Incident Value</td>
+						<td style="padding: 6px; text-align: right;">${formatCurrency(vehicleValues.trade_total_adjusted_value)}</td>
+						<td style="padding: 6px; text-align: right;">${formatCurrency(vehicleValues.market_total_adjusted_value)}</td>
+						<td style="padding: 6px; text-align: right;">${formatCurrency(vehicleValues.retail_total_adjusted_value)}</td>
+					</tr>
+					<tr>
+						<td style="padding: 6px; font-weight: bold;">Borderline Write-off</td>
+						<td style="padding: 6px; text-align: right;">${formatCurrency(vehicleValues.borderline_writeoff_trade)}</td>
+						<td style="padding: 6px; text-align: right;">${formatCurrency(vehicleValues.borderline_writeoff_market)}</td>
+						<td style="padding: 6px; text-align: right;">${formatCurrency(vehicleValues.borderline_writeoff_retail)}</td>
+					</tr>
+					<tr>
+						<td style="padding: 6px; font-weight: bold;">Total Write-off</td>
+						<td style="padding: 6px; text-align: right;">${formatCurrency(vehicleValues.total_writeoff_trade)}</td>
+						<td style="padding: 6px; text-align: right;">${formatCurrency(vehicleValues.total_writeoff_market)}</td>
+						<td style="padding: 6px; text-align: right;">${formatCurrency(vehicleValues.total_writeoff_retail)}</td>
+					</tr>
+					<tr>
+						<td style="padding: 6px; font-weight: bold;">Salvage Value</td>
+						<td style="padding: 6px; text-align: right;">${formatCurrency(vehicleValues.salvage_trade)}</td>
+						<td style="padding: 6px; text-align: right;">${formatCurrency(vehicleValues.salvage_market)}</td>
+						<td style="padding: 6px; text-align: right;">${formatCurrency(vehicleValues.salvage_retail)}</td>
+					</tr>
+				</tbody>
+			</table>
+
+			${vehicleValues.warranty_notes ? `
+			<div style="margin-top: 10px;">
+				<div style="font-weight: bold; margin-bottom: 5px;">Warranty Notes:</div>
+				<div class="notes-box">${vehicleValues.warranty_notes}</div>
+			</div>
+			` : ''}
 		</div>
 		` : ''}
-	</div>
-	` : ''}
 
 		<!-- Repair Estimate Summary -->
 		${estimate ? `
@@ -466,19 +579,20 @@ export function generateReportHTML(data: ReportData): string {
 				</div>
 				<div class="info-row">
 					<span class="info-label">Grand Total (incl VAT):</span>
-					<span class="info-value" style="font-weight: bold; font-size: 12pt; color: #1e40af;">${formatCurrency(estimate.total)}</span>
+					<span class="info-value" style="font-weight: bold; font-size: 12pt; color: #e11d48;">${formatCurrency(estimate.total)}</span>
 				</div>
 				${estimate.assessment_result ? `
 				<div class="info-row">
 					<span class="info-label">Assessment Result:</span>
 					<span class="info-value" style="font-weight: bold; color: ${
-						estimate.assessment_result === 'repairable' ? '#059669' :
-						estimate.assessment_result === 'borderline_writeoff' ? '#d97706' :
+						estimate.assessment_result === 'repair' ? '#059669' :
+						estimate.assessment_result === 'code_2' ? '#d97706' :
 						'#dc2626'
 					};">${
-						estimate.assessment_result === 'repairable' ? 'Repairable' :
-						estimate.assessment_result === 'borderline_writeoff' ? 'Borderline Write-off' :
-						estimate.assessment_result === 'total_writeoff' ? 'Total Write-off' :
+						estimate.assessment_result === 'repair' ? 'Repairable' :
+						estimate.assessment_result === 'code_2' ? 'Code 2 (Write-off)' :
+						estimate.assessment_result === 'code_3' ? 'Code 3 (Write-off)' :
+						estimate.assessment_result === 'total_loss' ? 'Total Loss' :
 						estimate.assessment_result
 					}</span>
 				</div>
@@ -487,29 +601,30 @@ export function generateReportHTML(data: ReportData): string {
 		</div>
 		` : ''}
 
-	<!-- Assessment Notes -->
-	${assessmentNotes ? `
-	<div class="section">
-		<div class="section-title">ASSESSMENT NOTES</div>
-		<div class="notes-box" style="white-space: pre-wrap;">${assessmentNotes}</div>
-	</div>
-	` : ''}
-
-	<!-- Terms & Conditions -->
-	${companySettings?.assessment_terms_and_conditions ? `
-	<div class="section" style="margin-top: 30px; page-break-inside: avoid;">
-		<div class="section-title">TERMS & CONDITIONS</div>
-		<div style="font-size: 9pt; line-height: 1.5; color: #333; border: 1px solid #ddd; padding: 12px; background: #f9f9f9; white-space: pre-wrap;">
-			${escapeHtmlWithLineBreaks(companySettings.assessment_terms_and_conditions)}
+		<!-- Assessment Notes -->
+		${assessmentNotes ? `
+		<div class="section">
+			<div class="section-title">ASSESSMENT NOTES</div>
+			<div class="notes-box" style="white-space: pre-wrap;">${assessmentNotes}</div>
 		</div>
-	</div>
-	` : ''}
+		` : ''}
 
-	<!-- Footer -->
-	<div class="footer">
-		<p>This report was generated by ${companySettings?.company_name || 'Claimtech'}</p>
-		<p>${companySettings?.email || 'info@claimtech.co.za'} | ${companySettings?.website || 'www.claimtech.co.za'}</p>
-		<p>Report generated on ${formatDateNumeric(new Date().toISOString())}</p>
+		<!-- Terms & Conditions -->
+		${companySettings?.assessment_terms_and_conditions ? `
+		<div class="tcs-container">
+			<div class="section-title">TERMS & CONDITIONS</div>
+			<div style="font-size: 8pt; line-height: 1.4; color: #4b5563; border: 1px solid #e5e7eb; padding: 15px; background: #f9fafb; white-space: pre-wrap; text-align: justify;">
+				${escapeHtmlWithLineBreaks(companySettings.assessment_terms_and_conditions)}
+			</div>
+		</div>
+		` : ''}
+
+		<!-- Footer -->
+		<div class="footer">
+			<p>This report was generated by ${companySettings?.company_name || 'Claimtech'}</p>
+			<p>${companySettings?.email || 'info@claimtech.co.za'} | ${companySettings?.website || 'www.claimtech.co.za'}</p>
+			<p>Report generated on ${formatDateNumeric(new Date().toISOString())}</p>
+		</div>
 	</div>
 </body>
 </html>

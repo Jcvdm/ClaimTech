@@ -17,7 +17,8 @@
 		"lint": "prettier --check . && eslint .",
 		"test:unit": "vitest",
 		"test": "npm run test:unit -- --run && npm run test:e2e",
-		"test:e2e": "playwright test"
+		"test:e2e": "playwright test",
+		"generate:types": "powershell -ExecutionPolicy Bypass -File scripts/generate-types.ps1"
 	},
 	"devDependencies": {
 		"@eslint/compat": "^1.2.5",
@@ -58,6 +59,7 @@
 		"@supabase/ssr": "^0.7.0",
 		"@supabase/supabase-js": "^2.58.0",
 		"bigger-picture": "^1.1.19",
+		"bits-ui": "^1.0.0-next.98",
 		"filepond": "^4.32.9",
 		"filepond-plugin-file-validate-type": "^1.2.9",
 		"filepond-plugin-image-preview": "^4.6.12",

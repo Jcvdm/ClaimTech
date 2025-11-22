@@ -37,9 +37,10 @@
 	const accessories = useOptimisticQueue(props.accessories, {
 		onCreate: async (draft) => {
 			// Call parent handler which creates in DB and returns the created accessory
+			if (!draft.accessory_type) throw new Error('Accessory type is required');
 			return await onAddAccessory({
-				accessory_type: draft.accessory_type!,
-				custom_name: draft.custom_name
+				accessory_type: draft.accessory_type,
+				custom_name: draft.custom_name || undefined
 			});
 		},
 		onDelete: async (id) => {
@@ -49,11 +50,15 @@
 	});
 
 	// Initialize localStorage draft for critical fields
-	const conditionDraft = useDraft(`assessment-${assessmentId}-condition`);
-	const colorDraft = useDraft(`assessment-${assessmentId}-color`);
+	// Note: assessmentId is already $derived from props, so it's reactive
+	// We use $derived.by to create the draft objects reactively when assessmentId changes
+	const conditionDraft = $derived.by(() => useDraft(`assessment-${assessmentId}-condition`));
+	const colorDraft = $derived.by(() => useDraft(`assessment-${assessmentId}-color`));
 
-	let overallCondition = $state(data?.overall_condition || '');
-	let vehicleColor = $state(data?.vehicle_color || '');
+	// Use $state for mutable values (needed for bind:value and mutations)
+	// Initialize empty, will be synced with props in $effect below
+	let overallCondition = $state('');
+	let vehicleColor = $state('');
 
 	let showAccessoryModal = $state(false);
 	let selectedAccessoryType = $state<AccessoryType>('mags');
@@ -297,6 +302,7 @@
 
 			<div class="space-y-4">
 				<FormField
+					name="accessory_type"
 					label="Accessory Type"
 					type="select"
 					bind:value={selectedAccessoryType}
@@ -305,6 +311,7 @@
 
 				{#if selectedAccessoryType === 'custom'}
 					<FormField
+						name="custom_accessory_name"
 						label="Custom Accessory Name"
 						type="text"
 						bind:value={customAccessoryName}

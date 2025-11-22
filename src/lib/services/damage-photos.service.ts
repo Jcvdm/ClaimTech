@@ -27,7 +27,7 @@ class DamagePhotosService {
 			throw new Error(`Failed to fetch damage photos: ${error.message}`);
 		}
 
-		return data || [];
+		return (data as unknown as DamagePhoto[]) || [];
 	}
 
 	/**
@@ -53,7 +53,7 @@ class DamagePhotosService {
 			throw new Error(`Failed to create damage photo: ${error.message}`);
 		}
 
-		return data;
+		return data as unknown as DamagePhoto;
 	}
 
 	/**
@@ -81,7 +81,7 @@ class DamagePhotosService {
 			throw new Error(`Failed to update damage photo: ${error.message}`);
 		}
 
-		return data;
+		return data as unknown as DamagePhoto;
 	}
 
 	/**
@@ -157,7 +157,7 @@ class DamagePhotosService {
 			return 0;
 		}
 
-		return data ? data.display_order + 1 : 0;
+		return data ? (data.display_order ?? 0) + 1 : 0;
 	}
 }
 

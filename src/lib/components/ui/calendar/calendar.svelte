@@ -25,10 +25,10 @@
 	}: WithoutChildrenOrChild<CalendarPrimitive.RootProps> & {
 		buttonVariant?: ButtonVariant;
 		captionLayout?: "dropdown" | "dropdown-months" | "dropdown-years" | "label";
-		months?: CalendarPrimitive.MonthSelectProps["months"];
-		years?: CalendarPrimitive.YearSelectProps["years"];
-		monthFormat?: CalendarPrimitive.MonthSelectProps["monthFormat"];
-		yearFormat?: CalendarPrimitive.YearSelectProps["yearFormat"];
+		months?: any;
+		years?: any;
+		monthFormat?: any;
+		yearFormat?: any;
 		day?: Snippet<[{ day: DateValue; outsideMonth: boolean }]>;
 	} = $props();
 
@@ -42,6 +42,7 @@
 <!--
 Discriminated Unions + Destructing (required for bindable) do not
 get along, so we shut typescript up by casting `value` to `never`.
+In Svelte 5, components are dynamic by default, so no need for <svelte:component>
 -->
 <CalendarPrimitive.Root
 	bind:value={value as never}
@@ -54,11 +55,11 @@ get along, so we shut typescript up by casting `value` to `never`.
 		className
 	)}
 	{locale}
+	{...restProps}
 	{monthFormat}
 	{yearFormat}
-	{...restProps}
 >
-	{#snippet children({ months, weekdays })}
+	{#snippet children({ months, weekdays }: { months: Array<any>; weekdays: Array<string> })}
 		<Calendar.Months>
 			<Calendar.Nav>
 				<Calendar.PrevButton variant={buttonVariant} />

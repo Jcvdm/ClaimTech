@@ -21,7 +21,7 @@ class TyrePhotosService {
 			.order('display_order', { ascending: true });
 
 		if (error) throw error;
-		return data || [];
+		return (data as TyrePhoto[]) || [];
 	}
 
 	/**
@@ -37,7 +37,7 @@ class TyrePhotosService {
 			.order('display_order', { ascending: true });
 
 		if (error) throw error;
-		return data || [];
+		return (data as TyrePhoto[]) || [];
 	}
 
 	/**
@@ -61,16 +61,18 @@ class TyrePhotosService {
 		if (error) throw error;
 
 		// Audit log
-		await auditService.logChange(
-			input.assessment_id,
-			'tyre_photo',
-			'create',
-			null,
-			data,
-			client
-		);
+		try {
+			await auditService.logChange({
+				entity_type: 'tyre',
+				entity_id: input.tyre_id,
+				action: 'created',
+				metadata: { assessment_id: input.assessment_id }
+			}, client);
+		} catch (auditError) {
+			console.error('Error logging audit change:', auditError);
+		}
 
-		return data;
+		return data as TyrePhoto;
 	}
 
 	/**
@@ -101,16 +103,18 @@ class TyrePhotosService {
 		if (error) throw error;
 
 		// Audit log
-		await auditService.logChange(
-			assessmentId,
-			'tyre_photo',
-			'update',
-			oldData,
-			data,
-			client
-		);
+		try {
+			await auditService.logChange({
+				entity_type: 'tyre',
+				entity_id: assessmentId,
+				action: 'updated',
+				metadata: { photo_id: id }
+			}, client);
+		} catch (auditError) {
+			console.error('Error logging audit change:', auditError);
+		}
 
-		return data;
+		return data as TyrePhoto;
 	}
 
 	/**
@@ -134,14 +138,16 @@ class TyrePhotosService {
 		if (error) throw error;
 
 		// Audit log
-		await auditService.logChange(
-			assessmentId,
-			'tyre_photo',
-			'delete',
-			oldData,
-			null,
-			client
-		);
+		try {
+			await auditService.logChange({
+				entity_type: 'tyre',
+				entity_id: assessmentId,
+				action: 'updated',
+				metadata: { photo_id: id, action: 'deleted' }
+			}, client);
+		} catch (auditError) {
+			console.error('Error logging audit change:', auditError);
+		}
 	}
 
 	/**

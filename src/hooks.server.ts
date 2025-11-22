@@ -53,7 +53,7 @@ const supabase: Handle = async ({ event, resolve }) => {
                     const controller = new AbortController();
                     const timeoutId = setTimeout(() => controller.abort(), 30000); // 30s timeout
                     const dispatcher = new Agent({ connect: { timeout: 30000 }, keepAliveTimeout: 60000, headersTimeout: 30000 });
-                    return fetch(url, { ...options, signal: controller.signal, dispatcher }).finally(() => clearTimeout(timeoutId));
+                    return fetch(url, { ...options, signal: controller.signal, dispatcher: dispatcher as any } as any).finally(() => clearTimeout(timeoutId));
                 }
             }
         }

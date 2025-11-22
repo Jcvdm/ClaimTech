@@ -3,6 +3,7 @@ import type { RequestHandler } from './$types';
 import { generatePDF } from '$lib/utils/pdf-generator';
 import { generatePhotosHTML } from '$lib/templates/photos-template';
 import { createStreamingResponse } from '$lib/utils/streaming-response';
+import { normalizeAssessment, normalizeCompanySettings, normalizeVehicleIdentification } from '$lib/utils/type-normalizers';
 
 /**
  * Helper function to downscale image for faster PDF generation
@@ -180,13 +181,8 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 			)
 		);
 	}
-	if (vehicleIdentification?.odometer_photo_url) {
-		identificationPhotoPromises.push(
-			convertProxyUrlToDataUrl(vehicleIdentification.odometer_photo_url, locals).then(dataUrl =>
-				dataUrl ? { url: dataUrl, caption: 'Odometer Reading' } : null
-			)
-		);
-	}
+	// Note: odometer_photo_url field does not exist in assessment_vehicle_identification table
+	// Odometer reading is captured in assessment_interior_mechanical.mileage_photo_url
 	const identificationPhotos = (await Promise.all(identificationPhotoPromises)).filter(p => p !== null);
 	if (identificationPhotos.length > 0) {
 		sections.push({
@@ -202,8 +198,8 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	const exteriorPhotoMap = [
 		{ url: exterior360?.front_photo_url, caption: 'Front View' },
 		{ url: exterior360?.rear_photo_url, caption: 'Rear View' },
-		{ url: exterior360?.left_side_photo_url, caption: 'Left Side View' },
-		{ url: exterior360?.right_side_photo_url, caption: 'Right Side View' },
+		{ url: exterior360?.left_photo_url, caption: 'Left Side View' },
+		{ url: exterior360?.right_photo_url, caption: 'Right Side View' },
 		{ url: exterior360?.front_left_photo_url, caption: 'Front Left Corner' },
 		{ url: exterior360?.front_right_photo_url, caption: 'Front Right Corner' },
 		{ url: exterior360?.rear_left_photo_url, caption: 'Rear Left Corner' },
@@ -233,11 +229,11 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	// Interior & Mechanical Photos - PARALLEL conversion
 	const interiorPhotoPromises = [];
 	const interiorPhotoMap = [
-		{ url: interiorMechanical?.dashboard_photo_url, caption: 'Dashboard' },
-		{ url: interiorMechanical?.front_seats_photo_url, caption: 'Front Seats' },
-		{ url: interiorMechanical?.rear_seats_photo_url, caption: 'Rear Seats' },
-		{ url: interiorMechanical?.gear_lever_photo_url, caption: 'Gear Lever' },
-		{ url: interiorMechanical?.engine_bay_photo_url, caption: 'Engine Bay' }
+		{ url: (interiorMechanical && interiorMechanical.dashboard_photo_url) as string | null, caption: 'Dashboard' },
+		{ url: (interiorMechanical && interiorMechanical.interior_front_photo_url) as string | null, caption: 'Front Seats' },
+		{ url: (interiorMechanical && interiorMechanical.interior_rear_photo_url) as string | null, caption: 'Rear Seats' },
+		{ url: (interiorMechanical && interiorMechanical.gear_lever_photo_url) as string | null, caption: 'Gear Lever' },
+		{ url: (interiorMechanical && interiorMechanical.engine_bay_photo_url) as string | null, caption: 'Engine Bay' }
 	];
 
 	for (const {url, caption} of interiorPhotoMap) {
@@ -329,10 +325,10 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	// Damage Photos (from estimate) - PARALLEL conversion
 	if (estimatePhotos && estimatePhotos.length > 0) {
 		const damagePhotoPromises = estimatePhotos.map(photo =>
-			convertProxyUrlToDataUrl(photo.photo_url, locals).then(dataUrl =>
+			convertProxyUrlToDataUrl(photo.photo_url as string, locals).then(dataUrl =>
 				dataUrl ? {
 					url: dataUrl,
-					caption: photo.description || 'Damage Photo'
+					caption: (photo.label || 'Damage Photo') as string
 				} : null
 			)
 		);
@@ -349,10 +345,10 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	// Pre-Incident Photos - PARALLEL conversion
 	if (preIncidentPhotos && preIncidentPhotos.length > 0) {
 		const preIncidentPhotoPromises = preIncidentPhotos.map(photo =>
-			convertProxyUrlToDataUrl(photo.photo_url, locals).then(dataUrl =>
+			convertProxyUrlToDataUrl(photo.photo_url as string, locals).then(dataUrl =>
 				dataUrl ? {
 					url: dataUrl,
-					caption: photo.description || 'Pre-Incident Photo'
+					caption: (photo.label || 'Pre-Incident Photo') as string
 				} : null
 			)
 		);
@@ -367,9 +363,13 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	}
 
 		// Generate HTML
+		const normalizedAssessment = normalizeAssessment(assessment);
+		const normalizedVehicleIdentification = normalizeVehicleIdentification(vehicleIdentification);
+		const normalizedCompanySettings = normalizeCompanySettings(companySettings);
 		const html = generatePhotosHTML({
-				assessment,
-				companySettings,
+				assessment: (normalizedAssessment || {}) as any,
+				vehicleIdentification: (normalizedVehicleIdentification || {}) as any,
+				companySettings: (normalizedCompanySettings || {}) as any,
 				sections
 			});
 

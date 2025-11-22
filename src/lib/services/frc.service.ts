@@ -37,7 +37,7 @@ class FRCService {
 			return null;
 		}
 
-		return data;
+		return data as unknown as FinalRepairCosting | null;
 	}
 
 	/**
@@ -99,8 +99,8 @@ class FRCService {
 			estimate,
 			additionals,
 			{
-				labour_rate: assessment.finalized_labour_rate,
-				paint_rate: assessment.finalized_paint_rate
+				labour_rate: assessment.finalized_labour_rate || 0,
+				paint_rate: assessment.finalized_paint_rate || 0
 			},
 			db
 		);
@@ -132,8 +132,8 @@ class FRCService {
 			estimate,
 			additionals,
 			{
-				labour_rate: assessment.finalized_labour_rate,
-				paint_rate: assessment.finalized_paint_rate
+				labour_rate: assessment.finalized_labour_rate || 0,
+				paint_rate: assessment.finalized_paint_rate || 0
 			},
 			db
 		);
@@ -225,7 +225,7 @@ class FRCService {
 		const { data, error } = await db
 			.from('assessment_frc')
 			.update({
-				line_items: mergedLines,
+				line_items: mergedLines as any,
 				line_items_version: currentVersion + 1,
 				last_merge_at: now,
 				needs_sync: false,
@@ -304,7 +304,7 @@ class FRCService {
 			console.error('Error logging audit change:', auditError);
 		}
 
-		return data;
+		return data as unknown as FinalRepairCosting;
 	}
 
 	/**
@@ -447,7 +447,7 @@ class FRCService {
 			.insert({
 				assessment_id: assessmentId,
 				status: 'in_progress',
-				line_items: lineItems,
+				line_items: lineItems as any,
 				line_items_version: 1,  // Initialize version for optimistic locking
 				last_merge_at: now,  // Track when snapshot was created/merged
 				needs_sync: false,  // No sync needed on fresh start
@@ -525,7 +525,7 @@ class FRCService {
 			}
 		});
 
-		return data;
+		return data as unknown as FinalRepairCosting;
 	}
 
 	/**
@@ -667,7 +667,7 @@ class FRCService {
 		const { data, error } = await db
 			.from('assessment_frc')
 			.update({
-				line_items: updatedLineItems,
+				line_items: updatedLineItems as any,
 				line_items_version: currentVersion + 1,  // Increment version
 				// Actual estimate breakdown
 				actual_estimate_parts_nett: actualTotals.estimate.parts_nett,
@@ -723,7 +723,7 @@ class FRCService {
 			}
 		});
 
-		return data;
+		return data as unknown as FinalRepairCosting;
 	}
 
 	async updateLineMetadata(
@@ -757,7 +757,7 @@ class FRCService {
 		const { data, error } = await db
 			.from('assessment_frc')
 			.update({
-				line_items: updatedLineItems,
+				line_items: updatedLineItems as any,
 				line_items_version: currentVersion + 1,
 				updated_at: now
 			})
@@ -786,7 +786,7 @@ class FRCService {
 			}
 		});
 
-		return data;
+		return data as unknown as FinalRepairCosting;
 	}
 
 	/**
@@ -941,7 +941,7 @@ class FRCService {
 			console.error('Error logging audit change:', auditError);
 		}
 
-		return data;
+		return data as unknown as FinalRepairCosting;
 	}
 
 	/**
@@ -983,7 +983,7 @@ class FRCService {
 			return null;
 		}
 
-		return data;
+		return data as unknown as FinalRepairCosting | null;
 	}
 
 	/**

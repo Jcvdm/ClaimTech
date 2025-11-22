@@ -9,7 +9,11 @@
 		value,
 		onchange,
 		...restProps
-	}: WithoutChildrenOrChild<CalendarPrimitive.MonthSelectProps> = $props();
+	}: WithoutChildrenOrChild<any> = $props();
+
+	// In Svelte 5, components are dynamic by default
+	// Extract MonthSelect component from CalendarPrimitive
+	const MonthSelect = (CalendarPrimitive as any).MonthSelect;
 </script>
 
 <span
@@ -18,8 +22,12 @@
 		className
 	)}
 >
-	<CalendarPrimitive.MonthSelect bind:ref class="absolute inset-0 opacity-0" {...restProps}>
-		{#snippet child({ props, monthItems, selectedMonthItem })}
+	<MonthSelect
+		bind:ref
+		class="absolute inset-0 opacity-0"
+		{...restProps}
+	>
+		{#snippet child({ props, monthItems, selectedMonthItem }: { props: any; monthItems: Array<any>; selectedMonthItem: any })}
 			<select {...props} {value} {onchange}>
 				{#each monthItems as monthItem (monthItem.value)}
 					<option
@@ -36,9 +44,9 @@
 				class="[&>svg]:text-muted-foreground flex h-8 select-none items-center gap-1 rounded-md pl-2 pr-1 text-sm font-medium [&>svg]:size-3.5"
 				aria-hidden="true"
 			>
-				{monthItems.find((item) => item.value === value)?.label || selectedMonthItem.label}
+				{monthItems.find((item: any) => item.value === value)?.label || selectedMonthItem.label}
 				<ChevronDown class="size-4" />
 			</span>
 		{/snippet}
-	</CalendarPrimitive.MonthSelect>
+	</MonthSelect>
 </span>

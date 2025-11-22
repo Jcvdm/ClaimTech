@@ -41,10 +41,7 @@
 	// Calculate threshold for risk indicator
 	const threshold = $derived((): ThresholdResult | null => {
 		if (!vehicleValues?.borderline_writeoff_retail) return null;
-		return calculateEstimateThreshold(
-			combinedTotal(),
-			vehicleValues.borderline_writeoff_retail
-		);
+		return calculateEstimateThreshold(combinedTotal(), vehicleValues.borderline_writeoff_retail);
 	});
 
 	// Get color classes
@@ -54,15 +51,13 @@
 	});
 </script>
 
-<Card class="p-6 border-2 {colorClasses().border} {colorClasses().bg}">
+<Card class="border-2 p-6 {colorClasses().border} {colorClasses().bg}">
 	<div class="space-y-4">
 		<!-- Header -->
 		<div class="flex items-start justify-between">
 			<div>
-				<h3 class="text-lg font-semibold text-gray-900">Combined Estimate Totals</h3>
-				<p class="text-sm text-gray-600 mt-1">
-					Original estimate + approved additionals (including removals)
-				</p>
+				<h3 class="text-lg font-semibold text-gray-900">Delta vs Baseline</h3>
+				<p class="mt-1 text-sm text-gray-600">Delta (New - Baseline)</p>
 			</div>
 			{#if threshold()?.showWarning}
 				<AlertCircle class="h-6 w-6 {colorClasses().text}" />
@@ -70,57 +65,45 @@
 		</div>
 
 		<!-- Totals Breakdown -->
-		<div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+		<div class="grid grid-cols-1 gap-4 md:grid-cols-3">
 			<!-- Original Total -->
 			<div class="rounded-lg border bg-white p-4">
-				<div class="flex items-center justify-between mb-2">
-					<p class="text-xs font-medium text-gray-600 uppercase">Original Total</p>
+				<div class="mb-2 flex items-center justify-between">
+					<p class="text-xs font-medium text-gray-600 uppercase">Baseline (Original)</p>
 					<Minus class="h-4 w-4 text-gray-400" />
 				</div>
 				<p class="text-xl font-bold text-gray-900">{formatCurrency(estimate?.total || 0)}</p>
-				<p class="text-xs text-gray-500 mt-1">From finalized estimate</p>
+				<p class="mt-1 text-xs text-gray-500">From finalized estimate</p>
 			</div>
 
 			<!-- Removed Total -->
 			<div class="rounded-lg border bg-white p-4">
-				<div class="flex items-center justify-between mb-2">
+				<div class="mb-2 flex items-center justify-between">
 					<p class="text-xs font-medium text-red-600 uppercase">Removed (Original)</p>
 					<TrendingDown class="h-4 w-4 text-red-600" />
 				</div>
 				<p class="text-xl font-bold text-red-900">
 					-{formatCurrency(removedOriginalTotal())}
 				</p>
-				<p class="text-xs text-red-600 mt-1">
+				<p class="mt-1 text-xs text-red-600">
 					{removedLineCount()} line{removedLineCount() !== 1 ? 's' : ''}
 				</p>
 			</div>
 
 			<!-- Additionals Approved Total -->
 			<div class="rounded-lg border bg-white p-4">
-				<div class="flex items-center justify-between mb-2">
-					<p class="text-xs font-medium text-blue-600 uppercase">Additionals</p>
+				<div class="mb-2 flex items-center justify-between">
+					<p class="text-xs font-medium text-blue-600 uppercase">Delta (Net Change)</p>
 					<TrendingUp class="h-4 w-4 text-blue-600" />
 				</div>
 				<p class="text-xl font-bold text-blue-900">
-					+{formatCurrency(additionals?.total_approved || 0)}
+					{additionals?.total_approved && additionals.total_approved > 0 ? '+' : ''}{formatCurrency(
+						additionals?.total_approved || 0
+					)}
 				</p>
-				<p class="text-xs text-blue-600 mt-1">
+				<p class="mt-1 text-xs text-blue-600">
 					{additionals?.line_items.filter((li) => li.status === 'approved').length || 0} approved
 				</p>
-			</div>
-
-			<!-- Combined Total -->
-			<div class="rounded-lg border-2 {colorClasses().border} {colorClasses().bg} p-4">
-				<div class="flex items-center justify-between mb-2">
-					<p class="text-xs font-medium {colorClasses().text} uppercase">Combined Total</p>
-					<AlertCircle class="h-4 w-4 {colorClasses().text}" />
-				</div>
-				<p class="text-2xl font-bold {colorClasses().text}">{formatCurrency(combinedTotal())}</p>
-				{#if threshold()}
-					<p class="text-xs {colorClasses().text} mt-1 font-medium">
-						{threshold()!.percentage.toFixed(1)}% of write-off
-					</p>
-				{/if}
 			</div>
 		</div>
 
@@ -155,16 +138,13 @@
 		{/if}
 
 		<!-- Calculation Formula -->
-		<div class="rounded-md bg-blue-50 border border-blue-200 p-3">
-			<p class="text-xs text-blue-900 font-mono">
-				Combined = {formatCurrency(estimate?.total || 0)} + {formatCurrency(
-					additionals?.total_approved || 0
-				)} = {formatCurrency(combinedTotal())}
+		<div class="rounded-md border border-blue-200 bg-blue-50 p-3">
+			<p class="font-mono text-xs text-blue-900">
+				Delta = {formatCurrency(additionals?.total_approved || 0)}
 			</p>
-			<p class="text-xs text-blue-700 mt-1">
-				Note: Additionals total includes negative values for removed original lines
+			<p class="mt-1 text-xs text-blue-700">
+				Note: Delta includes negative values for removed original lines
 			</p>
 		</div>
 	</div>
 </Card>
-

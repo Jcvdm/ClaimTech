@@ -12,16 +12,21 @@ export async function analyzeCodebase(basePath) {
     dependencies: new Set(),
     patterns: {}
   };
-  
+
   // Find all relevant files
   const patterns = [
     '**/*.{js,jsx,ts,tsx}',
     '**/*.{py,java,go,rs}',
     '**/*.{md,mdx}',
+    '**/*.svelte',
+    '**/*.sql',
+    '**/*.prisma',
+    '**/*.graphql',
+    '**/*.{json,yaml,yml}',
     '**/package.json',
     '**/.env.example'
   ];
-  
+
   for (const pattern of patterns) {
     const files = await glob(pattern, {
       cwd: basePath,
@@ -35,10 +40,13 @@ export async function analyzeCodebase(basePath) {
         '.vercel/**',
         'context-engine/**',
         '**/*.min.js',
-        '**/*.map'
+        '**/*.map',
+        'package-lock.json',
+        'yarn.lock',
+        'pnpm-lock.yaml'
       ]
     });
-    
+
     for (const file of files) {
       const fullPath = path.join(basePath, file);
 
@@ -66,7 +74,7 @@ export async function analyzeCodebase(basePath) {
       });
     }
   }
-  
+
   return manifest;
 }
 
@@ -81,14 +89,14 @@ async function extractMetadata(filePath, content) {
     category: categorizeFile(filePath),
     complexity: calculateComplexity(content)
   };
-  
+
   if (['.js', '.jsx', '.ts', '.tsx'].includes(ext)) {
     try {
       const ast = parser.parse(content, {
         sourceType: 'module',
         plugins: ['jsx', 'typescript']
       });
-      
+
       traverse.default(ast, {
         ImportDeclaration(path) {
           metadata.imports.push(path.node.source.value);
@@ -116,20 +124,22 @@ async function extractMetadata(filePath, content) {
       console.warn(`Failed to parse ${filePath}:`, error.message);
     }
   }
-  
+
   return metadata;
 }
 
 function categorizeFile(filePath) {
   if (filePath.includes('auth')) return 'authentication';
   if (filePath.includes('api')) return 'api';
+  if (filePath.endsWith('.svelte')) return 'component';
   if (filePath.includes('component')) return 'frontend';
   if (filePath.includes('util') || filePath.includes('helper')) return 'utilities';
-  if (filePath.includes('test')) return 'testing';
-  if (filePath.includes('config')) return 'configuration';
-  if (filePath.includes('model') || filePath.includes('schema')) return 'database';
+  if (filePath.includes('test') || filePath.includes('spec')) return 'testing';
+  if (filePath.includes('config') || filePath.endsWith('.json') || filePath.endsWith('.yaml') || filePath.endsWith('.yml')) return 'configuration';
+  if (filePath.includes('model') || filePath.includes('schema') || filePath.endsWith('.sql') || filePath.endsWith('.prisma')) return 'database';
   if (filePath.includes('service')) return 'service';
-  if (filePath.includes('route')) return 'routing';
+  if (filePath.includes('route') || filePath.includes('+page') || filePath.includes('+layout')) return 'routing';
+  if (filePath.endsWith('.md') || filePath.endsWith('.mdx')) return 'documentation';
   return 'general';
 }
 

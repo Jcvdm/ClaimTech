@@ -8,7 +8,7 @@
 	import { LogOut, User } from 'lucide-svelte';
 	import { enhance } from '$app/forms';
 	import { page } from '$app/stores';
-	import { invalidateAll, invalidate } from '$app/navigation';
+	import { invalidateAll, invalidate, goto } from '$app/navigation';
 	import type { LayoutData } from './$types';
 
 	let { data, children }: { data: LayoutData; children: any } = $props();
@@ -86,7 +86,12 @@
 						</div>
 					</DropdownMenu.Trigger>
 					<DropdownMenu.Content align="end">
-						<DropdownMenu.Item href="/company/settings">Company Settings</DropdownMenu.Item>
+						<DropdownMenu.Item
+							onclick={() => goto('/company/settings')}
+							class="cursor-pointer"
+						>
+							Company Settings
+						</DropdownMenu.Item>
 						<DropdownMenu.Separator />
 						<DropdownMenu.Item
 							class="cursor-pointer"

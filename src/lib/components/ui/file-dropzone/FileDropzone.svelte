@@ -56,8 +56,9 @@
 	let uploading = $state(false);
 	let error = $state<string | null>(null);
 	let localPreview = $state<string | null>(null);
-	let fileInput: HTMLInputElement;
-	let cameraInput: HTMLInputElement;
+	// DOM references - use $state for Svelte 5 compatibility with bind:this
+	let fileInput = $state<HTMLInputElement>();
+	let cameraInput = $state<HTMLInputElement>();
 
 	// Computed
 	const files = $derived(Array.isArray(value) ? value : value ? [value] : []);
