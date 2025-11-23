@@ -1,8 +1,8 @@
 # ClaimTech Documentation
 
 **Project**: ClaimTech (SVA - SvelteKit Validation App)
-**Last Updated**: November 23, 2025 (PhotoUpload Layout Fix Complete ✅)
-**Status**: ✅ Svelte 5 Migration Complete - 0 Errors, 9 Warnings (All Intentional) | ✅ Photo Compression Live (60-75% storage reduction) | ✅ Rose Theme Standardized (All 6 photo panels + document generation) | ✅ PhotoUpload Layout Unified (matches TyrePanel pattern)
+**Last Updated**: November 23, 2025 (Slate Theme Migration Phase 1-5 Complete ✅)
+**Status**: ✅ Svelte 5 Migration Complete - 0 Errors, 9 Warnings (All Intentional) | ✅ Photo Compression Live (60-75% storage reduction) | ✅ Slate Theme Migration (Phases 1-5 complete, rose accents preserved) | ✅ PhotoUpload Layout Unified (matches TyrePanel pattern)
 
 ---
 
@@ -43,6 +43,13 @@ Complete index of architecture, database, security, UI patterns, and bug postmor
 - **date-picker.md** – explains why Incident date selection now uses `Popover` + `Calendar` for Svelte 5 compatibility.
 - **requests-flow-alignment.md** – records the tabs/alert/dialog alignment for the Requests list and New Request form.
 - **svelte5-upgrade-checklist.md** – end-to-end plan for moving from bits-ui v2 to Svelte 5-native shadcn components.
+
+### 🎨 Slate Theme Migration (.agent/System)
+- **slate_theme_migration_checklist.md** – Detailed checklist of all 40+ components updated
+- **slate_theme_detailed_components.md** – Component-by-component guide with line numbers
+- **slate_theme_implementation_summary.md** – Phase-by-phase implementation plan
+- **slate_theme_visual_reference.md** – Color palette reference and visual guide
+- **slate_theme_complete_file_list.md** – Complete file inventory organized by tier
 
 ### 📝 [Standard Operating Procedures](./README/sops.md)
 Step-by-step guides for database operations, services, authentication, UI features, and debugging (19 files).
