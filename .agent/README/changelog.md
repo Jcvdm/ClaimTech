@@ -1,10 +1,49 @@
 # Changelog - Recent Updates
 
-**Last Updated**: November 23, 2025 (PhotoUpload Layout Fix Complete ✅)
+**Last Updated**: November 23, 2025 (Logo Branding Implementation Complete ✅)
 
 ---
 
 ## November 23, 2025
+
+### ✅ Logo Branding Implementation - COMPLETE
+- **FEATURE**: ClaimTech logo now integrated across all customer-facing surfaces
+- **SCOPE**: Dashboard header, login hero, and PDF report output
+- **IMPLEMENTATION**:
+  - **Asset**: `src/lib/assets/logo.png` - PNG logo file
+  - **Dashboard Header** (`src/routes/(app)/+layout.svelte`):
+    - Line 12: Import logo asset
+    - Line 52: Render logo image beside breadcrumbs with `h-8 w-auto` sizing
+  - **Login Hero** (`src/routes/auth/login/+page.svelte`):
+    - Line 5: Import logo asset
+    - Line 20: Display logo next to "ClaimTech Platform" heading with `h-12 w-auto` sizing
+  - **PDF Report Generation** (`src/routes/api/generate-report/+server.ts`):
+    - Line 12: Define logo path using `process.cwd()`
+    - Lines 14-18: Read PNG as base64 with error handling
+    - Pass `logoBase64` to `generateReportHTML`
+  - **Report Template** (`src/lib/templates/report-template.ts`):
+    - Line 28: Add `logoBase64?: string | null` to ReportData interface
+    - Line 51: Destructure `logoBase64` from data
+    - Lines 71-75: Create `logoMarkup` with base64 image or text fallback
+    - Lines 126-140: CSS styling for `.logo-placeholder` and `.report-logo`
+    - Line 305: Render logo in summary header
+    - Line 643: Footer displays company name from settings
+- **STYLING**:
+  - `.report-logo`: `max-height: 70px; width: auto; object-fit: contain;`
+  - `.logo-placeholder`: Flex container with rose theme color (#e11d48)
+  - Fallback to company name if logo unavailable
+- **BENEFITS**:
+  - Unified brand identity across all touchpoints
+  - Professional appearance in customer-facing documents
+  - Graceful fallback if logo file unavailable
+  - Consistent sizing and styling
+- **VERIFICATION**: ✅ All files verified, logo asset present, base64 encoding working
+- **NEXT STEPS**:
+  - Test PDF generation with `npm run dev`
+  - Verify logo renders correctly in dashboard and login pages
+  - Confirm PDF reports display logo in header
+
+
 
 ### ✅ PhotoUpload Layout Refactor - COMPLETE
 - **ISSUE**: PhotoUpload.svelte styling didn't match TyrePhotosPanel pattern

@@ -41,27 +41,23 @@
 	<SidebarInset>
 		<!-- Top bar -->
 		<header
-			class="flex h-16 shrink-0 items-center gap-2 border-b border-transparent bg-gradient-to-r from-rose-500/85 via-rose-400/75 to-rose-600/85 px-4 text-white shadow-sm transition-[width,height] ease-linear group-has-[[data-collapsible=icon]]/sidebar-wrapper:h-12"
+			class="flex h-16 shrink-0 items-center gap-2 border-b bg-white px-4 shadow-sm transition-[width,height] ease-linear group-has-[[data-collapsible=icon]]/sidebar-wrapper:h-12"
 		>
 			<div class="flex items-center gap-2">
-				<SidebarTrigger
-					class="-ml-1 text-white hover:bg-white/10 focus-visible:bg-white/20 focus-visible:text-white"
-				/>
-				<Separator orientation="vertical" class="mr-2 h-4 border-white/40" />
+				<SidebarTrigger class="-ml-1" />
+				<Separator orientation="vertical" class="mr-2 h-4" />
 				<Breadcrumb.Root>
 					<Breadcrumb.List>
 						<Breadcrumb.Item class="hidden md:block">
-							<Breadcrumb.Link class="text-white/80 hover:text-white" href="/dashboard">
-								Home
-							</Breadcrumb.Link>
+							<Breadcrumb.Link href="/dashboard">Home</Breadcrumb.Link>
 						</Breadcrumb.Item>
 						{#each breadcrumbs as crumb}
-							<Breadcrumb.Separator class="hidden md:block text-white/40" />
+							<Breadcrumb.Separator class="hidden md:block" />
 							<Breadcrumb.Item>
 								{#if crumb.href === $page.url.pathname}
-									<Breadcrumb.Page class="text-white">{crumb.label}</Breadcrumb.Page>
+									<Breadcrumb.Page>{crumb.label}</Breadcrumb.Page>
 								{:else}
-									<Breadcrumb.Link class="text-white/80 hover:text-white" href={crumb.href}>
+									<Breadcrumb.Link href={crumb.href}>
 										{crumb.label}
 									</Breadcrumb.Link>
 								{/if}
@@ -75,21 +71,20 @@
 				<DropdownMenu.Root>
 					<DropdownMenu.Trigger>
 						<div
-							class="flex cursor-pointer items-center gap-2 rounded-full p-1 pr-3 text-white transition-colors hover:bg-white/10"
+							class="flex cursor-pointer items-center gap-2 rounded-full p-1 pr-3 transition-colors hover:bg-gray-100"
 						>
 							<Avatar.Root class="h-8 w-8">
-								<Avatar.Fallback class="bg-white/20 text-white">
+								<Avatar.Fallback class="bg-gray-200 text-gray-700">
 									{userName.charAt(0).toUpperCase()}
 								</Avatar.Fallback>
 							</Avatar.Root>
-							<span class="hidden text-sm font-medium sm:inline-block">{userName}</span>
+							<span class="hidden text-sm font-medium text-gray-700 sm:inline-block"
+								>{userName}</span
+							>
 						</div>
 					</DropdownMenu.Trigger>
 					<DropdownMenu.Content align="end">
-						<DropdownMenu.Item
-							onclick={() => goto('/company/settings')}
-							class="cursor-pointer"
-						>
+						<DropdownMenu.Item onclick={() => goto('/company/settings')} class="cursor-pointer">
 							Company Settings
 						</DropdownMenu.Item>
 						<DropdownMenu.Separator />

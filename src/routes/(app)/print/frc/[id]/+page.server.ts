@@ -2,6 +2,7 @@ import { error } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 import { getClientByRequestId, getRepairerForEstimate } from '$lib/utils/supabase-query-helpers';
 import { normalizeEstimate } from '$lib/utils/type-normalizers';
+import { getBrandLogoBase64 } from '$lib/utils/branding';
 
 export const load: PageServerLoad = async ({ params, locals }) => {
 	const assessmentId = params.id;
@@ -57,6 +58,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 		companySettings,
 		request: requestData,
 		client,
+		logoBase64: getBrandLogoBase64(),
 		repairer
 	};
 };

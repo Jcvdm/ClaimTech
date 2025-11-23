@@ -41,17 +41,17 @@
 	};
 
 	const statusColors = {
-		pending: 'text-gray-400',
+		pending: 'text-slate-400',
 		processing: 'text-rose-500',
-		success: 'text-green-500',
+		success: 'text-emerald-500',
 		error: 'text-red-500'
 	};
 
 	const progressBackgrounds = {
-		pending: 'bg-rose-100',
-		processing: 'bg-rose-100',
-		success: 'bg-green-100',
-		error: 'bg-red-100'
+		pending: 'bg-slate-100',
+		processing: 'bg-rose-50',
+		success: 'bg-emerald-50',
+		error: 'bg-red-50'
 	};
 </script>
 
@@ -63,11 +63,10 @@
 				class="size-4 {statusColors[status]} {status === 'processing' ? 'animate-spin' : ''}"
 			/>
 		{/if}
-		<span class="text-sm font-medium text-gray-900">{label}</span>
+		<span class="text-sm font-medium text-slate-900">{label}</span>
 		{#if showPercentage}
-			<span class="ml-auto text-xs text-gray-500">{value}%</span>
+			<span class="ml-auto text-xs text-slate-500">{value}%</span>
 		{/if}
 	</div>
 	<Progress value={value} class={progressBackgrounds[status]} />
 </div>
-

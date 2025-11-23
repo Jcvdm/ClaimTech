@@ -217,7 +217,7 @@
 
 <!-- Unified Photo Panel -->
 <Card class="p-6">
-	<h3 class="mb-4 text-lg font-semibold text-gray-900">
+	<h3 class="mb-4 text-lg font-semibold text-slate-900">
 		{photos.value.length === 0 ? 'Pre-Incident Photos' : `Pre-Incident Photos (${photos.value.length})`}
 	</h3>
 
@@ -228,7 +228,7 @@
 			tabindex="0"
 			class="relative border-2 border-dashed rounded-lg p-8 text-center transition-colors {isDragging
 				? 'border-rose-500 bg-rose-50'
-				: 'border-gray-300 hover:border-gray-400'}"
+				: 'border-slate-300 hover:border-slate-400'}"
 			ondragenter={handleDragEnter}
 			ondragover={handleDragOver}
 			ondragleave={handleDragLeave}
@@ -254,8 +254,8 @@
 					<p class="mt-2 text-sm font-medium text-rose-600">Drop photos here to upload</p>
 				</div>
 			{:else}
-				<Upload class="mx-auto h-12 w-12 text-gray-400" />
-				<p class="mt-2 text-sm text-gray-600">
+				<Upload class="mx-auto h-12 w-12 text-slate-400" />
+				<p class="mt-2 text-sm text-slate-600">
 					Drag & drop photos or <button
 						type="button"
 						onclick={triggerFileInput}
@@ -264,7 +264,7 @@
 						browse
 					</button>
 				</p>
-				<p class="mt-1 text-xs text-gray-500">
+				<p class="mt-1 text-xs text-slate-500">
 					Supports: JPG, PNG, GIF • Multiple files supported
 				</p>
 				<div class="mt-4 flex gap-2 justify-center">
@@ -288,7 +288,7 @@
 				tabindex="0"
 				class="relative w-full aspect-square border-2 border-dashed rounded-lg transition-colors cursor-pointer {isDragging
 					? 'border-rose-500 bg-rose-50'
-					: 'border-gray-300 hover:border-gray-400 bg-gray-50'}"
+					: 'border-slate-300 hover:border-slate-400 bg-slate-50'}"
 				ondragenter={handleDragEnter}
 				ondragover={handleDragOver}
 				ondragleave={handleDragLeave}
@@ -319,8 +319,8 @@
 					</div>
 				{:else}
 					<div class="absolute inset-0 flex flex-col items-center justify-center p-4">
-						<Upload class="h-8 w-8 text-gray-400" />
-						<p class="mt-2 text-xs text-gray-600 text-center font-medium">Add Photos</p>
+						<Upload class="h-8 w-8 text-slate-400" />
+						<p class="mt-2 text-xs text-slate-600 text-center font-medium">Add Photos</p>
 					</div>
 				{/if}
 			</div>
@@ -330,7 +330,7 @@
 				<div class="w-full">
 					<button
 						onclick={() => openPhotoViewer(index)}
-						class="relative w-full aspect-square bg-gray-100 rounded-lg overflow-hidden group block"
+						class="relative w-full aspect-square bg-slate-100 rounded-lg overflow-hidden group block"
 						type="button"
 					>
 						<!-- Photo Image -->

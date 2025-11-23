@@ -10,16 +10,17 @@ import type {
 import { formatCurrency, formatDateNumeric } from '$lib/utils/formatters';
 import { escapeHtmlWithLineBreaks } from '$lib/utils/sanitize';
 
-interface FRCReportData {
-	assessment: Assessment;
-	frc: FinalRepairCosting;
-	vehicleIdentification: VehicleIdentification | null;
-	estimate: Estimate | null;
-	additionals: AssessmentAdditionals | null;
-	repairer: any;
-	companySettings: CompanySettings | null;
-	frcDocuments: FRCDocument[];
-}
+	interface FRCReportData {
+		assessment: Assessment;
+		frc: FinalRepairCosting;
+		vehicleIdentification: VehicleIdentification | null;
+		estimate: Estimate | null;
+		additionals: AssessmentAdditionals | null;
+		repairer: any;
+		companySettings: CompanySettings | null;
+		frcDocuments: FRCDocument[];
+		logoBase64?: string | null;
+	}
 
 export function generateFRCReportHTML(data: FRCReportData): string {
 	const {
@@ -30,7 +31,8 @@ export function generateFRCReportHTML(data: FRCReportData): string {
 		additionals,
 		repairer,
 		companySettings,
-		frcDocuments
+		frcDocuments,
+		logoBase64
 	} = data;
 
 	const lineItems = frc.line_items ?? [];
@@ -141,6 +143,14 @@ export function generateFRCReportHTML(data: FRCReportData): string {
 	const registrationNumber = vehicleIdentification?.registration_number || 'N/A';
 	const vinNumber = vehicleIdentification?.vin_number || 'N/A';
 
+	const companyName = companySettings?.company_name || 'Claimtech';
+	const logoTextFallback = companySettings?.company_name || 'CLAIMTECH';
+	const logoMarkup = logoBase64
+		? `<img src="data:image/png;base64,${logoBase64}" alt="${escapeHtmlWithLineBreaks(
+				logoTextFallback
+		  )} logo" class="report-logo" />`
+		: logoTextFallback;
+
 	return `
 <!DOCTYPE html>
 <html lang="en">
@@ -186,6 +196,15 @@ export function generateFRCReportHTML(data: FRCReportData): string {
 			font-weight: bold;
 			color: #e11d48;
 			letter-spacing: -1px;
+			display: flex;
+			align-items: center;
+			gap: 0.75rem;
+		}
+
+		.report-logo {
+			max-height: 70px;
+			width: auto;
+			object-fit: contain;
 		}
 
 		.summary-title {
@@ -405,9 +424,9 @@ export function generateFRCReportHTML(data: FRCReportData): string {
 	<!-- Summary Page -->
 	<div class="summary-page">
 		<div class="summary-header">
-			<div class="logo-placeholder">
-				${companySettings?.company_name || 'CLAIMTECH'}
-			</div>
+		<div class="logo-placeholder">
+			${logoMarkup}
+		</div>
 			<div style="text-align: right;">
 				<div style="font-weight: bold; color: #e11d48;">${assessment.assessment_number}</div>
 				<div style="color: #6b7280; font-size: 9pt;">${formatDateNumeric(new Date().toISOString())}</div>
@@ -459,7 +478,7 @@ export function generateFRCReportHTML(data: FRCReportData): string {
 		</div>
 
 		<div class="summary-footer">
-			${companySettings?.company_name || 'Claimtech'} | ${companySettings?.email || 'info@claimtech.co.za'} | ${companySettings?.website || 'www.claimtech.co.za'}
+			${companyName} | ${companySettings?.email || 'info@claimtech.co.za'} | ${companySettings?.website || 'www.claimtech.co.za'}
 		</div>
 	</div>
 
@@ -471,7 +490,7 @@ export function generateFRCReportHTML(data: FRCReportData): string {
 		<!-- Standard Header -->
 		<div class="standard-header">
 			<div class="standard-header-company">
-				${companySettings?.company_name || 'Claimtech'}
+				${companyName}
 			</div>
 			<div class="standard-header-details">
 				<div><strong>Report No:</strong> ${assessment.assessment_number}</div>

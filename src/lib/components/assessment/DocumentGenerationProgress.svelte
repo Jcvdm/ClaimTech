@@ -45,20 +45,29 @@
 
 	function getStatusColor(status: string) {
 		switch (status) {
-			case 'pending': return 'text-gray-400';
-			case 'processing': return 'text-rose-500';
-			case 'success': return 'text-green-500';
-			case 'error': return 'text-red-500';
-			default: return 'text-gray-400';
+			case 'pending':
+				return 'text-slate-400';
+			case 'processing':
+				return 'text-rose-500';
+			case 'success':
+				return 'text-emerald-500';
+			case 'error':
+				return 'text-red-500';
+			default:
+				return 'text-slate-400';
 		}
 	}
 
 	function getProgressBackground(status: string) {
 		switch (status) {
-			case 'success': return 'bg-green-100';
-			case 'error': return 'bg-red-100';
-			case 'processing': return 'bg-rose-100';
-			default: return 'bg-rose-100';
+			case 'success':
+				return 'bg-emerald-50';
+			case 'error':
+				return 'bg-red-50';
+			case 'processing':
+				return 'bg-rose-50';
+			default:
+				return 'bg-slate-100';
 		}
 	}
 </script>
@@ -79,17 +88,17 @@
 					{/if}
 					{#if doc.icon}
 						{@const DocIcon = doc.icon}
-						<DocIcon class="w-4 h-4 text-gray-500" />
+						<DocIcon class="w-4 h-4 text-slate-500" />
 					{/if}
 					<span class="font-medium">{doc.label}</span>
-					<span class="ml-auto text-sm text-gray-500">{doc.data.progress}%</span>
+					<span class="ml-auto text-sm text-slate-500">{doc.data.progress}%</span>
 				</div>
 
 				<!-- Progress Bar -->
 				<Progress value={doc.data.progress} class={getProgressBackground(doc.data.status)} />
 
 				<!-- Status Message -->
-				<p class="text-sm text-gray-600">{doc.data.message}</p>
+				<p class="text-sm text-slate-600">{doc.data.message}</p>
 
 				<!-- Error Message & Retry Button -->
 				{#if doc.data.status === 'error'}
@@ -112,7 +121,7 @@
 					<a 
 						href={doc.data.url} 
 						target="_blank"
-						class="text-sm text-blue-600 hover:underline inline-flex items-center gap-1"
+						class="text-sm text-rose-600 hover:underline inline-flex items-center gap-1"
 					>
 						View Document →
 					</a>
@@ -123,7 +132,7 @@
 
 	<!-- Overall Progress -->
 	<div class="mt-6 pt-4 border-t">
-		<p class="text-sm font-medium text-gray-700">
+		<p class="text-sm font-medium text-slate-700">
 			Overall Progress: {completedCount}/4 documents completed
 		</p>
 	</div>

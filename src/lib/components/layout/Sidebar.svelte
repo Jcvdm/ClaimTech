@@ -1,49 +1,45 @@
 <script lang="ts">
 	import { page } from '$app/stores';
-	import { cn } from '$lib/utils';
 	import { onMount } from 'svelte';
 	import { browser } from '$app/environment';
-	import { requestService } from '$lib/services/request.service';
-	import { inspectionService } from '$lib/services/inspection.service';
-	import { appointmentService } from '$lib/services/appointment.service';
-	import { assessmentService } from '$lib/services/assessment.service';
-	import { frcService } from '$lib/services/frc.service';
-	import { additionalsService } from '$lib/services/additionals.service';
+	import { goto, invalidateAll, invalidate } from '$app/navigation';
+	import { enhance } from '$app/forms';
 	import type { ComponentType } from 'svelte';
 	import {
 		LayoutDashboard,
 		Users,
 		FileText,
 		ClipboardCheck,
-		FileCheck,
-		Plus,
-		Settings,
-		UserPlus,
 		Calendar,
 		ClipboardList,
-		Wrench,
+		FileCheck,
+		Plus,
 		Archive,
+		UserPlus,
+		Wrench,
+		Settings,
 		LogOut
 	} from 'lucide-svelte';
-	import { enhance } from '$app/forms';
-	import { invalidate, invalidateAll } from '$app/navigation';
+
 	import {
 		Sidebar,
 		SidebarContent,
+		SidebarFooter,
 		SidebarGroup,
 		SidebarGroupContent,
 		SidebarGroupLabel,
+		SidebarHeader,
 		SidebarMenu,
 		SidebarMenuButton,
 		SidebarMenuItem,
-		SidebarFooter,
-		SidebarHeader,
 		SidebarRail
 	} from '$lib/components/ui/sidebar';
+	import logo from '$lib/assets/logo.png';
+	import { assessmentService } from '$lib/services/assessment.service';
+	import { frcService } from '$lib/services/frc.service';
+	import { additionalsService } from '$lib/services/additionals.service';
 
-	// Props
-	let { role = 'engineer', engineer_id = null }: { role?: string; engineer_id?: string | null } =
-		$props();
+	let { role = 'user', engineer_id = null } = $props();
 
 	type NavItem = {
 		label: string;
@@ -314,6 +310,11 @@
 </script>
 
 <Sidebar collapsible="icon">
+	<SidebarHeader>
+		<div class="flex items-center justify-center px-2 py-4">
+			<img src={logo} alt="ClaimTech" class="h-12 w-auto group-data-[collapsible=icon]:h-8" />
+		</div>
+	</SidebarHeader>
 	<SidebarContent>
 		{#each navigation as group}
 			<SidebarGroup>
@@ -403,7 +404,7 @@
 				>
 					{#snippet child({ props })}
 						<button
-							class="text-rose-600 hover:bg-rose-50 hover:text-rose-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-200"
+							class="text-slate-400 hover:bg-slate-800 hover:text-slate-200 focus-visible:ring-2 focus-visible:ring-slate-600 focus-visible:outline-none"
 							{...props}
 						>
 							<LogOut />

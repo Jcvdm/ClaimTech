@@ -1,7 +1,7 @@
 # System Documentation Index
 
-**Last Updated**: November 23, 2025 (PhotoUpload Layout Fix Complete ✅)
-**Total Files**: 39 System documentation files
+**Last Updated**: November 23, 2025 (Logo Branding Implementation Complete ✅)
+**Total Files**: 40 System documentation files
 
 ---
 
@@ -358,6 +358,32 @@ Comprehensive system documentation covering architecture, database design, secur
 - `src/lib/components/forms/PhotoUpload.svelte`
 - `src/lib/components/assessment/DocumentCard.svelte`
 - `src/lib/components/assessment/PreIncidentPhotosPanel.svelte`
+
+---
+
+### 7. Logo Branding Implementation ⭐ NEW (Nov 23, 2025)
+- **File**: [logo_branding_implementation.md](../System/logo_branding_implementation.md)
+- **Size**: ~150 lines | **Last Updated**: Nov 23, 2025
+- **Read When**: Working on branding, dashboard header, login page, or PDF report generation
+
+**Contains**:
+- ClaimTech logo integration across customer-facing surfaces
+- Dashboard header logo rendering (h-8 sizing)
+- Login hero logo display (h-12 sizing)
+- PDF report logo embedding (base64 encoding)
+- CSS styling for report logo placeholder
+- Fallback behavior when logo unavailable
+- Asset location and import patterns
+- Testing and verification checklist
+
+**Implemented in**:
+- `src/lib/assets/logo.png` - Logo asset
+- `src/routes/(app)/+layout.svelte` - Dashboard header
+- `src/routes/auth/login/+page.svelte` - Login hero
+- `src/routes/api/generate-report/+server.ts` - PDF generation
+- `src/lib/templates/report-template.ts` - Report template
+
+**Key for**: Understanding brand integration, logo rendering patterns, base64 image embedding in PDFs, responsive logo sizing
 - `src/lib/components/assessment/EstimatePhotosPanel.svelte`
 - `src/lib/components/assessment/AdditionalsPhotosPanel.svelte`
 - `src/lib/components/assessment/Exterior360PhotosPanel.svelte`

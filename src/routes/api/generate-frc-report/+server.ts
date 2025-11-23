@@ -5,6 +5,7 @@ import { generateFRCReportHTML } from '$lib/templates/frc-report-template';
 import { createStreamingResponse } from '$lib/utils/streaming-response';
 import { getClientByRequestId, getRepairerForEstimate } from '$lib/utils/supabase-query-helpers';
 import { normalizeEstimate, normalizeCompanySettings, normalizeAssessment } from '$lib/utils/type-normalizers';
+import { getBrandLogoBase64 } from '$lib/utils/branding';
 
 export const POST: RequestHandler = async ({ request, locals }) => {
 	const body = await request.json();
@@ -137,6 +138,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 					...normalizedCompanySettings,
 					frc_terms_and_conditions: termsAndConditions
 				} as any : normalizedCompanySettings,
+				logoBase64: getBrandLogoBase64(),
 				frcDocuments: (frcDocuments || []) as any
 			});
 

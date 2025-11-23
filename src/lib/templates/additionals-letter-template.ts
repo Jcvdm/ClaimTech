@@ -16,10 +16,11 @@ interface AdditionalsLetterData {
   client: any;
   repairer: any;
   vehicleIdentification: VehicleIdentification | null;
+  logoBase64?: string | null;
 }
 
 export function generateAdditionalsLetterHTML(data: AdditionalsLetterData): string {
-  const { assessment, additionals, companySettings, request, client, repairer, vehicleIdentification } = data;
+  const { assessment, additionals, companySettings, request, client, repairer, vehicleIdentification, logoBase64 } = data;
 
   // Filter items by status and action
   // Approved table: only show true approved additions (exclude removals and reversals)
@@ -88,6 +89,14 @@ export function generateAdditionalsLetterHTML(data: AdditionalsLetterData): stri
   const vehicleYear = vehicleIdentification?.vehicle_year || 'N/A';
   const registrationNumber = vehicleIdentification?.registration_number || 'N/A';
 
+  const companyName = companySettings?.company_name || 'Claimtech';
+  const logoTextFallback = companySettings?.company_name || 'CLAIMTECH';
+  const logoMarkup = logoBase64
+    ? `<img src="data:image/png;base64,${logoBase64}" alt="${escapeHtmlWithLineBreaks(
+        logoTextFallback
+      )} logo" class="report-logo" />`
+    : logoTextFallback;
+
   return `
 <!DOCTYPE html>
 <html lang="en">
@@ -133,6 +142,15 @@ export function generateAdditionalsLetterHTML(data: AdditionalsLetterData): stri
       font-weight: bold;
       color: #e11d48;
       letter-spacing: -1px;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .report-logo {
+      max-height: 70px;
+      width: auto;
+      object-fit: contain;
     }
 
     .summary-title {
@@ -316,7 +334,7 @@ export function generateAdditionalsLetterHTML(data: AdditionalsLetterData): stri
   <div class="summary-page">
     <div class="summary-header">
       <div class="logo-placeholder">
-        ${companySettings?.company_name || 'CLAIMTECH'}
+        ${logoMarkup}
       </div>
       <div style="text-align: right;">
         <div style="font-weight: bold; color: #e11d48;">${assessment.assessment_number}</div>
@@ -367,7 +385,7 @@ export function generateAdditionalsLetterHTML(data: AdditionalsLetterData): stri
     </div>
 
     <div class="summary-footer">
-      ${companySettings?.company_name || 'Claimtech'} | ${companySettings?.email || 'info@claimtech.co.za'} | ${companySettings?.website || 'www.claimtech.co.za'}
+      ${companyName} | ${companySettings?.email || 'info@claimtech.co.za'} | ${companySettings?.website || 'www.claimtech.co.za'}
     </div>
   </div>
 
@@ -379,7 +397,7 @@ export function generateAdditionalsLetterHTML(data: AdditionalsLetterData): stri
     <!-- Standard Header -->
     <div class="standard-header">
       <div class="standard-header-company">
-        ${companySettings?.company_name || 'Claimtech'}
+        ${companyName}
       </div>
       <div class="standard-header-details">
         <div><strong>Report No:</strong> ${assessment.assessment_number}</div>

@@ -4,6 +4,7 @@ import { generatePDF } from '$lib/utils/pdf-generator';
 import { generatePhotosHTML } from '$lib/templates/photos-template';
 import { createStreamingResponse } from '$lib/utils/streaming-response';
 import { normalizeAssessment, normalizeCompanySettings, normalizeVehicleIdentification } from '$lib/utils/type-normalizers';
+import { getBrandLogoBase64 } from '$lib/utils/branding';
 
 /**
  * Helper function to downscale image for faster PDF generation
@@ -370,7 +371,8 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 				assessment: (normalizedAssessment || {}) as any,
 				vehicleIdentification: (normalizedVehicleIdentification || {}) as any,
 				companySettings: (normalizedCompanySettings || {}) as any,
-				sections
+				sections,
+				logoBase64: getBrandLogoBase64()
 			});
 
 			yield { status: 'processing', progress: 60, message: 'Rendering PDF with photos (this may take 1-2 minutes)...' };

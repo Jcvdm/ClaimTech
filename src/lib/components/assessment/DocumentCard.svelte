@@ -46,24 +46,24 @@
 <Card class="p-6">
 	<div class="flex items-start justify-between">
 		<div class="flex items-start gap-4">
-			<div class="rounded-lg bg-blue-50 p-3">
+			<div class="rounded-lg bg-slate-100 p-3">
 				{#if icon}
 					{@const Icon = icon}
-					<Icon class="h-6 w-6 text-blue-600" />
+					<Icon class="h-6 w-6 text-slate-700" />
 				{/if}
 			</div>
 			<div class="flex-1">
-				<h3 class="text-lg font-semibold text-gray-900">{title}</h3>
-				<p class="mt-1 text-sm text-gray-600">{description}</p>
+				<h3 class="text-lg font-semibold text-slate-900">{title}</h3>
+				<p class="mt-1 text-sm text-slate-600">{description}</p>
 
 				<div class="mt-3 flex items-center gap-2">
 					{#if generated}
-						<Badge variant="default" class="bg-green-100 text-green-800">
+						<Badge variant="default" class="bg-emerald-100 text-emerald-800">
 							<CheckCircle class="mr-1 h-3 w-3" />
 							Generated
 						</Badge>
 						{#if generatedAt}
-							<span class="text-xs text-gray-500">
+							<span class="text-xs text-slate-500">
 								{formatDate(generatedAt)}
 							</span>
 						{/if}
@@ -82,14 +82,14 @@
 		<div class="mt-4 rounded-md bg-rose-50 p-3">
 			<div class="flex items-center gap-2">
 				<Loader2 class="h-4 w-4 animate-spin text-rose-500" />
-				<p class="text-sm font-medium text-gray-900">Generating document...</p>
+				<p class="text-sm font-medium text-slate-900">Generating document...</p>
 			</div>
 
 			<!-- Progress Bar -->
 			<div class="mt-3">
 				<div class="flex items-center justify-between mb-1">
 					<span class="text-xs text-rose-700">{progressMessage || 'Processing...'}</span>
-					<span class="text-xs font-medium text-gray-900">{progress}%</span>
+					<span class="text-xs font-medium text-slate-900">{progress}%</span>
 				</div>
 				<div class="w-full bg-rose-200 rounded-full h-2 overflow-hidden">
 					<div

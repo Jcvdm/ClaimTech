@@ -24,40 +24,40 @@
       count: data.counts.requests,
       href: '/requests',
       icon: FileText,
-      bgColor: 'bg-blue-50',
-      textColor: 'text-blue-600',
-      badgeBg: 'bg-blue-100',
-      badgeText: 'text-blue-700'
+      bgColor: 'bg-rose-50',
+      textColor: 'text-rose-600',
+      badgeBg: 'bg-rose-100',
+      badgeText: 'text-rose-700'
     },
     {
       label: 'Inspections',
       count: data.counts.inspections,
       href: '/work/inspections',
       icon: ClipboardCheck,
-      bgColor: 'bg-blue-50',
-      textColor: 'text-blue-600',
-      badgeBg: 'bg-blue-100',
-      badgeText: 'text-blue-700'
+      bgColor: 'bg-rose-50',
+      textColor: 'text-rose-600',
+      badgeBg: 'bg-rose-100',
+      badgeText: 'text-rose-700'
     },
     {
       label: 'Appointments',
       count: data.counts.appointments,
       href: '/work/appointments',
       icon: Calendar,
-      bgColor: 'bg-blue-50',
-      textColor: 'text-blue-600',
-      badgeBg: 'bg-blue-100',
-      badgeText: 'text-blue-700'
+      bgColor: 'bg-rose-50',
+      textColor: 'text-rose-600',
+      badgeBg: 'bg-rose-100',
+      badgeText: 'text-rose-700'
     },
     {
       label: 'Open Assessments',
       count: data.counts.assessments,
       href: '/work/assessments',
       icon: ClipboardList,
-      bgColor: 'bg-blue-50',
-      textColor: 'text-blue-600',
-      badgeBg: 'bg-blue-100',
-      badgeText: 'text-blue-700'
+      bgColor: 'bg-slate-50',
+      textColor: 'text-slate-600',
+      badgeBg: 'bg-slate-100',
+      badgeText: 'text-slate-700'
     },
     {
       label: 'Finalized Assessments',
@@ -115,7 +115,7 @@
             <div class={`p-2 rounded-lg ${category.bgColor}`}>
               <Icon class={`h-5 w-5 ${category.textColor}`} />
             </div>
-            <h3 class="text-sm font-medium text-gray-600">{category.label}</h3>
+            <h3 class="text-sm font-medium text-slate-600">{category.label}</h3>
           </div>
           {#if category.count > 0}
             <Badge
@@ -127,12 +127,12 @@
           {/if}
         </div>
         <div class="mb-4">
-          <div class="text-3xl font-bold text-gray-900">{category.count}</div>
-          <p class="text-xs text-gray-500">outstanding items</p>
+          <div class="text-3xl font-bold text-slate-900">{category.count}</div>
+          <p class="text-xs text-slate-500">outstanding items</p>
         </div>
         <a
           href={category.href}
-          class="text-sm font-medium text-blue-600 hover:text-blue-700 hover:underline inline-flex items-center gap-1"
+          class="text-sm font-medium text-rose-600 hover:text-rose-700 hover:underline inline-flex items-center gap-1"
         >
           View all →
         </a>
@@ -142,20 +142,20 @@
 
   <!-- Time Tracking Metrics -->
   <div>
-    <h2 class="mb-4 text-lg font-semibold text-gray-900">Performance Metrics (Last 30 Days)</h2>
+    <h2 class="mb-4 text-lg font-semibold text-slate-900">Performance Metrics (Last 30 Days)</h2>
     <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
       <Card class="p-6">
         <div class="flex items-center gap-3 mb-3">
           <div class="p-2 rounded-lg bg-indigo-50">
             <Clock class="h-5 w-5 text-indigo-600" />
           </div>
-          <h3 class="text-sm font-medium text-gray-600">Avg Assessment Time</h3>
+          <h3 class="text-sm font-medium text-slate-600">Avg Assessment Time</h3>
         </div>
-        <div class="text-3xl font-bold text-gray-900">
+        <div class="text-3xl font-bold text-slate-900">
           {data.timeMetrics.avgAssessmentDays}
-          <span class="text-lg font-normal text-gray-500">days</span>
+          <span class="text-lg font-normal text-slate-500">days</span>
         </div>
-        <p class="text-xs text-gray-500 mt-1">Start to finalization</p>
+        <p class="text-xs text-slate-500 mt-1">Start to finalization</p>
       </Card>
 
       <Card class="p-6">
@@ -163,13 +163,13 @@
           <div class="p-2 rounded-lg bg-purple-50">
             <Clock class="h-5 w-5 text-purple-600" />
           </div>
-          <h3 class="text-sm font-medium text-gray-600">Avg FRC Time</h3>
+          <h3 class="text-sm font-medium text-slate-600">Avg FRC Time</h3>
         </div>
-        <div class="text-3xl font-bold text-gray-900">
+        <div class="text-3xl font-bold text-slate-900">
           {data.timeMetrics.avgFRCDays}
-          <span class="text-lg font-normal text-gray-500">days</span>
+          <span class="text-lg font-normal text-slate-500">days</span>
         </div>
-        <p class="text-xs text-gray-500 mt-1">Start to completion</p>
+        <p class="text-xs text-slate-500 mt-1">Start to completion</p>
       </Card>
 
       <Card class="p-6">
@@ -177,13 +177,13 @@
           <div class="p-2 rounded-lg bg-emerald-50">
             <TrendingUp class="h-5 w-5 text-emerald-600" />
           </div>
-          <h3 class="text-sm font-medium text-gray-600">Total Workflow</h3>
+          <h3 class="text-sm font-medium text-slate-600">Total Workflow</h3>
         </div>
-        <div class="text-3xl font-bold text-gray-900">
+        <div class="text-3xl font-bold text-slate-900">
           {data.timeMetrics.avgTotalWorkflowDays}
-          <span class="text-lg font-normal text-gray-500">days</span>
+          <span class="text-lg font-normal text-slate-500">days</span>
         </div>
-        <p class="text-xs text-gray-500 mt-1">Request to finalization</p>
+        <p class="text-xs text-slate-500 mt-1">Request to finalization</p>
       </Card>
 
       <Card class="p-6">
@@ -191,12 +191,12 @@
           <div class="p-2 rounded-lg bg-green-50">
             <Activity class="h-5 w-5 text-green-600" />
           </div>
-          <h3 class="text-sm font-medium text-gray-600">Completed</h3>
+          <h3 class="text-sm font-medium text-slate-600">Completed</h3>
         </div>
-        <div class="text-3xl font-bold text-gray-900">
+        <div class="text-3xl font-bold text-slate-900">
           {data.timeMetrics.completedLast30Days}
         </div>
-        <p class="text-xs text-gray-500 mt-1">Assessments finalized</p>
+        <p class="text-xs text-slate-500 mt-1">Assessments finalized</p>
       </Card>
     </div>
   </div>
@@ -204,45 +204,45 @@
   <!-- Summary Stats -->
   <div class="grid gap-4 sm:grid-cols-3">
     <Card class="p-6">
-      <h3 class="text-sm font-medium text-gray-600 mb-2">Total Active Work</h3>
-      <div class="text-2xl font-bold text-gray-900">
+      <h3 class="text-sm font-medium text-slate-600 mb-2">Total Active Work</h3>
+      <div class="text-2xl font-bold text-slate-900">
         {data.counts.requests + data.counts.inspections + data.counts.appointments + data.counts.assessments}
       </div>
-      <p class="text-xs text-gray-500 mt-1">Pre-finalization stages</p>
+      <p class="text-xs text-slate-500 mt-1">Pre-finalization stages</p>
     </Card>
-    
+
     <Card class="p-6">
-      <h3 class="text-sm font-medium text-gray-600 mb-2">Finalized Work</h3>
+      <h3 class="text-sm font-medium text-slate-600 mb-2">Finalized Work</h3>
       <div class="text-2xl font-bold text-green-600">
         {data.counts.finalized}
       </div>
-      <p class="text-xs text-gray-500 mt-1">Awaiting additionals/FRC</p>
+      <p class="text-xs text-slate-500 mt-1">Awaiting additionals/FRC</p>
     </Card>
-    
+
     <Card class="p-6">
-      <h3 class="text-sm font-medium text-gray-600 mb-2">FRC & Additionals</h3>
+      <h3 class="text-sm font-medium text-slate-600 mb-2">FRC & Additionals</h3>
       <div class="text-2xl font-bold text-purple-600">
         {data.counts.frc + data.counts.additionals}
       </div>
-      <p class="text-xs text-gray-500 mt-1">Post-finalization processing</p>
+      <p class="text-xs text-slate-500 mt-1">Post-finalization processing</p>
     </Card>
   </div>
 
   <!-- Recent Activity -->
   <div>
-    <h2 class="mb-4 text-lg font-semibold text-gray-900">Recent Activity</h2>
+    <h2 class="mb-4 text-lg font-semibold text-slate-900">Recent Activity</h2>
     <Card class="divide-y">
       {#if data.recentActivity.length > 0}
         {#each data.recentActivity as item}
-          <div class="flex items-center justify-between p-4 hover:bg-gray-50">
+          <div class="flex items-center justify-between p-4 hover:bg-slate-50">
             <div class="flex-1">
               <div class="flex items-center gap-2">
                 <Badge variant="outline" class="text-xs">
                   {typeLabels[item.type] || item.type}
                 </Badge>
-                <p class="text-sm font-medium text-gray-900">{item.title}</p>
+                <p class="text-sm font-medium text-slate-900">{item.title}</p>
               </div>
-              <p class="text-xs text-gray-500 mt-1">
+              <p class="text-xs text-slate-500 mt-1">
                 Updated {new Date(item.updated_at).toLocaleDateString('en-ZA', { 
                   year: 'numeric', 
                   month: 'short', 
@@ -255,7 +255,7 @@
           </div>
         {/each}
       {:else}
-        <div class="p-8 text-center text-gray-500">
+        <div class="p-8 text-center text-slate-500">
           <p class="text-sm">No recent activity</p>
         </div>
       {/if}

@@ -25,6 +25,7 @@ interface ReportData {
 	repairer: any;
 	tyres: any[] | null;
 	vehicleValues: VehicleValues | null; // NEW
+	logoBase64?: string | null;
 	assessmentNotes: string; // NEW - concatenated notes
 	engineer: any; // NEW - engineer with user info
 	vehicleDetails: VehicleDetails;
@@ -47,6 +48,7 @@ export function generateReportHTML(data: ReportData): string {
 		repairer,
 		tyres,
 		vehicleValues,
+		logoBase64,
 		assessmentNotes,
 		engineer,
 		vehicleDetails,
@@ -63,6 +65,14 @@ export function generateReportHTML(data: ReportData): string {
 		const v = value === null || value === undefined ? '' : String(value).trim();
 		return v || '-';
 	};
+
+	const companyName = companySettings?.company_name || 'Claimtech';
+	const logoTextFallback = companySettings?.company_name || 'CLAIMTECH';
+	const logoMarkup = logoBase64
+		? `<img src="data:image/png;base64,${logoBase64}" alt="${escapeHtmlWithLineBreaks(
+				logoTextFallback
+		  )} logo" class="report-logo" />`
+		: logoTextFallback;
 
 	return `
 <!DOCTYPE html>
@@ -89,10 +99,10 @@ export function generateReportHTML(data: ReportData): string {
 		.bg-rose { background-color: #e11d48; }
 		.text-rose { color: #e11d48; }
 		.border-rose { border-color: #e11d48; }
-		
-		.bg-blue { background-color: #1e40af; }
-		.text-blue { color: #1e40af; }
-		.border-blue { border-color: #1e40af; }
+
+		.bg-blue { background-color: #64748b; }
+		.text-blue { color: #64748b; }
+		.border-blue { border-color: #64748b; }
 
 		/* Summary Page Styles */
 		.summary-page {
@@ -118,6 +128,15 @@ export function generateReportHTML(data: ReportData): string {
 			font-weight: bold;
 			color: #e11d48;
 			letter-spacing: -1px;
+			display: flex;
+			align-items: center;
+			gap: 0.75rem;
+		}
+
+		.report-logo {
+			max-height: 70px;
+			width: auto;
+			object-fit: contain;
 		}
 
 		.summary-title {
@@ -283,7 +302,7 @@ export function generateReportHTML(data: ReportData): string {
 	<div class="summary-page">
 		<div class="summary-header">
 			<div class="logo-placeholder">
-				${companySettings?.company_name || 'CLAIMTECH'}
+				${logoMarkup}
 			</div>
 			<div style="text-align: right;">
 				<div style="font-weight: bold; color: #e11d48;">${assessment.report_number || assessment.assessment_number}</div>
@@ -350,7 +369,7 @@ export function generateReportHTML(data: ReportData): string {
 		</div>
 
 		<div class="summary-footer">
-			${companySettings?.company_name || 'Claimtech'} | ${companySettings?.email || 'info@claimtech.co.za'} | ${companySettings?.website || 'www.claimtech.co.za'}
+			${companyName} | ${companySettings?.email || 'info@claimtech.co.za'} | ${companySettings?.website || 'www.claimtech.co.za'}
 		</div>
 	</div>
 

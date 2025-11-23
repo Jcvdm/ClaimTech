@@ -6,6 +6,7 @@ import { createStreamingResponse } from '$lib/utils/streaming-response';
 import { formatDateNumeric } from '$lib/utils/formatters';
 import { getVehicleDetails, getClientDetails, getInsuredDetails } from '$lib/utils/report-data-helpers';
 import { normalizeAssessment, normalizeCompanySettings, normalizeVehicleIdentification } from '$lib/utils/type-normalizers';
+import { getBrandLogoBase64 } from '$lib/utils/branding';
 
 // Helper function to format assessment notes grouped by section
 function formatAssessmentNotesBySection(notes: any[]): string {
@@ -214,6 +215,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 				repairer: (repairer || {}) as any,
 				tyres: (tyres || []) as any,
 				vehicleValues: (vehicleValues || {}) as any,
+				logoBase64: getBrandLogoBase64(),
 				assessmentNotes: formattedNotes,
 				engineer: (engineer || {}) as any,
 				vehicleDetails,

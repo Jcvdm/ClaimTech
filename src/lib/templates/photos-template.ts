@@ -1,5 +1,6 @@
 import type { Assessment, CompanySettings, VehicleIdentification } from '$lib/types/assessment';
 import { formatDateNumeric } from '$lib/utils/formatters';
+import { escapeHtmlWithLineBreaks } from '$lib/utils/sanitize';
 
 interface PhotoSection {
 	title: string;
@@ -14,13 +15,22 @@ interface PhotosData {
 	vehicleIdentification: VehicleIdentification | null;
 	companySettings: CompanySettings | null;
 	sections: PhotoSection[];
+	logoBase64?: string | null;
 }
 
 export function generatePhotosHTML(data: PhotosData): string {
-	const { assessment, vehicleIdentification, companySettings, sections } = data;
+	const { assessment, vehicleIdentification, companySettings, sections, logoBase64 } = data;
 
 	// Calculate total photos for summary
 	const totalPhotos = sections.reduce((acc, section) => acc + section.photos.length, 0);
+
+	const companyName = companySettings?.company_name || 'Claimtech';
+	const logoTextFallback = companySettings?.company_name || 'CLAIMTECH';
+	const logoMarkup = logoBase64
+		? `<img src="data:image/png;base64,${logoBase64}" alt="${escapeHtmlWithLineBreaks(
+				logoTextFallback
+		  )} logo" class="report-logo" />`
+		: logoTextFallback;
 
 	const renderPhotoSection = (section: PhotoSection) => {
 		if (section.photos.length === 0) return '';
@@ -89,6 +99,15 @@ export function generatePhotosHTML(data: PhotosData): string {
 			font-weight: bold;
 			color: #e11d48;
 			letter-spacing: -1px;
+			display: flex;
+			align-items: center;
+			gap: 0.75rem;
+		}
+
+		.report-logo {
+			max-height: 70px;
+			width: auto;
+			object-fit: contain;
 		}
 
 		.summary-title {
@@ -252,7 +271,7 @@ export function generatePhotosHTML(data: PhotosData): string {
 	<div class="summary-page">
 		<div class="summary-header">
 			<div class="logo-placeholder">
-				${companySettings?.company_name || 'CLAIMTECH'}
+				${logoMarkup}
 			</div>
 			<div style="text-align: right;">
 				<div style="font-weight: bold; color: #e11d48;">${assessment.assessment_number}</div>
@@ -287,7 +306,7 @@ export function generatePhotosHTML(data: PhotosData): string {
 		</div>
 
 		<div class="summary-footer">
-			${companySettings?.company_name || 'Claimtech'} | ${companySettings?.email || 'info@claimtech.co.za'} | ${companySettings?.website || 'www.claimtech.co.za'}
+			${companyName} | ${companySettings?.email || 'info@claimtech.co.za'} | ${companySettings?.website || 'www.claimtech.co.za'}
 		</div>
 	</div>
 
@@ -298,7 +317,7 @@ export function generatePhotosHTML(data: PhotosData): string {
 		<!-- Standard Header -->
 		<div class="standard-header">
 			<div class="standard-header-company">
-				${companySettings?.company_name || 'Claimtech'}
+				${companyName}
 			</div>
 			<div class="standard-header-details">
 				<div><strong>Assessment No:</strong> ${assessment.assessment_number}</div>

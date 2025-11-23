@@ -187,7 +187,7 @@
 
 <div class="space-y-2">
 	{#if label}
-		<div class="block text-sm font-medium text-gray-700">
+		<div class="block text-sm font-medium text-slate-700">
 			{label}
 			{#if required}
 				<span class="text-red-500">*</span>
@@ -197,7 +197,7 @@
 
 	{#if currentPhotoUrl}
 		<!-- Photo Preview - Clickable -->
-		<div class="group relative flex items-center justify-center rounded-lg bg-gray-100">
+		<div class="group relative flex items-center justify-center rounded-lg bg-slate-100">
 			<button
 				type="button"
 				onclick={openPhotoViewer}
@@ -241,7 +241,7 @@
 			tabindex="0"
 			class="relative rounded-lg border-2 border-dashed transition-colors {isDragging
 				? 'border-rose-500 bg-rose-50'
-				: 'border-gray-300 bg-gray-50 hover:bg-gray-100'} {uploading || compressing ? 'opacity-50' : ''} {height}"
+				: 'border-slate-300 bg-slate-50 hover:bg-slate-100'} {uploading || compressing ? 'opacity-50' : ''} {height}"
 			aria-label="Photo upload area"
 			ondragenter={handleDragEnter}
 			ondragover={handleDragOver}
@@ -269,8 +269,8 @@
 						<p class="text-sm font-medium text-rose-600">Drop photo here</p>
 					</div>
 				{:else}
-					<Upload class="h-8 w-8 text-gray-400" />
-					<p class="text-sm text-gray-600">
+					<Upload class="h-8 w-8 text-slate-400" />
+					<p class="text-sm text-slate-600">
 						Drag and drop photo here, or
 						<button
 							type="button"
@@ -281,7 +281,7 @@
 							browse
 						</button>
 					</p>
-					<p class="text-xs text-gray-500">Supports: JPG, PNG, GIF</p>
+					<p class="text-xs text-slate-500">Supports: JPG, PNG, GIF</p>
 					<div class="mt-2 flex gap-2 justify-center">
 						<Button
 							size="sm"

@@ -27,7 +27,7 @@
 		class="absolute inset-0 z-40 flex flex-col items-center justify-center bg-white/50 backdrop-blur-sm {className}"
 	>
 		<Loader2 class="mb-2 h-6 w-6 animate-spin text-rose-500" />
-		<p class="text-sm text-gray-600">{message}</p>
+		<p class="text-sm text-slate-600">{message}</p>
 	</div>
 {/if}
 

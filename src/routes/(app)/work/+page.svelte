@@ -77,13 +77,13 @@
 	];
 
 	const colorClasses: Record<string, { bg: string; text: string; border: string }> = {
-		blue: { bg: 'bg-blue-50', text: 'text-blue-700', border: 'border-blue-200' },
+		blue: { bg: 'bg-rose-50', text: 'text-rose-700', border: 'border-rose-200' },
 		purple: { bg: 'bg-purple-50', text: 'text-purple-700', border: 'border-purple-200' },
-		indigo: { bg: 'bg-indigo-50', text: 'text-indigo-700', border: 'border-indigo-200' },
+		indigo: { bg: 'bg-slate-50', text: 'text-slate-700', border: 'border-slate-200' },
 		green: { bg: 'bg-green-50', text: 'text-green-700', border: 'border-green-200' },
 		teal: { bg: 'bg-teal-50', text: 'text-teal-700', border: 'border-teal-200' },
 		orange: { bg: 'bg-orange-50', text: 'text-orange-700', border: 'border-orange-200' },
-		gray: { bg: 'bg-gray-50', text: 'text-gray-700', border: 'border-gray-200' }
+		gray: { bg: 'bg-slate-50', text: 'text-slate-700', border: 'border-slate-200' }
 	};
 </script>
 
@@ -105,16 +105,16 @@
 								<phase.icon class="h-6 w-6 {colors.text}" />
 							</div>
 							<div>
-								<h3 class="text-lg font-semibold text-gray-900">{phase.title}</h3>
-								<p class="mt-1 text-sm text-gray-500">{phase.description}</p>
+								<h3 class="text-lg font-semibold text-slate-900">{phase.title}</h3>
+								<p class="mt-1 text-sm text-slate-500">{phase.description}</p>
 							</div>
 						</div>
 					</div>
 
 					<div class="mt-4 flex items-center justify-between">
 						<div class="flex items-baseline gap-2">
-							<span class="text-3xl font-bold text-gray-900">{phase.count}</span>
-							<span class="text-sm text-gray-500">
+							<span class="text-3xl font-bold text-slate-900">{phase.count}</span>
+							<span class="text-sm text-slate-500">
 								{phase.count === 1 ? 'item' : 'items'}
 							</span>
 						</div>
@@ -137,19 +137,19 @@
 
 	<!-- Quick Stats -->
 	<Card class="p-6">
-		<h3 class="text-lg font-semibold text-gray-900">Quick Stats</h3>
+		<h3 class="text-lg font-semibold text-slate-900">Quick Stats</h3>
 		<div class="mt-4 grid grid-cols-2 gap-4 md:grid-cols-4">
 			<div class="text-center">
-				<p class="text-2xl font-bold text-blue-600">{data.inspectionCount}</p>
-				<p class="text-sm text-gray-500">Pending Inspections</p>
+				<p class="text-2xl font-bold text-rose-600">{data.inspectionCount}</p>
+				<p class="text-sm text-slate-500">Pending Inspections</p>
 			</div>
 			<div class="text-center">
 				<p class="text-2xl font-bold text-purple-600">{data.appointmentCount}</p>
-				<p class="text-sm text-gray-500">Scheduled Appointments</p>
+				<p class="text-sm text-slate-500">Scheduled Appointments</p>
 			</div>
 			<div class="text-center">
-				<p class="text-2xl font-bold text-indigo-600">{data.assessmentCount}</p>
-				<p class="text-sm text-gray-500">Active Assessments</p>
+				<p class="text-2xl font-bold text-slate-600">{data.assessmentCount}</p>
+				<p class="text-sm text-slate-500">Active Assessments</p>
 			</div>
 			<div class="text-center">
 				<p class="text-2xl font-bold text-green-600">{data.finalizedCount}</p>
@@ -160,19 +160,19 @@
 
 	<!-- Workflow Guide -->
 	<Card class="p-6">
-		<h3 class="text-lg font-semibold text-gray-900">Workflow Guide</h3>
+		<h3 class="text-lg font-semibold text-slate-900">Workflow Guide</h3>
 		<div class="mt-4 space-y-3">
 			<div class="flex items-center gap-3 text-sm">
 				<Badge variant="secondary">1</Badge>
-				<span class="text-gray-600">Accept request → Creates inspection</span>
+				<span class="text-slate-600">Accept request → Creates inspection</span>
 			</div>
 			<div class="flex items-center gap-3 text-sm">
 				<Badge variant="secondary">2</Badge>
-				<span class="text-gray-600">Appoint engineer → Schedule appointment</span>
+				<span class="text-slate-600">Appoint engineer → Schedule appointment</span>
 			</div>
 			<div class="flex items-center gap-3 text-sm">
 				<Badge variant="secondary">3</Badge>
-				<span class="text-gray-600">Start assessment → Complete all tabs</span>
+				<span class="text-slate-600">Start assessment → Complete all tabs</span>
 			</div>
 			<div class="flex items-center gap-3 text-sm">
 				<Badge variant="secondary">4</Badge>

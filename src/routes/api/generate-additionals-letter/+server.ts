@@ -6,6 +6,7 @@ import { createStreamingResponse } from '$lib/utils/streaming-response';
 import { getClientByRequestId, getRepairerForEstimate } from '$lib/utils/supabase-query-helpers';
 import type { Assessment } from '$lib/types/assessment';
 import { normalizeEstimate, normalizeCompanySettings } from '$lib/utils/type-normalizers';
+import { getBrandLogoBase64 } from '$lib/utils/branding';
 
 export const POST: RequestHandler = async ({ request, locals }) => {
   const body = await request.json();
@@ -75,7 +76,8 @@ export const POST: RequestHandler = async ({ request, locals }) => {
         companySettings: normalizedCompanySettings ? { ...normalizedCompanySettings, additionals_terms_and_conditions: terms } as any : normalizedCompanySettings,
         request: (requestData || {}) as any,
         client: (client || {}) as any,
-        repairer: (repairer || {}) as any
+        repairer: (repairer || {}) as any,
+        logoBase64: getBrandLogoBase64()
       });
 
       yield { status: 'processing', progress: 60, message: 'Rendering PDF...' };

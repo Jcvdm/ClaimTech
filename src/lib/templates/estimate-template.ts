@@ -11,19 +11,20 @@ import { formatCurrency, formatDateNumeric } from '$lib/utils/formatters';
 import { escapeHtmlWithLineBreaks } from '$lib/utils/sanitize';
 import type { VehicleDetails, ClientDetails, InsuredDetails } from '$lib/utils/report-data-helpers';
 
-interface EstimateData {
-	assessment: Assessment;
-	vehicleIdentification: VehicleIdentification | null;
-	estimate: Estimate | null;
-	lineItems: EstimateLineItem[];
-	companySettings: CompanySettings | null;
-	request: any;
-	client: any;
-	repairer: any;
-	vehicleDetails: VehicleDetails;
-	clientDetails: ClientDetails;
-	insuredDetails: InsuredDetails;
-}
+	interface EstimateData {
+		assessment: Assessment;
+		vehicleIdentification: VehicleIdentification | null;
+		estimate: Estimate | null;
+		lineItems: EstimateLineItem[];
+		companySettings: CompanySettings | null;
+		request: any;
+		client: any;
+		repairer: any;
+		vehicleDetails: VehicleDetails;
+		clientDetails: ClientDetails;
+		insuredDetails: InsuredDetails;
+		logoBase64?: string | null;
+	}
 
 export function generateEstimateHTML(data: EstimateData): string {
 	const {
@@ -37,7 +38,8 @@ export function generateEstimateHTML(data: EstimateData): string {
 		repairer,
 		vehicleDetails,
 		clientDetails,
-		insuredDetails
+		insuredDetails,
+		logoBase64
 	} = data;
 
 	// Convert database values to numbers (they come as strings from PostgreSQL DECIMAL type)
@@ -180,6 +182,14 @@ export function generateEstimateHTML(data: EstimateData): string {
 		return html;
 	};
 
+	const companyName = companySettings?.company_name || 'Claimtech';
+	const logoTextFallback = companySettings?.company_name || 'CLAIMTECH';
+	const logoMarkup = logoBase64
+		? `<img src="data:image/png;base64,${logoBase64}" alt="${escapeHtmlWithLineBreaks(
+				logoTextFallback
+		  )} logo" class="report-logo" />`
+		: logoTextFallback;
+
 	return `
 <!DOCTYPE html>
 <html lang="en">
@@ -225,6 +235,15 @@ export function generateEstimateHTML(data: EstimateData): string {
 			font-weight: bold;
 			color: #e11d48;
 			letter-spacing: -1px;
+			display: flex;
+			align-items: center;
+			gap: 0.75rem;
+		}
+
+		.report-logo {
+			max-height: 70px;
+			width: auto;
+			object-fit: contain;
 		}
 
 		.summary-title {
@@ -463,7 +482,7 @@ export function generateEstimateHTML(data: EstimateData): string {
 	<div class="summary-page">
 		<div class="summary-header">
 			<div class="logo-placeholder">
-				${companySettings?.company_name || 'CLAIMTECH'}
+				${logoMarkup}
 			</div>
 			<div style="text-align: right;">
 				<div style="font-weight: bold; color: #e11d48;">${assessment.assessment_number}</div>
@@ -532,7 +551,7 @@ export function generateEstimateHTML(data: EstimateData): string {
 		` : ''}
 
 		<div class="summary-footer">
-			${companySettings?.company_name || 'Claimtech'} | ${companySettings?.email || 'info@claimtech.co.za'} | ${companySettings?.website || 'www.claimtech.co.za'}
+			${companyName} | ${companySettings?.email || 'info@claimtech.co.za'} | ${companySettings?.website || 'www.claimtech.co.za'}
 		</div>
 	</div>
 
@@ -544,7 +563,7 @@ export function generateEstimateHTML(data: EstimateData): string {
 		<!-- Standard Header -->
 		<div class="standard-header">
 			<div class="standard-header-company">
-				${companySettings?.company_name || 'Claimtech'}
+				${companyName}
 			</div>
 			<div class="standard-header-details">
 				<div><strong>Estimate No:</strong> ${assessment.assessment_number}</div>

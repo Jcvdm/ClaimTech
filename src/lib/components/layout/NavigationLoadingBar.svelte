@@ -13,7 +13,7 @@
 	>
 		<!-- Animated progress bar with shimmer effect -->
 		<div
-			class="h-full w-full bg-gradient-to-r from-transparent via-blue-600 to-transparent animate-loading-bar {className}"
+			class="h-full w-full bg-gradient-to-r from-transparent via-rose-500 to-transparent animate-loading-bar {className}"
 		></div>
 	</div>
 {/if}
