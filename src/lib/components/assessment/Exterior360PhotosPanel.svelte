@@ -73,6 +73,14 @@
 		fileInput?.click();
 	}
 
+	function handleUploadZoneKeydown(event: KeyboardEvent) {
+		// Trigger file input on Enter or Space
+		if (event.key === 'Enter' || event.key === ' ') {
+			event.preventDefault();
+			triggerFileInput();
+		}
+	}
+
 	async function uploadFiles(files: File[]) {
 		uploading = true;
 		uploadProgress = 0;
@@ -229,6 +237,9 @@
 			ondragover={handleDragOver}
 			ondragleave={handleDragLeave}
 			ondrop={handleDrop}
+			role="button"
+			tabindex={0}
+			aria-label="Upload photos - drag and drop or click to select"
 		>
 			{#if uploading}
 				<div class="space-y-3">
@@ -280,6 +291,10 @@
 				ondragleave={handleDragLeave}
 				ondrop={handleDrop}
 				onclick={triggerFileInput}
+				onkeydown={handleUploadZoneKeydown}
+				role="button"
+				tabindex={0}
+				aria-label="Upload photos - drag and drop or click to select"
 			>
 				{#if uploading}
 					<div class="absolute inset-0 flex flex-col items-center justify-center p-4">

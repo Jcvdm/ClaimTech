@@ -718,7 +718,8 @@ import type { Repairer } from '$lib/types/repairer';
 									: `${parseInt(vehicleValues.warranty_expiry_mileage).toLocaleString()} km`}
 							</p>
 						{/if}
-    </div>
+					</div>
+				</div>
 			</Card>
 		{/if}
 

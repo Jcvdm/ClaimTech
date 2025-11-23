@@ -3,12 +3,12 @@ import OpenAI from 'openai';
 import { pipeline } from '@xenova/transformers';
 
 export async function indexContexts(contexts, options = {}) {
-  const { 
+  const {
     useLocalEmbeddings = true,
     batchSize = 100,
     collectionName = 'codebase_contexts'
   } = options;
-  
+
   console.log(`📚 Indexing ${contexts.length} context documents...`);
 
   // Initialize ChromaDB in embedded mode

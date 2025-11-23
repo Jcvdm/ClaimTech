@@ -11,6 +11,7 @@
 		value = $bindable(),
 		placeholder = $bindable(),
 		class: className,
+		type = "single",
 		weekdayFormat = "short",
 		buttonVariant = "ghost",
 		captionLayout = "label",
@@ -40,14 +41,19 @@
 </script>
 
 <!--
-Discriminated Unions + Destructing (required for bindable) do not
-get along, so we shut typescript up by casting `value` to `never`.
+monthFormat and yearFormat are internal props used by Calendar.Caption,
+not props of CalendarPrimitive.Root, so we don't pass them down.
 In Svelte 5, components are dynamic by default, so no need for <svelte:component>
+
+Since we have to destructure the `value` to make it `$bindable`, we need to use `as any` here to avoid
+type errors from the discriminated union of `"single" | "multiple"`.
+(an unfortunate consequence of having to destructure bindable values)
 -->
 <CalendarPrimitive.Root
-	bind:value={value as never}
+	bind:value={value as any}
 	bind:ref
 	bind:placeholder
+	{type}
 	{weekdayFormat}
 	{disableDaysOutsideMonth}
 	class={cn(
@@ -55,9 +61,7 @@ In Svelte 5, components are dynamic by default, so no need for <svelte:component
 		className
 	)}
 	{locale}
-	{...restProps}
-	{monthFormat}
-	{yearFormat}
+	{...(restProps as any)}
 >
 	{#snippet children({ months, weekdays }: { months: Array<any>; weekdays: Array<string> })}
 		<Calendar.Months>

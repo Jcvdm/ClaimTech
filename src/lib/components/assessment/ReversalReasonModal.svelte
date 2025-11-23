@@ -37,6 +37,14 @@
 			onCancel();
 		}
 	}
+
+	function handleOverlayKeydown(e: KeyboardEvent) {
+		// Close modal on Enter or Space when overlay is focused
+		if (e.key === 'Enter' || e.key === ' ') {
+			e.preventDefault();
+			onCancel();
+		}
+	}
 </script>
 
 <svelte:window onkeydown={handleKeydown} />
@@ -45,8 +53,10 @@
 <div
 	class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
 	onclick={onCancel}
+	onkeydown={handleOverlayKeydown}
 	role="button"
-	tabindex={-1}
+	tabindex={0}
+	aria-label="Close modal"
 >
 	<!-- Modal Content -->
 	<Card

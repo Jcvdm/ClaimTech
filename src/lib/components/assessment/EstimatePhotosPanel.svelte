@@ -52,6 +52,14 @@
 		isDragging = false;
 	}
 
+	function handleUploadZoneKeydown(event: KeyboardEvent) {
+		// Trigger file input on Enter or Space
+		if (event.key === 'Enter' || event.key === ' ') {
+			event.preventDefault();
+			triggerFileInput();
+		}
+	}
+
 	async function handleDrop(event: DragEvent) {
 		event.preventDefault();
 		event.stopPropagation();
@@ -284,6 +292,10 @@
 				ondragleave={handleDragLeave}
 				ondrop={handleDrop}
 				onclick={triggerFileInput}
+				onkeydown={handleUploadZoneKeydown}
+				role="button"
+				tabindex={0}
+				aria-label="Upload photos - drag and drop or click to select"
 			>
 				{#if uploading}
 					<div class="absolute inset-0 flex flex-col items-center justify-center p-4">

@@ -71,11 +71,16 @@
 			<div class="space-y-2">
 				<!-- Document Header -->
 				<div class="flex items-center gap-3">
-					<svelte:component 
-						this={getStatusIcon(doc.data.status)} 
-						class="w-5 h-5 {getStatusColor(doc.data.status)} {doc.data.status === 'processing' ? 'animate-spin' : ''}"
-					/>
-					<svelte:component this={doc.icon} class="w-4 h-4 text-gray-500" />
+					{#if getStatusIcon(doc.data.status)}
+						{@const StatusIcon = getStatusIcon(doc.data.status)}
+						<StatusIcon
+							class="w-5 h-5 {getStatusColor(doc.data.status)} {doc.data.status === 'processing' ? 'animate-spin' : ''}"
+						/>
+					{/if}
+					{#if doc.icon}
+						{@const DocIcon = doc.icon}
+						<DocIcon class="w-4 h-4 text-gray-500" />
+					{/if}
 					<span class="font-medium">{doc.label}</span>
 					<span class="ml-auto text-sm text-gray-500">{doc.data.progress}%</span>
 				</div>

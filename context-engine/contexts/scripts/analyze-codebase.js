@@ -13,6 +13,9 @@ export async function analyzeCodebase(basePath) {
     patterns: {}
   };
 
+  // Track processed files to avoid duplicates from overlapping patterns
+  const processedFiles = new Set();
+
   // Find all relevant files
   const patterns = [
     '**/*.{js,jsx,ts,tsx}',
@@ -48,6 +51,12 @@ export async function analyzeCodebase(basePath) {
     });
 
     for (const file of files) {
+      // Skip if already processed (handles overlapping patterns)
+      if (processedFiles.has(file)) {
+        continue;
+      }
+      processedFiles.add(file);
+
       const fullPath = path.join(basePath, file);
 
       // Skip directories
@@ -74,6 +83,8 @@ export async function analyzeCodebase(basePath) {
       });
     }
   }
+
+  console.log(`✅ Processed ${processedFiles.size} unique files (deduplicated from overlapping patterns)`);
 
   return manifest;
 }

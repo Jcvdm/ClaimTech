@@ -47,7 +47,10 @@
 	<div class="flex items-start justify-between">
 		<div class="flex items-start gap-4">
 			<div class="rounded-lg bg-blue-50 p-3">
-				<svelte:component this={icon} class="h-6 w-6 text-blue-600" />
+				{#if icon}
+					{@const Icon = icon}
+					<Icon class="h-6 w-6 text-blue-600" />
+				{/if}
 			</div>
 			<div class="flex-1">
 				<h3 class="text-lg font-semibold text-gray-900">{title}</h3>

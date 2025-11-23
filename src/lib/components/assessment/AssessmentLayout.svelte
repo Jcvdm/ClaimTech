@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { Button } from '$lib/components/ui/button';
+	import { Tabs, TabsList, TabsTrigger } from '$lib/components/ui/tabs';
 	import { Badge } from '$lib/components/ui/badge';
 	import {
 		Save,
@@ -56,6 +57,7 @@
 		vehicleValues?: any;
 		preIncidentEstimate?: any;
 		estimate?: any;
+		children?: any;
 	}
 
 	let {
@@ -77,7 +79,8 @@
 		damageRecord = null,
 		vehicleValues = null,
 		preIncidentEstimate = null,
-		estimate = null
+		estimate = null,
+		children
 	}: Props = $props();
 
 	// Build tabs array dynamically based on finalization status
@@ -218,33 +221,41 @@
 
 	<!-- Tabs -->
 	<div class="border-b bg-white px-4 sm:px-6 lg:px-8">
-		<div class="flex flex-wrap gap-1">
-			{#each tabs() as tab}
-				{@const isActive = currentTab === tab.id}
-				{@const missingCount = getMissingFieldsCount(tab.id)}
-				<button
-					onclick={() => handleTabClick(tab.id)}
-					class="relative flex items-center gap-1 sm:gap-2 border-b-2 px-2 sm:px-3 lg:px-4 py-2 sm:py-2.5 lg:py-3 text-xs sm:text-sm font-medium transition-colors whitespace-nowrap {isActive
-						? 'border-blue-600 text-blue-600'
-						: 'border-transparent text-gray-600 hover:border-gray-300 hover:text-gray-900'}"
-				>
-					<svelte:component this={tab.icon} class="h-3 w-3 sm:h-4 sm:w-4" />
-					<span class="hidden sm:inline">{tab.label}</span>
-					<span class="sm:hidden">{getShortLabel(tab.label)}</span>
-					{#if missingCount > 0}
-						<Badge variant="destructive" class="ml-1 h-4 min-w-4 px-1 text-[10px] font-bold">
-							{missingCount}
-						</Badge>
-					{/if}
-				</button>
-			{/each}
-		</div>
+		<Tabs
+			bind:value={currentTab}
+			class="w-full"
+			onValueChange={(value: string) => onTabChange(value)}
+		>
+			<TabsList class="flex w-full flex-wrap items-center justify-start gap-1 rounded-none border-b border-border bg-transparent p-0">
+				{#each tabs() as tab}
+					{@const missingCount = getMissingFieldsCount(tab.id)}
+					<TabsTrigger
+						value={tab.id}
+						class="relative flex items-center gap-1 sm:gap-2 rounded-none border-b-2 border-transparent px-2 sm:px-3 lg:px-4 py-2 sm:py-2.5 lg:py-3 text-xs sm:text-sm font-medium data-[state=active]:border-blue-600 data-[state=active]:text-blue-600"
+					>
+						{#if tab.icon}
+							{@const Icon = tab.icon}
+							<Icon class="h-3 w-3 sm:h-4 sm:w-4" />
+						{/if}
+						<span class="hidden sm:inline">{tab.label}</span>
+						<span class="sm:hidden">{getShortLabel(tab.label)}</span>
+						{#if missingCount > 0}
+							<Badge variant="destructive" class="ml-1 h-4 min-w-4 px-1 text-[10px] font-bold">
+								{missingCount}
+							</Badge>
+						{/if}
+					</TabsTrigger>
+				{/each}
+			</TabsList>
+		</Tabs>
 	</div>
 
 	<!-- Content Area -->
 	<div class="flex-1 overflow-y-auto p-2 sm:p-3 md:p-4 lg:p-6">
 		<div class="mx-auto w-[98%] sm:w-[95%] md:w-[92%] lg:w-[90%] max-w-[1600px]">
-			<slot />
+			{#if children}
+				{@render children()}
+			{/if}
 		</div>
 	</div>
 </div>

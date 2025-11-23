@@ -1,12 +1,12 @@
 # Project Development Report (PDR) — Shadcn Svelte Alignment
 
-**Last updated**: 2025-11-22 (Session 2 - Warnings Fixes)
+**Last updated**: 2025-11-23 (Session 4 - Warning Fixes Complete)
 
 ## Current Status
 
 **Error Count**: 0 errors ✅
-**Warnings**: 28 warnings (down from 37) - mostly accessibility (a11y) related
-**Progress**: 100% error reduction (449 → 94 → 17 → 1 → 0 errors) 🎉
+**Warnings**: 9 warnings (down from 24) - all intentional state capture patterns
+**Progress**: 100% error reduction (449 → 94 → 17 → 1 → 0 errors) + 62.5% warning reduction (24 → 9) 🎉
 
 ## What we accomplished
 
@@ -22,6 +22,63 @@
 | Database field fixes | ✅ | Fixed 14 errors by aligning code with actual database schema (odometer_photo_url, interior photo fields, label vs description). |
 | Type normalization | ✅ | Implemented type normalizers for domain/database type conversions; fixed null vs undefined mismatches. |
 | **Session 2: Warnings Fixes** | ✅ | Fixed 9 warnings (4 completed, 4 in progress): State reactivity, non-reactive updates, self-closing tags, svelte:component deprecation, accessibility. |
+
+## Session 4 Summary - Warning Fixes Implementation (November 23, 2025)
+
+### Completed Fixes ✅
+
+**Phase 1: Accessibility Fixes (5 warnings eliminated)**
+- `ReversalReasonModal.svelte`: Added `onkeydown` handler + `aria-label` to modal overlay
+- `EstimatePhotosPanel.svelte`: Added keyboard handler + `role="button"` + `aria-label` to upload zone
+- `Exterior360PhotosPanel.svelte`: Added keyboard handlers + ARIA roles to both empty state and grid upload zones
+
+**Phase 2: Deprecation Fixes (6 warnings eliminated)**
+- `DocumentCard.svelte`: Replaced `<svelte:component this={icon} />` with conditional render pattern
+- `AssessmentLayout.svelte`: Replaced `<svelte:component>` and `<slot />` with `{@render children?.()}`
+- `NoteBubble.svelte`: Replaced `<svelte:component this={getNoteIcon()} />` with conditional render
+- `DocumentGenerationProgress.svelte`: Replaced 2x `<svelte:component>` instances with conditional renders
+
+**Phase 3: State Reactivity Fixes (9 warnings → intentional pattern)**
+- `DamageTab.svelte`: Wrapped `useDraft()` calls in `$derived.by()` for reactive `assessmentId` changes
+- Remaining 9 warnings are intentional - correct state capture pattern with `$effect` synchronization
+
+**Phase 4: HTML Structure Fixes (1 warning eliminated)**
+- `EstimateTab.svelte`: Added explicit `</div>` closing tag to prevent implicit closure
+
+**Result**: 24 → 9 warnings (62.5% reduction), 0 errors maintained, production build successful ✅
+
+---
+
+## Session 3 Summary - Calendar Component Type Fixes (November 23, 2025)
+
+### Completed Fixes ✅
+
+**Calendar Discriminated Union Type Resolution** - `calendar.svelte`
+
+**Problem**: Two TypeScript errors in calendar component:
+1. "Expression produces a union type that is too complex to represent" on `bind:value`
+2. Unknown props error: `monthFormat` and `yearFormat` don't exist in `CalendarRootProps`
+
+**Root Cause**:
+- bits-ui Calendar.Root uses a discriminated union pattern where the `type` prop (`"single"` | `"multiple"`) determines whether `value` is `DateValue` or `DateValue[]`
+- When destructuring `value` as `$bindable()` in Svelte 5, TypeScript loses the ability to narrow the discriminated union
+- `monthFormat` and `yearFormat` are custom wrapper props for `Calendar.Caption`, not `CalendarPrimitive.Root` props
+
+**Solution Applied**:
+1. Added `type = "single"` default prop to component props definition
+2. Passed `{type}` explicitly to `CalendarPrimitive.Root` to help with type narrowing
+3. Cast `bind:value={value as any}` to suppress discriminated union complexity error
+4. Cast `{...(restProps as any)}` to suppress remaining union type errors
+5. Removed `monthFormat` and `yearFormat` from being passed to `CalendarPrimitive.Root`
+6. Added explanatory comment documenting the workaround (pattern found in bits-ui Slider component)
+
+**Workaround Justification**: This is a documented limitation in bits-ui itself. The Slider component uses the same `as any` pattern with the comment: "Since we have to destructure the `value` to make it `$bindable`, we need to use `as any` here to avoid type errors from the discriminated union of `"single" | "multiple"`. (an unfortunate consequence of having to destructure bindable values)"
+
+**Result**: ✅ Both calendar errors resolved
+- Error count: 2 → 0
+- Warning count: 28 → 24 (4 warnings reduced)
+
+---
 
 ## Session 2 Summary - Warnings Fixes (November 22, 2025)
 
@@ -57,63 +114,42 @@
    - `EstimatePhotosPanel.svelte`: Pending
    - `Exterior360PhotosPanel.svelte`: Pending
 
-### Remaining Work (28 Warnings)
+### Remaining Work (24 Warnings)
 
-### Phase 1: Calendar Components (9 errors) - HIGH PRIORITY
-**Files**: `calendar.svelte`, `calendar-month-select.svelte`, `calendar-year-select.svelte`, `calendar-caption.svelte`
+**Status**: All TypeScript errors resolved ✅ - Remaining work is accessibility and deprecation warnings
+
+#### Accessibility Warnings (6+ warnings) - MEDIUM PRIORITY
+**Files**: Photo upload panels
+- `AdditionalsPhotosPanel.svelte`: Partially fixed (role/aria-label added, keyboard handlers added)
+- `EstimatePhotosPanel.svelte`: Pending keyboard handlers and ARIA attributes
+- `Exterior360PhotosPanel.svelte`: Pending keyboard handlers and ARIA attributes
 
 **Issues**:
-- Snippet parameters implicitly have 'any' type
-- Event handler parameters need explicit typing
-
-**See**: "Svelte 5 Error Patterns → Snippet Type Errors" section below
+- Missing `role` attributes on interactive drag zones
+- Missing keyboard event handlers (Enter/Space keys)
+- Missing `aria-label` descriptions
 
 ---
 
-### Phase 2: Date Picker & Dropdown (3 errors) - HIGH PRIORITY
-**Files**: `date-picker.svelte`, `dropdown-menu-checkbox-group.svelte`
-
-**Issues**:
-- Bits UI v3 API changes (`disableAutoClose` removed)
-- CheckboxGroup component removed from dropdown-menu
-
-**See**: "Svelte 5 Error Patterns → Bits UI v3 Migration" section below
+#### Deprecation Warnings (6+ warnings) - LOW PRIORITY
+**Files**: Assessment and component files
+- `<svelte:component>` deprecation warnings (mostly resolved in Session 2)
+- `<slot>` deprecation warnings
+- Implicitly closed element warnings
 
 ---
 
-### Phase 3: Assessment Components (6 errors) - MEDIUM PRIORITY
-**Files**: `ReversalReasonModal.svelte`, `OriginalEstimateLinesPanel.svelte`, `AdditionalsTab.svelte`
-
-**Issues**:
-- Type definition mismatches (string vs number)
-- Missing type exports
-- Null safety issues
-
-**See**: "Svelte 5 Error Patterns → Type Mismatches" section below
+#### State Reactivity Warnings (9+ warnings) - LOW PRIORITY
+**Files**: `DamageTab.svelte` and related assessment components
+- State initialization patterns that could be optimized
+- Non-reactive update patterns
 
 ---
 
-### Phase 4: Form Components (5 errors) - MEDIUM PRIORITY
-**Files**: `ClientForm.svelte`, `IncidentInfoSection.svelte`, `PhotoUploadV2.svelte`
-
-**Issues**:
-- Shadcn component prop mismatches
-- Service signature changes
-- DateValue type conversions
-
-**See**: "Svelte 5 Error Patterns → Form & Input Errors" section below
-
----
-
-### Phase 5-7: Route Components (71 errors) - MIXED PRIORITY
-**Files**: Various route pages, DataTable usage, template functions
-
-**Issues**:
-- DataTable generic constraints
-- Template data type mismatches
-- Service input nullability
-
-**See**: "Svelte 5 Error Patterns → DataTable & Routes" section below
+#### Other Warnings (3+ warnings) - LOW PRIORITY
+- Unused variables
+- Type inference issues
+- Minor accessibility edge cases
 
 ## Manual testing performed
 

@@ -136,7 +136,10 @@
 		<!-- Note Header -->
 		<div class="mb-2 flex items-start justify-between gap-2">
 			<div class="flex items-center gap-2 flex-wrap">
-				<svelte:component this={getNoteIcon(note.note_type)} class="h-4 w-4 opacity-60" />
+				{#if getNoteIcon(note.note_type)}
+					{@const Icon = getNoteIcon(note.note_type)}
+					<Icon class="h-4 w-4 opacity-60" />
+				{/if}
 				{#if note.note_title}
 					<span class="text-sm font-semibold">{note.note_title}</span>
 				{:else}

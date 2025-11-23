@@ -27,8 +27,9 @@
 	const onRegisterSave = $derived(props.onRegisterSave);
 
 	// Initialize localStorage draft for critical fields
-	const mismatchNotesDraft = useDraft(`assessment-${assessmentId}-mismatch-notes`);
-	const damageDescriptionDraft = useDraft(`assessment-${assessmentId}-damage-description`);
+	// Use $derived.by to ensure drafts are recreated when assessmentId changes
+	const mismatchNotesDraft = $derived.by(() => useDraft(`assessment-${assessmentId}-mismatch-notes`));
+	const damageDescriptionDraft = $derived.by(() => useDraft(`assessment-${assessmentId}-damage-description`));
 
 	// Local state variables for all fields
 	let matchesDescription = $state<boolean | null>(damageRecord?.matches_description ?? null);
