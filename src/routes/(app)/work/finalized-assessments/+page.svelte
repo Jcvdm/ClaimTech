@@ -13,6 +13,7 @@
 	import TableCell from '$lib/components/data/TableCell.svelte';
 	import SummaryComponent from '$lib/components/shared/SummaryComponent.svelte';
 	import { Button } from '$lib/components/ui/button';
+	import LoadingButton from '$lib/components/ui/button/LoadingButton.svelte';
 	import * as Dialog from '$lib/components/ui/dialog';
 	import {
 		FileCheck,
@@ -193,10 +194,18 @@
 		description="View all finalized assessments with estimates sent to clients"
 	>
 		{#snippet actions()}
-			<Button onclick={handleRefresh} disabled={refreshing} variant="outline" size="sm">
-				<RefreshCw class="h-4 w-4 {refreshing ? 'animate-spin' : ''}" />
-				{refreshing ? 'Refreshing...' : 'Refresh'}
-			</Button>
+			<LoadingButton
+				onclick={handleRefresh}
+				loading={refreshing}
+				variant="outline"
+				size="sm"
+				class="gap-2"
+			>
+				{#if !refreshing}
+					<RefreshCw class="h-4 w-4" />
+				{/if}
+				Refresh
+			</LoadingButton>
 		{/snippet}
 	</PageHeader>
 

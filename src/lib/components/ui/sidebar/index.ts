@@ -22,6 +22,7 @@ import Rail from "./sidebar-rail.svelte";
 import Separator from "./sidebar-separator.svelte";
 import Trigger from "./sidebar-trigger.svelte";
 import Root from "./sidebar.svelte";
+import Card from "./sidebar-card.svelte";
 
 export {
 	Content,
@@ -72,4 +73,5 @@ export {
 	Trigger as SidebarTrigger,
 	Trigger,
 	useSidebar,
+	Card as SidebarCard,
 };

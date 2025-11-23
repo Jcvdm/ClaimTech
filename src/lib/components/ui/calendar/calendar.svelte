@@ -22,6 +22,7 @@
 		yearFormat = "numeric",
 		day,
 		disableDaysOutsideMonth = false,
+		onValueChange,
 		...restProps
 	}: WithoutChildrenOrChild<CalendarPrimitive.RootProps> & {
 		buttonVariant?: ButtonVariant;
@@ -31,6 +32,7 @@
 		monthFormat?: any;
 		yearFormat?: any;
 		day?: Snippet<[{ day: DateValue; outsideMonth: boolean }]>;
+		onValueChange?: (value: DateValue | DateValue[] | undefined) => void;
 	} = $props();
 
 	const monthFormat = $derived.by(() => {
@@ -56,6 +58,7 @@ type errors from the discriminated union of `"single" | "multiple"`.
 	{type}
 	{weekdayFormat}
 	{disableDaysOutsideMonth}
+	{onValueChange}
 	class={cn(
 		"bg-background group/calendar p-3 [--cell-size:--spacing(8)] [[data-slot=card-content]_&]:bg-transparent [[data-slot=popover-content]_&]:bg-transparent",
 		className

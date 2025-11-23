@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { Card } from '$lib/components/ui/card';
 	import { Button } from '$lib/components/ui/button';
+	import LoadingButton from '$lib/components/ui/button/LoadingButton.svelte';
 	import { Input } from '$lib/components/ui/input';
 	import * as Dialog from '$lib/components/ui/dialog';
 	import FormField from '../forms/FormField.svelte';
@@ -645,10 +646,10 @@
 		</div>
 
 		<Dialog.Footer>
-			<Button variant="outline" onclick={closeQuickAddModal}>Cancel</Button>
-			<Button onclick={handleQuickAddRepairer} disabled={quickAddLoading || !newRepairerName}>
-				{quickAddLoading ? 'Adding...' : 'Add Repairer'}
-			</Button>
+			<Button variant="outline" onclick={closeQuickAddModal} disabled={quickAddLoading}>Cancel</Button>
+			<LoadingButton onclick={handleQuickAddRepairer} loading={quickAddLoading} disabled={!newRepairerName}>
+				Add Repairer
+			</LoadingButton>
 		</Dialog.Footer>
 	</Dialog.Content>
 </Dialog.Root>

@@ -326,34 +326,43 @@
 	</div>
 
 	<!-- Type Filter Tabs -->
-	<Tabs
-		bind:value={selectedType}
-		class="w-full"
-		onValueChange={(value: string) => (selectedType = value as ArchiveType)}
-	>
-		<TabsList
-			class="flex w-full items-center justify-start gap-2 rounded-none border-b border-border bg-transparent p-0"
-		>
+	<Tabs bind:value={selectedType} class="w-full">
+		<TabsList class="flex w-full items-center justify-start gap-2 rounded-none border-b border-border bg-transparent p-0">
 			<TabsTrigger
 				value="all"
-				class="w-auto gap-2 rounded-none border-b-2 border-transparent px-4 py-2 text-sm data-[state=active]:border-rose-500"
+				class="relative flex h-8 items-center gap-2 rounded-md border border-transparent px-3 py-1.5 text-xs font-medium text-muted-foreground ring-offset-background transition-all hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-rose-500 data-[state=active]:text-white data-[state=active]:shadow-sm sm:h-9 sm:px-4 sm:py-2 sm:text-sm"
 			>
 				<span>All</span>
-				<Badge variant="secondary">{typeCounts.all}</Badge>
+				<Badge
+					variant="secondary"
+					class="bg-muted text-muted-foreground group-data-[state=active]:bg-rose-600 group-data-[state=active]:text-white"
+				>
+					{typeCounts.all}
+				</Badge>
 			</TabsTrigger>
 			<TabsTrigger
 				value="completed"
-				class="w-auto gap-2 rounded-none border-b-2 border-transparent px-4 py-2 text-sm data-[state=active]:border-rose-500"
+				class="relative flex h-8 items-center gap-2 rounded-md border border-transparent px-3 py-1.5 text-xs font-medium text-muted-foreground ring-offset-background transition-all hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-rose-500 data-[state=active]:text-white data-[state=active]:shadow-sm sm:h-9 sm:px-4 sm:py-2 sm:text-sm"
 			>
 				<span>Completed</span>
-				<Badge variant="secondary">{typeCounts.completed}</Badge>
+				<Badge
+					variant="secondary"
+					class="bg-muted text-muted-foreground group-data-[state=active]:bg-rose-600 group-data-[state=active]:text-white"
+				>
+					{typeCounts.completed}
+				</Badge>
 			</TabsTrigger>
 			<TabsTrigger
 				value="cancelled"
-				class="w-auto gap-2 rounded-none border-b-2 border-transparent px-4 py-2 text-sm data-[state=active]:border-rose-500"
+				class="relative flex h-8 items-center gap-2 rounded-md border border-transparent px-3 py-1.5 text-xs font-medium text-muted-foreground ring-offset-background transition-all hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-rose-500 data-[state=active]:text-white data-[state=active]:shadow-sm sm:h-9 sm:px-4 sm:py-2 sm:text-sm"
 			>
 				<span>Cancelled</span>
-				<Badge variant="secondary">{typeCounts.cancelled}</Badge>
+				<Badge
+					variant="secondary"
+					class="bg-muted text-muted-foreground group-data-[state=active]:bg-rose-600 group-data-[state=active]:text-white"
+				>
+					{typeCounts.cancelled}
+				</Badge>
 			</TabsTrigger>
 		</TabsList>
 	</Tabs>

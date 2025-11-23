@@ -1,12 +1,13 @@
 # Project Development Report (PDR) — Shadcn Svelte Alignment
 
-**Last updated**: 2025-11-23 (Session 4 - Warning Fixes Complete)
+**Last updated**: 2025-11-23 (Session 5 - Loading States Implementation Planning)
 
 ## Current Status
 
 **Error Count**: 0 errors ✅
 **Warnings**: 9 warnings (down from 24) - all intentional state capture patterns
 **Progress**: 100% error reduction (449 → 94 → 17 → 1 → 0 errors) + 62.5% warning reduction (24 → 9) 🎉
+**Next Focus**: Loading States Implementation (User Experience Enhancement)
 
 ## What we accomplished
 
@@ -46,6 +47,52 @@
 - `EstimateTab.svelte`: Added explicit `</div>` closing tag to prevent implicit closure
 
 **Result**: 24 → 9 warnings (62.5% reduction), 0 errors maintained, production build successful ✅
+
+---
+
+## Session 5 Summary - Loading States Implementation Planning (November 23, 2025)
+
+### Planning Phase ✅
+
+**Objective**: Implement comprehensive loading indicators across all user-triggered async operations to provide clear visual feedback and prevent user confusion.
+
+**Current State Analysis**:
+- ✅ **Pattern 1**: Global Navigation Bar (fully implemented, automatic)
+- ✅ **Pattern 2**: Table Row Loading (7 list pages implemented with useNavigationLoading)
+- ✅ **Pattern 3**: Button Loading States (ActionIconButton component exists)
+- ❌ **Missing**: Form submissions, modal actions, silent auto-saves lack loading feedback
+
+**Scope Defined**:
+- **Phase 1**: Critical form submissions and modal actions (8 locations) - 4-6 hours
+- **Phase 2**: Silent auto-saves and UX improvements (6 locations) - 3-4 hours
+- **Phase 3**: Skeleton loaders and polish (3 areas) - 2-3 hours
+- **Total Estimated Effort**: 9-13 hours
+
+**Deliverables Created**:
+1. ✅ Comprehensive PDR: `.agent/Tasks/active/LOADING_STATES_IMPLEMENTATION_PDR.md`
+2. ✅ Task breakdown: 25 subtasks across 3 phases
+3. ✅ Code examples and specifications for each implementation
+4. ✅ Testing strategy and success criteria
+5. ✅ Risk mitigation plan
+
+**Key Components to Create**:
+- `SaveIndicator.svelte` - For silent auto-save feedback
+- `SkeletonCard.svelte` - For initial load states
+
+**Files to Modify** (Phase 1 - Critical):
+1. `src/routes/(app)/requests/new/+page.svelte` - Add loading to FormActions
+2. `src/routes/(app)/clients/new/+page.svelte` - Verify loading state
+3. `src/routes/(app)/clients/[id]/edit/+page.svelte` - Add loading to FormActions
+4. `src/routes/(app)/repairers/new/+page.svelte` - Add loading to FormActions
+5. `src/routes/(app)/engineers/[id]/edit/+page.svelte` - Replace with LoadingButton
+6. `src/routes/(app)/work/inspections/[id]/+page.svelte` - Add LoadingButton to 2 modals
+7. `src/lib/components/assessment/RatesAndRepairerConfiguration.svelte` - Add LoadingButton
+
+**Next Steps**:
+1. Begin Phase 1 implementation (critical user-facing fixes)
+2. Test each change individually
+3. Commit after each phase completion
+4. Update documentation with results
 
 ---
 

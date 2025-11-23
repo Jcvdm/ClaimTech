@@ -1,8 +1,9 @@
 <script lang="ts">
 	import { Button } from '$lib/components/ui/button';
-	import { Camera, Upload, X, Loader2 } from 'lucide-svelte';
+	import { Camera, Upload, X } from 'lucide-svelte';
 	import { storageService } from '$lib/services/storage.service';
 	import PhotoViewer from '$lib/components/photo-viewer/PhotoViewer.svelte';
+	import { FileUploadProgress } from '$lib/components/ui/progress';
 
 	interface Props {
 		value?: string | null;
@@ -34,7 +35,9 @@
 	const height = $derived(props.height ?? 'h-32');
 
 	let uploading = $state(false);
+	let compressing = $state(false);
 	let uploadProgress = $state(0);
+	let compressionProgress = $state(0);
 	let error = $state<string | null>(null);
 	let isDragging = $state(false);
 	let fileInput: HTMLInputElement;
@@ -105,73 +108,71 @@
 		isDragging = false;
 
 		const file = event.dataTransfer?.files?.[0];
-		if (!file) return;
-
-		// Validate file type
-		if (!file.type.startsWith('image/')) {
-			error = 'Please drop an image file';
-			return;
+		if (file) {
+			await uploadFile(file);
 		}
-
-		await uploadFile(file);
 	}
 
+	// Upload file with compression
 	async function uploadFile(file: File) {
-		uploading = true;
+		uploading = false;
+		compressing = true;
 		uploadProgress = 0;
+		compressionProgress = 0;
 		error = null;
 
 		try {
-			// Simulate progress for better UX
-			const progressInterval = setInterval(() => {
-				if (uploadProgress < 90) {
-					uploadProgress += 10;
-				}
-			}, 100);
-
+			// Upload with compression and upload progress tracking
 			const result = await storageService.uploadAssessmentPhoto(
 				file,
 				assessmentId,
 				category,
-				subcategory
+				subcategory,
+				{
+					onCompressionProgress: (progress: number) => {
+						compressing = true;
+						uploading = false;
+						compressionProgress = progress;
+					},
+					onUploadProgress: (progress: number) => {
+						compressing = false;
+						uploading = true;
+						uploadProgress = progress;
+					}
+				}
 			);
 
-			clearInterval(progressInterval);
-			uploadProgress = 100;
-
-			// Small delay to show 100% before completing
-			await new Promise(resolve => setTimeout(resolve, 300));
-
-			// Set optimistic display URL immediately for instant UI feedback
+			// Set optimistic display
 			displayUrl = result.url;
 
-			// Notify parent to persist and update props
+			// Notify parent
 			onUpload(result.url);
 		} catch (err) {
 			console.error('Upload error:', err);
 			error = err instanceof Error ? err.message : 'Failed to upload photo';
 		} finally {
 			uploading = false;
+			compressing = false;
 			uploadProgress = 0;
+			compressionProgress = 0;
 		}
 	}
 
-	function handleRemove() {
-		// Clear optimistic display
-		displayUrl = null;
-
-		if (onRemove) {
-			onRemove();
-		}
-		error = null;
-	}
-
+	// Helper functions
 	function triggerFileInput() {
 		fileInput?.click();
 	}
 
 	function triggerCameraInput() {
 		cameraInput?.click();
+	}
+
+	function handleRemove() {
+		if (onRemove) {
+			onRemove();
+		}
+		displayUrl = null;
+		error = null;
 	}
 
 	// Photo viewer functions
@@ -196,20 +197,20 @@
 
 	{#if currentPhotoUrl}
 		<!-- Photo Preview - Clickable -->
-		<div class="relative bg-gray-100 rounded-lg flex items-center justify-center group">
+		<div class="group relative flex items-center justify-center rounded-lg bg-gray-100">
 			<button
 				type="button"
 				onclick={openPhotoViewer}
-				class="w-full {height} rounded-lg overflow-hidden cursor-pointer"
+				class="w-full {height} cursor-pointer overflow-hidden rounded-lg"
 			>
 				<img
 					src={currentPhotoUrl}
 					alt={label || 'Photo'}
-					class="w-full h-full object-contain hover:opacity-90 transition-opacity"
+					class="h-full w-full object-contain transition-opacity hover:opacity-90"
 				/>
 			</button>
 			{#if !disabled}
-				<div class="absolute right-2 top-2 flex gap-2 z-10">
+				<div class="absolute top-2 right-2 z-10 flex gap-2">
 					<Button
 						size="sm"
 						variant="outline"
@@ -236,80 +237,72 @@
 	{:else}
 		<!-- Upload Area with Drag & Drop -->
 		<div
-			class="flex gap-2"
-			role="region"
+			role="button"
+			tabindex="0"
+			class="relative rounded-lg border-2 border-dashed transition-colors {isDragging
+				? 'border-rose-500 bg-rose-50'
+				: 'border-gray-300 bg-gray-50 hover:bg-gray-100'} {uploading || compressing ? 'opacity-50' : ''} {height}"
 			aria-label="Photo upload area"
 			ondragenter={handleDragEnter}
 			ondragover={handleDragOver}
 			ondragleave={handleDragLeave}
 			ondrop={handleDrop}
+			onkeydown={(event) => {
+				if (event.key === 'Enter' || event.key === ' ') {
+					event.preventDefault();
+					triggerFileInput();
+				}
+			}}
 		>
-			<button
-				type="button"
-				class="flex {height} flex-1 items-center justify-center rounded-lg border-2 border-dashed transition-all {isDragging
-					? 'border-blue-500 bg-blue-50'
-					: 'border-gray-300 bg-gray-50 hover:bg-gray-100'} disabled:cursor-not-allowed disabled:opacity-50"
-				onclick={triggerCameraInput}
-				disabled={disabled || uploading}
-			>
-				<div class="text-center pointer-events-none">
-					{#if uploading}
-						<div class="space-y-2">
-							<Loader2 class="mx-auto h-8 w-8 animate-spin text-blue-500" />
-							<p class="text-sm font-medium text-gray-700">Uploading...</p>
-							<div class="mx-auto h-2 w-32 overflow-hidden rounded-full bg-gray-200">
-								<div
-									class="h-full bg-blue-500 transition-all duration-300"
-									style="width: {uploadProgress}%"
-								></div>
-							</div>
-							<p class="text-xs text-gray-500">{uploadProgress}%</p>
-						</div>
-					{:else if isDragging}
-						<div>
-							<Upload class="mx-auto h-8 w-8 text-blue-500" />
-							<p class="mt-2 text-sm font-medium text-blue-600">Drop photo here</p>
-						</div>
-					{:else}
-						<Camera class="mx-auto h-8 w-8 text-gray-400" />
-						<p class="mt-2 text-sm text-gray-600">Take Photo</p>
-					{/if}
-				</div>
-			</button>
-
-			<button
-				type="button"
-				class="flex {height} flex-1 items-center justify-center rounded-lg border-2 border-dashed transition-all {isDragging
-					? 'border-blue-500 bg-blue-50'
-					: 'border-gray-300 bg-gray-50 hover:bg-gray-100'} disabled:cursor-not-allowed disabled:opacity-50"
-				onclick={triggerFileInput}
-				disabled={disabled || uploading}
-			>
-				<div class="text-center pointer-events-none">
-					{#if uploading}
-						<div class="space-y-2">
-							<Loader2 class="mx-auto h-8 w-8 animate-spin text-blue-500" />
-							<p class="text-sm font-medium text-gray-700">Uploading...</p>
-							<div class="mx-auto h-2 w-32 overflow-hidden rounded-full bg-gray-200">
-								<div
-									class="h-full bg-blue-500 transition-all duration-300"
-									style="width: {uploadProgress}%"
-								></div>
-							</div>
-							<p class="text-xs text-gray-500">{uploadProgress}%</p>
-						</div>
-					{:else if isDragging}
-						<div>
-							<Upload class="mx-auto h-8 w-8 text-blue-500" />
-							<p class="mt-2 text-sm font-medium text-blue-600">Drop photo here</p>
-						</div>
-					{:else}
-						<Upload class="mx-auto h-8 w-8 text-gray-400" />
-						<p class="mt-2 text-sm text-gray-600">Upload File</p>
-						<p class="mt-1 text-xs text-gray-500">or drag & drop</p>
-					{/if}
-				</div>
-			</button>
+			<div class="flex h-full min-h-full flex-col items-center justify-center gap-3 p-6 text-center">
+				{#if compressing || uploading}
+					<FileUploadProgress
+						isCompressing={compressing}
+						isUploading={uploading}
+						compressionProgress={compressionProgress}
+						uploadProgress={uploadProgress}
+						fileName=""
+					/>
+				{:else if isDragging}
+					<div class="flex flex-col items-center gap-2">
+						<Upload class="h-8 w-8 text-rose-500" />
+						<p class="text-sm font-medium text-rose-600">Drop photo here</p>
+					</div>
+				{:else}
+					<Upload class="h-8 w-8 text-gray-400" />
+					<p class="text-sm text-gray-600">
+						Drag and drop photo here, or
+						<button
+							type="button"
+							class="ml-1 text-rose-600 font-medium hover:text-rose-700 disabled:cursor-not-allowed disabled:text-rose-300"
+							onclick={triggerFileInput}
+							disabled={disabled || uploading || compressing}
+						>
+							browse
+						</button>
+					</p>
+					<p class="text-xs text-gray-500">Supports: JPG, PNG, GIF</p>
+					<div class="mt-2 flex gap-2 justify-center">
+						<Button
+							size="sm"
+							variant="outline"
+							onclick={triggerCameraInput}
+							disabled={disabled || uploading || compressing}
+						>
+							<Camera class="mr-2 h-4 w-4" />
+							Camera
+						</Button>
+						<Button
+							size="sm"
+							onclick={triggerFileInput}
+							disabled={disabled || uploading || compressing}
+						>
+							<Upload class="mr-2 h-4 w-4" />
+							Upload
+						</Button>
+					</div>
+				{/if}
+			</div>
 		</div>
 	{/if}
 
@@ -352,7 +345,7 @@
 		startIndex={0}
 		onClose={closePhotoViewer}
 		onDelete={onRemove
-			? async (photoId: string, photoPath: string) => {
+			? async () => {
 					handleRemove();
 					closePhotoViewer();
 				}

@@ -62,6 +62,7 @@
 
 	let currentTab = $state(data.assessment.current_tab || 'identification');
 	let saving = $state(false);
+	let tabLoading = $state(false);
 	let generatingDocument = $state(false); // Flag to pause auto-save during document generation
 	let lastSaved = $state<string | null>(null);
 	let autoSaveInterval: ReturnType<typeof setInterval> | null = null;
@@ -73,27 +74,37 @@
 	let damageTabSaveFn: (() => Promise<void>) | null = null;
 
 	async function handleTabChange(tabId: string) {
-		// Auto-save current tab if leaving it with unsaved changes
-		if (currentTab === 'estimate' && estimateTabSaveFn) {
-			await estimateTabSaveFn();
-		} else if (currentTab === 'pre-incident' && preIncidentEstimateTabSaveFn) {
-			await preIncidentEstimateTabSaveFn();
-		} else if (currentTab === 'tyres' && tyresTabSaveFn) {
-			await tyresTabSaveFn();
-		} else if (currentTab === 'damage' && damageTabSaveFn) {
-			await damageTabSaveFn();
+		// Prevent concurrent tab changes
+		if (tabLoading || currentTab === tabId) return;
+
+		tabLoading = true;
+		try {
+			// Auto-save current tab if leaving it with unsaved changes
+			if (currentTab === 'estimate' && estimateTabSaveFn) {
+				await estimateTabSaveFn();
+			} else if (currentTab === 'pre-incident' && preIncidentEstimateTabSaveFn) {
+				await preIncidentEstimateTabSaveFn();
+			} else if (currentTab === 'tyres' && tyresTabSaveFn) {
+				await tyresTabSaveFn();
+			} else if (currentTab === 'damage' && damageTabSaveFn) {
+				await damageTabSaveFn();
+			}
+
+			// Auto-save before switching tabs
+			await handleSave();
+
+			// Refresh notes from database when switching tabs
+			// This ensures any notes added on other tabs (like betterment notes) are visible
+			const updatedNotes = await assessmentNotesService.getNotesByAssessment(data.assessment.id);
+			data.notes = updatedNotes;
+
+			currentTab = tabId;
+			await assessmentService.updateCurrentTab(data.assessment.id, tabId);
+		} catch (error) {
+			console.error('Error changing tab:', error);
+		} finally {
+			tabLoading = false;
 		}
-
-		// Auto-save before switching tabs
-		await handleSave();
-
-		// Refresh notes from database when switching tabs
-		// This ensures any notes added on other tabs (like betterment notes) are visible
-		const updatedNotes = await assessmentNotesService.getNotesByAssessment(data.assessment.id);
-		data.notes = updatedNotes;
-
-		currentTab = tabId;
-		await assessmentService.updateCurrentTab(data.assessment.id, tabId);
 	}
 
 	async function handleSave() {
@@ -762,6 +773,7 @@
 	onCancel={handleCancelAssessment}
 	{saving}
 	{lastSaved}
+	{tabLoading}
 	userRole={data.role}
 	vehicleIdentification={data.vehicleIdentification}
 	exterior360={data.exterior360}

@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { Card } from '$lib/components/ui/card';
 	import { Button } from '$lib/components/ui/button';
+	import LoadingButton from '$lib/components/ui/button/LoadingButton.svelte';
 	import { Badge } from '$lib/components/ui/badge';
 	import RatesAndRepairerConfiguration from './RatesAndRepairerConfiguration.svelte';
 	import QuickAddLineItem from './QuickAddLineItem.svelte';
@@ -678,16 +679,20 @@
 							</div>
 						</div>
 						<div class="mt-4 flex justify-end">
-							<Button
-								size="sm"
-								variant="outline"
-								onclick={handleSyncRates}
-								disabled={loading}
-								class="border-yellow-600 text-yellow-900 hover:bg-yellow-100"
-							>
-								<RefreshCw class="mr-2 h-4 w-4" />
-								Sync Rates from Estimate
-							</Button>
+							<div class="mt-4 flex justify-end">
+								<LoadingButton
+									size="sm"
+									variant="outline"
+									onclick={handleSyncRates}
+									{loading}
+									class="border-yellow-600 text-yellow-900 hover:bg-yellow-100"
+								>
+									{#if !loading}
+										<RefreshCw class="mr-2 h-4 w-4" />
+									{/if}
+									Sync Rates from Estimate
+								</LoadingButton>
+							</div>
 						</div>
 					</div>
 				</div>

@@ -1,18 +1,19 @@
 <script lang="ts">
 	import { Card } from '$lib/components/ui/card';
 	import { Button } from '$lib/components/ui/button';
+	import LoadingButton from '$lib/components/ui/button/LoadingButton.svelte';
 	import { Badge } from '$lib/components/ui/badge';
-	import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '$lib/components/ui/dialog';
+	import {
+		Dialog,
+		DialogContent,
+		DialogHeader,
+		DialogTitle,
+		DialogDescription
+	} from '$lib/components/ui/dialog';
 	import DocumentCard from './DocumentCard.svelte';
 	import DocumentGenerationProgress from './DocumentGenerationProgress.svelte';
-	import {
-		FileText,
-		Image,
-		FileArchive,
-		Package,
-		CircleCheck,
-		AlertCircle
-	} from 'lucide-svelte';
+	import DocumentLoadingModal from '$lib/components/layout/DocumentLoadingModal.svelte';
+	import { FileText, Image, FileArchive, Package, CircleCheck, AlertCircle } from 'lucide-svelte';
 	import type { Assessment, DocumentGenerationStatus } from '$lib/types/assessment';
 	import { documentGenerationService } from '$lib/services/document-generation.service';
 	import { assessmentService } from '$lib/services/assessment.service';
@@ -61,44 +62,44 @@
 	const exterior360Photos = $derived(props.exterior360Photos ?? []);
 	const tyrePhotos = $derived(props.tyrePhotos ?? []);
 
-let generationStatus = $state<DocumentGenerationStatus>({
-	report_generated: false,
-	estimate_generated: false,
-	photos_pdf_generated: false,
-	photos_zip_generated: false,
-	frc_report_generated: false,
-	additionals_letter_generated: false,
-	all_generated: false,
-	generated_at: null
-});
+	let generationStatus = $state<DocumentGenerationStatus>({
+		report_generated: false,
+		estimate_generated: false,
+		photos_pdf_generated: false,
+		photos_zip_generated: false,
+		frc_report_generated: false,
+		additionals_letter_generated: false,
+		all_generated: false,
+		generated_at: null
+	});
 
-let generating = $state({
-	report: false,
-	estimate: false,
-	photos_pdf: false,
-	photos_zip: false,
-	frc_report: false,
-	additionals_letter: false,
-	all: false
-});
+	let generating = $state({
+		report: false,
+		estimate: false,
+		photos_pdf: false,
+		photos_zip: false,
+		frc_report: false,
+		additionals_letter: false,
+		all: false
+	});
 
-let progress = $state({
-	report: 0,
-	estimate: 0,
-	photos_pdf: 0,
-	photos_zip: 0,
-	frc_report: 0,
-	additionals_letter: 0
-});
+	let progress = $state({
+		report: 0,
+		estimate: 0,
+		photos_pdf: 0,
+		photos_zip: 0,
+		frc_report: 0,
+		additionals_letter: 0
+	});
 
-let progressMessage = $state({
-	report: '',
-	estimate: '',
-	photos_pdf: '',
-	photos_zip: '',
-	frc_report: '',
-	additionals_letter: ''
-});
+	let progressMessage = $state({
+		report: '',
+		estimate: '',
+		photos_pdf: '',
+		photos_zip: '',
+		frc_report: '',
+		additionals_letter: ''
+	});
 
 	// Track if generation is slow/timeout for print fallback
 	let showPrintFallback = $state({
@@ -114,10 +115,34 @@ let progressMessage = $state({
 	// Document generation progress tracking for batch generation
 	let showBatchProgress = $state(false);
 	let documentProgress = $state<{
-		report: { status: 'pending' | 'processing' | 'success' | 'error', progress: number, message: string, url: string | null, error: string | null };
-		estimate: { status: 'pending' | 'processing' | 'success' | 'error', progress: number, message: string, url: string | null, error: string | null };
-		photosPdf: { status: 'pending' | 'processing' | 'success' | 'error', progress: number, message: string, url: string | null, error: string | null };
-		photosZip: { status: 'pending' | 'processing' | 'success' | 'error', progress: number, message: string, url: string | null, error: string | null };
+		report: {
+			status: 'pending' | 'processing' | 'success' | 'error';
+			progress: number;
+			message: string;
+			url: string | null;
+			error: string | null;
+		};
+		estimate: {
+			status: 'pending' | 'processing' | 'success' | 'error';
+			progress: number;
+			message: string;
+			url: string | null;
+			error: string | null;
+		};
+		photosPdf: {
+			status: 'pending' | 'processing' | 'success' | 'error';
+			progress: number;
+			message: string;
+			url: string | null;
+			error: string | null;
+		};
+		photosZip: {
+			status: 'pending' | 'processing' | 'success' | 'error';
+			progress: number;
+			message: string;
+			url: string | null;
+			error: string | null;
+		};
 	}>({
 		report: { status: 'pending', progress: 0, message: 'Waiting...', url: null, error: null },
 		estimate: { status: 'pending', progress: 0, message: 'Waiting...', url: null, error: null },
@@ -144,7 +169,7 @@ let progressMessage = $state({
 
 	// Get all missing fields across all tabs
 	const allMissingFields = $derived.by(() => {
-		const missing: { tab: string, fields: string[] }[] = [];
+		const missing: { tab: string; fields: string[] }[] = [];
 		tabValidations.forEach((validation: TabValidation) => {
 			if (!validation.isComplete && validation.missingFields.length > 0) {
 				missing.push({
@@ -160,14 +185,14 @@ let progressMessage = $state({
 
 	function getTabLabel(tabId: string): string {
 		const labels: Record<string, string> = {
-			'identification': 'Vehicle Identification',
+			identification: 'Vehicle Identification',
 			'360': '360° Exterior',
-			'interior': 'Interior & Mechanical',
-			'tyres': 'Tyres',
-			'damage': 'Damage ID',
-			'values': 'Vehicle Values',
+			interior: 'Interior & Mechanical',
+			tyres: 'Tyres',
+			damage: 'Damage ID',
+			values: 'Vehicle Values',
 			'pre-incident': 'Pre-Incident Estimate',
-			'estimate': 'Estimate'
+			estimate: 'Estimate'
 		};
 		return labels[tabId] || tabId;
 	}
@@ -188,8 +213,8 @@ let progressMessage = $state({
 		try {
 			await assessmentService.finalizeEstimate(
 				assessment.id,
-				undefined,  // options
-				$page.data.supabase  // Authenticated client from page context
+				undefined, // options
+				$page.data.supabase // Authenticated client from page context
 			);
 			// Force reload of all page data to ensure database changes are visible
 			await invalidateAll();
@@ -209,67 +234,70 @@ let progressMessage = $state({
 	 *
 	 * Includes retry logic with exponential backoff and user-friendly error messages
 	 */
-async function handleForceFinalize() {
-    finalizing = true;
-    error = null;
+	async function handleForceFinalize() {
+		finalizing = true;
+		error = null;
 
-    // Show progress message to user
-    progressMessage.report = 'Finalizing assessment...';
+		// Show progress message to user
+		progressMessage.report = 'Finalizing assessment...';
 
-    try {
-        const missingFieldsInfo = allMissingFields.map(({ tab, fields }) => ({ tab, fields }));
-        let attempt = 0;
-        let lastErr: any = null;
+		try {
+			const missingFieldsInfo = allMissingFields.map(({ tab, fields }) => ({ tab, fields }));
+			let attempt = 0;
+			let lastErr: any = null;
 
-        while (attempt < 3) {
-            try {
-                // Update progress message with attempt number
-                progressMessage.report = `Finalizing assessment (attempt ${attempt + 1}/3)...`;
+			while (attempt < 3) {
+				try {
+					// Update progress message with attempt number
+					progressMessage.report = `Finalizing assessment (attempt ${attempt + 1}/3)...`;
 
-                await assessmentService.finalizeEstimate(
-                    assessment.id,
-                    { forcedFinalization: true, missingFields: missingFieldsInfo },
-                    $page.data.supabase
-                );
-                lastErr = null;
-                break;
-            } catch (e) {
-                lastErr = e;
-                console.warn(`Finalization attempt ${attempt + 1} failed:`, e);
+					await assessmentService.finalizeEstimate(
+						assessment.id,
+						{ forcedFinalization: true, missingFields: missingFieldsInfo },
+						$page.data.supabase
+					);
+					lastErr = null;
+					break;
+				} catch (e) {
+					lastErr = e;
+					console.warn(`Finalization attempt ${attempt + 1} failed:`, e);
 
-                // Exponential backoff: 500ms, 1s, 2s
-                await new Promise((r) => setTimeout(r, 500 * Math.pow(2, attempt)));
-                attempt++;
-            }
-        }
+					// Exponential backoff: 500ms, 1s, 2s
+					await new Promise((r) => setTimeout(r, 500 * Math.pow(2, attempt)));
+					attempt++;
+				}
+			}
 
-        if (lastErr) {
-            // Provide user-friendly error messages for common issues
-            if (lastErr.message?.includes('timeout') ||
-                lastErr.message?.includes('TIMEOUT') ||
-                lastErr.code === 'UND_ERR_CONNECT_TIMEOUT' ||
-                lastErr.code === 'ETIMEDOUT') {
-                throw new Error('Connection timeout. Please check your internet connection and try again.');
-            }
-            if (lastErr.message?.includes('fetch failed') ||
-                lastErr.message?.includes('network')) {
-                throw new Error('Network error. Please check your connection and try again.');
-            }
-            throw lastErr;
-        }
+			if (lastErr) {
+				// Provide user-friendly error messages for common issues
+				if (
+					lastErr.message?.includes('timeout') ||
+					lastErr.message?.includes('TIMEOUT') ||
+					lastErr.code === 'UND_ERR_CONNECT_TIMEOUT' ||
+					lastErr.code === 'ETIMEDOUT'
+				) {
+					throw new Error(
+						'Connection timeout. Please check your internet connection and try again.'
+					);
+				}
+				if (lastErr.message?.includes('fetch failed') || lastErr.message?.includes('network')) {
+					throw new Error('Network error. Please check your connection and try again.');
+				}
+				throw lastErr;
+			}
 
-        showValidationModal = false;
-        progressMessage.report = 'Refreshing data...';
+			showValidationModal = false;
+			progressMessage.report = 'Refreshing data...';
 
-        await invalidateAll();
-        goto('/work/finalized-assessments');
-    } catch (err) {
-        error = err instanceof Error ? err.message : 'Failed to finalize estimate';
-        progressMessage.report = '';
-    } finally {
-        finalizing = false;
-    }
-}
+			await invalidateAll();
+			goto('/work/finalized-assessments');
+		} catch (err) {
+			error = err instanceof Error ? err.message : 'Failed to finalize estimate';
+			progressMessage.report = '';
+		} finally {
+			finalizing = false;
+		}
+	}
 
 	async function handleGenerateReport() {
 		generating.report = true;
@@ -288,14 +316,10 @@ async function handleForceFinalize() {
 
 		try {
 			// Call service directly with progress callback
-			await documentGenerationService.generateDocument(
-				assessment.id,
-				'report',
-				(prog, msg) => {
-					progress.report = prog;
-					progressMessage.report = msg;
-				}
-			);
+			await documentGenerationService.generateDocument(assessment.id, 'report', (prog, msg) => {
+				progress.report = prog;
+				progressMessage.report = msg;
+			});
 			await loadGenerationStatus();
 			// Refresh parent data to update assessment with new document URLs
 			await invalidateAll();
@@ -328,14 +352,10 @@ async function handleForceFinalize() {
 
 		try {
 			// Call service directly with progress callback
-			await documentGenerationService.generateDocument(
-				assessment.id,
-				'estimate',
-				(prog, msg) => {
-					progress.estimate = prog;
-					progressMessage.estimate = msg;
-				}
-			);
+			await documentGenerationService.generateDocument(assessment.id, 'estimate', (prog, msg) => {
+				progress.estimate = prog;
+				progressMessage.estimate = msg;
+			});
 			await loadGenerationStatus();
 			// Refresh parent data to update assessment with new document URLs
 			await invalidateAll();
@@ -358,14 +378,10 @@ async function handleForceFinalize() {
 		error = null;
 		try {
 			// Call service directly with progress callback
-			await documentGenerationService.generateDocument(
-				assessment.id,
-				'photos_pdf',
-				(prog, msg) => {
-					progress.photos_pdf = prog;
-					progressMessage.photos_pdf = msg;
-				}
-			);
+			await documentGenerationService.generateDocument(assessment.id, 'photos_pdf', (prog, msg) => {
+				progress.photos_pdf = prog;
+				progressMessage.photos_pdf = msg;
+			});
 			await loadGenerationStatus();
 			// Refresh parent data to update assessment with new document URLs
 			await invalidateAll();
@@ -378,93 +394,85 @@ async function handleForceFinalize() {
 		}
 	}
 
-async function handleGeneratePhotosZIP() {
-	generating.photos_zip = true;
-	progress.photos_zip = 0;
-	progressMessage.photos_zip = 'Starting...';
-	error = null;
-	try {
-		// Call service directly with progress callback
-		await documentGenerationService.generateDocument(
-			assessment.id,
-			'photos_zip',
-			(prog, msg) => {
+	async function handleGeneratePhotosZIP() {
+		generating.photos_zip = true;
+		progress.photos_zip = 0;
+		progressMessage.photos_zip = 'Starting...';
+		error = null;
+		try {
+			// Call service directly with progress callback
+			await documentGenerationService.generateDocument(assessment.id, 'photos_zip', (prog, msg) => {
 				progress.photos_zip = prog;
 				progressMessage.photos_zip = msg;
-			}
-		);
-		await loadGenerationStatus();
-		// Refresh parent data to update assessment with new document URLs
-		await invalidateAll();
-	} catch (err) {
-		error = err instanceof Error ? err.message : 'Failed to generate photos ZIP';
-	} finally {
-		generating.photos_zip = false;
-		progress.photos_zip = 0;
-		progressMessage.photos_zip = '';
-	}
-}
-
-async function handleGenerateFRCReport() {
-	generating.frc_report = true;
-	progress.frc_report = 0;
-	progressMessage.frc_report = 'Starting...';
-	showPrintFallback.frc = false;
-	error = null;
-
-	const fallbackTimer = setTimeout(() => {
-		if (generating.frc_report) {
-			showPrintFallback.frc = true;
+			});
+			await loadGenerationStatus();
+			// Refresh parent data to update assessment with new document URLs
+			await invalidateAll();
+		} catch (err) {
+			error = err instanceof Error ? err.message : 'Failed to generate photos ZIP';
+		} finally {
+			generating.photos_zip = false;
+			progress.photos_zip = 0;
+			progressMessage.photos_zip = '';
 		}
-	}, 8000);
+	}
 
-	try {
-		await documentGenerationService.generateDocument(
-			assessment.id,
-			'frc_report',
-			(prog, msg) => {
+	async function handleGenerateFRCReport() {
+		generating.frc_report = true;
+		progress.frc_report = 0;
+		progressMessage.frc_report = 'Starting...';
+		showPrintFallback.frc = false;
+		error = null;
+
+		const fallbackTimer = setTimeout(() => {
+			if (generating.frc_report) {
+				showPrintFallback.frc = true;
+			}
+		}, 8000);
+
+		try {
+			await documentGenerationService.generateDocument(assessment.id, 'frc_report', (prog, msg) => {
 				progress.frc_report = prog;
 				progressMessage.frc_report = msg;
-			}
-		);
-		await loadGenerationStatus();
-		await invalidateAll();
-		showPrintFallback.frc = false;
-	} catch (err) {
-		error = err instanceof Error ? err.message : 'Failed to generate FRC report';
-		showPrintFallback.frc = true;
-	} finally {
-		clearTimeout(fallbackTimer);
-		generating.frc_report = false;
-		progress.frc_report = 0;
-		progressMessage.frc_report = '';
+			});
+			await loadGenerationStatus();
+			await invalidateAll();
+			showPrintFallback.frc = false;
+		} catch (err) {
+			error = err instanceof Error ? err.message : 'Failed to generate FRC report';
+			showPrintFallback.frc = true;
+		} finally {
+			clearTimeout(fallbackTimer);
+			generating.frc_report = false;
+			progress.frc_report = 0;
+			progressMessage.frc_report = '';
+		}
 	}
-}
 
-async function handleGenerateAdditionalsLetter() {
-	generating.additionals_letter = true;
-	progress.additionals_letter = 0;
-	progressMessage.additionals_letter = 'Starting...';
-	error = null;
-	try {
-		await documentGenerationService.generateDocument(
-			assessment.id,
-			'additionals_letter',
-			(prog, msg) => {
-				progress.additionals_letter = prog;
-				progressMessage.additionals_letter = msg;
-			}
-		);
-		await loadGenerationStatus();
-		await invalidateAll();
-	} catch (err) {
-		error = err instanceof Error ? err.message : 'Failed to generate Additionals Letter';
-	} finally {
-		generating.additionals_letter = false;
+	async function handleGenerateAdditionalsLetter() {
+		generating.additionals_letter = true;
 		progress.additionals_letter = 0;
-		progressMessage.additionals_letter = '';
+		progressMessage.additionals_letter = 'Starting...';
+		error = null;
+		try {
+			await documentGenerationService.generateDocument(
+				assessment.id,
+				'additionals_letter',
+				(prog, msg) => {
+					progress.additionals_letter = prog;
+					progressMessage.additionals_letter = msg;
+				}
+			);
+			await loadGenerationStatus();
+			await invalidateAll();
+		} catch (err) {
+			error = err instanceof Error ? err.message : 'Failed to generate Additionals Letter';
+		} finally {
+			generating.additionals_letter = false;
+			progress.additionals_letter = 0;
+			progressMessage.additionals_letter = '';
+		}
 	}
-}
 
 	async function handleGenerateAll() {
 		generating.all = true;
@@ -485,7 +493,7 @@ async function handleGenerateAdditionalsLetter() {
 				assessment.id,
 				(documentType, progress, message, url, errorMsg) => {
 					// Update progress for specific document
-					const status = errorMsg ? 'error' : (progress === 100 ? 'success' : 'processing');
+					const status = errorMsg ? 'error' : progress === 100 ? 'success' : 'processing';
 					documentProgress[documentType] = {
 						status,
 						progress,
@@ -522,9 +530,12 @@ async function handleGenerateAdditionalsLetter() {
 
 		try {
 			// Map document type to API format
-			const apiType = documentType === 'photosPdf' ? 'photos_pdf' :
-			                documentType === 'photosZip' ? 'photos_zip' :
-			                documentType;
+			const apiType =
+				documentType === 'photosPdf'
+					? 'photos_pdf'
+					: documentType === 'photosZip'
+						? 'photos_zip'
+						: documentType;
 
 			// Call individual document generator
 			const url = await documentGenerationService.generateDocument(
@@ -571,18 +582,18 @@ async function handleGenerateAdditionalsLetter() {
 <div class="space-y-6">
 	<!-- Validation Modal -->
 	<Dialog bind:open={showValidationModal}>
-		<DialogContent class="max-w-2xl max-h-[80vh] overflow-y-auto">
+		<DialogContent class="max-h-[80vh] max-w-2xl overflow-y-auto">
 			<DialogHeader>
 				<DialogTitle>Required Fields Missing</DialogTitle>
 				<DialogDescription>
 					Please complete the following required fields before finalizing the estimate:
 				</DialogDescription>
 			</DialogHeader>
-			<div class="space-y-4 mt-4">
+			<div class="mt-4 space-y-4">
 				{#each allMissingFields as { tab, fields }}
 					<div class="rounded-md border border-red-200 bg-red-50 p-4">
-						<h4 class="font-semibold text-red-900 mb-2">{tab}</h4>
-						<ul class="list-disc list-inside space-y-1">
+						<h4 class="mb-2 font-semibold text-red-900">{tab}</h4>
+						<ul class="list-inside list-disc space-y-1">
 							{#each fields as field}
 								<li class="text-sm text-red-800">{field}</li>
 							{/each}
@@ -592,17 +603,15 @@ async function handleGenerateAdditionalsLetter() {
 			</div>
 
 			<!-- Warning about incomplete reports -->
-			<div class="mt-4 rounded-md bg-yellow-50 border border-yellow-200 p-3">
+			<div class="mt-4 rounded-md border border-yellow-200 bg-yellow-50 p-3">
 				<p class="text-xs text-yellow-800">
-					⚠️ <strong>Warning:</strong> Finalizing with missing fields may result in incomplete reports and documents.
-					It's recommended to complete all required fields before finalizing.
+					⚠️ <strong>Warning:</strong> Finalizing with missing fields may result in incomplete reports
+					and documents. It's recommended to complete all required fields before finalizing.
 				</p>
 			</div>
 
-			<div class="mt-6 flex justify-between items-center">
-				<Button onclick={() => showValidationModal = false} variant="outline">
-					Close
-				</Button>
+			<div class="mt-6 flex items-center justify-between">
+				<Button onclick={() => (showValidationModal = false)} variant="outline">Close</Button>
 				<Button onclick={handleForceFinalize} variant="destructive" disabled={finalizing}>
 					{finalizing ? 'Finalizing...' : 'Sign Off Anyway'}
 				</Button>
@@ -612,7 +621,7 @@ async function handleGenerateAdditionalsLetter() {
 
 	<!-- Finalize Estimate Section -->
 	{#if !assessment.estimate_finalized_at}
-		<Card class="p-6 border-2 border-blue-200 bg-blue-50">
+		<Card class="border-2 border-blue-200 bg-blue-50 p-6">
 			<div class="space-y-4">
 				<div>
 					<h3 class="text-lg font-semibold text-gray-900">Finalize Estimate</h3>
@@ -623,40 +632,41 @@ async function handleGenerateAdditionalsLetter() {
 				</div>
 
 				{#if hasRequiredFieldsMissing}
-					<div class="rounded-md bg-yellow-50 border border-yellow-200 p-3">
-						<p class="text-sm text-yellow-800 font-medium">
-							⚠️ Some required fields are missing. Click "Mark Estimate Finalized & Sent" to see details.
+					<div class="rounded-md border border-yellow-200 bg-yellow-50 p-3">
+						<p class="text-sm font-medium text-yellow-800">
+							⚠️ Some required fields are missing. Click "Mark Estimate Finalized & Sent" to see
+							details.
 						</p>
 					</div>
 				{/if}
 
 				{#if error}
-					<div class="rounded-md bg-red-50 border border-red-200 p-3">
+					<div class="rounded-md border border-red-200 bg-red-50 p-3">
 						<p class="text-sm text-red-800">{error}</p>
 					</div>
 				{/if}
 
 				<div class="flex gap-3">
-					<Button
+					<LoadingButton
 						onclick={handleFinalizeEstimate}
-						disabled={finalizing}
+						loading={finalizing}
 						class="bg-blue-600 hover:bg-blue-700"
 					>
 						{finalizing ? 'Finalizing...' : 'Mark Estimate Finalized & Sent'}
-					</Button>
+					</LoadingButton>
 				</div>
 			</div>
 		</Card>
 	{:else}
-		<Card class="p-6 border-2 border-green-200 bg-green-50">
+		<Card class="border-2 border-green-200 bg-green-50 p-6">
 			<div class="flex items-start gap-3">
-				<CircleCheck class="h-6 w-6 text-green-600 mt-0.5" />
+				<CircleCheck class="mt-0.5 h-6 w-6 text-green-600" />
 				<div>
 					<h3 class="text-lg font-semibold text-gray-900">Estimate Finalized</h3>
 					<p class="mt-1 text-sm text-gray-600">
 						Estimate was finalized and sent on {formatDateTime(assessment.estimate_finalized_at)}
 					</p>
-					<p class="mt-2 text-sm text-blue-600 font-medium">
+					<p class="mt-2 text-sm font-medium text-blue-600">
 						You can now add additionals in the Additionals tab.
 					</p>
 				</div>
@@ -675,35 +685,35 @@ async function handleGenerateAdditionalsLetter() {
 	<div>
 		<h2 class="mb-4 text-xl font-bold text-gray-900">Document Generation</h2>
 		<div class="grid gap-4 md:grid-cols-2">
-		<DocumentCard
-			title="Damage Inspection Report"
-			description="Complete assessment report with vehicle details, damage assessment, and notes"
-			icon={FileText}
-			generated={generationStatus.report_generated}
-			generatedAt={assessment.documents_generated_at}
-			generating={generating.report}
-			progress={progress.report}
-			progressMessage={progressMessage.report}
-			onGenerate={handleGenerateReport}
-			onDownload={() => onDownloadDocument('report')}
-			printUrl={documentGenerationService.getPrintUrl(assessment.id, 'report')}
-			showPrintFallback={showPrintFallback.report}
-		/>
+			<DocumentCard
+				title="Damage Inspection Report"
+				description="Complete assessment report with vehicle details, damage assessment, and notes"
+				icon={FileText}
+				generated={generationStatus.report_generated}
+				generatedAt={assessment.documents_generated_at}
+				generating={generating.report}
+				progress={progress.report}
+				progressMessage={progressMessage.report}
+				onGenerate={handleGenerateReport}
+				onDownload={() => onDownloadDocument('report')}
+				printUrl={documentGenerationService.getPrintUrl(assessment.id, 'report')}
+				showPrintFallback={showPrintFallback.report}
+			/>
 
-		<DocumentCard
-			title="Repair Estimate"
-			description="Detailed repair estimate with line items, rates, and totals"
-			icon={FileText}
-			generated={generationStatus.estimate_generated}
-			generatedAt={assessment.documents_generated_at}
-			generating={generating.estimate}
-			progress={progress.estimate}
-			progressMessage={progressMessage.estimate}
-			onGenerate={handleGenerateEstimate}
-			onDownload={() => onDownloadDocument('estimate')}
-			printUrl={documentGenerationService.getPrintUrl(assessment.id, 'estimate')}
-			showPrintFallback={showPrintFallback.estimate}
-		/>
+			<DocumentCard
+				title="Repair Estimate"
+				description="Detailed repair estimate with line items, rates, and totals"
+				icon={FileText}
+				generated={generationStatus.estimate_generated}
+				generatedAt={assessment.documents_generated_at}
+				generating={generating.estimate}
+				progress={progress.estimate}
+				progressMessage={progressMessage.estimate}
+				onGenerate={handleGenerateEstimate}
+				onDownload={() => onDownloadDocument('estimate')}
+				printUrl={documentGenerationService.getPrintUrl(assessment.id, 'estimate')}
+				showPrintFallback={showPrintFallback.estimate}
+			/>
 
 			<DocumentCard
 				title="Photographs PDF"
@@ -777,10 +787,12 @@ async function handleGenerateAdditionalsLetter() {
 		{:else}
 			<!-- Show generate button when not generating -->
 			<div class="flex flex-col gap-3 sm:flex-row">
-				<Button onclick={handleGenerateAll} disabled={generating.all} class="flex-1">
-					<Package class="mr-2 h-4 w-4" />
+				<LoadingButton onclick={handleGenerateAll} loading={generating.all} class="flex-1">
+					{#if !generating.all}
+						<Package class="mr-2 h-4 w-4" />
+					{/if}
 					{generating.all ? 'Generating All...' : 'Generate All Documents'}
-				</Button>
+				</LoadingButton>
 
 				{#if generationStatus.all_generated}
 					<Button onclick={() => onDownloadDocument('complete')} variant="outline" class="flex-1">
@@ -793,3 +805,22 @@ async function handleGenerateAdditionalsLetter() {
 	</Card>
 </div>
 
+<!-- Document Loading Modal -->
+<DocumentLoadingModal
+	isOpen={generating.all}
+	title="Generating Documents"
+	progress={Math.round(
+		(documentProgress.report.progress +
+			documentProgress.estimate.progress +
+			documentProgress.photosPdf.progress +
+			documentProgress.photosZip.progress) / 4
+	)}
+	message={(() => {
+		const processing = Object.entries(documentProgress).find(([_, doc]) => doc.status === 'processing');
+		if (processing) return processing[1].message;
+		const pending = Object.entries(documentProgress).find(([_, doc]) => doc.status === 'pending');
+		if (pending) return 'Preparing...';
+		return 'Completing...';
+	})()}
+	isError={Object.values(documentProgress).some(doc => doc.status === 'error')}
+/>

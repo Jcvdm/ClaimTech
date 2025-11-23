@@ -6,6 +6,7 @@
 	import ActivityTimeline from '$lib/components/data/ActivityTimeline.svelte';
 	import { Card } from '$lib/components/ui/card';
 	import { Button } from '$lib/components/ui/button';
+	import LoadingButton from '$lib/components/ui/button/LoadingButton.svelte';
 	import { Separator } from '$lib/components/ui/separator';
 	import { Badge } from '$lib/components/ui/badge';
 	import {
@@ -165,18 +166,22 @@
 
 			<!-- Show Accept button only for draft/submitted requests -->
 			{#if data.request.status === 'draft' || data.request.status === 'submitted'}
-				<Button onclick={handleAccept} disabled={loading}>
-					<Check class="mr-2 h-4 w-4" />
+				<LoadingButton onclick={handleAccept} {loading}>
+					{#if !loading}
+						<Check class="mr-2 h-4 w-4" />
+					{/if}
 					Accept Request
-				</Button>
+				</LoadingButton>
 			{/if}
 
 			<!-- Show Reactivate button only for cancelled requests -->
 			{#if data.request.status === 'cancelled'}
-				<Button variant="default" onclick={handleReactivate} disabled={loading}>
-					<RotateCcw class="mr-2 h-4 w-4" />
+				<LoadingButton variant="default" onclick={handleReactivate} {loading}>
+					{#if !loading}
+						<RotateCcw class="mr-2 h-4 w-4" />
+					{/if}
 					Reactivate Request
-				</Button>
+				</LoadingButton>
 			{/if}
 
 			<Button variant="outline" onclick={handleEdit}>
@@ -186,10 +191,12 @@
 
 			<!-- Show Cancel/Delete button only for non-cancelled requests -->
 			{#if data.request.status !== 'cancelled'}
-				<Button variant="destructive" onclick={handleDelete} disabled={loading}>
-					<Trash2 class="mr-2 h-4 w-4" />
+				<LoadingButton variant="destructive" onclick={handleDelete} {loading}>
+					{#if !loading}
+						<Trash2 class="mr-2 h-4 w-4" />
+					{/if}
 					Cancel
-				</Button>
+				</LoadingButton>
 			{/if}
 		{/snippet}
 	</PageHeader>
@@ -271,7 +278,7 @@
 					{#if data.request.incident_type}
 						<div>
 							<p class="text-sm font-medium text-gray-500">Incident Type</p>
-							<p class="mt-1 text-sm capitalize text-gray-900">{data.request.incident_type}</p>
+							<p class="mt-1 text-sm text-gray-900 capitalize">{data.request.incident_type}</p>
 						</div>
 					{/if}
 
@@ -303,7 +310,8 @@
 						<div>
 							<p class="text-sm font-medium text-gray-500">Make & Model</p>
 							<p class="mt-1 text-sm text-gray-900">
-								{data.request.vehicle_make || '-'} {data.request.vehicle_model || ''}
+								{data.request.vehicle_make || '-'}
+								{data.request.vehicle_model || ''}
 							</p>
 						</div>
 						<div>
@@ -332,7 +340,7 @@
 					{#if data.request.vehicle_vin}
 						<div>
 							<p class="text-sm font-medium text-gray-500">VIN</p>
-							<p class="mt-1 text-sm font-mono text-gray-900">{data.request.vehicle_vin}</p>
+							<p class="mt-1 font-mono text-sm text-gray-900">{data.request.vehicle_vin}</p>
 						</div>
 					{/if}
 				</div>
@@ -550,4 +558,3 @@
 		</div>
 	</div>
 </div>
-

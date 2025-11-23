@@ -55,6 +55,9 @@
 				captionLayout="dropdown"
 				disableDaysOutsideMonth={false}
 				type="single"
+				onValueChange={(newValue) => {
+					calendarValue = newValue;
+				}}
 			/>
 		</Popover.Content>
 	</Popover.Root>

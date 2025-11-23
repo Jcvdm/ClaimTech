@@ -4,6 +4,7 @@
 	import { onMount } from 'svelte';
 	import { invalidate } from '$app/navigation';
 	import NavigationLoadingBar from '$lib/components/layout/NavigationLoadingBar.svelte';
+	import NavigationLoadingModal from '$lib/components/layout/NavigationLoadingModal.svelte';
 
 	let { children, data } = $props();
 
@@ -29,5 +30,6 @@
 </svelte:head>
 
 <NavigationLoadingBar />
+<NavigationLoadingModal />
 
 {@render children?.()}

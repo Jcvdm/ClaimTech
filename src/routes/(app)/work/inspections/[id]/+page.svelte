@@ -7,6 +7,7 @@
 	import FormField from '$lib/components/forms/FormField.svelte';
 	import { Card } from '$lib/components/ui/card';
 	import { Button } from '$lib/components/ui/button';
+	import LoadingButton from '$lib/components/ui/button/LoadingButton.svelte';
 	import { Badge } from '$lib/components/ui/badge';
 	import { Separator } from '$lib/components/ui/separator';
 	import {
@@ -57,13 +58,15 @@
 		notes: data.inspection?.notes || data.request?.description || null,
 		inspection_location: data.inspection?.inspection_location || null,
 		status: data.inspection?.status || data.assessment.status,
-		assigned_engineer_id: data.inspection?.assigned_engineer_id || data.request?.assigned_engineer_id || null,
+		assigned_engineer_id:
+			data.inspection?.assigned_engineer_id || data.request?.assigned_engineer_id || null,
 		vehicle_province: data.inspection?.vehicle_province || data.request?.vehicle_province || null,
 		vehicle_make: data.inspection?.vehicle_make || data.request?.vehicle_make || null,
 		vehicle_model: data.inspection?.vehicle_model || data.request?.vehicle_model || null,
 		vehicle_year: data.inspection?.vehicle_year || data.request?.vehicle_year || null,
 		vehicle_color: data.inspection?.vehicle_color || data.request?.vehicle_color || null,
-		vehicle_registration: data.inspection?.vehicle_registration || data.request?.vehicle_registration || null,
+		vehicle_registration:
+			data.inspection?.vehicle_registration || data.request?.vehicle_registration || null,
 		vehicle_mileage: data.inspection?.vehicle_mileage || data.request?.vehicle_mileage || null,
 		vehicle_vin: data.inspection?.vehicle_vin || data.request?.vehicle_vin || null,
 		created_at: data.assessment.created_at,
@@ -351,18 +354,22 @@
 
 			<!-- Show Cancel button for non-cancelled/non-completed inspections -->
 			{#if inspection.status !== 'completed' && inspection.status !== 'cancelled'}
-				<Button variant="destructive" onclick={handleCancelInspection} disabled={loading}>
-					<XCircle class="mr-2 h-4 w-4" />
+				<LoadingButton variant="destructive" onclick={handleCancelInspection} {loading}>
+					{#if !loading}
+						<XCircle class="mr-2 h-4 w-4" />
+					{/if}
 					Cancel Inspection
-				</Button>
+				</LoadingButton>
 			{/if}
 
 			<!-- Show Reactivate button for cancelled inspections -->
 			{#if inspection.status === 'cancelled'}
-				<Button variant="default" onclick={handleReactivateInspection} disabled={loading}>
-					<RotateCcw class="mr-2 h-4 w-4" />
+				<LoadingButton variant="default" onclick={handleReactivateInspection} {loading}>
+					{#if !loading}
+						<RotateCcw class="mr-2 h-4 w-4" />
+					{/if}
 					Reactivate Inspection
-				</Button>
+				</LoadingButton>
 			{/if}
 		{/snippet}
 	</PageHeader>
@@ -459,10 +466,7 @@
 							<div>
 								<p class="text-sm font-medium text-gray-500">Phone</p>
 								<p class="mt-1 text-sm">
-									<a
-										href="tel:{data.assignedEngineer.phone}"
-										class="text-blue-600 hover:underline"
-									>
+									<a href="tel:{data.assignedEngineer.phone}" class="text-blue-600 hover:underline">
 										{data.assignedEngineer.phone}
 									</a>
 								</p>
@@ -497,7 +501,7 @@
 
 					<!-- Schedule Appointment Button -->
 					{#if inspection.status === 'scheduled' || inspection.status === 'in_progress'}
-						<div class="mt-4 border-t pt-4 space-y-2">
+						<div class="mt-4 space-y-2 border-t pt-4">
 							<Button class="w-full" onclick={handleOpenCreateAppointmentModal}>
 								<Calendar class="mr-2 h-4 w-4" />
 								Schedule Appointment
@@ -519,7 +523,7 @@
 				</Card>
 			{:else if inspection.status === 'pending'}
 				<!-- Appoint Engineer Card -->
-				<Card class="border-dashed border-2 border-blue-300 bg-blue-50 p-6">
+				<Card class="border-2 border-dashed border-blue-300 bg-blue-50 p-6">
 					<div class="text-center">
 						<UserPlus class="mx-auto h-12 w-12 text-blue-600" />
 						<h3 class="mt-4 text-lg font-semibold text-gray-900">Appoint an Engineer</h3>
@@ -760,7 +764,7 @@
 				<select
 					id="engineer"
 					bind:value={selectedEngineerId}
-					class="flex h-10 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm ring-offset-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+					class="flex h-10 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm ring-offset-white focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50"
 				>
 					{#each engineerOptions as option}
 						<option value={option.value}>{option.label}</option>
@@ -811,7 +815,7 @@
 					id="scheduled_date"
 					type="date"
 					bind:value={scheduledDate}
-					class="flex h-10 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm ring-offset-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+					class="flex h-10 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm ring-offset-white focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50"
 				/>
 			</div>
 		</div>
@@ -820,16 +824,16 @@
 			<Button variant="outline" onclick={() => (showAppointmentModal = false)} disabled={loading}>
 				Cancel
 			</Button>
-			<Button onclick={handleAppointEngineer} disabled={loading || !selectedEngineerId}>
-				{loading ? 'Appointing...' : 'Appoint Engineer'}
-			</Button>
+			<LoadingButton onclick={handleAppointEngineer} loading={loading} disabled={!selectedEngineerId}>
+				Appoint Engineer
+			</LoadingButton>
 		</DialogFooter>
 	</DialogContent>
 </Dialog>
 
 <!-- Create Appointment Modal -->
 <Dialog bind:open={showCreateAppointmentModal}>
-	<DialogContent class="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
+	<DialogContent class="max-h-[90vh] overflow-y-auto sm:max-w-[600px]">
 		<DialogHeader>
 			<DialogTitle>Schedule Appointment</DialogTitle>
 			<DialogDescription>
@@ -848,8 +852,8 @@
 			<div class="space-y-2">
 				<fieldset>
 					<legend class="text-sm font-medium text-gray-900">Appointment Type</legend>
-					<div class="flex gap-4 mt-1">
-						<label class="flex items-center gap-2 cursor-pointer">
+					<div class="mt-1 flex gap-4">
+						<label class="flex cursor-pointer items-center gap-2">
 							<input
 								type="radio"
 								bind:group={appointmentType}
@@ -858,7 +862,7 @@
 							/>
 							<span class="text-sm text-gray-700">In-Person Inspection</span>
 						</label>
-						<label class="flex items-center gap-2 cursor-pointer">
+						<label class="flex cursor-pointer items-center gap-2">
 							<input
 								type="radio"
 								bind:group={appointmentType}
@@ -882,7 +886,7 @@
 						type="date"
 						bind:value={appointmentDate}
 						required
-						class="flex h-10 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm ring-offset-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
+						class="flex h-10 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm ring-offset-white focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:outline-none"
 					/>
 				</div>
 				<div class="space-y-2">
@@ -893,7 +897,7 @@
 						id="appointment_time"
 						type="time"
 						bind:value={appointmentTime}
-						class="flex h-10 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm ring-offset-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
+						class="flex h-10 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm ring-offset-white focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:outline-none"
 					/>
 				</div>
 			</div>
@@ -904,7 +908,7 @@
 				<select
 					id="duration"
 					bind:value={appointmentDuration}
-					class="flex h-10 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm ring-offset-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
+					class="flex h-10 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm ring-offset-white focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:outline-none"
 				>
 					<option value={30}>30 minutes</option>
 					<option value={60}>1 hour</option>
@@ -917,7 +921,7 @@
 			<!-- Location fields (only for in-person) -->
 			{#if appointmentType === 'in_person'}
 				<div class="space-y-4 border-t pt-4">
-					<h4 class="text-sm font-semibold text-gray-900 flex items-center gap-2">
+					<h4 class="flex items-center gap-2 text-sm font-semibold text-gray-900">
 						<MapPin class="h-4 w-4" />
 						Location Details
 					</h4>
@@ -931,7 +935,7 @@
 							type="text"
 							bind:value={locationAddress}
 							placeholder="Street address"
-							class="flex h-10 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm ring-offset-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
+							class="flex h-10 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm ring-offset-white focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:outline-none"
 						/>
 					</div>
 
@@ -943,7 +947,7 @@
 								type="text"
 								bind:value={locationCity}
 								placeholder="City"
-								class="flex h-10 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm ring-offset-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
+								class="flex h-10 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm ring-offset-white focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:outline-none"
 							/>
 						</div>
 						<div class="space-y-2">
@@ -955,7 +959,7 @@
 								type="text"
 								bind:value={locationProvince}
 								placeholder="Province"
-								class="flex h-10 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm ring-offset-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
+								class="flex h-10 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm ring-offset-white focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:outline-none"
 							/>
 						</div>
 					</div>
@@ -969,7 +973,7 @@
 							bind:value={locationNotes}
 							placeholder="Directions, parking info, access codes, etc."
 							rows="2"
-							class="flex w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm ring-offset-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
+							class="flex w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm ring-offset-white focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:outline-none"
 						></textarea>
 					</div>
 				</div>
@@ -985,7 +989,7 @@
 					bind:value={specialInstructions}
 					placeholder="Any special requirements or instructions for the engineer"
 					rows="2"
-					class="flex w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm ring-offset-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
+					class="flex w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm ring-offset-white focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:outline-none"
 				></textarea>
 			</div>
 
@@ -999,7 +1003,7 @@
 					bind:value={appointmentNotes}
 					placeholder="Additional notes about this appointment"
 					rows="2"
-					class="flex w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm ring-offset-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
+					class="flex w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm ring-offset-white focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:outline-none"
 				></textarea>
 			</div>
 		</div>
@@ -1012,10 +1016,9 @@
 			>
 				Cancel
 			</Button>
-			<Button onclick={handleCreateAppointment} disabled={loading || !appointmentDate}>
-				{loading ? 'Creating...' : 'Create Appointment'}
-			</Button>
+			<LoadingButton onclick={handleCreateAppointment} loading={loading} disabled={!appointmentDate}>
+				Create Appointment
+			</LoadingButton>
 		</DialogFooter>
 	</DialogContent>
 </Dialog>
-

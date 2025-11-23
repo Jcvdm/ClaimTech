@@ -12,6 +12,7 @@
 	import TableCell from '$lib/components/data/TableCell.svelte';
 	import EmptyState from '$lib/components/data/EmptyState.svelte';
 	import { Button } from '$lib/components/ui/button';
+	import LoadingButton from '$lib/components/ui/button/LoadingButton.svelte';
 	import { formatDateTime, formatVehicle } from '$lib/utils/formatters';
 	import { assessmentService } from '$lib/services/assessment.service';
 	import {
@@ -156,7 +157,9 @@
 	}
 
 	async function handleCancelAssessment(assessment: (typeof assessmentsWithDetails)[0]) {
-		if (!confirm('Are you sure you want to cancel this assessment? This action cannot be undone.')) {
+		if (
+			!confirm('Are you sure you want to cancel this assessment? This action cannot be undone.')
+		) {
 			return;
 		}
 
@@ -182,10 +185,18 @@
 		description="Active vehicle assessments currently in progress"
 	>
 		{#snippet actions()}
-			<Button onclick={handleRefresh} disabled={refreshing} variant="outline" size="sm">
-				<RefreshCw class="h-4 w-4 {refreshing ? 'animate-spin' : ''}" />
-				{refreshing ? 'Refreshing...' : 'Refresh'}
-			</Button>
+			<LoadingButton
+				onclick={handleRefresh}
+				loading={refreshing}
+				variant="outline"
+				size="sm"
+				class="gap-2"
+			>
+				{#if !refreshing}
+					<RefreshCw class="h-4 w-4" />
+				{/if}
+				Refresh
+			</LoadingButton>
 		{/snippet}
 	</PageHeader>
 

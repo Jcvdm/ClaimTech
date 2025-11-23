@@ -74,9 +74,16 @@
 - Photo galleries
 
 ### Storage (`src/lib/services/storage.service.ts`)
-- File uploads
+- File uploads with automatic compression
 - Signed URL generation
 - Bucket management
+- Photo compression integration
+
+### Image Compression (`src/lib/services/image-compression.service.ts`)
+- Client-side photo compression
+- HEIC to JPEG conversion
+- Progress tracking
+- Graceful fallback
 
 ---
 

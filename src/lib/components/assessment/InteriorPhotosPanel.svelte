@@ -1,12 +1,13 @@
 <script lang="ts">
 	import { Card } from '$lib/components/ui/card';
 	import { Button } from '$lib/components/ui/button';
-	import { Upload, Trash2, Loader2 } from 'lucide-svelte';
+	import { Upload, Trash2, Camera } from 'lucide-svelte';
 	import type { InteriorPhoto } from '$lib/types/assessment';
 	import { storageService } from '$lib/services/storage.service';
 	import { interiorPhotosService } from '$lib/services/interior-photos.service';
 	import { useOptimisticArray } from '$lib/utils/useOptimisticArray.svelte';
 	import PhotoViewer from '$lib/components/photo-viewer/PhotoViewer.svelte';
+	import { FileUploadProgress } from '$lib/components/ui/progress';
 
 	interface Props {
 		assessmentId: string;
@@ -27,9 +28,12 @@
 	const photos = useOptimisticArray(() => props.photos);
 
 	let uploading = $state(false);
+	let compressing = $state(false);
 	let uploadProgress = $state(0);
+	let compressionProgress = $state(0);
 	let isDragging = $state(false);
 	let fileInput: HTMLInputElement;
+	let cameraInput: HTMLInputElement;
 	let selectedPhotoIndex = $state<number | null>(null);
 
 	// Drag and drop handlers
@@ -73,28 +77,46 @@
 		fileInput?.click();
 	}
 
+	function triggerCameraInput() {
+		cameraInput?.click();
+	}
+
 	async function uploadFiles(files: File[]) {
 		uploading = true;
+		compressing = true;
 		uploadProgress = 0;
+		compressionProgress = 0;
 
 		try {
 			const totalFiles = files.length;
-			
+
 			for (let i = 0; i < totalFiles; i++) {
 				const file = files[i];
-				
+
 				// Validate file type
 				if (!file.type.startsWith('image/')) {
 					console.warn(`Skipping non-image file: ${file.name}`);
 					continue;
 				}
 
-				// Upload to storage
+				// Upload to storage with compression and progress tracking
 				const result = await storageService.uploadAssessmentPhoto(
 					file,
 					assessmentId,
 					'interior',
-					'additional'
+					'additional',
+					{
+						onCompressionProgress: (progress: number) => {
+							compressing = true;
+							uploading = false;
+							compressionProgress = progress;
+						},
+						onUploadProgress: (progress: number) => {
+							compressing = false;
+							uploading = true;
+							uploadProgress = progress;
+						}
+					}
 				);
 
 				// Get next display order
@@ -111,7 +133,7 @@
 				// Add to optimistic array immediately for instant UI feedback
 				photos.add(newPhoto);
 
-				// Update progress
+				// Update progress for multi-file uploads
 				uploadProgress = Math.round(((i + 1) / totalFiles) * 100);
 			}
 
@@ -122,9 +144,12 @@
 			alert('Failed to upload photos. Please try again.');
 		} finally {
 			uploading = false;
+			compressing = false;
 			uploadProgress = 0;
+			compressionProgress = 0;
 			// Reset file input
 			if (fileInput) fileInput.value = '';
+			if (cameraInput) cameraInput.value = '';
 		}
 	}
 
@@ -225,7 +250,7 @@
 			role="button"
 			tabindex="0"
 			class="relative border-2 border-dashed rounded-lg p-8 text-center transition-colors {isDragging
-				? 'border-blue-500 bg-blue-50'
+				? 'border-rose-500 bg-rose-50'
 				: 'border-gray-300 hover:border-gray-400'}"
 			ondragenter={handleDragEnter}
 			ondragover={handleDragOver}
@@ -237,23 +262,22 @@
 					triggerFileInput();
 				}
 			}}
+			aria-label="Upload photos - drag and drop or click to select"
 		>
-			{#if uploading}
+			{#if uploading || compressing}
 				<div class="space-y-3">
-					<Loader2 class="mx-auto h-12 w-12 text-blue-600 animate-spin" />
-					<p class="text-sm font-medium text-gray-700">Uploading photos...</p>
-					<div class="w-full bg-gray-200 rounded-full h-2">
-						<div
-							class="h-full bg-blue-500 transition-all duration-300 rounded-full"
-							style="width: {uploadProgress}%"
-						></div>
-					</div>
-					<p class="text-xs text-gray-500">{uploadProgress}%</p>
+					<FileUploadProgress
+						isCompressing={compressing}
+						isUploading={uploading}
+						compressionProgress={compressionProgress}
+						uploadProgress={uploadProgress}
+						fileName=""
+					/>
 				</div>
 			{:else if isDragging}
 				<div>
-					<Upload class="mx-auto h-12 w-12 text-blue-500" />
-					<p class="mt-2 text-sm font-medium text-blue-600">Drop photos here to upload</p>
+					<Upload class="mx-auto h-12 w-12 text-rose-500" />
+					<p class="mt-2 text-sm font-medium text-rose-600">Drop photos here to upload</p>
 				</div>
 			{:else}
 				<Upload class="mx-auto h-12 w-12 text-gray-400" />
@@ -261,7 +285,7 @@
 					Drag & drop photos or <button
 						type="button"
 						onclick={triggerFileInput}
-						class="font-medium text-blue-600 hover:text-blue-800"
+						class="font-medium text-rose-600 hover:text-rose-800"
 					>
 						browse
 					</button>
@@ -269,10 +293,16 @@
 				<p class="mt-1 text-xs text-gray-500">
 					Supports: JPG, PNG, GIF • Multiple files supported
 				</p>
-				<Button onclick={triggerFileInput} class="mt-4">
-					<Upload class="mr-2 h-4 w-4" />
-					Upload Photos
-				</Button>
+				<div class="flex gap-2 justify-center mt-4">
+					<Button onclick={triggerCameraInput} variant="outline">
+						<Camera class="mr-2 h-4 w-4" />
+						Camera
+					</Button>
+					<Button onclick={triggerFileInput}>
+						<Upload class="mr-2 h-4 w-4" />
+						Upload Photos
+					</Button>
+				</div>
 			{/if}
 		</div>
 	{:else}
@@ -283,7 +313,7 @@
 				role="button"
 				tabindex="0"
 				class="relative w-full aspect-square border-2 border-dashed rounded-lg transition-colors cursor-pointer {isDragging
-					? 'border-blue-500 bg-blue-50'
+					? 'border-rose-500 bg-rose-50'
 					: 'border-gray-300 hover:border-gray-400 bg-gray-50'}"
 				ondragenter={handleDragEnter}
 				ondragover={handleDragOver}
@@ -296,22 +326,23 @@
 						triggerFileInput();
 					}
 				}}
+				aria-label="Upload photos - drag and drop or click to select"
 			>
-				{#if uploading}
+				{#if uploading || compressing}
 					<div class="absolute inset-0 flex flex-col items-center justify-center p-4">
-						<Loader2 class="h-8 w-8 text-blue-600 animate-spin" />
-						<p class="mt-2 text-xs font-medium text-gray-700">Uploading...</p>
-						<div class="w-full max-w-[80px] bg-gray-200 rounded-full h-1.5 mt-2">
-							<div
-								class="h-full bg-blue-500 transition-all duration-300 rounded-full"
-								style="width: {uploadProgress}%"
-							></div>
-						</div>
+						<FileUploadProgress
+							isCompressing={compressing}
+							isUploading={uploading}
+							compressionProgress={compressionProgress}
+							uploadProgress={uploadProgress}
+							fileName=""
+							class="w-full"
+						/>
 					</div>
 				{:else if isDragging}
 					<div class="absolute inset-0 flex flex-col items-center justify-center p-4">
-						<Upload class="h-8 w-8 text-blue-500" />
-						<p class="mt-2 text-xs font-medium text-blue-600 text-center">Drop here</p>
+						<Upload class="h-8 w-8 text-rose-500" />
+						<p class="mt-2 text-xs font-medium text-rose-600 text-center">Drop here</p>
 					</div>
 				{:else}
 					<div class="absolute inset-0 flex flex-col items-center justify-center p-4">
@@ -362,6 +393,17 @@
 		bind:this={fileInput}
 		type="file"
 		accept="image/*"
+		multiple
+		onchange={handleFileSelect}
+		class="hidden"
+	/>
+
+	<!-- Hidden camera input -->
+	<input
+		bind:this={cameraInput}
+		type="file"
+		accept="image/*"
+		capture="environment"
 		multiple
 		onchange={handleFileSelect}
 		class="hidden"

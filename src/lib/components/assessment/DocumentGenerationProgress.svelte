@@ -46,19 +46,19 @@
 	function getStatusColor(status: string) {
 		switch (status) {
 			case 'pending': return 'text-gray-400';
-			case 'processing': return 'text-blue-500';
+			case 'processing': return 'text-rose-500';
 			case 'success': return 'text-green-500';
 			case 'error': return 'text-red-500';
 			default: return 'text-gray-400';
 		}
 	}
 
-	function getProgressColor(status: string) {
+	function getProgressBackground(status: string) {
 		switch (status) {
-			case 'success': return 'bg-green-500';
-			case 'error': return 'bg-red-500';
-			case 'processing': return 'bg-blue-500';
-			default: return 'bg-gray-300';
+			case 'success': return 'bg-green-100';
+			case 'error': return 'bg-red-100';
+			case 'processing': return 'bg-rose-100';
+			default: return 'bg-rose-100';
 		}
 	}
 </script>
@@ -86,12 +86,7 @@
 				</div>
 
 				<!-- Progress Bar -->
-				<div class="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
-					<div 
-						class="h-full transition-all duration-300 {getProgressColor(doc.data.status)}"
-						style="width: {doc.data.progress}%"
-					></div>
-				</div>
+				<Progress value={doc.data.progress} class={getProgressBackground(doc.data.status)} />
 
 				<!-- Status Message -->
 				<p class="text-sm text-gray-600">{doc.data.message}</p>

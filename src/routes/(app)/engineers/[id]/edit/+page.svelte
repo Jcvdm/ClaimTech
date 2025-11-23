@@ -6,6 +6,7 @@
 	import { Card } from '$lib/components/ui/card';
 	import { Label } from '$lib/components/ui/label';
 	import { Button } from '$lib/components/ui/button';
+	import LoadingButton from '$lib/components/ui/button/LoadingButton.svelte';
 	import { getProvinceOptions, type Province, type CompanyType } from '$lib/types/engineer';
 	import { Mail } from 'lucide-svelte';
 	import type { ActionData, PageData } from './$types';
@@ -143,20 +144,20 @@
 		</Card>
 
 		<div class="flex justify-end gap-4">
-			<button
+			<Button
 				type="button"
+				variant="outline"
 				onclick={handleCancel}
-				class="rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+				disabled={loading}
 			>
 				Cancel
-			</button>
-			<button
+			</Button>
+			<LoadingButton
 				type="submit"
-				disabled={loading}
-				class="rounded-md border border-transparent bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+				loading={loading}
 			>
-				{loading ? 'Updating Engineer...' : 'Update Engineer'}
-			</button>
+				Update Engineer
+			</LoadingButton>
 		</div>
 	</form>
 

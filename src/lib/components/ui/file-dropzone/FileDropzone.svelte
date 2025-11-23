@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { Camera, Upload, X, Loader2, FileIcon } from 'lucide-svelte';
 	import { Button } from '$lib/components/ui/button';
+	import { Progress } from '$lib/components/ui/progress';
 	import { cn } from '$lib/utils';
 
 	interface Props {
@@ -339,15 +340,10 @@
 			>
 				<div class="pointer-events-none text-center">
 					{#if uploading}
-						<Loader2 class="mx-auto h-8 w-8 animate-spin text-blue-500" />
+						<Loader2 class="mx-auto h-8 w-8 animate-spin text-rose-500" />
 						<p class="mt-2 text-sm font-medium text-gray-700">Uploading...</p>
 						{#if progress > 0}
-							<div class="mx-auto mt-2 h-2 w-32 overflow-hidden rounded-full bg-gray-200">
-								<div
-									class="h-full bg-blue-500 transition-all duration-300"
-									style="width: {progress}%"
-								></div>
-							</div>
+							<Progress value={progress} class="mx-auto w-32 bg-rose-100" />
 						{/if}
 					{:else if isDragging}
 						<Upload class="mx-auto h-8 w-8 text-blue-500" />

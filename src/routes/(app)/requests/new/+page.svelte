@@ -8,6 +8,7 @@
 	import FormActions from '$lib/components/forms/FormActions.svelte';
 	import { Card } from '$lib/components/ui/card';
 	import { Button } from '$lib/components/ui/button';
+	import LoadingButton from '$lib/components/ui/button/LoadingButton.svelte';
 	import { Alert, AlertDescription, AlertTitle } from '$lib/components/ui/alert';
 	import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '$lib/components/ui/dialog';
 	import { requestService } from '$lib/services/request.service';
@@ -339,12 +340,13 @@ const clientOptions = $derived.by(() =>
 					showClientModal = false;
 					error = null;
 				}}
+				disabled={loading}
 			>
 				Cancel
 			</Button>
-			<Button type="button" onclick={handleQuickAddClient} disabled={loading}>
+			<LoadingButton type="button" onclick={handleQuickAddClient} loading={loading}>
 				Add Client
-			</Button>
+			</LoadingButton>
 		</DialogFooter>
 	</DialogContent>
 </Dialog>

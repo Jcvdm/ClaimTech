@@ -1,7 +1,9 @@
 <script lang="ts">
 	import { Button } from '$lib/components/ui/button';
+	import LoadingButton from '$lib/components/ui/button/LoadingButton.svelte';
 	import { Tabs, TabsList, TabsTrigger } from '$lib/components/ui/tabs';
 	import { Badge } from '$lib/components/ui/badge';
+	import { TabLoadingIndicator } from '$lib/components/ui/tab-loading';
 	import {
 		Save,
 		X,
@@ -45,6 +47,7 @@
 		onCancel?: () => void;
 		saving?: boolean;
 		lastSaved?: string | null;
+		tabLoading?: boolean;
 		userRole?: string;
 		// Assessment data for validation
 		vehicleIdentification?: any;
@@ -69,6 +72,7 @@
 		onCancel = undefined,
 		saving = false,
 		lastSaved = null,
+		tabLoading = false,
 		userRole = 'engineer',
 		vehicleIdentification = null,
 		exterior360 = null,
@@ -129,7 +133,10 @@
 			validations['360'] = validateExterior360(exterior360, exterior360Photos || []);
 		}
 		if (interiorMechanical) {
-			validations['interior'] = validateInteriorMechanical(interiorMechanical, interiorPhotos || []);
+			validations['interior'] = validateInteriorMechanical(
+				interiorMechanical,
+				interiorPhotos || []
+			);
 		}
 		if (tyres && tyres.length > 0) {
 			validations['tyres'] = validateTyres(tyres);
@@ -164,99 +171,112 @@
 
 	function getShortLabel(label: string): string {
 		const shortLabels: Record<string, string> = {
-			'Summary': 'Sum',
+			Summary: 'Sum',
 			'Vehicle ID': 'ID',
 			'360° Exterior': '360°',
 			'Interior & Mechanical': 'Int',
-			'Tyres': 'Tyre',
+			Tyres: 'Tyre',
 			'Damage ID': 'Dmg',
-			'Values': 'Val',
+			Values: 'Val',
 			'Pre-Incident': 'Pre',
-			'Estimate': 'Est',
-			'Finalize': 'Fin',
-			'Additionals': 'Add'
+			Estimate: 'Est',
+			Finalize: 'Fin',
+			Additionals: 'Add'
 		};
 		return shortLabels[label] || label;
 	}
 </script>
 
 <div class="flex h-full flex-col bg-gray-50">
-	<!-- Header -->
-	<div class="border-b bg-white px-4 sm:px-6 lg:px-8 py-3 sm:py-4">
-		<div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-			<div class="flex-1 min-w-0">
-				<h1 class="text-xl sm:text-2xl font-bold text-gray-900 truncate">
-					Assessment {assessment.assessment_number}
-				</h1>
-				<p class="mt-1 text-xs sm:text-sm text-gray-500">
-					Complete the vehicle assessment by filling in all required sections
-				</p>
-			</div>
-			<div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3 w-full sm:w-auto">
-				{#if lastSaved}
-					<span class="text-xs sm:text-sm text-gray-500 text-center sm:text-left">
-						Last saved: {new Date(lastSaved).toLocaleTimeString()}
-					</span>
-				{/if}
-				<div class="flex gap-2">
-					<Button variant="outline" onclick={onSave} disabled={saving} class="flex-1 sm:flex-none">
-						<Save class="mr-2 h-4 w-4" />
-						{saving ? 'Saving...' : 'Save'}
-					</Button>
-					{#if onCancel && ['assessment_in_progress', 'estimate_review', 'estimate_sent'].includes(assessment.stage)}
-						<Button variant="destructive" onclick={onCancel} class="flex-1 sm:flex-none">
-							<Trash2 class="mr-2 h-4 w-4" />
-							Cancel
-						</Button>
+	<!-- Sticky Header Container -->
+	<div class="relative z-30 flex flex-col bg-gray-50 shadow-sm">
+		<!-- Header -->
+		<div class="border-b bg-white px-4 py-3 sm:px-6 sm:py-4 lg:px-8">
+			<div class="flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-center">
+				<div class="min-w-0 flex-1">
+					<h1 class="truncate text-xl font-bold text-gray-900 sm:text-2xl">
+						Assessment {assessment.assessment_number}
+					</h1>
+					<p class="mt-1 text-xs text-gray-500 sm:text-sm">
+						Complete the vehicle assessment by filling in all required sections
+					</p>
+				</div>
+				<div
+					class="flex w-full flex-col items-stretch gap-2 sm:w-auto sm:flex-row sm:items-center sm:gap-3"
+				>
+					{#if lastSaved}
+						<span class="text-center text-xs text-gray-500 sm:text-left sm:text-sm">
+							Last saved: {new Date(lastSaved).toLocaleTimeString()}
+						</span>
 					{/if}
-					<Button variant="outline" onclick={onExit} class="flex-1 sm:flex-none">
-						<X class="mr-2 h-4 w-4" />
-						Exit
-					</Button>
+					<div class="flex gap-2">
+						<LoadingButton
+							variant="outline"
+							onclick={onSave}
+							loading={saving}
+							class="flex-1 sm:flex-none"
+						>
+							{#if !saving}
+								<Save class="mr-2 h-4 w-4" />
+							{/if}
+							{saving ? 'Saving...' : 'Save'}
+						</LoadingButton>
+						{#if onCancel && ['assessment_in_progress', 'estimate_review', 'estimate_sent'].includes(assessment.stage)}
+							<Button variant="destructive" onclick={onCancel} class="flex-1 sm:flex-none">
+								<Trash2 class="mr-2 h-4 w-4" />
+								Cancel
+							</Button>
+						{/if}
+						<Button variant="outline" onclick={onExit} class="flex-1 sm:flex-none">
+							<X class="mr-2 h-4 w-4" />
+							Exit
+						</Button>
+					</div>
 				</div>
 			</div>
 		</div>
 
-	</div>
-
-	<!-- Tabs -->
-	<div class="border-b bg-white px-4 sm:px-6 lg:px-8">
-		<Tabs
-			bind:value={currentTab}
-			class="w-full"
-			onValueChange={(value: string) => onTabChange(value)}
-		>
-			<TabsList class="flex w-full flex-wrap items-center justify-start gap-1 rounded-none border-b border-border bg-transparent p-0">
-				{#each tabs() as tab}
-					{@const missingCount = getMissingFieldsCount(tab.id)}
-					<TabsTrigger
-						value={tab.id}
-						class="relative flex items-center gap-1 sm:gap-2 rounded-none border-b-2 border-transparent px-2 sm:px-3 lg:px-4 py-2 sm:py-2.5 lg:py-3 text-xs sm:text-sm font-medium data-[state=active]:border-blue-600 data-[state=active]:text-blue-600"
-					>
-						{#if tab.icon}
-							{@const Icon = tab.icon}
-							<Icon class="h-3 w-3 sm:h-4 sm:w-4" />
-						{/if}
-						<span class="hidden sm:inline">{tab.label}</span>
-						<span class="sm:hidden">{getShortLabel(tab.label)}</span>
-						{#if missingCount > 0}
-							<Badge variant="destructive" class="ml-1 h-4 min-w-4 px-1 text-[10px] font-bold">
-								{missingCount}
-							</Badge>
-						{/if}
-					</TabsTrigger>
-				{/each}
-			</TabsList>
-		</Tabs>
+		<!-- Tabs -->
+		<div class="border-b bg-white px-4 py-2 sm:px-6 lg:px-8">
+			<Tabs
+				bind:value={currentTab}
+				class="w-full"
+				onValueChange={(value: string) => onTabChange(value)}
+			>
+				<TabsList
+					class="grid h-auto w-full grid-cols-2 gap-1.5 bg-transparent p-0 sm:grid-cols-4 sm:gap-2 md:grid-cols-6 lg:grid-cols-6"
+				>
+					{#each tabs() as tab}
+						{@const missingCount = getMissingFieldsCount(tab.id)}
+						<TabsTrigger
+							value={tab.id}
+							disabled={tabLoading}
+							class="relative flex h-8 items-center justify-center gap-1.5 rounded-md border border-transparent px-2 py-1.5 text-xs font-medium text-muted-foreground ring-offset-background transition-all hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-rose-500 data-[state=active]:text-white data-[state=active]:shadow-sm sm:h-9 sm:gap-2 sm:px-3 sm:py-2 sm:text-sm"
+						>
+							<TabLoadingIndicator
+								isLoading={tabLoading && currentTab === tab.id}
+								icon={tab.icon}
+							/>
+							<span class="hidden sm:inline">{tab.label}</span>
+							<span class="sm:hidden">{getShortLabel(tab.label)}</span>
+							{#if missingCount > 0}
+								<Badge variant="destructive" class="ml-1 h-5 min-w-5 px-1.5 text-[10px] font-bold">
+									{missingCount}
+								</Badge>
+							{/if}
+						</TabsTrigger>
+					{/each}
+				</TabsList>
+			</Tabs>
+		</div>
 	</div>
 
 	<!-- Content Area -->
-	<div class="flex-1 overflow-y-auto p-2 sm:p-3 md:p-4 lg:p-6">
-		<div class="mx-auto w-[98%] sm:w-[95%] md:w-[92%] lg:w-[90%] max-w-[1600px]">
+	<div class="flex-1 overflow-y-auto p-2 pt-2 sm:p-3 sm:pt-3 md:p-4 lg:p-6 lg:pt-4">
+		<div class="mx-auto w-[98%] max-w-[1600px] sm:w-[95%] md:w-[92%] lg:w-[90%]">
 			{#if children}
 				{@render children()}
 			{/if}
 		</div>
 	</div>
 </div>
-

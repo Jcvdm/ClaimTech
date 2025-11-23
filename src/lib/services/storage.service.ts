@@ -1,6 +1,7 @@
 import { supabase } from '$lib/supabase';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from '$lib/types/database';
+import { imageCompressionService } from './image-compression.service';
 
 export interface UploadPhotoResult {
 	url: string;
@@ -13,6 +14,9 @@ export interface UploadPhotoOptions {
 	fileName?: string;
 	maxSizeMB?: number;
 	supabaseClient?: SupabaseClient<Database>;
+	onCompressionProgress?: (progress: number) => void;
+	onUploadProgress?: (progress: number) => void;
+	skipCompression?: boolean;
 }
 
 class StorageService {
@@ -51,6 +55,8 @@ class StorageService {
 	 *
 	 * For SVA Photos bucket: Returns proxy URL (/api/photo/{path})
 	 * For documents bucket: Returns signed URL (for PDFs)
+	 * 
+	 * Automatically compresses images before upload unless skipCompression is true
 	 */
 	async uploadPhoto(
 		file: File,
@@ -61,29 +67,54 @@ class StorageService {
 			folder = 'general',
 			fileName,
 			maxSizeMB = this.MAX_FILE_SIZE_MB,
-			supabaseClient = supabase
+			supabaseClient = supabase,
+			onCompressionProgress,
+			onUploadProgress,
+			skipCompression = false
 		} = options;
-
-		// Validate file size
-		const fileSizeMB = file.size / (1024 * 1024);
-		if (fileSizeMB > maxSizeMB) {
-			throw new Error(`File size exceeds ${maxSizeMB}MB limit`);
-		}
 
 		// Validate file type
 		if (!file.type.startsWith('image/')) {
 			throw new Error('Only image files are allowed');
 		}
 
+		let fileToUpload = file;
+
+		// Compress image unless explicitly skipped
+		if (!skipCompression) {
+			try {
+				const compressionResult = await imageCompressionService.compressImage(file, {
+					maxWidthOrHeight: 1920,
+					maxSizeMB: 2,
+					quality: 0.85,
+					onProgress: onCompressionProgress
+				});
+
+				fileToUpload = compressionResult.compressedFile;
+
+				// Log compression stats for debugging
+				console.log(imageCompressionService.getCompressionMessage(compressionResult));
+			} catch (error) {
+				console.warn('Compression failed, uploading original file:', error);
+				// Continue with original file if compression fails
+			}
+		}
+
+		// Validate file size after compression
+		const fileSizeMB = fileToUpload.size / (1024 * 1024);
+		if (fileSizeMB > maxSizeMB) {
+			throw new Error(`File size exceeds ${maxSizeMB}MB limit even after compression`);
+		}
+
 		// Generate unique file name
 		const timestamp = Date.now();
 		const randomString = Math.random().toString(36).substring(2, 8);
-		const extension = file.name.split('.').pop();
+		const extension = fileToUpload.name.split('.').pop();
 		const uniqueFileName = fileName || `${timestamp}-${randomString}.${extension}`;
 		const filePath = `${folder}/${uniqueFileName}`;
 
 		// Upload file
-		const { data, error } = await supabaseClient.storage.from(bucket).upload(filePath, file, {
+		const { data, error } = await supabaseClient.storage.from(bucket).upload(filePath, fileToUpload, {
 			cacheControl: '3600',
 			upsert: false
 		});
@@ -91,6 +122,11 @@ class StorageService {
 		if (error) {
 			console.error('Upload error:', error);
 			throw new Error(`Failed to upload photo: ${error.message}`);
+		}
+
+		// Notify upload complete
+		if (onUploadProgress) {
+			onUploadProgress(100);
 		}
 
 		// For SVA Photos bucket: Return proxy URL
@@ -262,13 +298,14 @@ class StorageService {
 		file: File,
 		assessmentId: string,
 		category: 'identification' | '360' | 'interior' | 'tyres' | 'damage' | 'estimate' | 'pre-incident',
-		subcategory?: string
+		subcategory?: string,
+		options?: Partial<UploadPhotoOptions>
 	): Promise<UploadPhotoResult> {
 		const folder = subcategory
 			? `assessments/${assessmentId}/${category}/${subcategory}`
 			: `assessments/${assessmentId}/${category}`;
 
-		return this.uploadPhoto(file, { folder });
+		return this.uploadPhoto(file, { folder, ...options });
 	}
 
 	/**

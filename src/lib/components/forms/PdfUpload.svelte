@@ -4,6 +4,7 @@
 	import * as Dialog from '$lib/components/ui/dialog';
 	import { Upload, FileText, X, Download, Maximize2, Minimize2, Eye } from 'lucide-svelte';
 	import { storageService } from '$lib/services/storage.service';
+	import { Progress } from '$lib/components/ui/progress';
 
 	interface Props {
 		value?: string | null;
@@ -245,14 +246,9 @@
 				{#if uploading}
 					<div class="w-full max-w-xs space-y-2">
 						<div class="flex items-center justify-center">
-							<div class="h-8 w-8 animate-spin rounded-full border-4 border-blue-500 border-t-transparent"></div>
+							<div class="h-8 w-8 animate-spin rounded-full border-4 border-rose-500 border-t-transparent"></div>
 						</div>
-						<div class="h-2 w-full overflow-hidden rounded-full bg-gray-200">
-							<div
-								class="h-full bg-blue-500 transition-all duration-300"
-								style="width: {uploadProgress}%"
-							></div>
-						</div>
+						<Progress value={uploadProgress} class="bg-rose-100" />
 						<p class="text-center text-sm text-gray-600">Uploading... {uploadProgress}%</p>
 					</div>
 				{:else}

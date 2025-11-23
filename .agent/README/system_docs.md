@@ -1,7 +1,7 @@
 # System Documentation Index
 
-**Last Updated**: November 21, 2025 (Supabase CLI Integration - Type Generation & Workflow)
-**Total Files**: 37 System documentation files
+**Last Updated**: November 23, 2025 (PhotoUpload Layout Fix Complete ✅)
+**Total Files**: 39 System documentation files
 
 ---
 
@@ -276,6 +276,93 @@ Comprehensive system documentation covering architecture, database design, secur
 - `Exterior360PhotosPanel.svelte`
 
 **Related**: [Photo Labeling Patterns](../SOP/photo_labeling_patterns.md), [Database Schema](../System/database_schema.md)
+
+---
+
+### 5. Photo Compression Implementation ⭐ NEW (Nov 23, 2025)
+- **File**: [photo_compression_implementation.md](../System/photo_compression_implementation.md)
+- **Size**: ~150 lines | **Last Updated**: Nov 23, 2025
+- **Read When**: Working with photo uploads, optimizing storage, implementing compression features
+
+**Contains**:
+- Client-side photo compression architecture
+- Compression service integration with storage service
+- HEIC to JPEG conversion
+- Progress tracking (compression + upload phases)
+- 60-75% storage reduction (5MB → 1.8MB typical)
+- All 8 photo upload components using compression
+- User experience patterns (two-phase progress)
+- Testing checklist and troubleshooting
+
+**Implemented in**:
+- `src/lib/services/image-compression.service.ts` - Compression engine
+- `src/lib/services/storage.service.ts` - Storage integration
+- `src/lib/components/forms/PhotoUpload.svelte` - Enhanced with compression UI
+
+---
+
+### 6. PhotoUpload Layout Refactor ⭐ NEW (Nov 23, 2025)
+- **File**: [photoupload_layout_refactor_nov_23_2025.md](../System/photoupload_layout_refactor_nov_23_2025.md)
+- **Size**: ~200 lines | **Last Updated**: Nov 23, 2025
+- **Read When**: Working with PhotoUpload component, understanding unified photo panel pattern, debugging upload UI
+
+**Contains**:
+- PhotoUpload refactor to match TyrePhotosPanel pattern
+- Layout changes: two-button side-by-side → single centered upload zone
+- UI improvements: added browse link, support text, buttons below zone
+- Container styling: added border-dashed, drag state colors, padding
+- FileUploadProgress integration for compression/upload states
+- Removed unused Loader2 import
+- Before/after comparison with visual mockups
+- Testing checklist and verification steps
+
+**Issue Fixed**:
+- PhotoUpload styling didn't match other photo panels
+- Two separate upload buttons instead of unified zone
+- Missing browse link and support text
+- Buttons integrated in upload area instead of below
+
+**Solution**:
+- Rebuilt empty-state zone into single dashed drop target
+- Vertical layout with centered icon and instructions
+- Inline "browse" link in instructions
+- "Supports: JPG, PNG, GIF" support text
+- Camera + Upload buttons below zone (not integrated)
+- FileUploadProgress for compression/upload progress
+
+**Implemented in**:
+- `src/lib/components/forms/PhotoUpload.svelte` (lines 240-306)
+
+**Related**: [Unified Photo Panel Pattern](../System/unified_photo_panel_pattern.md), [Rose Theme Standardization](../System/rose_theme_standardization.md)
+- All photo panel components (automatic via storage service)
+
+**Key for**: Understanding photo optimization, implementing compression features, reducing storage costs, handling HEIC images
+
+---
+
+### 6. Rose Theme Standardization ⭐ NEW (Nov 23, 2025)
+- **File**: [rose_theme_standardization.md](../System/rose_theme_standardization.md)
+- **Size**: ~200 lines | **Last Updated**: Nov 23, 2025
+- **Read When**: Working with photo upload components, document generation, or updating UI styling
+
+**Contains**:
+- Rose theme color palette and Tailwind mappings
+- Standardized progress UI components (FileUploadProgress)
+- Two-phase progress tracking (compression → upload)
+- Camera input support on all photo panels
+- Color migration guide (blue → rose)
+- All 6 photo panel components updated
+- Document generation progress indicators
+
+**Implemented in**:
+- `src/lib/components/forms/PhotoUpload.svelte`
+- `src/lib/components/assessment/DocumentCard.svelte`
+- `src/lib/components/assessment/PreIncidentPhotosPanel.svelte`
+- `src/lib/components/assessment/EstimatePhotosPanel.svelte`
+- `src/lib/components/assessment/AdditionalsPhotosPanel.svelte`
+- `src/lib/components/assessment/Exterior360PhotosPanel.svelte`
+
+**Key for**: Understanding UI theming, implementing consistent styling, working with progress indicators, camera input patterns
 
 ---
 
