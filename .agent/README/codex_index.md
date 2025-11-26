@@ -113,9 +113,6 @@
 **...integrate MCP servers**
 → `.agent/SOP/codex_mcp_integration.md`
 
-**...compare Codex with Context Engine**
-→ `.agent/System/codex_vs_context_engine.md`
-
 **...follow a step-by-step setup**
 → `.agent/Tasks/active/CODEX_SETUP_GUIDE.md`
 

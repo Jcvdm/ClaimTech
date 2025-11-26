@@ -34,11 +34,6 @@
 - **`playwright/`** - Playwright MCP
 - **`chrome/`** - Chrome DevTools MCP
 
-### `/context-engine` - AI Context Service
-- **`contexts/`** - Cached context data
-- **`scripts/`** - Data processing scripts
-- **`db/`** - Chroma vector database
-
 ### `/scripts` - Build & Utility Scripts
 - `generate-types.ps1` - Generate Supabase types
 - `apply-migration.mjs` - Apply DB migrations

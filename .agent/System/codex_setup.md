@@ -109,7 +109,6 @@ codex "implement a login form with validation"
 ## 📚 Related Documentation
 
 - **MCP Setup**: `.agent/System/mcp_setup.md`
-- **Context Engine**: `context-engine/AGENT_INSTRUCTIONS.md`
 - **Official Docs**: https://developers.openai.com/codex/
 
 ---

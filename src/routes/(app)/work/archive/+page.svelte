@@ -9,8 +9,7 @@
 	import GradientBadge from '$lib/components/data/GradientBadge.svelte';
 	import TableCell from '$lib/components/data/TableCell.svelte';
 	import EmptyState from '$lib/components/data/EmptyState.svelte';
-	import { Badge } from '$lib/components/ui/badge';
-	import { Tabs, TabsList, TabsTrigger } from '$lib/components/ui/tabs';
+	import { FilterTabs } from '$lib/components/ui/tabs';
 	import { Input } from '$lib/components/ui/input';
 	import { formatDate, formatVehicle } from '$lib/utils/formatters';
 	import {
@@ -326,46 +325,15 @@
 	</div>
 
 	<!-- Type Filter Tabs -->
-	<Tabs bind:value={selectedType} class="w-full">
-		<TabsList class="flex w-full items-center justify-start gap-2 rounded-none border-b border-border bg-transparent p-0">
-			<TabsTrigger
-				value="all"
-				class="relative flex h-8 items-center gap-2 rounded-md border border-transparent px-3 py-1.5 text-xs font-medium text-muted-foreground ring-offset-background transition-all hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-rose-500 data-[state=active]:text-white data-[state=active]:shadow-sm sm:h-9 sm:px-4 sm:py-2 sm:text-sm"
-			>
-				<span>All</span>
-				<Badge
-					variant="secondary"
-					class="bg-muted text-muted-foreground group-data-[state=active]:bg-rose-600 group-data-[state=active]:text-white"
-				>
-					{typeCounts.all}
-				</Badge>
-			</TabsTrigger>
-			<TabsTrigger
-				value="completed"
-				class="relative flex h-8 items-center gap-2 rounded-md border border-transparent px-3 py-1.5 text-xs font-medium text-muted-foreground ring-offset-background transition-all hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-rose-500 data-[state=active]:text-white data-[state=active]:shadow-sm sm:h-9 sm:px-4 sm:py-2 sm:text-sm"
-			>
-				<span>Completed</span>
-				<Badge
-					variant="secondary"
-					class="bg-muted text-muted-foreground group-data-[state=active]:bg-rose-600 group-data-[state=active]:text-white"
-				>
-					{typeCounts.completed}
-				</Badge>
-			</TabsTrigger>
-			<TabsTrigger
-				value="cancelled"
-				class="relative flex h-8 items-center gap-2 rounded-md border border-transparent px-3 py-1.5 text-xs font-medium text-muted-foreground ring-offset-background transition-all hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-rose-500 data-[state=active]:text-white data-[state=active]:shadow-sm sm:h-9 sm:px-4 sm:py-2 sm:text-sm"
-			>
-				<span>Cancelled</span>
-				<Badge
-					variant="secondary"
-					class="bg-muted text-muted-foreground group-data-[state=active]:bg-rose-600 group-data-[state=active]:text-white"
-				>
-					{typeCounts.cancelled}
-				</Badge>
-			</TabsTrigger>
-		</TabsList>
-	</Tabs>
+	<FilterTabs
+		items={[
+			{ value: 'all', label: 'All' },
+			{ value: 'completed', label: 'Completed' },
+			{ value: 'cancelled', label: 'Cancelled' }
+		]}
+		bind:value={selectedType}
+		counts={typeCounts}
+	/>
 
 	{#if archiveItems.length === 0}
 		<EmptyState

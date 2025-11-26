@@ -7,9 +7,8 @@
 	import TableCell from '$lib/components/data/TableCell.svelte';
 	import EmptyState from '$lib/components/data/EmptyState.svelte';
 	import { Button } from '$lib/components/ui/button';
-import { Badge } from '$lib/components/ui/badge';
 import { Alert, AlertDescription, AlertTitle } from '$lib/components/ui/alert';
-import { Tabs, TabsList, TabsTrigger } from '$lib/components/ui/tabs';
+import { FilterTabs } from '$lib/components/ui/tabs';
 	import { FileText, Plus, Hash, User, Car, Calendar } from 'lucide-svelte';
 	import type { Request, RequestStatus } from '$lib/types/request';
 	import type { PageData } from './$types';
@@ -112,26 +111,11 @@ import { Tabs, TabsList, TabsTrigger } from '$lib/components/ui/tabs';
 		</Alert>
 	{/if}
 
-	<Tabs
+	<FilterTabs
+		items={statusTabItems}
 		bind:value={selectedStatus}
-		class="w-full"
-		onValueChange={(value) => (selectedStatus = value as StatusFilterValue)}
-	>
-		<TabsList class="flex w-full items-center justify-start gap-2 rounded-none border-b border-border bg-transparent p-0">
-			{#each statusTabItems as item}
-				<TabsTrigger value={item.value} class="w-auto gap-2 rounded-none border-b-2 border-transparent px-4 py-2 text-sm data-[state=active]:border-rose-500">
-					<span>{item.label}</span>
-					<Badge variant="secondary">
-						{item.value === 'all'
-							? statusCounts.all
-							: item.value === 'submitted'
-								? statusCounts.submitted
-								: statusCounts.draft}
-					</Badge>
-				</TabsTrigger>
-			{/each}
-		</TabsList>
-	</Tabs>
+		counts={statusCounts}
+	/>
 
 	{#if requestsWithDetails.length === 0}
 		<EmptyState

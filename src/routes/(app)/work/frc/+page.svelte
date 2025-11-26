@@ -9,8 +9,7 @@
 	import GradientBadge from '$lib/components/data/GradientBadge.svelte';
 	import TableCell from '$lib/components/data/TableCell.svelte';
 	import EmptyState from '$lib/components/data/EmptyState.svelte';
-	import { Tabs, TabsList, TabsTrigger } from '$lib/components/ui/tabs';
-	import { Badge } from '$lib/components/ui/badge';
+	import { FilterTabs } from '$lib/components/ui/tabs';
 	import { formatDate } from '$lib/utils/formatters';
 	import {
 		FileCheck,
@@ -204,33 +203,11 @@
 		description="Review and manage final repair costing for completed assessments"
 	/>
 
-	<Tabs
+	<FilterTabs
+		items={statusTabItems}
 		bind:value={selectedStatus}
-		class="w-full"
-		onValueChange={(value: string) => (selectedStatus = value as FRCStatus | 'all')}
-	>
-		<TabsList
-			class="flex w-full items-center justify-start gap-2 rounded-none border-b border-border bg-transparent p-0"
-		>
-			{#each statusTabItems as item}
-				<TabsTrigger
-					value={item.value}
-					class="w-auto gap-2 rounded-none border-b-2 border-transparent px-4 py-2 text-sm data-[state=active]:border-rose-500"
-				>
-					<span>{item.label}</span>
-					<Badge variant="secondary">
-						{item.value === 'all'
-							? statusCounts.all
-							: item.value === 'not_started'
-								? statusCounts.not_started
-								: item.value === 'in_progress'
-									? statusCounts.in_progress
-									: statusCounts.completed}
-					</Badge>
-				</TabsTrigger>
-			{/each}
-		</TabsList>
-	</Tabs>
+		counts={statusCounts}
+	/>
 
 	{#if frcWithDetails.length === 0}
 		<EmptyState

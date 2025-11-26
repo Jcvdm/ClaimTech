@@ -9,7 +9,7 @@
 	import GradientBadge from '$lib/components/data/GradientBadge.svelte';
 	import ActionButtonGroup from '$lib/components/data/ActionButtonGroup.svelte';
 	import ActionIconButton from '$lib/components/data/ActionIconButton.svelte';
-	import { Tabs, TabsList, TabsTrigger } from '$lib/components/ui/tabs';
+	import { FilterTabs } from '$lib/components/ui/tabs';
 	import { Badge } from '$lib/components/ui/badge';
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
@@ -255,31 +255,11 @@
 		</div>
 
 		<!-- Type Filter -->
-		<Tabs
+		<FilterTabs
+			items={typeTabItems}
 			bind:value={selectedType}
-			class="w-auto"
-			onValueChange={(value: string) => (selectedType = value as AppointmentType | 'all')}
-		>
-			<TabsList
-				class="flex w-full items-center justify-start gap-2 rounded-none border-b border-border bg-transparent p-0"
-			>
-				{#each typeTabItems as item}
-					<TabsTrigger
-						value={item.value}
-						class="w-auto gap-2 rounded-none border-b-2 border-transparent px-4 py-2 text-sm data-[state=active]:border-rose-500"
-					>
-						<span>{item.label}</span>
-						<Badge variant="secondary">
-							{item.value === 'all'
-								? typeCounts.all
-								: item.value === 'in_person'
-									? typeCounts.in_person
-									: typeCounts.digital}
-						</Badge>
-					</TabsTrigger>
-				{/each}
-			</TabsList>
-		</Tabs>
+			counts={typeCounts}
+		/>
 	</div>
 
 	{#if filteredAssessments.length === 0}

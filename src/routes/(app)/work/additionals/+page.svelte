@@ -9,8 +9,7 @@
 	import GradientBadge from '$lib/components/data/GradientBadge.svelte';
 	import TableCell from '$lib/components/data/TableCell.svelte';
 	import EmptyState from '$lib/components/data/EmptyState.svelte';
-	import { Tabs, TabsList, TabsTrigger } from '$lib/components/ui/tabs';
-	import { Badge } from '$lib/components/ui/badge';
+	import { FilterTabs } from '$lib/components/ui/tabs';
 	import { formatDate, formatVehicle } from '$lib/utils/formatters';
 	import {
 		Plus,
@@ -199,33 +198,11 @@
 		description="Manage additional line items for finalized assessments"
 	/>
 
-	<Tabs
+	<FilterTabs
+		items={filterTabItems}
 		bind:value={selectedFilter}
-		class="w-full"
-		onValueChange={(value) => (selectedFilter = value as FilterType)}
-	>
-		<TabsList
-			class="flex w-full items-center justify-start gap-2 rounded-none border-b border-border bg-transparent p-0"
-		>
-			{#each filterTabItems as item}
-				<TabsTrigger
-					value={item.value}
-					class="w-auto gap-2 rounded-none border-b-2 border-transparent px-4 py-2 text-sm data-[state=active]:border-rose-500"
-				>
-					<span>{item.label}</span>
-					<Badge variant="secondary">
-						{item.value === 'all'
-							? filterCounts.all
-							: item.value === 'pending'
-								? filterCounts.pending
-								: item.value === 'approved'
-									? filterCounts.approved
-									: filterCounts.declined}
-					</Badge>
-				</TabsTrigger>
-			{/each}
-		</TabsList>
-	</Tabs>
+		counts={filterCounts}
+	/>
 
 	{#if additionalsWithDetails.length === 0}
 		<EmptyState
