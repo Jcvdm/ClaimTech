@@ -6,11 +6,10 @@
 	import RequiredFieldsWarning from './RequiredFieldsWarning.svelte';
 	import { Plus, Trash2, Loader2, AlertCircle } from 'lucide-svelte';
 	import { debounce } from '$lib/utils/useUnsavedChanges.svelte';
-	import { useDraft } from '$lib/utils/useDraft.svelte';
 	import { useOptimisticQueue } from '$lib/utils/useOptimisticQueue.svelte';
-	import { onMount, onDestroy } from 'svelte';
+	import { onMount } from 'svelte';
 	import type { Exterior360, VehicleAccessory, AccessoryType, Exterior360Photo } from '$lib/types/assessment';
-	import { validateExterior360 } from '$lib/utils/validation';
+	import { validateExterior360, type TabValidation } from '$lib/utils/validation';
 
 	interface Props {
 		data: Exterior360 | null;
@@ -21,6 +20,7 @@
 		onAddAccessory: (accessory: { accessory_type: AccessoryType; custom_name?: string }) => Promise<VehicleAccessory>;
 		onDeleteAccessory: (id: string) => Promise<void>;
 		onPhotosUpdate: () => void;
+		onValidationUpdate?: (validation: TabValidation) => void;
 	}
 
 	// Make props reactive using $derived pattern
@@ -49,16 +49,11 @@
 		}
 	});
 
-	// Initialize localStorage draft for critical fields
-	// Note: assessmentId is already $derived from props, so it's reactive
-	// We use $derived.by to create the draft objects reactively when assessmentId changes
-	const conditionDraft = $derived.by(() => useDraft(`assessment-${assessmentId}-condition`));
-	const colorDraft = $derived.by(() => useDraft(`assessment-${assessmentId}-color`));
-
 	// Use $state for mutable values (needed for bind:value and mutations)
-	// Initialize empty, will be synced with props in $effect below
-	let overallCondition = $state('');
-	let vehicleColor = $state('');
+	// Initialize from props to prevent empty state issues
+	let overallCondition = $state(data?.overall_condition || '');
+	let vehicleColor = $state(data?.vehicle_color || '');
+	let isDirty = $state(false);
 
 	let showAccessoryModal = $state(false);
 	let selectedAccessoryType = $state<AccessoryType>('mags');
@@ -81,54 +76,31 @@
 	];
 
 	// Sync local state with data prop when it changes (after save)
+	// Only sync from props if user hasn't made changes
 	$effect(() => {
-		if (data) {
-			// Only update if there's no draft (draft takes precedence)
-			if (!conditionDraft.hasDraft() && data.overall_condition) {
-				overallCondition = data.overall_condition;
-			}
-			if (!colorDraft.hasDraft() && data.vehicle_color) {
-				vehicleColor = data.vehicle_color;
-			}
+		if (data && !isDirty) {
+			overallCondition = data.overall_condition || '';
+			vehicleColor = data.vehicle_color || '';
 		}
 	});
 
-	// Load draft values on mount if available
-	onMount(() => {
-		const conditionDraftVal = conditionDraft.get();
-		const colorDraftVal = colorDraft.get();
-
-		if (conditionDraftVal && !data?.overall_condition) overallCondition = conditionDraftVal;
-		if (colorDraftVal && !data?.vehicle_color) vehicleColor = colorDraftVal;
-	});
-
-	// Save any pending changes when component unmounts (user navigates away)
-	onDestroy(() => {
-		// Force save any pending changes
-		handleSave();
-	});
-
 	function handleSave() {
+		// Don't save if values are empty (prevents overwriting DB with null)
+		if (!overallCondition && !vehicleColor) {
+			return;
+		}
+
 		const updateData: Partial<Exterior360> = {
 			overall_condition: (overallCondition || undefined) as any,
 			vehicle_color: vehicleColor || undefined
 		};
+
 		onUpdate(updateData);
-
-		// Clear drafts after successful save
-		conditionDraft.clear();
-		colorDraft.clear();
-	}
-
-	// Save drafts on input (throttled)
-	function saveDrafts() {
-		conditionDraft.save(overallCondition);
-		colorDraft.save(vehicleColor);
+		isDirty = false; // Reset dirty flag after successful save
 	}
 
 	// Create debounced save function (saves 2 seconds after user stops typing)
 	const debouncedSave = debounce(() => {
-		saveDrafts(); // Save to localStorage
 		handleSave(); // Save to database
 	}, 2000);
 
@@ -181,6 +153,13 @@
 			props.exterior360Photos
 		);
 	});
+
+	// Report validation to parent for immediate badge updates
+	$effect(() => {
+		if (props.onValidationUpdate) {
+			props.onValidationUpdate(validation);
+		}
+	});
 </script>
 
 <div class="space-y-6">
@@ -208,7 +187,7 @@
 				required
 				onchange={(value: string) => {
 					overallCondition = value;
-					conditionDraft.save(value);
+					isDirty = true;
 					handleSave(); // Save immediately for select fields
 				}}
 			/>
@@ -219,7 +198,10 @@
 				bind:value={vehicleColor}
 				placeholder="e.g., White, Black, Silver"
 				required
-				oninput={debouncedSave}
+				oninput={() => {
+					isDirty = true;
+					debouncedSave();
+				}}
 			/>
 		</div>
 	</Card>
