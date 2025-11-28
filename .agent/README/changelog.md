@@ -1,6 +1,47 @@
 # Changelog - Recent Updates
 
-**Last Updated**: November 23, 2025 (Logo Branding Implementation Complete ✅)
+**Last Updated**: November 28, 2025 (C001: Vehicle Location Capturing Complete ✅)
+
+---
+
+## November 28, 2025
+
+### ✅ C001: Vehicle Location Capturing Feature - COMPLETE
+- **FEATURE**: Modern address autocomplete with Google Places API integration for capturing structured location data
+- **SCOPE**: Requests (incident and owner address), Appointments (appointment location)
+- **COMPONENTS CREATED**:
+  - **AddressInput.svelte** - Google Places autocomplete with fallback to manual entry
+  - **AddressDisplay.svelte** - Consistent address rendering component
+  - **address.ts** - StructuredAddress type definition
+  - **google-places.ts** - Google Places API utilities with session token management
+  - **address.service.ts** - Address parsing and validation functions
+- **DATABASE MIGRATIONS APPLIED**:
+  - `add_structured_addresses_to_requests` - Added 8 structured address fields to requests (incident + owner)
+  - `enhance_appointments_addresses` - Added 8 structured address fields to appointments (location)
+  - **Structured Fields**: street_address, suburb, city, province, postal_code, latitude, longitude, place_id
+  - **Backward Compatibility**: Maintained legacy text fields (incident_location, owner_address, location_address)
+- **INTEGRATIONS**:
+  - **Request Create** (`requests/new/+page.svelte`) - IncidentInfoSection + OwnerInfoSection with AddressInput
+  - **Request Edit** (`requests/[id]/edit/+page.svelte`) - Pre-populate existing addresses
+  - **Appointments Schedule** (`appointments/+page.svelte`) - Schedule modal uses AddressInput for location
+  - **Appointments Reschedule** (`appointments/[id]/+page.svelte`) - Reschedule modal updates location
+- **FEATURES**:
+  - Google Places Autocomplete (South Africa-only by default)
+  - Manual entry fallback with address parsing
+  - Session token caching for cost optimization
+  - Full address extraction (street, suburb, city, province, postal, coordinates)
+  - Graceful handling of partial addresses
+  - Helper functions in request.ts for converting between flat columns and StructuredAddress type
+- **ENVIRONMENT**: Requires `VITE_GOOGLE_PLACES_API_KEY` environment variable
+- **DOCUMENTATION CREATED**:
+  - `.agent/System/address_location_implementation.md` - Complete feature documentation
+- **BENEFITS**:
+  - Modern, user-friendly address entry
+  - Structured data storage enables mapping, location-based queries
+  - Accurate location capture vs free-text entry
+  - Backward compatible with legacy systems
+  - Cost-optimized with session tokens
+- **VERIFICATION**: ✅ All components created, migrations applied, integrations completed
 
 ---
 

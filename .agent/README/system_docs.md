@@ -1,7 +1,7 @@
 # System Documentation Index
 
-**Last Updated**: November 23, 2025 (Logo Branding Implementation Complete ✅)
-**Total Files**: 40 System documentation files
+**Last Updated**: November 28, 2025 (C001: Vehicle Location Capturing - Address Features ✅)
+**Total Files**: 41 System documentation files
 
 ---
 
@@ -177,6 +177,45 @@ Comprehensive system documentation covering architecture, database design, secur
 - Troubleshooting guide
 
 **Key for**: Understanding audit trail system, implementing logging in new services, compliance tracking
+
+---
+
+## 📍 Location & Address Features
+
+### Address & Location Capturing ⭐ NEW (Nov 28, 2025)
+- **File**: [address_location_implementation.md](../System/address_location_implementation.md)
+- **Size**: ~500 lines | **Last Updated**: Nov 28, 2025
+- **Status**: Production Ready - Complete implementation with Google Places integration
+- **Read When**: Working with address input components, implementing location features, integrating Google Places API
+
+**Contains**:
+- Complete Address & Location Capturing feature (C001) documentation
+- Google Places API integration with session token caching
+- AddressInput and AddressDisplay component architecture
+- StructuredAddress type definition (street, suburb, city, province, postal, lat/lng, place_id)
+- Database schema extensions for requests and appointments tables
+- Integration points (request create/edit, appointment schedule/reschedule)
+- Backward compatibility patterns with legacy text address fields
+- Helper functions for converting between flat DB columns and StructuredAddress type
+- Manual entry fallback with address parsing
+- Environment configuration (VITE_GOOGLE_PLACES_API_KEY)
+
+**Components**:
+- `AddressInput.svelte` - Modern autocomplete with fallback
+- `AddressDisplay.svelte` - Consistent address rendering
+- Supporting utilities and services
+
+**Implemented in**:
+- `src/lib/components/forms/AddressInput.svelte` (NEW)
+- `src/lib/components/forms/AddressDisplay.svelte` (NEW)
+- `src/lib/types/address.ts` (NEW)
+- `src/lib/utils/google-places.ts` (NEW)
+- `src/lib/services/address.service.ts` (NEW)
+- Request and Appointment pages (integrated)
+
+**Related**: [Project Architecture](../System/project_architecture.md), [Database Schema](../System/database_schema.md), [Creating Components](../SOP/creating-components.md)
+
+**Key for**: Understanding address input patterns, integrating Google Places API, working with structured address storage, backward compatibility
 
 ---
 
