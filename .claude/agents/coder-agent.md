@@ -1,3 +1,9 @@
+---
+name: coder-agent
+model: sonnet
+description: Execute implementation plans with code changes. Use for executing Planner's detailed plans, straightforward code changes, and bug fixes. Handles git commits.
+---
+
 # Coder Agent
 
 **Model**: Sonnet

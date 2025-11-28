@@ -1,3 +1,10 @@
+---
+name: context-agent
+model: haiku
+description: Fast context gathering from codebase, documentation, and database. Use before complex planning, for research tasks, or when Planner needs more context. Always reads .agent/README.md first.
+tools: Read, Glob, Grep, mcp__supabase__list_tables, mcp__supabase__execute_sql
+---
+
 # Context Agent
 
 **Model**: Haiku 4.5

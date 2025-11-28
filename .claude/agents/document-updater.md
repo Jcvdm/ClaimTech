@@ -1,3 +1,10 @@
+---
+name: document-updater
+model: haiku
+description: Fast documentation updates for .agent/ folder. Use after feature implementation, when user runs /update_doc, or after significant code changes. Keeps README.md, changelog, and system docs current.
+tools: Read, Write, Edit, Glob, Grep, Bash
+---
+
 # Document Updater Agent
 
 **Model**: Haiku

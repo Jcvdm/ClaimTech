@@ -1,3 +1,10 @@
+---
+name: planner-agent
+model: opus
+description: Deep reasoning for complex implementation planning. Use for complex multi-file features, architectural decisions, ambiguous requirements. Creates detailed plans for Coder Agent. Does NOT write code.
+tools: Read, Glob, Grep, Task
+---
+
 # Planner Agent
 
 **Model**: Opus 4.5
