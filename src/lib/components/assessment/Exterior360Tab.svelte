@@ -7,7 +7,8 @@
 	import { Plus, Trash2, Loader2, AlertCircle } from 'lucide-svelte';
 	import { debounce } from '$lib/utils/useUnsavedChanges.svelte';
 	import { useOptimisticQueue } from '$lib/utils/useOptimisticQueue.svelte';
-	import { onMount } from 'svelte';
+	import { onMount, onDestroy } from 'svelte';
+	import { useDraft } from '$lib/utils/useDraft.svelte';
 	import type { Exterior360, VehicleAccessory, AccessoryType, Exterior360Photo } from '$lib/types/assessment';
 	import { validateExterior360, type TabValidation } from '$lib/utils/validation';
 
@@ -49,11 +50,20 @@
 		}
 	});
 
+	// Initialize draft stores
+	let overallConditionDraft = useDraft('');
+	let vehicleColorDraft = useDraft('');
+
+	// Update draft keys when assessmentId changes
+	$effect(() => {
+		overallConditionDraft = useDraft(`assessment-${assessmentId}-overall-condition`);
+		vehicleColorDraft = useDraft(`assessment-${assessmentId}-vehicle-color`);
+	});
+
 	// Use $state for mutable values (needed for bind:value and mutations)
 	// Initialize from props to prevent empty state issues
 	let overallCondition = $state(data?.overall_condition || '');
 	let vehicleColor = $state(data?.vehicle_color || '');
-	let isDirty = $state(false);
 
 	let showAccessoryModal = $state(false);
 	let selectedAccessoryType = $state<AccessoryType>('mags');
@@ -76,12 +86,35 @@
 	];
 
 	// Sync local state with data prop when it changes (after save)
-	// Only sync from props if user hasn't made changes
+	// Only sync from props if NO draft exists (user changes take precedence)
 	$effect(() => {
-		if (data && !isDirty) {
-			overallCondition = data.overall_condition || '';
-			vehicleColor = data.vehicle_color || '';
+		if (data) {
+			// Only sync from props if NO draft exists (user changes take precedence)
+			if (!overallConditionDraft.hasDraft() && data.overall_condition) {
+				overallCondition = data.overall_condition;
+			}
+			if (!vehicleColorDraft.hasDraft() && data.vehicle_color) {
+				vehicleColor = data.vehicle_color;
+			}
 		}
+	});
+
+	onMount(() => {
+		// Load drafts on mount (restores unsaved changes after component remount)
+		const conditionDraft = overallConditionDraft.get();
+		if (conditionDraft && !data?.overall_condition) {
+			overallCondition = conditionDraft;
+		}
+
+		const colorDraft = vehicleColorDraft.get();
+		if (colorDraft && !data?.vehicle_color) {
+			vehicleColor = colorDraft;
+		}
+	});
+
+	onDestroy(() => {
+		// Force save before unmount (catches unsaved changes when debounce hasn't fired)
+		handleSave();
 	});
 
 	function handleSave() {
@@ -96,12 +129,20 @@
 		};
 
 		onUpdate(updateData);
-		isDirty = false; // Reset dirty flag after successful save
+
+		// Clear drafts after successful DB save
+		overallConditionDraft.clear();
+		vehicleColorDraft.clear();
 	}
 
 	// Create debounced save function (saves 2 seconds after user stops typing)
 	const debouncedSave = debounce(() => {
-		handleSave(); // Save to database
+		// Save to localStorage FIRST (immediate persistence)
+		overallConditionDraft.save(overallCondition);
+		vehicleColorDraft.save(vehicleColor);
+
+		// Then save to database (async)
+		handleSave();
 	}, 2000);
 
 	// Helper functions for queue status
@@ -187,7 +228,6 @@
 				required
 				onchange={(value: string) => {
 					overallCondition = value;
-					isDirty = true;
 					handleSave(); // Save immediately for select fields
 				}}
 			/>
@@ -199,7 +239,6 @@
 				placeholder="e.g., White, Black, Silver"
 				required
 				oninput={() => {
-					isDirty = true;
 					debouncedSave();
 				}}
 			/>
