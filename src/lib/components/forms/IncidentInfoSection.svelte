@@ -7,6 +7,7 @@
 	type Props = {
 		date_of_loss: string;
 		insured_value: number | undefined;
+		excess_amount: number | undefined;
 		incident_type: string;
 		incident_description: string;
 		incident_location: string;
@@ -15,6 +16,7 @@
 	let {
 		date_of_loss = $bindable(),
 		insured_value = $bindable(),
+		excess_amount = $bindable(),
 		incident_type = $bindable(),
 		incident_description = $bindable(),
 		incident_location = $bindable()
@@ -71,13 +73,23 @@
 			/>
 		</div>
 
-		<FormField
-			label="Incident Type"
-			name="incident_type"
-			type="select"
-			bind:value={incident_type}
-			options={incidentTypes}
-		/>
+		<div class="grid gap-6 md:grid-cols-2">
+			<FormField
+				label="Excess Amount (R)"
+				name="excess_amount"
+				type="number"
+				bind:value={excess_amount}
+				placeholder="5000"
+			/>
+
+			<FormField
+				label="Incident Type"
+				name="incident_type"
+				type="select"
+				bind:value={incident_type}
+				options={incidentTypes}
+			/>
+		</div>
 
 		<FormField
 			label="Incident Location"

@@ -1,8 +1,8 @@
 # Using Code Executor for Data Processing
 
-**Last Updated**: November 9, 2025
+**Last Updated**: November 28, 2025
 **Version**: 2.0 - Architecture A (MCP Fetch → Code Process)
-**Audience**: All agents (database-expert, feature-implementer, testing-specialist, etc.)
+**Audience**: All Claude Code users and implementations
 
 ---
 

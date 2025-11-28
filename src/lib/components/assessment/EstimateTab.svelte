@@ -42,6 +42,7 @@ import type { Repairer } from '$lib/types/repairer';
 		vehicleValues: VehicleValues | null;
 		vehicleIdentification: VehicleIdentification | null; // For parts list CSV
 		repairers: Repairer[];
+		excessAmount?: number | null; // Excess payment from request
 		onUpdateEstimate: (data: Partial<Estimate>) => void;
 		onAddLineItem: (item: EstimateLineItem) => Promise<EstimateLineItem>;
 		onUpdateLineItem: (itemId: string, data: Partial<EstimateLineItem>) => Promise<EstimateLineItem>;
@@ -77,6 +78,7 @@ import type { Repairer } from '$lib/types/repairer';
 	const vehicleValues = $derived(props.vehicleValues);
 	const vehicleIdentification = $derived(props.vehicleIdentification);
 	const repairers = $derived(props.repairers);
+	const excessAmount = $derived(props.excessAmount ?? 0);
 	const onUpdateEstimate = $derived(props.onUpdateEstimate);
 	const onPhotosUpdate = $derived(props.onPhotosUpdate);
 	const onRepairersUpdate = $derived(props.onRepairersUpdate);
@@ -583,6 +585,8 @@ import type { Repairer } from '$lib/types/repairer';
 		const sundriesAmount = subtotalExVat * (effectivePct / 100);
         const vatAmount = (subtotalExVat + sundriesAmount) * ((percentSource.vat_percentage || 0) / 100);
         const totalIncVat = subtotalExVat + sundriesAmount + vatAmount;
+		// Net amount payable after excess deduction
+		const netPayable = totalIncVat - excessAmount;
 		return {
 			partsTotal: partsNett,
 			saTotal,
@@ -590,13 +594,15 @@ import type { Repairer } from '$lib/types/repairer';
 			paintTotal,
 			outworkTotal: outworkNett,
 			markupTotal,
-			bettermentTotal, // NEW
+			bettermentTotal,
 			subtotalExVat,
 			sundriesAmount,
 			sundriesPct: effectivePct,
 			vatPercentage: percentSource.vat_percentage || 0,
 			vatAmount,
-			totalIncVat
+			totalIncVat,
+			excessAmount,
+			netPayable
 		};
 	});
 
@@ -1184,6 +1190,14 @@ import type { Repairer } from '$lib/types/repairer';
                         <span class="text-lg font-semibold">{formatCurrency(totals?.vatAmount || 0)}</span>
 					</div>
 
+					<!-- Excess Amount (if applicable) -->
+					{#if totals?.excessAmount && totals.excessAmount > 0}
+						<div class="flex items-center justify-between py-2 border-b-2">
+							<span class="text-base font-semibold text-orange-700">Less: Excess</span>
+							<span class="text-lg font-semibold text-orange-600">-{formatCurrency(totals.excessAmount)}</span>
+						</div>
+					{/if}
+
 					<!-- Total with Color Coding -->
 					{#if thresholdResult()}
 						{@const threshold = thresholdResult()!}
@@ -1239,6 +1253,15 @@ import type { Repairer } from '$lib/types/repairer';
 							<span class="text-lg font-bold text-gray-900">Total (Inc VAT)</span>
 							<span class="text-2xl font-bold text-blue-600">{formatCurrency(totals?.totalIncVat || 0)}</span>
 						</div>
+					{/if}
+
+					<!-- Net Payable (after excess deduction) -->
+					{#if totals?.excessAmount && totals.excessAmount > 0}
+						<div class="flex items-center justify-between pt-3 mt-2 border-t-2 border-green-200">
+							<span class="text-lg font-bold text-green-800">Net Amount Payable</span>
+							<span class="text-2xl font-bold text-green-600">{formatCurrency(totals.netPayable)}</span>
+						</div>
+						<p class="text-xs text-gray-500 mt-1">After excess deduction of {formatCurrency(totals.excessAmount)}</p>
 					{/if}
 				</div>
 			{/if}

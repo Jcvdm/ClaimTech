@@ -40,6 +40,7 @@ import { calculateDeltas } from '$lib/utils/frcCalculations';
 		estimate: Estimate;
 		vehicleValues: VehicleValues | null;
 		engineer?: Engineer | null;
+		excessAmount?: number | null; // Excess payment from request
 		onUpdate: () => Promise<void>;
 	}
 
@@ -51,6 +52,7 @@ import { calculateDeltas } from '$lib/utils/frcCalculations';
 	const estimate = $derived(props.estimate);
 	const vehicleValues = $derived(props.vehicleValues);
 	const engineer = $derived(props.engineer);
+	const excessAmount = $derived(props.excessAmount ?? 0);
 	const onUpdate = $derived(props.onUpdate);
 
 	let frc = $state<FinalRepairCosting | null>(null);
@@ -957,6 +959,21 @@ import { calculateDeltas } from '$lib/utils/frcCalculations';
                     </div>
                     <p class="mt-2 text-xs text-gray-500 text-center">Includes VAT at {frc.vat_percentage}% and all agreed/adjusted items, net of removals.</p>
                 </div>
+
+				<!-- Excess Amount (if applicable) -->
+				{#if excessAmount > 0}
+					<div class="pt-4 border-t">
+						<div class="flex items-center justify-between py-2 px-4">
+							<span class="text-base font-semibold text-orange-700">Less: Excess</span>
+							<span class="text-lg font-semibold text-orange-600">-{formatCurrency(excessAmount)}</span>
+						</div>
+						<div class="flex items-center justify-between py-3 px-4 rounded-lg bg-blue-100 border border-blue-200 mt-2">
+							<span class="text-base font-bold text-blue-900">Net Amount Payable (after excess)</span>
+							<span class="text-2xl font-extrabold text-blue-900">{formatCurrency(newTotals()!.total - excessAmount)}</span>
+						</div>
+						<p class="mt-2 text-xs text-gray-500 text-center">Settlement minus excess of {formatCurrency(excessAmount)}</p>
+					</div>
+				{/if}
 
 				<!-- Legend -->
 				<div class="pt-4 border-t">

@@ -34,6 +34,7 @@ let clients = $state(data.clients ?? []);
 	// Incident Details
 	let date_of_loss = $state('');
 	let insured_value = $state<number | undefined>(undefined);
+	let excess_amount = $state<number | undefined>(undefined);
 	let incident_type = $state('');
 	let incident_description = $state('');
 	let incident_location = $state('');
@@ -120,6 +121,7 @@ let clients = $state(data.clients ?? []);
 				description: description || undefined,
 				date_of_loss: date_of_loss || undefined,
 				insured_value: insured_value || undefined,
+				excess_amount: excess_amount || undefined,
 				incident_type: incident_type || undefined,
 				incident_description: incident_description || undefined,
 				incident_location: incident_location || undefined,
@@ -248,6 +250,7 @@ const clientOptions = $derived.by(() =>
 		<IncidentInfoSection
 			bind:date_of_loss
 			bind:insured_value
+			bind:excess_amount
 			bind:incident_type
 			bind:incident_description
 			bind:incident_location

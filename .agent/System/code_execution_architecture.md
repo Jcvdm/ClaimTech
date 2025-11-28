@@ -571,7 +571,7 @@ Every execution creates an audit log:
 {
   "timestamp": "2025-11-09T14:23:45.123Z",
   "execution_id": "exec_1234567890",
-  "agent": "database-expert",
+  "context": "database-migration",
   "user": "jcvdm",
   "code_hash": "sha256:abc123...",
   "data_sources": ["mcp__supabase__execute_sql"],

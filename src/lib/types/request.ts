@@ -16,6 +16,7 @@ export interface Request {
 	// Incident Details
 	date_of_loss?: string | null;
 	insured_value?: number | null;
+	excess_amount?: number | null;
 	incident_type?: string | null;
 	incident_description?: string | null;
 	incident_location?: string | null;
@@ -57,6 +58,7 @@ export interface CreateRequestInput {
 	description?: string;
 	date_of_loss?: string;
 	insured_value?: number;
+	excess_amount?: number;
 	incident_type?: string;
 	incident_description?: string;
 	incident_location?: string;

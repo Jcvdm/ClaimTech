@@ -275,6 +275,15 @@
 						</div>
 					</div>
 
+					{#if data.request.excess_amount}
+						<div>
+							<p class="text-sm font-medium text-gray-500">Excess Amount</p>
+							<p class="mt-1 text-sm font-semibold text-orange-600">
+								{formatCurrency(data.request.excess_amount)}
+							</p>
+						</div>
+					{/if}
+
 					{#if data.request.incident_type}
 						<div>
 							<p class="text-sm font-medium text-gray-500">Incident Type</p>

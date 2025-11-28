@@ -56,7 +56,7 @@ Folders removed: 1 (.augment/)
 ✅ **`.claude/`** - Untouched (817 KB)
 - 5 Skills (supabase, claimtech, assessment, photo, code-execution)
 - 6 Commands (feature, database, service, testing, code-review)
-- 11 Agents (claude-1 through claude-4, specialists)
+- ~~11 Agents (claude-1 through claude-4, specialists)~~ - Removed Nov 28, 2025
 
 ✅ **`.agent/`** - Cleaned & organized (8.6 MB)
 - README/ - 11 index files

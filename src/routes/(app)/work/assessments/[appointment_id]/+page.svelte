@@ -931,6 +931,7 @@
 			vehicleValues={data.vehicleValues}
 			vehicleIdentification={data.vehicleIdentification}
 			repairers={data.repairers}
+			excessAmount={data.request?.excess_amount}
 			onUpdateEstimate={handleUpdateEstimate}
 			onAddLineItem={handleAddLineItem}
 			onUpdateLineItem={handleUpdateLineItem}
@@ -986,6 +987,7 @@
 			{estimate}
 			vehicleValues={data.vehicleValues}
 			repairers={data.repairers}
+			excessAmount={data.request?.excess_amount}
 			onUpdate={async () => {
 				// Additionals updated, no need to reload entire page
 			}}
@@ -997,6 +999,7 @@
 			{estimate}
 			vehicleValues={data.vehicleValues}
 			engineer={data.engineer}
+			excessAmount={data.request?.excess_amount}
 			onUpdate={async () => {
 				// FRC updated, no need to reload entire page
 			}}

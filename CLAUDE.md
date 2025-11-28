@@ -189,201 +189,15 @@ Claude Skills are **domain expertise modules** that auto-invoke based on keyword
 
 ### Context Management
 
-**Before Delegating:**
-- Create context file in `.agent/tasks/active/[task_name].md`
+**Task Documentation:**
+- Create context file in `.agent/tasks/active/[task_name].md` for complex tasks
 - Include: requirements, constraints, related files, deliverables
-
-**After Agent Completes:**
-- Review agent output
-- Integrate into project
-- Update documentation
-- Move task to `.agent/tasks/completed/`
+- Move completed tasks to `.agent/tasks/completed/`
 
 **Maintain Coherent Architecture:**
-- Document agent decisions and track which agents worked on what
-- Ensure agent outputs align with project architecture
-- Review cross-agent dependencies
-- Update system documentation
-
----
-
-## Orchestrator + 4 Assistants Pattern
-
-Claude (you) acts as the **Orchestrator** that delegates work to **4 specialized assistants**. This streamlined structure reduces complexity while maintaining comprehensive capabilities across all development domains.
-
-### The Orchestrator (Main Claude)
-
-**Your Role:**
-- Receive and understand user requests
-- Break down complex tasks into phases
-- Delegate to appropriate assistants
-- Coordinate multi-assistant workflows
-- Integrate results and deliver to user
-- Use code execution for data analysis and processing
-
-**Decision Tree:**
-1. **Database/Schema changes needed?** → Delegate to Claude-1
-2. **Feature/Service implementation needed?** → Delegate to Claude-2
-3. **Testing/Quality review needed?** → Delegate to Claude-3
-4. **Research/Documentation needed?** → Delegate to Claude-4
-
-### The 4 Assistants
-
-| Assistant | Consolidates | Primary Responsibilities | When to Delegate |
-|-----------|--------------|-------------------------|------------------|
-| **Claude-1: Database & Schema** | database-expert + assessment-architect | Migrations, RLS policies, assessment architecture, schema design, code execution for testing | Database changes, RLS policies, assessment workflow features, migration testing |
-| **Claude-2: Feature & Service** | feature-implementer + service-builder | Full-stack features, services, UI components, business logic, code execution for data processing | New features, service creation, UI implementation, complex data workflows |
-| **Claude-3: Testing & Quality** | testing-specialist + code-reviewer | Testing (all types), code review, security audit, quality checks, code execution for test data | Testing features, code review, quality assurance, security verification |
-| **Claude-4: Research & Docs** | research-agent + context gatherer | External research, codebase context, documentation updates, pattern research | Need external docs, API research, context gathering, documentation updates |
-
-### Orchestration Patterns
-
-#### Pattern 1: Simple Database Change (Single Assistant)
-```
-User: "Add a notes field to clients table"
-Orchestrator: Delegate to Claude-1 (database change only)
-Claude-1: Create migration, test with code execution, update types
-Result: Migration applied, types updated
-```
-
-#### Pattern 2: Complete Feature (Sequential Delegation)
-```
-User: "Add comments feature to assessments"
-Orchestrator:
-  1. Delegate to Claude-4 (gather context on existing patterns)
-  2. Delegate to Claude-1 (create comments table + RLS)
-  3. Delegate to Claude-2 (create service + UI components)
-  4. Delegate to Claude-3 (test + review)
-Result: Feature complete, tested, documented
-```
-
-#### Pattern 3: Complex Feature (Parallel + Sequential)
-```
-User: "Add PDF export with custom templates"
-Orchestrator:
-  1. Parallel: Claude-4 (research PDF libraries) + Claude-1 (check storage setup)
-  2. Sequential: Claude-2 (implement feature)
-  3. Sequential: Claude-3 (test + review)
-Result: Feature complete with research findings integrated
-```
-
-#### Pattern 4: Bug Fix with Testing (Multi-Assistant)
-```
-User: "Fix assessment stage transition bug"
-Orchestrator:
-  1. Delegate to Claude-4 (gather context on assessment workflow)
-  2. Delegate to Claude-1 (check database constraints)
-  3. Delegate to Claude-2 (implement fix)
-  4. Delegate to Claude-3 (test fix across all stages)
-Result: Bug fixed, tested, documented
-```
-
-### Code Execution Integration
-
-All assistants can use **Architecture A: Two-Phase Code Execution**:
-- **Phase 1:** Assistant calls MCP tools to fetch data
-- **Phase 2:** Assistant uses code execution to process/analyze data
-
-**Benefits:**
-- 73-94% token reduction for multi-step workflows
-- Complex data processing in familiar TypeScript
-- Faster completion times
-- Better data privacy
-
-**When Each Assistant Uses Code Execution:**
-
-**Claude-1 (Database & Schema)**
-- Testing complex migrations (3+ tables)
-- Generating large test datasets (10+ records)
-- Validating intricate RLS policies
-- Analyzing query performance
-
-**Claude-2 (Feature & Service)**
-- Processing large datasets efficiently
-- Generating reports and formatted output
-- Validating data transformations
-- Analyzing performance
-
-**Claude-3 (Testing & Quality)**
-- Generating complex test scenarios
-- Validating test results
-- Analyzing performance metrics
-- Processing test data
-
-**Claude-4 (Research & Docs)**
-- Analyzing documentation
-- Generating summaries
-- Processing research findings
-- Correlating multiple sources
-
-### Assistant Capabilities Summary
-
-**Claude-1: Database & Schema Expert**
-- ✅ Idempotent migrations
-- ✅ RLS policies (restrictive, tested)
-- ✅ Assessment-centric architecture
-- ✅ Stage-based workflows
-- ✅ Code execution for testing
-- ✅ TypeScript type generation
-
-**Claude-2: Feature & Service Builder**
-- ✅ Full-stack feature implementation
-- ✅ ServiceClient injection pattern
-- ✅ SvelteKit pages/components/routes
-- ✅ Superforms + Zod validation
-- ✅ Code execution for data processing
-- ✅ Role-based access control
-
-**Claude-3: Testing & Quality Assurance**
-- ✅ Manual testing (all browsers)
-- ✅ Unit tests (Vitest)
-- ✅ E2E tests (Playwright)
-- ✅ Security audit
-- ✅ Performance testing
-- ✅ Accessibility verification
-- ✅ Code execution for test data
-
-**Claude-4: Research & Documentation**
-- ✅ Library documentation research (Context7)
-- ✅ Web search and fetch
-- ✅ Codebase context gathering
-- ✅ Implementation pattern research
-- ✅ Documentation updates
-- ✅ Best practices compilation
-
-### How the Orchestrator Delegates
-
-**Automatic Delegation**: Keywords in requests trigger appropriate assistants
-- "Create a migration for comments table" → Claude-1 (database-expert keywords)
-- "Test the new feature across all roles" → Claude-3 (testing keywords)
-- "Research best practices for PDF generation" → Claude-4 (research keywords)
-- "Add a new feature to assessments" → Claude-2 (feature keywords)
-
-**Explicit Delegation**: Request specific assistants by name
-- "Have Claude-3 review my code" → Claude-3 (code-reviewer)
-- "Claude-1, create a migration for..." → Claude-1 (database-expert)
-
-**Coordination**: Orchestrator coordinates multi-assistant workflows
-- Complex features require sequential delegation
-- Parallel research + implementation possible
-- Results integrated by orchestrator
-
-### Migration from Old Structure
-
-**Old Structure (11 agents):**
-- claude-1, claude-2, claude-3, claude-4 (duplicates)
-- database-expert, feature-implementer, service-builder
-- testing-specialist, code-reviewer
-- assessment-architect, research-agent
-
-**New Structure (1 orchestrator + 4 assistants):**
-- Main Claude (Orchestrator)
-- Claude-1 (Database & Schema) = database-expert + assessment-architect
-- Claude-2 (Feature & Service) = feature-implementer + service-builder
-- Claude-3 (Testing & Quality) = testing-specialist + code-reviewer
-- Claude-4 (Research & Docs) = research-agent + context gathering
-
-**Archived agents** available in `.claude/agents/archive/` for reference.
+- Document key decisions and rationale
+- Ensure implementations align with project architecture
+- Update system documentation after changes
 
 ---
 
@@ -547,47 +361,44 @@ For comprehensive guides and API reference:
 
 ## ClaimTech Development System Overview
 
-This table shows how Skills, Sub-Agents, Commands, and .agent Docs work together:
+This table shows how Skills, Commands, and .agent Docs work together:
 
-| Aspect | Skills | Sub-Agents | Commands | .agent Docs |
-|--------|--------|------------|----------|-------------|
-| **Purpose** | Domain patterns | Specialized AI personality | Procedural workflows | Current state reference |
-| **Location** | `.claude/skills/` | `.claude/agents/` | `.claude/commands/` | `.agent/` |
-| **Activation** | Auto on keywords | Auto on keywords | Manual invoke | Manual read |
-| **Context** | Shared context | Own context window | Shared context | Shared context |
-| **Content** | Best practices | System prompt + tools | Step-by-step guides | Reference info |
-| **Example** | "Use ServiceClient injection" | "I am a database expert..." | "Phase 1: Do X, Phase 2: Do Y" | "Table has columns X, Y, Z" |
-| **When to Use** | Implementing features | Complex multi-step tasks | Need structured workflow | Need current system info |
+| Aspect | Skills | Commands | .agent Docs |
+|--------|--------|----------|-------------|
+| **Purpose** | Domain patterns | Procedural workflows | Current state reference |
+| **Location** | `.claude/skills/` | `.claude/commands/` | `.agent/` |
+| **Activation** | Auto on keywords | Manual invoke | Manual read |
+| **Context** | Shared context | Shared context | Shared context |
+| **Content** | Best practices | Step-by-step guides | Reference info |
+| **Example** | "Use ServiceClient injection" | "Phase 1: Do X, Phase 2: Do Y" | "Table has columns X, Y, Z" |
+| **When to Use** | Implementing features | Need structured workflow | Need current system info |
 
 ---
 
 ## Best Practices
 
-1. **Plan Before Delegating**
-   - Break down complex tasks
-   - Identify dependencies between agent tasks
-   - Sequence agents appropriately
+1. **Plan Complex Tasks**
+   - Break down complex tasks into manageable steps
+   - Identify dependencies between steps
+   - Create implementation plans for multi-phase work
 
-2. **Leverage Parallelization**
-   - Launch independent agents simultaneously
-   - Use single message with multiple Task calls
-
-3. **Quality First**
+2. **Quality First**
    - Never skip code quality analysis
    - Address issues before moving forward
+   - Follow ClaimTech patterns and conventions
 
-4. **Document Everything**
-   - Maintain task logs
-   - Update system documentation
+3. **Document Everything**
+   - Maintain task logs in `.agent/tasks/`
+   - Update system documentation after changes
    - Track decisions and rationale
 
-5. **Coordinate Effectively**
-   - Ensure agents have complete context
-   - Review and integrate agent outputs
-   - Maintain project coherence
-
-6. **Use Code Execution When Appropriate**
+4. **Use Code Execution When Appropriate**
    - Multi-step workflows (3+ operations)
    - Complex data transformations
    - Batch processing operations
    - Data analysis and reporting
+
+5. **Follow Established Patterns**
+   - Reference Skills for domain expertise
+   - Use Commands for structured workflows
+   - Consult .agent docs for current system state

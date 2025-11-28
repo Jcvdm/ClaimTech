@@ -13,9 +13,10 @@
 		estimate: Estimate;
 		additionals: AssessmentAdditionals;
 		vehicleValues: VehicleValues | null;
+		excessAmount?: number | null;
 	}
 
-	let { estimate, additionals, vehicleValues }: Props = $props();
+	let { estimate, additionals, vehicleValues, excessAmount = 0 }: Props = $props();
 
 	// Calculate removed total from additionals (negative line items)
 	const removedOriginalTotal = $derived(() => {
@@ -36,6 +37,11 @@
 		const original = estimate?.total || 0;
 		const additionalsApproved = additionals?.total_approved || 0;
 		return original + additionalsApproved;
+	});
+
+	// Net payable after excess
+	const netPayable = $derived(() => {
+		return combinedTotal() - (excessAmount ?? 0);
 	});
 
 	// Calculate threshold for risk indicator
@@ -146,5 +152,20 @@
 				Note: Delta includes negative values for removed original lines
 			</p>
 		</div>
+
+		<!-- Excess Amount (if applicable) -->
+		{#if excessAmount && excessAmount > 0}
+			<div class="pt-4 border-t">
+				<div class="flex items-center justify-between py-2 px-4">
+					<span class="text-base font-semibold text-orange-700">Less: Excess</span>
+					<span class="text-lg font-semibold text-orange-600">-{formatCurrency(excessAmount)}</span>
+				</div>
+				<div class="flex items-center justify-between py-3 px-4 rounded-lg bg-green-100 border border-green-200 mt-2">
+					<span class="text-base font-bold text-green-900">Net Amount Payable</span>
+					<span class="text-2xl font-extrabold text-green-900">{formatCurrency(netPayable())}</span>
+				</div>
+				<p class="mt-2 text-xs text-gray-500 text-center">Combined total minus excess of {formatCurrency(excessAmount)}</p>
+			</div>
+		{/if}
 	</div>
 </Card>

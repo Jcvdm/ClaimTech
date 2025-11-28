@@ -45,6 +45,7 @@
 		estimate: Estimate;
 		vehicleValues: VehicleValues | null;
 		repairers: Repairer[];
+		excessAmount?: number | null; // Excess payment from request
 		onUpdate: () => Promise<void>;
 		onDownloadDocument: (type: string) => void;
 	}
@@ -57,6 +58,7 @@
 	const estimate = $derived(props.estimate);
 	const vehicleValues = $derived(props.vehicleValues);
 	const repairers = $derived(props.repairers);
+	const excessAmount = $derived(props.excessAmount ?? 0);
 	const onUpdate = $derived(props.onUpdate);
 	const onDownloadDocument = $derived(props.onDownloadDocument);
 
@@ -700,7 +702,7 @@
 		{/if}
 
 		<!-- Combined Totals Summary with Risk Indicator -->
-		<CombinedTotalsSummary {estimate} {additionals} {vehicleValues} />
+		<CombinedTotalsSummary {estimate} {additionals} {vehicleValues} {excessAmount} />
 
 		<!-- Original Estimate Lines Management -->
 		<OriginalEstimateLinesPanel

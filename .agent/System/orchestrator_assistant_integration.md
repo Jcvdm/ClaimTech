@@ -219,9 +219,10 @@ User Request
 ## Related Documentation
 
 - **CLAUDE.md** - Complete system documentation
-- **AGENT_RESTRUCTURE_GUIDE.md** - How to use the new structure
-- **RESTRUCTURE_SUMMARY.md** - What changed and why
-- `.claude/agents/claude-1.md` through `claude-4.md` - Assistant definitions
+- **AGENT_RESTRUCTURE_GUIDE.md** - Historical: How the old agent structure worked
+- **RESTRUCTURE_SUMMARY.md** - Historical: What changed during agent restructure
 - `.agent/System/code_execution_architecture.md` - Code execution details
 - `.agent/SOP/using_code_executor.md` - Code execution procedures
+
+**Note**: Agent system has been removed as of November 28, 2025 to make way for new workflow engineering.
 
