@@ -226,10 +226,7 @@
 					{ value: 'very_poor', label: 'Very Poor' }
 				]}
 				required
-				onchange={(value: string) => {
-					overallCondition = value;
-					handleSave(); // Save immediately for select fields
-				}}
+				oninput={debouncedSave}
 			/>
 			<FormField
 				name="vehicle_color"
