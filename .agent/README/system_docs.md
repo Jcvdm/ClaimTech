@@ -448,6 +448,18 @@ Comprehensive system documentation covering architecture, database design, secur
 
 ### Recent Critical Fixes (Jan 2025)
 
+
+**2. Repairer Selection Dropdown Reset Bug (B004)**
+- **File**: [repairer_selection_dropdown_reset_fix.md](../System/repairer_selection_dropdown_reset_fix.md)
+- **Date**: November 28, 2025
+- **Read When**: Implementing or debugging user-controlled select dropdowns, prop syncing in components
+- **Issue**: Dropdown would reset to "None selected" after user selected a repairer and saved
+- **Root Cause**: Component had $effect.pre syncing user-controlled dropdown value from props
+- **Solution**: Separate user-controlled inputs from prop-synced calculated values
+- **Pattern**: User-Controlled vs Calculated Values decision tree
+- **Impact**: Dropdown selection now persists, correct handling of reactive state
+- **Key Learning**: User inputs (bind:value) should be initialized once, calculated values should sync from props
+
 #### FRC & Stage Transitions ⭐ IMPORTANT
 
 **1. FRC Stage Transition Fixes**

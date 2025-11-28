@@ -1,8 +1,8 @@
 # ClaimTech Documentation
 
 **Project**: ClaimTech (SVA - SvelteKit Validation App)
-**Last Updated**: November 28, 2025 (B002/B003: Drag-Drop and Tab Badge Fixes Complete ✅)
-**Status**: ✅ Svelte 5 Migration Complete - 0 Errors, 9 Warnings (All Intentional) | ✅ C001: Vehicle Location Capturing (Google Places autocomplete with fallback) | ✅ Photo Compression Live (60-75% storage reduction) | ✅ Slate Theme Migration (Phases 1-5 complete, rose accents preserved) | ✅ B002: Drag-Drop Flickering Fix | ✅ B003: Tab Validation Badge Fix
+**Last Updated**: November 28, 2025 (B004: Repairer Selection Dropdown Reset Fix ✅ | B002/B003: Drag-Drop and Tab Badge Fixes | C001: AddressInput Integration)
+**Status**: ✅ Svelte 5 Migration Complete - 0 Errors, 9 Warnings (All Intentional) | ✅ C001: Vehicle Location Capturing (Google Places autocomplete with fallback) | ✅ Photo Compression Live (60-75% storage reduction) | ✅ Slate Theme Migration (Phases 1-5 complete, rose accents preserved) | ✅ B004: Repairer Selection Dropdown Reset Fix | ✅ B002: Drag-Drop Flickering Fix | ✅ B003: Tab Validation Badge Fix
 
 ---
 
@@ -12,7 +12,7 @@
 - **Backend**: SvelteKit SSR + Supabase PostgreSQL
 - **Auth**: Supabase Auth with 100% RLS coverage
 - **Architecture**: Assessment-centric (10-stage pipeline)
-- **Documentation**: 36 System docs, 19 SOPs, 31 database tables
+- **Documentation**: 42 System docs, 19 SOPs, 31 database tables
 - **Deployment**: ✅ Live on Vercel (https://claimtech.vercel.app)
 - **Type Safety**: ✅ Full Supabase type generation with PostgrestFilterBuilder inference working
 

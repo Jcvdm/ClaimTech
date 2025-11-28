@@ -1,6 +1,7 @@
 # Changelog - Recent Updates
 
-**Last Updated**: November 28, 2025 (B002/B003: Drag-Drop and Tab Badge Fixes, AddressInput Integration Complete ✅)
+**Last Updated**: November 28, 2025 (B004: Repairer Selection Dropdown Reset Fix | B002/B003: Drag-Drop and Tab Badge Fixes | C001: AddressInput Integration)
+
 
 ---
 
@@ -93,6 +94,46 @@
   - Better location accuracy for scheduling
 
 ---
+
+### ✅ B004: Repairer Selection Dropdown Reset Bug - COMPLETE
+- **ISSUE**: Repairer dropdown in RatesAndRepairerConfiguration component would reset to "None selected" after the save cycle completed
+  - User selects a repairer (e.g., "ABC Motors")
+  - Selection is saved to database
+  - Dropdown reverts to "None selected" 
+  - User confused - appears as if selection was not saved despite correct database state
+- **ROOT CAUSE**: Prop cascading and reactive effects that unintentionally reset user-controlled dropdown
+  - Component had $effect.pre that continuously synced localRepairerId from parent's repairerId prop
+  - When save triggered parent data refresh, prop update would fire $effect.pre
+  - Effect would overwrite user's selection, resetting dropdown to "None selected"
+  - Correct pattern for calculated values (like rates) but wrong for user-controlled dropdowns
+- **SOLUTION**: Separate user-controlled inputs from prop-synced calculated values
+  - Removed lastKnownRepairerId state variable (no longer needed)
+  - Removed $effect.pre that synced localRepairerId from props (the root cause)
+  - localRepairerId now initialized once from prop on mount, then fully controlled by user via bind:value
+  - Parent prop changes no longer reset user's selection
+  - Rates sync $effect.pre retained (rates are calculated, should update when props change)
+- **PATTERN ESTABLISHED**: User-Controlled vs. Calculated Values
+  - User-Controlled Inputs (dropdowns, text inputs, checkboxes user can change):
+    - Initialize from prop once: let local = prop
+    - Use bind:value to let user control
+    - NO $effect.pre to sync from props
+    - Component remount re-initializes from current prop
+  - Calculated/Derived Values (rates, summaries, read-only fields):
+    - Initialize from prop: let local = prop
+    - KEEP $effect.pre to sync from props
+    - Display as read-only
+    - Updates whenever parent data changes
+- **FILES MODIFIED**:
+  - src/lib/components/assessment/RatesAndRepairerConfiguration.svelte - Removed prop sync for localRepairerId
+- **BENEFITS**:
+  - Dropdown selection persists after save
+  - User's selection matches what they see in UI
+  - No confusion between UI state and database state
+  - Pattern applies to all future dropdown/user-input components
+- **DOCUMENTATION CREATED**:
+  - .agent/System/repairer_selection_dropdown_reset_fix.md - Complete analysis, pattern, and future reference
+- **VERIFICATION**: ✅ Dropdown tested, selection persists after save, data correctly saved to database
+
 
 ### ✅ C001: Vehicle Location Capturing Feature - COMPLETE
 - **FEATURE**: Modern address autocomplete with Google Places API integration for capturing structured location data
