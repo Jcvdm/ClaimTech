@@ -151,6 +151,87 @@ Claude Skills are **domain expertise modules** that auto-invoke based on keyword
 
 ---
 
+## Agent Orchestration
+
+Claude uses a **4-agent system** optimized for cost and capability. The main Claude instance (Sonnet) acts as the Orchestrator, delegating to specialized agents when appropriate.
+
+### Agents
+
+| Agent | Model | Cost | Purpose | When Used |
+|-------|-------|------|---------|-----------|
+| **Context** | Haiku 4.5 | $ | Fast context gathering | Before complex planning |
+| **Planner** | Opus 4.5 | $$$$ | Deep reasoning, detailed plans | Complex features |
+| **Docs** | Haiku | $ | Update documentation | After implementations |
+| **Coder** | Sonnet | $$ | Execute code changes | Implementation phase |
+
+### Orchestration Flow
+
+```
+User Request → Orchestrator (Sonnet)
+    │
+    ├── Simple task ────────────► Execute directly
+    │
+    ├── Need context ───────────► Context Agent (Haiku)
+    │                                   │
+    │                                   ▼
+    │                              Return context
+    │
+    ├── Complex feature ────────► Planner Agent (Opus)
+    │                                   │
+    │                    ┌──────────────┴──────────────┐
+    │               Need more                     Plan ready
+    │               context?                           │
+    │                    │                             ▼
+    │                    ▼                      Coder Agent (Sonnet)
+    │              Context Agent                       │
+    │                                                  ▼
+    │                                           Changes made
+    │
+    └── Update docs ────────────► Document Updater (Haiku)
+```
+
+### Orchestration Rules
+
+1. **Direct execution** for simple tasks (no agents needed)
+2. **Context first** before expensive Opus planning
+3. **Plan before code** for complex multi-file features
+4. **Auto-proceed** for straightforward plans (no user approval needed)
+5. **Document after** larger code changes or when user requests
+
+### When to Use Each Agent
+
+**Context Agent (Haiku 4.5)**
+- Before planning complex features
+- When Planner needs more context
+- Research tasks ("how does X work?")
+- Finding patterns and examples
+
+**Planner Agent (Opus 4.5)**
+- Complex multi-file features
+- Architectural decisions
+- Ambiguous requirements
+- When implementation path is unclear
+
+**Document Updater (Haiku)**
+- After feature implementation
+- When user runs `/update_doc`
+- After significant code changes
+
+**Coder Agent (Sonnet)**
+- Executing Planner's detailed plans
+- Straightforward code changes
+- Bug fixes with clear scope
+
+### Agent Files
+
+Detailed prompts for each agent are in `.claude/agents/`:
+- `context-agent.md` - Context gathering patterns
+- `planner-agent.md` - Planning and design patterns
+- `document-updater.md` - Documentation patterns
+- `coder-agent.md` - Implementation patterns
+
+---
+
 ## Workflow Guidelines
 
 ### Starting a New Task
