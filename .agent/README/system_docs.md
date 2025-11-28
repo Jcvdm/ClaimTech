@@ -1,7 +1,7 @@
 # System Documentation Index
 
-**Last Updated**: November 28, 2025 (C001: Vehicle Location Capturing - Address Features ✅)
-**Total Files**: 41 System documentation files
+**Last Updated**: November 28, 2025 (B008/B009/B010: Form Field Input Patterns - Bug Fixes ✅)
+**Total Files**: 42 System documentation files
 
 ---
 
@@ -268,9 +268,31 @@ Comprehensive system documentation covering architecture, database design, secur
 
 **Key for**: Understanding streaming patterns, implementing batch operations with progress feedback, handling partial failures gracefully
 
+### 4. Form Field Input Patterns ⭐ NEW (Nov 28, 2025)
+- **File**: [form_field_input_patterns.md](../System/form_field_input_patterns.md)
+- **Size**: ~500 lines | **Last Updated**: Nov 28, 2025
+- **Read When**: Implementing form inputs, debugging input lag, fixing input save issues, standardizing form behavior
+
+**Contains**:
+- Text field pattern: Extract → Update state → Debounce save
+- Select/dropdown pattern: Immediate save on change (no debounce)
+- Checkbox/boolean pattern: Immediate save on change
+- One-way binding vs `bind:value` (causes lag issues)
+- Common mistakes and solutions (6 detailed examples)
+- Testing patterns for form inputs
+- Best practices comparison table (input type vs event vs debounce)
+- FormField component patterns
+
+**Established By**:
+- **B008**: Database schema mismatch fix (removed obsolete column reference)
+- **B009**: Select field not saving on navigation (changed to onchange + immediate save)
+- **B010**: Text field lag (changed from bind:value to manual extraction with debounce)
+
+**Key for**: Understanding form input behavior, fixing input responsiveness, preventing data loss on navigation, standardizing form implementations
+
 ---
 
-### 4. Photo Labeling Implementation ⭐ CRITICAL FIX (Nov 9, 2025)
+### 5. Photo Labeling Implementation ⭐ CRITICAL FIX (Nov 9, 2025)
 - **File**: [photo_labeling_implementation_nov_6_2025.md](../System/photo_labeling_implementation_nov_6_2025.md)
 - **Size**: ~1000 lines | **Last Updated**: Nov 9, 2025 (FINAL FIX)
 - **Read When**: Working with photo components, implementing optimistic updates, debugging photo navigation, using bigger-picture library
@@ -293,7 +315,7 @@ Comprehensive system documentation covering architecture, database design, secur
 
 ---
 
-### 4. Unified Photo Panel Pattern ⭐ NEW (Jan 2025)
+### 6. Unified Photo Panel Pattern ⭐ NEW (Jan 2025)
 - **File**: [unified_photo_panel_pattern.md](../System/unified_photo_panel_pattern.md)
 - **Size**: ~400 lines | **Last Updated**: Jan 2025
 - **Read When**: Implementing photo upload components, understanding photo panel architecture, migrating from legacy photo systems
@@ -318,7 +340,7 @@ Comprehensive system documentation covering architecture, database design, secur
 
 ---
 
-### 5. Photo Compression Implementation ⭐ NEW (Nov 23, 2025)
+### 7. Photo Compression Implementation ⭐ NEW (Nov 23, 2025)
 - **File**: [photo_compression_implementation.md](../System/photo_compression_implementation.md)
 - **Size**: ~150 lines | **Last Updated**: Nov 23, 2025
 - **Read When**: Working with photo uploads, optimizing storage, implementing compression features
@@ -340,7 +362,7 @@ Comprehensive system documentation covering architecture, database design, secur
 
 ---
 
-### 6. PhotoUpload Layout Refactor ⭐ NEW (Nov 23, 2025)
+### 8. PhotoUpload Layout Refactor ⭐ NEW (Nov 23, 2025)
 - **File**: [photoupload_layout_refactor_nov_23_2025.md](../System/photoupload_layout_refactor_nov_23_2025.md)
 - **Size**: ~200 lines | **Last Updated**: Nov 23, 2025
 - **Read When**: Working with PhotoUpload component, understanding unified photo panel pattern, debugging upload UI
@@ -379,7 +401,7 @@ Comprehensive system documentation covering architecture, database design, secur
 
 ---
 
-### 6. Rose Theme Standardization ⭐ NEW (Nov 23, 2025)
+### 9. Rose Theme Standardization ⭐ NEW (Nov 23, 2025)
 - **File**: [rose_theme_standardization.md](../System/rose_theme_standardization.md)
 - **Size**: ~200 lines | **Last Updated**: Nov 23, 2025
 - **Read When**: Working with photo upload components, document generation, or updating UI styling
@@ -400,7 +422,7 @@ Comprehensive system documentation covering architecture, database design, secur
 
 ---
 
-### 7. Logo Branding Implementation ⭐ NEW (Nov 23, 2025)
+### 10. Logo Branding Implementation ⭐ NEW (Nov 23, 2025)
 - **File**: [logo_branding_implementation.md](../System/logo_branding_implementation.md)
 - **Size**: ~150 lines | **Last Updated**: Nov 23, 2025
 - **Read When**: Working on branding, dashboard header, login page, or PDF report generation

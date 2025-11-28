@@ -1,7 +1,7 @@
 # ClaimTech Documentation
 
 **Project**: ClaimTech (SVA - SvelteKit Validation App)
-**Last Updated**: November 28, 2025 (B004: Repairer Selection Dropdown Reset Fix ✅ | B002/B003: Drag-Drop and Tab Badge Fixes | C001: AddressInput Integration)
+**Last Updated**: November 28, 2025 (B008/B009/B010: Exterior360 Tab Bug Fixes ✅ | B004: Repairer Selection Dropdown Reset Fix ✅ | B002/B003: Drag-Drop and Tab Badge Fixes | C001: AddressInput Integration)
 **Status**: ✅ Svelte 5 Migration Complete - 0 Errors, 9 Warnings (All Intentional) | ✅ C001: Vehicle Location Capturing (Google Places autocomplete with fallback) | ✅ Photo Compression Live (60-75% storage reduction) | ✅ Slate Theme Migration (Phases 1-5 complete, rose accents preserved) | ✅ B004: Repairer Selection Dropdown Reset Fix | ✅ B002: Drag-Drop Flickering Fix | ✅ B003: Tab Validation Badge Fix
 
 ---

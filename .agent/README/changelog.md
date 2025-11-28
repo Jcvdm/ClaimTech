@@ -174,6 +174,84 @@
 
 ---
 
+## November 28, 2025 (continued)
+
+### ✅ B008: Database Schema Mismatch - exterior_360_photos Column - COMPLETE
+- **ISSUE**: Exterior360 service attempted to insert into non-existent `additional_photos` column
+  - Database error when creating or updating exterior 360 photos
+  - Service layer out of sync with actual database schema
+- **ROOT CAUSE**: Code referenced obsolete column removed during unified photo panel refactoring
+  - `additional_photos` JSONB column was removed in migration 081
+  - Service wasn't updated to match database changes
+- **SOLUTION**: Removed obsolete column reference from service
+  - Removed `additional_photos: input.additional_photos || []` from `exterior-360.service.ts` line 110
+  - Service now only handles photo array, not additional metadata
+- **FILE MODIFIED**:
+  - `src/lib/services/exterior-360.service.ts` - Removed additional_photos insert
+- **BENEFITS**:
+  - Service calls succeed without database errors
+  - Schema and code stay synchronized
+- **VERIFICATION**: ✅ Exterior 360 photo creation/updates work without errors
+- **PATTERN**: When refactoring database schema, verify all service references are updated
+
+### ✅ B009: Select Field Not Saving on Navigation - COMPLETE
+- **ISSUE**: Overall condition (select) field in Exterior360Tab didn't save when user navigated away
+  - User selected a value in the dropdown
+  - Field appeared to save but value was lost
+  - Database showed null/previous value
+- **ROOT CAUSE**: Working tabs use immediate save pattern, but select field used debounced save
+  - `oninput={debouncedSave}` delays save by 500ms
+  - User navigates away before debounce fires
+  - Component unmounts, debounce cancelled, change discarded
+- **SOLUTION**: Changed select fields to use `onchange` with immediate `handleSave()`
+  - Select fields fire `onchange` once at end of interaction
+  - Immediately calls `handleSave()` to persist to database
+  - Pattern matches DamageTab and other working tabs
+- **FILE MODIFIED**:
+  - `src/lib/components/assessment/Exterior360Tab.svelte` (lines 228-233) - Changed from oninput to onchange + immediate save
+  - `src/lib/components/forms/FormField.svelte` (lines 82-87) - Added immediate save for select onchange
+- **PATTERN ESTABLISHED**: Form Field Save Strategies
+  - Text fields: `oninput` with debounced save (500ms) → captures as user types
+  - Select/dropdown fields: `onchange` with immediate save → captures on selection complete
+  - Reason: Dropdowns have discrete selections, no intermediate values to save
+- **BENEFITS**:
+  - Select field values persist correctly
+  - Works reliably even with rapid navigation
+  - User experience matches other working tabs
+- **VERIFICATION**: ✅ Select field saves on value change, persists through navigation
+
+### ✅ B010: Text Field Binding Conflict & Lag - COMPLETE
+- **ISSUE**: Vehicle color field didn't update when typing, felt laggy
+  - User types in text field but text appears delayed or not at all
+  - Field seems unresponsive despite proper event handling
+- **ROOT CAUSE**: Using `bind:value` + `oninput` together created race condition
+  - `bind:value` sets up two-way binding (reactive updates)
+  - `oninput` event extracts value and updates state (also reactive)
+  - Both trying to update same state variable simultaneously
+  - Component re-renders on each update, causing sluggish behavior
+  - Svelte 5's tighter reactivity made this more apparent
+- **SOLUTION**: Adopted DamageTab pattern - one-way binding with manual extraction
+  - Use `value` (one-way) instead of `bind:value`
+  - Manually extract value from event: `event.currentTarget.value`
+  - Update state immediately: `data.exterior360.vehicle_color = value`
+  - Call `handleSave()` for database persistence
+  - Keep debounce for repeated changes (prevents DB thrashing)
+- **FILE MODIFIED**:
+  - `src/lib/components/assessment/Exterior360Tab.svelte` (lines 238-247) - Changed from bind:value to manual extraction
+- **PATTERN ESTABLISHED**: Text Field Value Binding
+  - OLD (causes lag): `bind:value={data.field}` with event handlers
+  - NEW (responsive): Extract from event → Update state immediately → Debounce DB save
+  - Matches proven pattern in DamageTab component
+- **BENEFITS**:
+  - Text input feels responsive and immediate
+  - No lag between typing and display
+  - Follows proven pattern from working DamageTab
+  - Clean separation between UI updates (immediate) and DB saves (debounced)
+- **VERIFICATION**: ✅ Text field updates instantly as user types, no lag
+- **RELATED**: DamageTab.svelte uses same pattern successfully across all text fields
+
+---
+
 ## November 23, 2025
 
 ### ✅ Logo Branding Implementation - COMPLETE
