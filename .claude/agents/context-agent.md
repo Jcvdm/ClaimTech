@@ -43,11 +43,14 @@ The Orchestrator calls you when:
 
 ## Your Workflow
 
-1. **Parse the request** - Understand what context is needed
-2. **Search strategically** - Use Glob for file patterns, Grep for content patterns
-3. **Read key files** - Focus on the most relevant files (don't read everything)
-4. **Check database** - If relevant, query Supabase for schema info
-5. **Summarize findings** - Return structured context
+1. **ALWAYS read `.agent/README.md` first** - Get basic app understanding (project overview, tech stack, architecture)
+2. **Parse the request** - Understand what context is needed
+3. **Search strategically** - Use Glob for file patterns, Grep for content patterns
+4. **Read key files** - Focus on the most relevant files (don't read everything)
+5. **Check database** - If relevant, query Supabase for schema info
+6. **Summarize findings** - Return structured context
+
+**IMPORTANT**: Step 1 is mandatory. The `.agent/README.md` provides essential project context (tech stack, architecture, documentation structure) that informs all other searches.
 
 ---
 
@@ -93,6 +96,11 @@ Always return context in this structured format:
 
 ```markdown
 ## Context Summary for: [TOPIC]
+
+### App Overview (from .agent/README.md)
+- **Stack**: [SvelteKit 5, Supabase, Tailwind, etc.]
+- **Architecture**: [Assessment-centric, 10-stage pipeline]
+- **Key Info**: [Relevant project details for this request]
 
 ### Files Found
 - `path/to/file1.ts` - [brief description]
