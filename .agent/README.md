@@ -1,8 +1,8 @@
 # ClaimTech Documentation
 
 **Project**: ClaimTech (SVA - SvelteKit Validation App)
-**Last Updated**: November 28, 2025 (C001: Vehicle Location Capturing Complete ✅)
-**Status**: ✅ Svelte 5 Migration Complete - 0 Errors, 9 Warnings (All Intentional) | ✅ C001: Vehicle Location Capturing (Google Places autocomplete with fallback) | ✅ Photo Compression Live (60-75% storage reduction) | ✅ Slate Theme Migration (Phases 1-5 complete, rose accents preserved)
+**Last Updated**: November 28, 2025 (B002/B003: Drag-Drop and Tab Badge Fixes Complete ✅)
+**Status**: ✅ Svelte 5 Migration Complete - 0 Errors, 9 Warnings (All Intentional) | ✅ C001: Vehicle Location Capturing (Google Places autocomplete with fallback) | ✅ Photo Compression Live (60-75% storage reduction) | ✅ Slate Theme Migration (Phases 1-5 complete, rose accents preserved) | ✅ B002: Drag-Drop Flickering Fix | ✅ B003: Tab Validation Badge Fix
 
 ---
 

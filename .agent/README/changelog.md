@@ -1,10 +1,98 @@
 # Changelog - Recent Updates
 
-**Last Updated**: November 28, 2025 (C001: Vehicle Location Capturing Complete ✅)
+**Last Updated**: November 28, 2025 (B002/B003: Drag-Drop and Tab Badge Fixes, AddressInput Integration Complete ✅)
 
 ---
 
 ## November 28, 2025
+
+### ✅ B002: Upload Component Drag-and-Drop Flickering Fix - COMPLETE
+- **ISSUE**: Drag-and-drop flickering on mouse enter/leave in 10 upload components
+  - Drag state was not properly cleared when cursor left container
+  - `handleDragLeave` fired on child element transitions without boundary checking
+  - Visual feedback flickered as drag state reset unexpectedly
+- **ROOT CAUSE**: Missing boundary validation in drag-leave handlers
+  - Event bubbling from child elements triggered parent's drag-leave
+  - No check to confirm cursor was actually outside container bounds
+- **SOLUTION**: Implemented `shouldResetDragState()` utility function with boundary validation
+  - Created `src/lib/utils/drag-helpers.ts` with `shouldResetDragState()` helper
+  - Utility checks if cursor position is actually outside container using `getBoundingClientRect()`
+  - Returns true only if cursor is genuinely outside the container boundaries
+- **COMPONENTS UPDATED** (10 total):
+  - `src/lib/components/forms/PhotoUpload.svelte` - Added boundary check in `handleDragLeave`
+  - `src/lib/components/forms/PhotoUploadV2.svelte` - Added boundary check in `handleDragLeave`
+  - `src/lib/components/forms/PdfUpload.svelte` - Added boundary check in `handleDragLeave`
+  - `src/lib/components/assessment/EstimatePhotosPanel.svelte` - Added boundary check
+  - `src/lib/components/assessment/Exterior360PhotosPanel.svelte` - Added boundary check
+  - `src/lib/components/assessment/InteriorPhotosPanel.svelte` - Added boundary check
+  - `src/lib/components/assessment/AdditionalsPhotosPanel.svelte` - Added boundary check
+  - `src/lib/components/assessment/TyrePhotosPanel.svelte` - Added boundary check
+  - `src/lib/components/assessment/PreIncidentPhotosPanel.svelte` - Added boundary check
+  - `src/lib/components/forms/FileDropzone.svelte` - Added boundary check
+- **PATTERN**: Drag-helpers utility for consistent drag-drop boundary handling
+  - Can be reused in other components needing robust drag-leave detection
+  - Single source of truth for boundary validation logic
+- **BENEFITS**:
+  - Smooth, flicker-free drag-and-drop experience
+  - Consistent behavior across all upload components
+  - More responsive UI with proper visual feedback
+  - Reusable utility for future drag-drop implementations
+- **VERIFICATION**: ✅ All 10 components tested, smooth drag-drop behavior confirmed
+
+### ✅ B003: Assessment Tab Validation Badge Persistence Fix - COMPLETE
+- **ISSUE**: Tab validation badges not updating consistently with actual tab state
+  - Validation badge showed red (invalid) even when tab was complete
+  - Badge state didn't match actual validation of local state
+  - Parent component validating stale prop values instead of current local state
+- **ROOT CAUSE**: Validation state mismatch between parent and child components
+  - Parent component validated props (captured at load time, stale)
+  - Children component validate local reactive state (current, accurate)
+  - Parent validation results didn't reflect actual child state
+- **SOLUTION**: Implemented callback-based validation reporting pattern
+  - Added `onValidationUpdate` callback parameter to assessment tabs
+  - Tabs report validation status to parent immediately via callback
+  - Parent prefers child-reported validations over prop-based validations
+- **PATTERN IMPLEMENTATION**:
+  - Added `onValidationUpdate` prop to each assessment tab component
+  - Tabs call `onValidationUpdate(isValid)` in `$effect` when validation state changes
+  - `AssessmentLayout.svelte` stores child validations and uses those for badge display
+  - Parent tabs use child-reported state: `childValidations[tabName] ?? computeParentValidation(props)`
+- **TABS UPDATED** (8 total):
+  - `VehicleIdentificationTab.svelte` - Reports validation on state changes
+  - `InteriorMechanicalTab.svelte` - Reports validation on state changes
+  - `DamageTab.svelte` - Reports validation on state changes
+  - `VehicleValuesTab.svelte` - Reports validation on state changes
+  - `EstimateTab.svelte` - Reports validation on state changes
+  - `PreIncidentEstimateTab.svelte` - Reports validation on state changes
+  - `AdditionalsTab.svelte` - Reports validation on state changes
+  - `FRCTab.svelte` - Reports validation on state changes
+- **PARENT UPDATES**:
+  - `AssessmentLayout.svelte` - Added `childValidations` state, updated badge logic
+  - `src/routes/(app)/work/assessments/[appointment_id]/+page.svelte` - Passes `onValidationUpdate` callbacks
+- **AUDIT TRAIL**: All validation state changes still logged to audit table
+- **BENEFITS**:
+  - Badges always reflect current tab state
+  - Instant visual feedback on validation changes
+  - Cleaner parent-child communication pattern
+  - More responsive UI experience
+- **VERIFICATION**: ✅ All 8 tabs tested, badges update correctly with local state changes
+
+### ✅ AddressInput Integration in Inspection Page - COMPLETE
+- **INTEGRATION**: Updated Create Appointment modal in inspection page
+- **FILE**: `/work/inspections/[id]/+page.svelte`
+- **CHANGES**:
+  - Replaced manual text inputs for appointment location with AddressInput component
+  - Now matches pattern used in appointments pages (schedule and reschedule modals)
+  - Provides Google Places autocomplete for location entry
+  - Maintains consistency across appointment creation flows
+- **IMPACT**: Users get consistent, modern address entry across all appointment interfaces
+- **BENEFITS**:
+  - Structured location data capture
+  - Google Places autocomplete support
+  - Consistent UX with other appointment flows
+  - Better location accuracy for scheduling
+
+---
 
 ### ✅ C001: Vehicle Location Capturing Feature - COMPLETE
 - **FEATURE**: Modern address autocomplete with Google Places API integration for capturing structured location data
