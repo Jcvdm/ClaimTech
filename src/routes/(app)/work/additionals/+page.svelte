@@ -43,52 +43,58 @@
 
 	// Prepare data for table
 	// Use vehicle data from assessment_vehicle_identification (updated during assessment)
-	const allAdditionalsWithDetails = data.additionalsRecords.map((additionals: any) => {
-		const assessment = additionals.assessment;
-		const request = assessment?.appointment?.inspection?.request;
-		const client = request?.client;
-		const vehicleId = assessment?.vehicle_identification;
-		const lineItems = (additionals.line_items || []) as AdditionalLineItem[];
+	const allAdditionalsWithDetails = data.additionalsRecords
+		.map((additionals: any) => {
+			const assessment = additionals.assessment;
+			const request = assessment?.appointment?.inspection?.request;
+			const client = request?.client;
+			const vehicleId = assessment?.vehicle_identification;
+			const lineItems = (additionals.line_items || []) as AdditionalLineItem[];
 
-		// Prefer assessment vehicle data over request data
-		const vehicleMake = vehicleId?.vehicle_make || request?.vehicle_make;
-		const vehicleModel = vehicleId?.vehicle_model || request?.vehicle_model;
-		const vehicleYear = vehicleId?.vehicle_year || request?.vehicle_year;
-		const registration = vehicleId?.registration_number || request?.vehicle_registration || 'N/A';
+			// Prefer assessment vehicle data over request data
+			const vehicleMake = vehicleId?.vehicle_make || request?.vehicle_make;
+			const vehicleModel = vehicleId?.vehicle_model || request?.vehicle_model;
+			const vehicleYear = vehicleId?.vehicle_year || request?.vehicle_year;
+			const registration = vehicleId?.registration_number || request?.vehicle_registration || 'N/A';
 
-		// Count line items by status (excluding reversals and reversed items)
-		const reversedTargets = new Set(
-			lineItems
-				.filter((i) => i.action === 'reversal' && i.reverses_line_id)
-				.map((i) => i.reverses_line_id!)
-		);
+			// Count line items by status (excluding reversals and reversed items)
+			const reversedTargets = new Set(
+				lineItems
+					.filter((i) => i.action === 'reversal' && i.reverses_line_id)
+					.map((i) => i.reverses_line_id!)
+			);
 
-		const activeLineItems = lineItems.filter(
-			(item) => item.action !== 'reversal' && !reversedTargets.has(item.id!)
-		);
+			const activeLineItems = lineItems.filter(
+				(item) => item.action !== 'reversal' && !reversedTargets.has(item.id!)
+			);
 
-		const pendingCount = activeLineItems.filter((item) => item.status === 'pending').length;
-		const approvedCount = activeLineItems.filter((item) => item.status === 'approved').length;
-		const declinedCount = activeLineItems.filter((item) => item.status === 'declined').length;
+			const pendingCount = activeLineItems.filter((item) => item.status === 'pending').length;
+			const approvedCount = activeLineItems.filter((item) => item.status === 'approved').length;
+			const declinedCount = activeLineItems.filter((item) => item.status === 'declined').length;
 
-		return {
-			id: additionals.id,
-			assessmentId: assessment?.id,
-			appointmentId: assessment?.appointment?.id,
-			assessmentNumber: assessment?.assessment_number || 'N/A',
-			requestNumber: request?.request_number || 'N/A',
-			clientName: client?.name || 'Unknown Client',
-			clientType: client?.type || 'N/A',
-			vehicle: formatVehicle(vehicleYear, vehicleMake, vehicleModel),
-			registration: registration,
-			pendingCount,
-			approvedCount,
-			declinedCount,
-			totalApproved: additionals.total_approved || 0,
-			createdAt: additionals.created_at,
-			formattedCreated: formatDate(additionals.created_at)
-		};
-	});
+			return {
+				id: additionals.id,
+				assessmentId: assessment?.id,
+				appointmentId: assessment?.appointment?.id,
+				assessmentNumber: assessment?.assessment_number || 'N/A',
+				requestNumber: request?.request_number || 'N/A',
+				clientName: client?.name || 'Unknown Client',
+				clientType: client?.type || 'N/A',
+				vehicle: formatVehicle(vehicleYear, vehicleMake, vehicleModel),
+				registration: registration,
+				pendingCount,
+				approvedCount,
+				declinedCount,
+				totalApproved: additionals.total_approved || 0,
+				createdAt: additionals.created_at,
+				formattedCreated: formatDate(additionals.created_at)
+			};
+		})
+		.filter((record) => {
+			// Hide records with zero line items (empty additionals)
+			const totalItems = record.pendingCount + record.approvedCount + record.declinedCount;
+			return totalItems > 0;
+		});
 
 	// Filter additionals records
 	const additionalsWithDetails = $derived(
@@ -195,7 +201,7 @@
 <div class="flex-1 space-y-6 p-8">
 	<PageHeader
 		title="Additionals"
-		description="Manage additional line items for finalized assessments"
+		description={`Manage additional line items for finalized assessments${additionalsWithDetails.length > 0 ? ` (${additionalsWithDetails.filter((r) => r.pendingCount > 0).length} with pending items)` : ''}`}
 	/>
 
 	<FilterTabs
