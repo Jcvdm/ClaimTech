@@ -1,7 +1,64 @@
 # Changelog - Recent Updates
 
-**Last Updated**: November 29, 2025 (Accessories Report Integration | Vehicle Accessories Integration - Single Value System | B004: Repairer Selection Dropdown Reset Fix | B002/B003: Drag-Drop and Tab Badge Fixes | C001: AddressInput Integration)
+**Last Updated**: November 29, 2025 (Damage Inspection Report Enhancements | Accessories Report Integration | Vehicle Accessories Integration - Single Value System | B004: Repairer Selection Dropdown Reset Fix | B002/B003: Drag-Drop and Tab Badge Fixes)
 
+
+---
+
+## November 29, 2025
+
+### ✅ Damage Inspection Report Enhancements - COMPLETE
+
+#### 1. Insured Report Information Section (NEW)
+- **FEATURE**: Added new "INSURED REPORT INFORMATION" section after CLAIM INFORMATION
+- **CONTENT**: Displays insured details with conditional incident description in notes
+  - Insured Name
+  - Contact Number
+  - Email Address
+  - Address
+  - Date of Loss
+  - Incident Type
+  - Incident Description (if present, displayed in notes box)
+- **DATA SOURCE**: Existing `insuredDetails` object (already fetched, now displayed)
+- **FILE MODIFIED**:
+  - `src/lib/templates/report-template.ts` (lines 444-461) - Added INSURED REPORT INFORMATION section
+- **BENEFITS**:
+  - Professional report format matches industry standards
+  - Insured details clearly displayed for claim assessment
+  - Flexible incident description display
+- **VERIFICATION**: ✅ Section renders correctly with all insured information
+
+#### 2. Assessor/Engineer Information Enhancement
+- **ISSUE**: Report was missing full assessor details (company, phone, email)
+- **ROOT CAUSE**: Query was using `users!inner` join which failed silently; assessor data not populated
+- **SOLUTION**:
+  - Fixed query to access engineers table directly instead of nested users join
+  - Enhanced REPORT INFORMATION section with full assessor details
+- **FILES MODIFIED**:
+  - `src/routes/api/generate-report/+server.ts` (lines 191-196) - Fixed engineer query
+  - `src/lib/templates/report-template.ts` (lines 428-431) - Added fields to section
+- **FIELDS NOW DISPLAYED**:
+  - Assessor (engineer name)
+  - Company (engineer company_name)
+  - Phone (engineer phone)
+  - Email (engineer email)
+- **REPORT SECTION** (REPORT INFORMATION):
+  ```
+  | Field           | Value                          |
+  |-----------------|--------------------------------|
+  | Assessor        | John Smith                     |
+  | Company         | ABC Assessors                  |
+  | Phone           | +27 123 456 7890              |
+  | Email           | john@abcassessors.co.za       |
+  | Report Date     | 2025-11-29                    |
+  | Report ID       | RPN-2025-001                  |
+  ```
+- **BENEFITS**:
+  - Full transparency on assessment professional
+  - Contact information readily available for follow-up
+  - Professional report appearance
+  - Bug fix eliminates silent failures in query
+- **VERIFICATION**: ✅ Query returns engineer data correctly, section displays all fields
 
 ---
 
@@ -12,24 +69,27 @@
   - User selected a value in the dropdown
   - Selection appeared to save locally
   - Database showed null/previous value when page reloaded
-- **ROOT CAUSE**: `handleUpdateAssessmentResult()` called `markDirty()` but not `saveAll()`
+- **ROOT CAUSE**: `handleUpdateAssessmentResult()` called `markDirty()` but didn't trigger any save
   - `markDirty()` only marks the tab as modified, doesn't persist to database
-  - Differs from other working tabs that also call `saveAll()` for immediate persistence
-- **SOLUTION**: Added `saveAll()` call after `markDirty()`
-  - Now follows same pattern as B009 fix for Exterior360Tab
-  - Select field changes persist immediately to database
-  - Pattern established: Select fields should save immediately on change
+  - Differs from other working tabs that persist select field changes immediately
+- **SOLUTION**: Created dedicated `saveAssessmentResult()` function for silent saving
+  - Does NOT set `saving = true` (avoids full overlay popup)
+  - Saves only the `assessment_result` field directly via `onUpdateEstimate()`
+  - Provides subtle/silent save like other field changes in the app
 - **FILE MODIFIED**:
-  - `src/lib/components/assessment/EstimateTab.svelte` (line 541) - Added `saveAll()` call
+  - `src/lib/components/assessment/EstimateTab.svelte`:
+    - Added `saveAssessmentResult()` function (lines 537-544) - dedicated silent save
+    - Updated `handleUpdateAssessmentResult()` (lines 546-551) - calls silent save function
 - **PATTERN ESTABLISHED**: Assessment Result Select Field Save Strategy
-  - Select fields with assessment impact: `onchange` with immediate `handleUpdateAssessmentResult()` → `markDirty()` → `saveAll()`
-  - Ensures result selections persist reliably
-  - Matches form field save patterns in B009/B010 fixes
+  - Select fields: `onchange` → handler updates local state → dedicated save function (no overlay)
+  - Avoids blocking UI with full `saveAll()` overlay
+  - Matches user expectation of subtle background saves for field changes
 - **BENEFITS**:
   - Assessment result selections persist correctly
+  - No blocking overlay popup on field change
+  - Silent save matches other field change patterns in app
   - Works reliably even with rapid navigation
-  - User experience matches other working tabs
-- **VERIFICATION**: ✅ Assessment result dropdown saves on value change, persists through navigation
+- **VERIFICATION**: ✅ Assessment result dropdown saves silently on value change, no overlay shown
 - **RELATED**: B009 (Exterior360Tab select field fix), B010 (text field binding fix)
 
 ---

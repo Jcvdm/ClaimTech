@@ -316,8 +316,16 @@ Comprehensive system documentation covering architecture, database design, secur
 - Services: `src/lib/services/accessories.service.ts` (updateValue method)
 - Utilities: `src/lib/utils/vehicleValuesCalculations.ts` (total + display helpers)
 - Components: `VehicleValueExtrasTable.svelte`, `VehicleValuesTab.svelte`, `Exterior360Tab.svelte`
+- **Report Generation**: `src/routes/api/generate-report/+server.ts` (fetches accessories)
+- **Report Template**: `src/lib/templates/report-template.ts` (dedicated section + values integration)
 
-**Key for**: Understanding accessories system, single-value patterns, cross-tab data sync, inline editing with optimistic updates, vehicle values calculations
+**Report Integration** (Nov 29, 2025):
+- Accessories appear in Damage Inspection Report PDF
+- Dedicated "VEHICLE ACCESSORIES" section with table (Accessory, Condition, Value)
+- Integrated into "WARRANTY & VEHICLE VALUES" section with Pre-Incident Value calculation
+- Same calculation pattern: `totalAdjusted + accessoriesTotal`
+
+**Key for**: Understanding accessories system, single-value patterns, cross-tab data sync, inline editing with optimistic updates, vehicle values calculations, report generation
 
 **Related**: [Database Schema](../System/database_schema.md), [Form Field Input Patterns](../System/form_field_input_patterns.md), [Project Architecture](../System/project_architecture.md)
 
