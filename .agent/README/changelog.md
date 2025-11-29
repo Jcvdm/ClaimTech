@@ -1,11 +1,88 @@
 # Changelog - Recent Updates
 
-**Last Updated**: November 29, 2025 (Vehicle Accessories Integration - Single Value System | B004: Repairer Selection Dropdown Reset Fix | B002/B003: Drag-Drop and Tab Badge Fixes | C001: AddressInput Integration)
+**Last Updated**: November 29, 2025 (Accessories Report Integration | Vehicle Accessories Integration - Single Value System | B004: Repairer Selection Dropdown Reset Fix | B002/B003: Drag-Drop and Tab Badge Fixes | C001: AddressInput Integration)
 
 
 ---
 
 ## November 29, 2025
+
+### ✅ B011: Assessment Result Selection Not Saving in EstimateTab - COMPLETE
+- **ISSUE**: Assessment result (repair/code_2/code_3) selection in EstimateTab was not saving immediately to database
+  - User selected a value in the dropdown
+  - Selection appeared to save locally
+  - Database showed null/previous value when page reloaded
+- **ROOT CAUSE**: `handleUpdateAssessmentResult()` called `markDirty()` but not `saveAll()`
+  - `markDirty()` only marks the tab as modified, doesn't persist to database
+  - Differs from other working tabs that also call `saveAll()` for immediate persistence
+- **SOLUTION**: Added `saveAll()` call after `markDirty()`
+  - Now follows same pattern as B009 fix for Exterior360Tab
+  - Select field changes persist immediately to database
+  - Pattern established: Select fields should save immediately on change
+- **FILE MODIFIED**:
+  - `src/lib/components/assessment/EstimateTab.svelte` (line 541) - Added `saveAll()` call
+- **PATTERN ESTABLISHED**: Assessment Result Select Field Save Strategy
+  - Select fields with assessment impact: `onchange` with immediate `handleUpdateAssessmentResult()` → `markDirty()` → `saveAll()`
+  - Ensures result selections persist reliably
+  - Matches form field save patterns in B009/B010 fixes
+- **BENEFITS**:
+  - Assessment result selections persist correctly
+  - Works reliably even with rapid navigation
+  - User experience matches other working tabs
+- **VERIFICATION**: ✅ Assessment result dropdown saves on value change, persists through navigation
+- **RELATED**: B009 (Exterior360Tab select field fix), B010 (text field binding fix)
+
+---
+
+### ✅ Accessories Integration into Damage Inspection Report - COMPLETE
+- **FEATURE**: Vehicle accessories now included in Damage Inspection Report PDF generation
+  - Accessories appear in **both** a dedicated section AND integrated into Vehicle Values
+  - Text/values only (no photos in report)
+- **API CHANGES** (`src/routes/api/generate-report/+server.ts`):
+  - Added `assessment_accessories` fetch to Promise.all (line 178-183)
+  - Added filtering for empty accessories records (line 202-205)
+  - Passes `accessories: filteredAccessories` to template (line 237)
+- **TEMPLATE CHANGES** (`src/lib/templates/report-template.ts`):
+  - Added imports for `VehicleAccessory` and `AccessoryType` types
+  - Added `accessories: VehicleAccessory[]` to ReportData interface
+  - Added `getAccessoryDisplayName()` helper function (maps accessory types to display names)
+  - Added `accessoriesTotal` calculation at function start
+  - **NEW SECTION**: "VEHICLE ACCESSORIES" table after Tyres section (lines 524-561)
+    - Columns: Accessory, Condition, Value
+    - Shows total accessories value at bottom
+    - Includes notes section if any accessories have notes
+  - **UPDATED SECTION**: "WARRANTY & VEHICLE VALUES" table (lines 614-633)
+    - Added "Adjusted Value" row (base from DB)
+    - Added "Accessories" row showing `+R{total}` (only if accessories exist)
+    - Added "Pre-Incident Value" row (adjusted + accessories, highlighted green)
+    - Borderline Write-off, Total Write-off, Salvage rows unchanged
+- **REPORT LAYOUT** (when accessories exist):
+  ```
+  VEHICLE ACCESSORIES
+  | Accessory              | Condition | Value    |
+  |------------------------|-----------|----------|
+  | Mags / Alloy Wheels    | Good      | R5,000   |
+  | Tow Bar                | -         | R2,500   |
+  | Total Accessories      |           | R7,500   |
+
+  WARRANTY & VEHICLE VALUES
+  | Value Type           | Trade     | Market    | Retail    |
+  |---------------------|-----------|-----------|-----------|
+  | Adjusted Value      | R100,000  | R95,000   | R110,000  |
+  | Accessories         | +R7,500   | +R7,500   | +R7,500   |
+  | Pre-Incident Value  | R107,500  | R102,500  | R117,500  |
+  | Borderline Write-off| ...       | ...       | ...       |
+  ```
+- **FOLLOWS EXISTING PATTERNS**:
+  - Same table styling as Tyres section
+  - Same value calculation logic as VehicleValuesTab (`totalAdjusted + accessoriesTotal`)
+  - Same `getAccessoryDisplayName()` utility pattern
+- **FILES MODIFIED**:
+  - `src/routes/api/generate-report/+server.ts` - Fetch + pass accessories
+  - `src/lib/templates/report-template.ts` - New section + updated values table
+- **VERIFICATION**: ✅ npm run check passes with 0 errors (12 pre-existing warnings)
+
+---
 
 ### ✅ Vehicle Accessories Integration - Single Value System - COMPLETE
 - **FEATURE**: Unified vehicle accessories with single value per accessory across tabs
