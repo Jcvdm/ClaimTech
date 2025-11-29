@@ -5,7 +5,100 @@
 
 ---
 
-## November 29, 2025
+## November 29, 2025 (Session 2)
+
+### ✅ PDF Generation Enhancements: Damage Report, Estimate, Photos & Metadata Fixes - COMPLETE
+
+#### 1. Damage Inspection Report - Insured Information & Assessor Details
+- **FEATURE**: Added complete insured details section to Damage Inspection Report PDF
+- **SECTIONS ADDED**:
+  - "INSURED REPORT INFORMATION" (new section after CLAIM INFORMATION)
+    - Insured Name, Contact Number, Email, Address
+    - Date of Loss, Incident Type
+    - Incident Description (displayed in notes box if present)
+  - Enhanced "REPORT INFORMATION" section with assessor details
+    - Assessor Name, Company, Phone, Email
+- **DATA FIXES**:
+  - Fixed silent query failure using `users!inner` join → now queries engineers table directly
+  - Proper engineer data retrieval with company_name, phone, email fields
+- **FILES MODIFIED**:
+  - `src/routes/api/generate-report/+server.ts` (lines 191-196) - Fixed engineer query
+  - `src/lib/templates/report-template.ts` (lines 444-461) - Added INSURED REPORT INFORMATION section
+  - `src/lib/templates/report-template.ts` (lines 428-431) - Enhanced REPORT INFORMATION with assessor details
+- **BENEFITS**:
+  - Professional report format with complete insured details
+  - Full assessor transparency with contact information
+  - Better data accuracy (fixed silent join failure)
+- **VERIFICATION**: ✅ Report generates with all insured and assessor information
+
+#### 2. Estimate PDF - Assessor Details & Submission Instructions
+- **FEATURES ADDED**:
+  - New assessor info section below totals table
+  - Document submission instructions with email addresses
+  - Bold additionals disclaimer about approval requirement
+- **CONTENT**:
+  - Assessor Name, Company, Phone, Email (same pattern as Report)
+  - Email submission addresses: `add@claimtech.co.za` (additionals), `frc@claimtech.co.za` (FRC)
+  - Bold disclaimer: "All additionals require approval before commencing work"
+- **FILES MODIFIED**:
+  - `src/lib/templates/estimate-template.ts` - Added assessor section and instructions
+- **BENEFITS**:
+  - Complete professional presentation with assessor contact
+  - Clear submission workflow for additionals/FRC
+  - Prominent warning prevents unauthorized work
+- **VERIFICATION**: ✅ Estimate PDF displays assessor info and instructions
+
+#### 3. Additionals Letter - Assessor Details Fix
+- **ISSUE**: Additionals Letter was showing "N/A" for assessor details
+- **ROOT CAUSE**: Same silent join failure as Report (using non-existent `users!inner` relationship)
+- **SOLUTION**: Updated to fetch from engineers table directly
+- **FILES MODIFIED**:
+  - `src/routes/api/generate-estimate/+server.ts` - Fixed engineer query
+  - `src/lib/templates/additionals-letter-template.ts` - Now displays: Assessor, Company, Phone, Email
+- **VERIFICATION**: ✅ Assessor details display correctly in Additionals Letter
+
+#### 4. Photo PDF/ZIP - Comprehensive Missing Photos Added
+- **NEW VEHICLE ID PHOTOS**:
+  - Engine Number
+  - License Disc
+  - Driver License
+- **NEW INTERIOR/MECHANICAL PHOTOS**:
+  - Mileage Display
+  - Battery Status
+  - Oil Level Indicator
+  - Coolant Level Indicator
+- **NEW ACCESSORY SECTIONS**:
+  - Folder 07: Additionals Photos (new category)
+  - Folder 08: Accessories Photos (new category)
+- **IMPACT**: Complete photo capture covering all vehicle assessment categories
+- **FILES MODIFIED**:
+  - `src/routes/api/generate-photos-pdf/+server.ts` - Added new vehicle ID sections
+  - `src/lib/templates/photos-template.ts` - Added Interior/Mechanical section photos
+  - `src/routes/api/generate-photos-zip/+server.ts` - Added folders 07 and 08
+- **BENEFITS**:
+  - Comprehensive photo checklist for assessments
+  - Better documentation of vehicle condition
+  - Organized categories for additionals and accessories
+- **VERIFICATION**: ✅ Photo PDF/ZIP generate with all sections
+
+#### 5. Tyre Position Order Standardization
+- **CHANGE**: Reordered tyre positions to match vehicle assessment flow
+- **OLD ORDER**: Left Front, Right Front, Left Rear, Right Rear, Spare
+- **NEW ORDER**: Right Front → Right Rear → Left Rear → Left Front → Spare
+- **LABEL CHANGES**: Updated to "Right Front" style (was using compass directions)
+- **FILES MODIFIED**:
+  - `src/routes/api/generate-photos-pdf/+server.ts` - Updated tyre order in photo PDF
+  - `src/lib/templates/photos-template.ts` - Updated tyre positions in template
+  - `src/routes/api/generate-photos-zip/+server.ts` - Updated folder naming order
+- **BENEFITS**:
+  - Consistent with vehicle assessment workflow
+  - More intuitive naming convention
+  - Better user mental model (right side → left side)
+- **VERIFICATION**: ✅ Tyre positions follow new order in all photo outputs
+
+---
+
+## November 29, 2025 (Session 1)
 
 ### ✅ Damage Inspection Report Enhancements - COMPLETE
 
