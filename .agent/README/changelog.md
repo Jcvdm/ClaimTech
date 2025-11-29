@@ -1,7 +1,78 @@
 # Changelog - Recent Updates
 
-**Last Updated**: November 28, 2025 (B004: Repairer Selection Dropdown Reset Fix | B002/B003: Drag-Drop and Tab Badge Fixes | C001: AddressInput Integration)
+**Last Updated**: November 29, 2025 (Vehicle Accessories Integration - Single Value System | B004: Repairer Selection Dropdown Reset Fix | B002/B003: Drag-Drop and Tab Badge Fixes | C001: AddressInput Integration)
 
+
+---
+
+## November 29, 2025
+
+### ✅ Vehicle Accessories Integration - Single Value System - COMPLETE
+- **FEATURE**: Unified vehicle accessories with single value per accessory across tabs
+  - Accessories added in Exterior360Tab automatically appear in VehicleValuesTab
+  - Each accessory has a single value (not three separate trade/market/retail values)
+  - Single value applies equally to Trade/Market/Retail totals
+  - Values can be entered in either tab (Exterior360Tab or VehicleValuesTab)
+  - Deleting accessory from Exterior360Tab cascades removal from VehicleValuesTab
+- **DATABASE**:
+  - Migration `20251129_add_value_to_accessories.sql` - Added `value` numeric column to `assessment_accessories` table
+  - Column type: NUMERIC(12,2), NULL for optional values
+- **TYPES** (`src/lib/types/assessment.ts`):
+  - Added `value?: number | null` to `VehicleAccessory` interface
+  - Added `value?: number | null` to `CreateAccessoryInput` interface
+- **SERVICES** (`src/lib/services/accessories.service.ts`):
+  - Added `updateValue(id: string, value: number | null)` method for inline value editing
+- **UTILITY FUNCTIONS** (`src/lib/utils/vehicleValuesCalculations.ts`):
+  - Added `calculateAccessoriesTotal(accessories: VehicleAccessory[]): number`
+  - Added `getAccessoryDisplayName(accessoryType: AccessoryType, customName?: string | null): string`
+- **COMPONENTS**:
+  - `VehicleValueExtrasTable.svelte` - Complete rewrite to use accessories-based system
+    - Changed from extras-based (JSONB with 3 values) to accessories-based (single value)
+    - Props: `accessories: VehicleAccessory[]`, `onUpdateAccessoryValue: (id, value) => void`
+    - Displays accessory name and single value column
+    - Info tooltip: "Value applies equally to Trade, Market, and Retail"
+  - `VehicleValuesTab.svelte` - Updated integration
+    - Props: `accessories: VehicleAccessory[]`, `onUpdateAccessoryValue`
+    - Removed old extras state management
+    - Added `accessoriesTotal` derived value
+    - Updated totals: `tradeTotalAdjusted = tradeAdjusted + accessoriesTotal` (same for market/retail)
+  - `Exterior360Tab.svelte` - Updated with value input
+    - Added value input in "Add Accessory" modal
+    - Added inline value editing in accessory list
+    - Fixed bug: Pass `value` in optimistic queue onCreate callback
+- **CALCULATION FLOW**:
+  - Base Values (Trade/Market/Retail)
+    - ↓
+  - Valuation Adjustment (fixed + %)
+    - ↓
+  - Condition Adjustment
+    - ↓
+  - Adjusted Values
+    - ↓
+  - Accessories Total (SUM of assessment_accessories.value, applied equally to all three types)
+    - ↓
+  - Total Adjusted Values (same accessories total added to Trade + Market + Retail)
+    - ↓
+  - Write-off percentages
+- **BUG FIXED**:
+  - Value not saved when adding accessory - Fixed by:
+    1. Adding `value` field to `CreateAccessoryInput` type
+    2. Passing `value: draft.value ?? undefined` in optimistic queue onCreate callback
+- **BENEFITS**:
+  - Unified accessories system across both tabs
+  - Simpler data model (single value per accessory vs. three separate values)
+  - Values consistent across Trade/Market/Retail calculations
+  - Can edit accessories from either tab
+  - Better UX with inline value editing
+- **VERIFICATION**: ✅ Accessories integrate between tabs, values calculate correctly, database persists properly
+- **FILES MODIFIED**:
+  - `supabase/migrations/20251129_add_value_to_accessories.sql` (NEW)
+  - `src/lib/types/assessment.ts` - VehicleAccessory + CreateAccessoryInput interfaces
+  - `src/lib/services/accessories.service.ts` - Added updateValue method
+  - `src/lib/utils/vehicleValuesCalculations.ts` - Added utility functions
+  - `src/lib/components/assessment/VehicleValueExtrasTable.svelte` - Complete rewrite
+  - `src/lib/components/assessment/VehicleValuesTab.svelte` - Added accessories props + totals
+  - `src/lib/components/assessment/Exterior360Tab.svelte` - Added value input + editing
 
 ---
 

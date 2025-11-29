@@ -552,9 +552,15 @@ Vehicle accessories and aftermarket additions (1:N with assessments).
 - `accessory_type` (TEXT, NOT NULL) - e.g., 'mags', 'tow_bar', 'canopy'
 - `custom_name` (TEXT) - For 'custom' accessory type
 - `condition` (TEXT, CHECK: 'excellent' | 'good' | 'fair' | 'poor' | 'damaged')
+- `value` (NUMERIC(12,2), NULL) - Single monetary value applied equally to Trade/Market/Retail totals (Migration 20251129)
 - `notes`, `photo_url`
 
 **Index:** `idx_assessment_accessories_assessment` on `assessment_id`
+
+**Notes:**
+- Single value model: Each accessory has one value (not three separate trade/market/retail values)
+- Value integration: Used in VehicleValuesTab to calculate `accessoriesTotal`
+- Calculation: `accessoriesTotal = SUM(value)` applies equally to all three valuation types
 
 ---
 

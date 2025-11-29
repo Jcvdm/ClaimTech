@@ -1,7 +1,7 @@
 # System Documentation Index
 
-**Last Updated**: November 28, 2025 (B008/B009/B010: Form Field Input Patterns - Bug Fixes ✅)
-**Total Files**: 42 System documentation files
+**Last Updated**: November 29, 2025 (Vehicle Accessories Integration ✅ | B008/B009/B010: Form Field Input Patterns - Bug Fixes ✅)
+**Total Files**: 43 System documentation files
 
 ---
 
@@ -289,6 +289,37 @@ Comprehensive system documentation covering architecture, database design, secur
 - **B010**: Text field lag (changed from bind:value to manual extraction with debounce)
 
 **Key for**: Understanding form input behavior, fixing input responsiveness, preventing data loss on navigation, standardizing form implementations
+
+### 4b. Vehicle Accessories Integration ⭐ NEW (Nov 29, 2025)
+- **File**: [vehicle_accessories_integration.md](../System/vehicle_accessories_integration.md)
+- **Size**: ~600 lines | **Last Updated**: Nov 29, 2025
+- **Read When**: Working with vehicle values, accessories, or cross-tab data integration, implementing single-value patterns
+- **Status**: ✅ Complete - Single value per accessory system integrated
+
+**Contains**:
+- Single-value accessory model (one value per accessory applies to Trade/Market/Retail)
+- Cross-tab integration between Exterior360Tab and VehicleValuesTab
+- Database schema: `assessment_accessories.value` (NUMERIC(12,2), Migration 20251129)
+- Component architecture (VehicleValueExtrasTable complete rewrite, VehicleValuesTab updates, Exterior360Tab value input)
+- Type definitions: `VehicleAccessory` and `CreateAccessoryInput` with value field
+- Service layer: `accessories.service.ts` updateValue() method
+- Utility functions: calculateAccessoriesTotal(), getAccessoryDisplayName()
+- Calculation flow diagram: Base Values → Valuation Adjustment → Condition Adjustment → Adjusted Values → Accessories Total → Total Adjusted Values
+- Inline value editing patterns with optimistic updates
+- Bug fix: Value not saved on accessory creation (fixed via CreateAccessoryInput type + onCreate callback)
+- Integration patterns: How accessories sync between tabs without duplication
+- Testing and verification guide
+
+**Implemented in**:
+- Database: `supabase/migrations/20251129_add_value_to_accessories.sql`
+- Types: `src/lib/types/assessment.ts` (VehicleAccessory, CreateAccessoryInput)
+- Services: `src/lib/services/accessories.service.ts` (updateValue method)
+- Utilities: `src/lib/utils/vehicleValuesCalculations.ts` (total + display helpers)
+- Components: `VehicleValueExtrasTable.svelte`, `VehicleValuesTab.svelte`, `Exterior360Tab.svelte`
+
+**Key for**: Understanding accessories system, single-value patterns, cross-tab data sync, inline editing with optimistic updates, vehicle values calculations
+
+**Related**: [Database Schema](../System/database_schema.md), [Form Field Input Patterns](../System/form_field_input_patterns.md), [Project Architecture](../System/project_architecture.md)
 
 ---
 
