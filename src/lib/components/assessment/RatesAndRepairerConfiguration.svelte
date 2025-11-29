@@ -133,6 +133,7 @@
 				showAutoPopulateNotification = false;
 			}, 3000);
 		}
+
 		onUpdateRepairer(localRepairerId || null);
 		onUpdateRates(
 			localLabourRate,
@@ -225,9 +226,8 @@
 		newOutworkMarkup = 25;
 	}
 
-	// Update local values when props change
-	$effect(() => {
-		localRepairerId = repairerId || '';
+	// Sync RATES from props (using $effect.pre for correct timing)
+	$effect.pre(() => {
 		localLabourRate = labourRate;
 		localPaintRate = paintRate;
 		localVatPercentage = vatPercentage;
@@ -237,11 +237,10 @@
 		localOutworkMarkup = outworkMarkup;
 	});
 
-	// Repairer options for dropdown
-	let repairerOptions = $derived([
-		{ value: '', label: 'None selected' },
-		...repairers.map((r) => ({ value: r.id, label: r.name }))
-	]);
+	// Repairer options for dropdown (no placeholder - FormField adds one via placeholder prop)
+	let repairerOptions = $derived(
+		repairers.map((r) => ({ value: r.id, label: r.name }))
+	);
 </script>
 
 <Card class="border-blue-200 bg-blue-50">
@@ -298,6 +297,7 @@
 							type="select"
 							bind:value={localRepairerId}
 							options={repairerOptions}
+							placeholder="None selected"
 							onchange={handleRepairerChange}
 						/>
 					</div>

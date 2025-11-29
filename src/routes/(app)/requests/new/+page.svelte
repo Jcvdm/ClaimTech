@@ -16,6 +16,7 @@
 	import { Plus } from 'lucide-svelte';
 	import type { CreateRequestInput, RequestType } from '$lib/types/request';
 	import type { Province } from '$lib/types/engineer';
+	import type { StructuredAddress } from '$lib/types/address';
 	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();
@@ -37,7 +38,8 @@ let clients = $state(data.clients ?? []);
 	let excess_amount = $state<number | undefined>(undefined);
 	let incident_type = $state('');
 	let incident_description = $state('');
-	let incident_location = $state('');
+	let incident_address = $state<StructuredAddress | null>(null);
+	let incident_location_notes = $state('');
 
 	// Vehicle Information
 	let vehicle_make = $state('');
@@ -53,7 +55,7 @@ let clients = $state(data.clients ?? []);
 	let owner_name = $state('');
 	let owner_phone = $state('');
 	let owner_email = $state('');
-	let owner_address = $state('');
+	let owner_address = $state<StructuredAddress | null>(null);
 
 	// Third Party Details
 	let third_party_name = $state('');
@@ -121,10 +123,21 @@ let clients = $state(data.clients ?? []);
 				description: description || undefined,
 				date_of_loss: date_of_loss || undefined,
 				insured_value: insured_value || undefined,
-				excess_amount: excess_amount || undefined,
+				excess_amount: excess_amount ?? undefined,
 				incident_type: incident_type || undefined,
 				incident_description: incident_description || undefined,
-				incident_location: incident_location || undefined,
+				// Incident location - flatten structured address
+				incident_location: incident_address?.formatted_address || undefined,
+				incident_street_address: incident_address?.street_address || undefined,
+				incident_suburb: incident_address?.suburb || undefined,
+				incident_city: incident_address?.city || undefined,
+				incident_province: incident_address?.province || undefined,
+				incident_postal_code: incident_address?.postal_code || undefined,
+				incident_latitude: incident_address?.latitude || undefined,
+				incident_longitude: incident_address?.longitude || undefined,
+				incident_place_id: incident_address?.place_id || undefined,
+				incident_location_notes: incident_location_notes || undefined,
+				// Vehicle
 				vehicle_make: vehicle_make || undefined,
 				vehicle_model: vehicle_model || undefined,
 				vehicle_year: vehicle_year || undefined,
@@ -133,10 +146,20 @@ let clients = $state(data.clients ?? []);
 				vehicle_color: vehicle_color || undefined,
 				vehicle_mileage: vehicle_mileage || undefined,
 				vehicle_province: vehicle_province || undefined,
+				// Owner
 				owner_name: owner_name || undefined,
 				owner_phone: owner_phone || undefined,
 				owner_email: owner_email || undefined,
-				owner_address: owner_address || undefined,
+				owner_address: owner_address?.formatted_address || undefined,
+				owner_street_address: owner_address?.street_address || undefined,
+				owner_suburb: owner_address?.suburb || undefined,
+				owner_city: owner_address?.city || undefined,
+				owner_province: owner_address?.province || undefined,
+				owner_postal_code: owner_address?.postal_code || undefined,
+				owner_latitude: owner_address?.latitude || undefined,
+				owner_longitude: owner_address?.longitude || undefined,
+				owner_place_id: owner_address?.place_id || undefined,
+				// Third party
 				third_party_name: third_party_name || undefined,
 				third_party_phone: third_party_phone || undefined,
 				third_party_email: third_party_email || undefined,
@@ -253,7 +276,8 @@ const clientOptions = $derived.by(() =>
 			bind:excess_amount
 			bind:incident_type
 			bind:incident_description
-			bind:incident_location
+			bind:incident_address
+			bind:incident_location_notes
 		/>
 
 		<!-- Vehicle Information -->

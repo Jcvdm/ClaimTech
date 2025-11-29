@@ -170,7 +170,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	const identificationPhotoPromises = [];
 	if (vehicleIdentification?.vin_photo_url) {
 		identificationPhotoPromises.push(
-			convertProxyUrlToDataUrl(vehicleIdentification.vin_photo_url, locals).then(dataUrl => 
+			convertProxyUrlToDataUrl(vehicleIdentification.vin_photo_url, locals).then(dataUrl =>
 				dataUrl ? { url: dataUrl, caption: 'VIN Number' } : null
 			)
 		);
@@ -179,6 +179,27 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		identificationPhotoPromises.push(
 			convertProxyUrlToDataUrl(vehicleIdentification.registration_photo_url, locals).then(dataUrl =>
 				dataUrl ? { url: dataUrl, caption: 'Registration Document' } : null
+			)
+		);
+	}
+	if (vehicleIdentification?.engine_number_photo_url) {
+		identificationPhotoPromises.push(
+			convertProxyUrlToDataUrl(vehicleIdentification.engine_number_photo_url, locals).then(dataUrl =>
+				dataUrl ? { url: dataUrl, caption: 'Engine Number' } : null
+			)
+		);
+	}
+	if (vehicleIdentification?.license_disc_photo_url) {
+		identificationPhotoPromises.push(
+			convertProxyUrlToDataUrl(vehicleIdentification.license_disc_photo_url, locals).then(dataUrl =>
+				dataUrl ? { url: dataUrl, caption: 'License Disc' } : null
+			)
+		);
+	}
+	if (vehicleIdentification?.driver_license_photo_url) {
+		identificationPhotoPromises.push(
+			convertProxyUrlToDataUrl(vehicleIdentification.driver_license_photo_url, locals).then(dataUrl =>
+				dataUrl ? { url: dataUrl, caption: 'Driver License' } : null
 			)
 		);
 	}
@@ -234,7 +255,11 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		{ url: (interiorMechanical && interiorMechanical.interior_front_photo_url) as string | null, caption: 'Front Seats' },
 		{ url: (interiorMechanical && interiorMechanical.interior_rear_photo_url) as string | null, caption: 'Rear Seats' },
 		{ url: (interiorMechanical && interiorMechanical.gear_lever_photo_url) as string | null, caption: 'Gear Lever' },
-		{ url: (interiorMechanical && interiorMechanical.engine_bay_photo_url) as string | null, caption: 'Engine Bay' }
+		{ url: (interiorMechanical && interiorMechanical.engine_bay_photo_url) as string | null, caption: 'Engine Bay' },
+		{ url: (interiorMechanical && interiorMechanical.mileage_photo_url) as string | null, caption: 'Odometer/Mileage' },
+		{ url: (interiorMechanical && interiorMechanical.battery_photo_url) as string | null, caption: 'Battery' },
+		{ url: (interiorMechanical && interiorMechanical.oil_level_photo_url) as string | null, caption: 'Oil Level' },
+		{ url: (interiorMechanical && interiorMechanical.coolant_photo_url) as string | null, caption: 'Coolant Level' }
 	];
 
 	for (const {url, caption} of interiorPhotoMap) {
@@ -359,6 +384,63 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 			sections.push({
 				title: 'Pre-Incident Condition',
 				photos: preIncidentPhotosList
+			});
+		}
+	}
+
+	yield { status: 'processing', progress: 52, message: 'Converting additionals photos...' };
+
+	// Additionals Photos - Fetch from assessment_additionals_photos table
+	const { data: additionalsPhotos } = await locals.supabase
+		.from('assessment_additionals_photos')
+		.select('*, assessment_additionals!inner(id, assessment_id)')
+		.eq('assessment_additionals.assessment_id', assessmentId)
+		.order('display_order', { ascending: true });
+
+	if (additionalsPhotos && additionalsPhotos.length > 0) {
+		const additionalsPhotoPromises = additionalsPhotos.map(photo =>
+			convertProxyUrlToDataUrl(photo.photo_url, locals).then(dataUrl =>
+				dataUrl ? {
+					url: dataUrl,
+					caption: photo.label || 'Additional Documentation'
+				} : null
+			)
+		);
+
+		const additionalsList = (await Promise.all(additionalsPhotoPromises)).filter(p => p !== null);
+		if (additionalsList.length > 0) {
+			sections.push({
+				title: 'Additionals Documentation',
+				photos: additionalsList
+			});
+		}
+	}
+
+	yield { status: 'processing', progress: 55, message: 'Converting accessories photos...' };
+
+	// Accessories Photos - Fetch accessories with photos
+	const { data: accessories } = await locals.supabase
+		.from('assessment_accessories')
+		.select('id, accessory_type, custom_name, photo_url')
+		.eq('assessment_id', assessmentId)
+		.not('photo_url', 'is', null)
+		.order('created_at', { ascending: true });
+
+	if (accessories && accessories.length > 0) {
+		const accessoriesPhotoPromises = accessories.map(accessory =>
+			convertProxyUrlToDataUrl(accessory.photo_url as string, locals).then(dataUrl =>
+				dataUrl ? {
+					url: dataUrl,
+					caption: accessory.custom_name || accessory.accessory_type || 'Vehicle Accessory'
+				} : null
+			)
+		);
+
+		const accessoriesList = (await Promise.all(accessoriesPhotoPromises)).filter(p => p !== null);
+		if (accessoriesList.length > 0) {
+			sections.push({
+				title: 'Vehicle Accessories',
+				photos: accessoriesList
 			});
 		}
 	}

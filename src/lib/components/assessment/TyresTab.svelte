@@ -7,7 +7,7 @@
 	import { Plus, Trash2, Send, Calculator } from 'lucide-svelte';
 	import * as Dialog from '$lib/components/ui/dialog';
 	import type { Tyre, TyrePhoto } from '$lib/types/assessment';
-	import { validateTyres } from '$lib/utils/validation';
+	import { validateTyres, type TabValidation } from '$lib/utils/validation';
 	import { assessmentNotesService } from '$lib/services/assessment-notes.service';
 
 	interface Props {
@@ -20,9 +20,10 @@
 		onNotesUpdate?: () => Promise<void>;
 		onRegisterSave?: (saveFn: () => Promise<void>) => void; // Expose save function to parent for auto-save on tab change
 		onPhotosUpdate?: () => Promise<void>; // Refresh photos from database after upload/delete/label update
+		onValidationUpdate?: (validation: TabValidation) => void;
 	}
 
-	let { tyres: tyresProp, tyrePhotos: tyrePhotosProp, assessmentId, onUpdateTyre, onAddTyre, onDeleteTyre, onNotesUpdate, onRegisterSave, onPhotosUpdate }: Props = $props();
+	let { tyres: tyresProp, tyrePhotos: tyrePhotosProp, assessmentId, onUpdateTyre, onAddTyre, onDeleteTyre, onNotesUpdate, onRegisterSave, onPhotosUpdate, onValidationUpdate }: Props = $props();
 
 	// Make tyres reactive to prop changes
 	const tyres = $derived(tyresProp);
@@ -56,6 +57,13 @@
 	// Validation for warning banner - pass tyrePhotosMap for photo requirement check
 	const validation = $derived.by(() => {
 		return validateTyres(tyres, tyrePhotosMap);
+	});
+
+	// Report validation to parent for immediate badge updates
+	$effect(() => {
+		if (onValidationUpdate) {
+			onValidationUpdate(validation);
+		}
 	});
 
 	// Track dirty state for auto-save on tab change

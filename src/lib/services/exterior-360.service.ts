@@ -107,7 +107,7 @@ export class Exterior360Service {
 		if (existing) {
 			return this.update(assessmentId, input, client);
 		} else {
-			return this.create({ assessment_id: assessmentId, ...input, additional_photos: input.additional_photos || [] }, client);
+			return this.create({ assessment_id: assessmentId, ...input }, client);
 		}
 	}
 }

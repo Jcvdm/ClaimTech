@@ -243,8 +243,8 @@
 	async function loadAdditionalsCount() {
 		try {
 			const engineerIdFilter = role === 'engineer' ? engineer_id : undefined;
-			// Use stage-based count to match what the Additionals page displays
-			additionalsCount = await additionalsService.getAssessmentsAtStageCount(
+			// Count only assessments with pending additionals items (actionable work)
+			additionalsCount = await additionalsService.getPendingCount(
 				$page.data.supabase,
 				engineerIdFilter
 			);
@@ -312,7 +312,13 @@
 <Sidebar collapsible="icon">
 	<SidebarHeader>
 		<div class="flex items-center justify-center px-2 py-4">
-			<img src={logo} alt="ClaimTech" class="h-12 w-auto group-data-[collapsible=icon]:h-8" />
+			<img
+				src={logo}
+				alt="ClaimTech"
+				class="h-20 w-auto cursor-pointer transition-all duration-200 ease-linear
+					   group-data-[collapsible=icon]:h-10 group-data-[collapsible=icon]:opacity-90
+					   hover:scale-105 hover:brightness-110"
+			/>
 		</div>
 	</SidebarHeader>
 	<SidebarContent>

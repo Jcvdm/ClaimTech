@@ -32,8 +32,14 @@ export type Database = {
           inspection_id: string
           location_address: string | null
           location_city: string | null
+          location_latitude: number | null
+          location_longitude: number | null
           location_notes: string | null
+          location_place_id: string | null
+          location_postal_code: string | null
           location_province: string | null
+          location_street_address: string | null
+          location_suburb: string | null
           notes: string | null
           request_id: string
           reschedule_count: number | null
@@ -64,8 +70,14 @@ export type Database = {
           inspection_id: string
           location_address?: string | null
           location_city?: string | null
+          location_latitude?: number | null
+          location_longitude?: number | null
           location_notes?: string | null
+          location_place_id?: string | null
+          location_postal_code?: string | null
           location_province?: string | null
+          location_street_address?: string | null
+          location_suburb?: string | null
           notes?: string | null
           request_id: string
           reschedule_count?: number | null
@@ -96,8 +108,14 @@ export type Database = {
           inspection_id?: string
           location_address?: string | null
           location_city?: string | null
+          location_latitude?: number | null
+          location_longitude?: number | null
           location_notes?: string | null
+          location_place_id?: string | null
+          location_postal_code?: string | null
           location_province?: string | null
+          location_street_address?: string | null
+          location_suburb?: string | null
           notes?: string | null
           request_id?: string
           reschedule_count?: number | null
@@ -212,6 +230,7 @@ export type Database = {
           notes: string | null
           photo_url: string | null
           updated_at: string | null
+          value: number | null
         }
         Insert: {
           accessory_type: string
@@ -223,6 +242,7 @@ export type Database = {
           notes?: string | null
           photo_url?: string | null
           updated_at?: string | null
+          value?: number | null
         }
         Update: {
           accessory_type?: string
@@ -234,6 +254,7 @@ export type Database = {
           notes?: string | null
           photo_url?: string | null
           updated_at?: string | null
+          value?: number | null
         }
         Relationships: [
           {
@@ -2064,15 +2085,33 @@ export type Database = {
           current_step: string | null
           date_of_loss: string | null
           description: string | null
+          excess_amount: number | null
           id: string
+          incident_city: string | null
           incident_description: string | null
+          incident_latitude: number | null
           incident_location: string | null
+          incident_location_notes: string | null
+          incident_longitude: number | null
+          incident_place_id: string | null
+          incident_postal_code: string | null
+          incident_province: string | null
+          incident_street_address: string | null
+          incident_suburb: string | null
           incident_type: string | null
           insured_value: number | null
           owner_address: string | null
+          owner_city: string | null
           owner_email: string | null
+          owner_latitude: number | null
+          owner_longitude: number | null
           owner_name: string | null
           owner_phone: string | null
+          owner_place_id: string | null
+          owner_postal_code: string | null
+          owner_province: string | null
+          owner_street_address: string | null
+          owner_suburb: string | null
           request_number: string
           status: string
           third_party_email: string | null
@@ -2098,15 +2137,33 @@ export type Database = {
           current_step?: string | null
           date_of_loss?: string | null
           description?: string | null
+          excess_amount?: number | null
           id?: string
+          incident_city?: string | null
           incident_description?: string | null
+          incident_latitude?: number | null
           incident_location?: string | null
+          incident_location_notes?: string | null
+          incident_longitude?: number | null
+          incident_place_id?: string | null
+          incident_postal_code?: string | null
+          incident_province?: string | null
+          incident_street_address?: string | null
+          incident_suburb?: string | null
           incident_type?: string | null
           insured_value?: number | null
           owner_address?: string | null
+          owner_city?: string | null
           owner_email?: string | null
+          owner_latitude?: number | null
+          owner_longitude?: number | null
           owner_name?: string | null
           owner_phone?: string | null
+          owner_place_id?: string | null
+          owner_postal_code?: string | null
+          owner_province?: string | null
+          owner_street_address?: string | null
+          owner_suburb?: string | null
           request_number: string
           status?: string
           third_party_email?: string | null
@@ -2132,15 +2189,33 @@ export type Database = {
           current_step?: string | null
           date_of_loss?: string | null
           description?: string | null
+          excess_amount?: number | null
           id?: string
+          incident_city?: string | null
           incident_description?: string | null
+          incident_latitude?: number | null
           incident_location?: string | null
+          incident_location_notes?: string | null
+          incident_longitude?: number | null
+          incident_place_id?: string | null
+          incident_postal_code?: string | null
+          incident_province?: string | null
+          incident_street_address?: string | null
+          incident_suburb?: string | null
           incident_type?: string | null
           insured_value?: number | null
           owner_address?: string | null
+          owner_city?: string | null
           owner_email?: string | null
+          owner_latitude?: number | null
+          owner_longitude?: number | null
           owner_name?: string | null
           owner_phone?: string | null
+          owner_place_id?: string | null
+          owner_postal_code?: string | null
+          owner_province?: string | null
+          owner_street_address?: string | null
+          owner_suburb?: string | null
           request_number?: string
           status?: string
           third_party_email?: string | null

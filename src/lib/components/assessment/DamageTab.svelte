@@ -8,13 +8,14 @@
 	import { useDraft } from '$lib/utils/useDraft.svelte';
 	import { onMount } from 'svelte';
 	import type { DamageRecord, DamageType, DamageArea, DamageSeverity } from '$lib/types/assessment';
-	import { validateDamage } from '$lib/utils/validation';
+	import { validateDamage, type TabValidation } from '$lib/utils/validation';
 
 	interface Props {
 		damageRecord: DamageRecord | null;
 		assessmentId: string;
 		onUpdateDamage: (data: Partial<DamageRecord>) => void;
 		onRegisterSave?: (saveFn: () => Promise<void>) => void; // Expose save function to parent for auto-save on tab change
+		onValidationUpdate?: (validation: TabValidation) => void; // Report validation to parent for immediate badge updates
 	}
 
 	// Make props reactive using $derived pattern
@@ -25,6 +26,7 @@
 	const assessmentId = $derived(props.assessmentId);
 	const onUpdateDamage = $derived(props.onUpdateDamage);
 	const onRegisterSave = $derived(props.onRegisterSave);
+	const onValidationUpdate = $derived(props.onValidationUpdate);
 
 	// Initialize localStorage draft for critical fields
 	// Use $derived.by to ensure drafts are recreated when assessmentId changes
@@ -162,6 +164,13 @@
 	$effect(() => {
 		if (onRegisterSave) {
 			onRegisterSave(saveAll);
+		}
+	});
+
+	// Report validation to parent whenever it changes (for immediate badge updates)
+	$effect(() => {
+		if (onValidationUpdate) {
+			onValidationUpdate(validation);
 		}
 	});
 </script>

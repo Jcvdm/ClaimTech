@@ -19,6 +19,9 @@
 		Play
 	} from 'lucide-svelte';
 	import { appointmentService } from '$lib/services/appointment.service';
+	import type { StructuredAddress } from '$lib/types/address';
+	import type { Province } from '$lib/types/engineer';
+	import AddressInput from '$lib/components/forms/AddressInput.svelte';
 
 	let { data }: { data: PageData } = $props();
 
@@ -30,9 +33,7 @@
 	let rescheduleDate = $state(data.appointment.appointment_date?.split('T')[0] || '');
 	let rescheduleTime = $state(data.appointment.appointment_time || '');
 	let rescheduleDuration = $state(data.appointment.duration_minutes || 60);
-	let rescheduleLocationAddress = $state(data.appointment.location_address || '');
-	let rescheduleLocationCity = $state(data.appointment.location_city || '');
-	let rescheduleLocationProvince = $state(data.appointment.location_province || '');
+	let rescheduleLocation = $state<StructuredAddress | null>(null);
 	let rescheduleLocationNotes = $state(data.appointment.location_notes || '');
 	let rescheduleNotes = $state(data.appointment.notes || '');
 	let rescheduleSpecialInstructions = $state(data.appointment.special_instructions || '');
@@ -84,9 +85,32 @@
 		rescheduleDate = data.appointment.appointment_date?.split('T')[0] || '';
 		rescheduleTime = data.appointment.appointment_time || '';
 		rescheduleDuration = data.appointment.duration_minutes || 60;
-		rescheduleLocationAddress = data.appointment.location_address || '';
-		rescheduleLocationCity = data.appointment.location_city || '';
-		rescheduleLocationProvince = data.appointment.location_province || '';
+
+		// Reconstruct StructuredAddress from existing appointment data
+		const appt = data.appointment;
+		if (appt.location_address || appt.location_street_address || appt.location_city || appt.location_province) {
+			rescheduleLocation = {
+				formatted_address: appt.location_address || [
+					appt.location_street_address,
+					appt.location_suburb,
+					appt.location_city,
+					appt.location_province,
+					appt.location_postal_code
+				].filter(Boolean).join(', '),
+				street_address: appt.location_street_address || undefined,
+				suburb: appt.location_suburb || undefined,
+				city: appt.location_city || undefined,
+				province: appt.location_province as Province || undefined,
+				postal_code: appt.location_postal_code || undefined,
+				latitude: appt.location_latitude || undefined,
+				longitude: appt.location_longitude || undefined,
+				place_id: appt.location_place_id || undefined,
+				country: 'South Africa'
+			};
+		} else {
+			rescheduleLocation = null;
+		}
+
 		rescheduleLocationNotes = data.appointment.location_notes || '';
 		rescheduleNotes = data.appointment.notes || '';
 		rescheduleSpecialInstructions = data.appointment.special_instructions || '';
@@ -100,25 +124,38 @@
 		error = null;
 
 		try {
-			// Use proper type instead of 'any' for type safety
+			// Build the input object with flattened address fields
 			const input: import('$lib/types/appointment').RescheduleAppointmentInput = {
 				appointment_date: rescheduleDate,
 				appointment_time: rescheduleTime || null,
 				duration_minutes: rescheduleDuration,
 				notes: rescheduleNotes || null,
 				special_instructions: rescheduleSpecialInstructions || null,
-				// Initialize location fields (will be set conditionally below)
+				// Initialize location fields (will be overwritten for in-person)
 				location_address: null,
+				location_street_address: null,
+				location_suburb: null,
 				location_city: null,
 				location_province: null,
+				location_postal_code: null,
+				location_latitude: null,
+				location_longitude: null,
+				location_place_id: null,
 				location_notes: null
 			};
 
-			// Add location fields for in-person appointments
+			// Add location fields for in-person appointments - flatten StructuredAddress
 			if (data.appointment.appointment_type === 'in_person') {
-				input.location_address = rescheduleLocationAddress || null;
-				input.location_city = rescheduleLocationCity || null;
-				input.location_province = (rescheduleLocationProvince as any) || null;
+				// Flatten structured address to individual database columns
+				input.location_address = rescheduleLocation?.formatted_address || null;
+				input.location_street_address = rescheduleLocation?.street_address || null;
+				input.location_suburb = rescheduleLocation?.suburb || null;
+				input.location_city = rescheduleLocation?.city || null;
+				input.location_province = rescheduleLocation?.province || null;
+				input.location_postal_code = rescheduleLocation?.postal_code || null;
+				input.location_latitude = rescheduleLocation?.latitude || null;
+				input.location_longitude = rescheduleLocation?.longitude || null;
+				input.location_place_id = rescheduleLocation?.place_id || null;
 				input.location_notes = rescheduleLocationNotes || null;
 			}
 
@@ -521,37 +558,12 @@
 						<div class="space-y-4 border-t pt-4">
 							<h3 class="text-sm font-medium text-gray-900">Location Information</h3>
 
-							<div>
-								<label for="reschedule-address" class="block text-sm font-medium text-gray-700">Address</label>
-								<input
-									type="text"
-									id="reschedule-address"
-									bind:value={rescheduleLocationAddress}
-									class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-								/>
-							</div>
-
-							<div class="grid gap-4 md:grid-cols-2">
-								<div>
-									<label for="reschedule-city" class="block text-sm font-medium text-gray-700">City</label>
-									<input
-										type="text"
-										id="reschedule-city"
-										bind:value={rescheduleLocationCity}
-										class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-									/>
-								</div>
-
-								<div>
-									<label for="reschedule-province" class="block text-sm font-medium text-gray-700">Province</label>
-									<input
-										type="text"
-										id="reschedule-province"
-										bind:value={rescheduleLocationProvince}
-										class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-									/>
-								</div>
-							</div>
+							<AddressInput
+								bind:value={rescheduleLocation}
+								label="Inspection Location"
+								placeholder="Search for inspection address..."
+								allowManualEntry={true}
+							/>
 
 							<div>
 								<label for="reschedule-location-notes" class="block text-sm font-medium text-gray-700">Location Notes</label>
@@ -559,6 +571,7 @@
 									id="reschedule-location-notes"
 									bind:value={rescheduleLocationNotes}
 									rows="2"
+									placeholder="e.g., Gate code: 1234, ask for security at entrance"
 									class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
 								></textarea>
 							</div>

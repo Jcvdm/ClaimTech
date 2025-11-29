@@ -60,7 +60,9 @@
       "Bash(\"C:\\Users\\Jcvdm\\Desktop\\Jaco\\Programming\\sites\\Claimtech\\servers\\context7\\search.ts\")",
       "WebFetch(domain:code.claude.com)",
       "Bash(netstat:*)",
-      "Bash(findstr:*)"
+      "Bash(findstr:*)",
+      "Bash(__NEW_LINE__ cd /c/Users/Jcvdm/Desktop/Jaco/Programming/sites/Claimtech)",
+      "Bash(git -C /c/Users/Jcvdm/Desktop/Jaco/Programming/sites/Claimtech status:*)"
     ],
     "deny": [],
     "ask": []

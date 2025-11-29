@@ -120,7 +120,8 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 			{ data: repairer },
 			{ data: tyres },
 			{ data: vehicleValues },
-			{ data: assessmentNotes }
+			{ data: assessmentNotes },
+		{ data: accessories }
 		] = await Promise.all([
 			locals.supabase
 				.from('assessment_vehicle_identification')
@@ -173,6 +174,12 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 				.from('assessment_notes')
 				.select('*')
 				.eq('assessment_id', assessmentId)
+				.order('created_at', { ascending: true }),
+			// Fetch vehicle accessories
+			locals.supabase
+				.from('assessment_accessories')
+				.select('*')
+				.eq('assessment_id', assessmentId)
 				.order('created_at', { ascending: true })
 			]);
 
@@ -183,7 +190,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 			if (appointment?.engineer_id) {
 				const { data: engineerData } = await locals.supabase
 					.from('engineers')
-					.select('*, users!inner(email, full_name, phone)')
+					.select('id, name, email, phone, company_name, specialization')
 					.eq('id', appointment.engineer_id)
 					.single();
 				engineer = engineerData;
@@ -191,6 +198,11 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
 			// NEW: Format assessment notes grouped by section
 			const formattedNotes = formatAssessmentNotesBySection(assessmentNotes || []);
+
+			// Filter out empty accessories (matching existing patterns)
+			const filteredAccessories = (accessories || []).filter(
+				(a: any) => a.accessory_type || a.custom_name || a.value
+			);
 
 			// Normalize data using centralized helpers
 			const normalizedAssessment = normalizeAssessment(assessment);
@@ -220,7 +232,9 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 				engineer: (engineer || {}) as any,
 				vehicleDetails,
 				clientDetails,
-				insuredDetails
+				insuredDetails,
+				excessAmount: (requestData as any)?.excess_amount,
+				accessories: filteredAccessories as any[]
 			});
 
 			yield { status: 'processing', progress: 40, message: 'Generating PDF...' };

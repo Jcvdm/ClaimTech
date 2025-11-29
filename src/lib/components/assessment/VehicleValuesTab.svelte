@@ -13,11 +13,12 @@ import type {
 	WarrantyStatus,
 	ServiceHistoryStatus,
 	VehicleIdentification,
-	InteriorMechanical
+	InteriorMechanical,
+	VehicleAccessory
 } from '$lib/types/assessment';
 import type { Client } from '$lib/types/client';
 import type { VehicleDetails } from '$lib/utils/report-data-helpers';
-	import { validateVehicleValues } from '$lib/utils/validation';
+	import { validateVehicleValues, type TabValidation } from '$lib/utils/validation';
 	import {
 		formatCurrency,
 		getMonthFromDate,
@@ -31,6 +32,8 @@ import type { VehicleDetails } from '$lib/utils/report-data-helpers';
 		client: Client | null;
 		vehicleIdentification: VehicleIdentification | null;
 		interiorMechanical: InteriorMechanical | null;
+		accessories: VehicleAccessory[];
+		onUpdateAccessoryValue: (accessoryId: string, value: number | null) => void;
 		requestInfo?: {
 			request_number?: string;
 			claim_number?: string | null;
@@ -44,6 +47,7 @@ import type { VehicleDetails } from '$lib/utils/report-data-helpers';
 		};
 		onUpdate: (data: Partial<VehicleValues>) => void;
 		vehicleDetails?: VehicleDetails | null;
+		onValidationUpdate?: (validation: TabValidation) => void;
 	}
 
 	// Make props reactive using $derived pattern
@@ -103,8 +107,6 @@ import type { VehicleDetails } from '$lib/utils/report-data-helpers';
 	let valuationAdjustmentPercentage = $state(0);
 	let conditionAdjustmentValue = $state(0);
 
-	// Extras - ensure all extras have IDs
-	let extras = $state<VehicleValueExtra[]>([]);
 
 	// PDF
 	let valuationPdfUrl = $state('');
@@ -143,21 +145,15 @@ import type { VehicleDetails } from '$lib/utils/report-data-helpers';
 		calculateAdjustedValue(retailValue, valuationAdjustment, valuationAdjustmentPercentage, conditionAdjustmentValue)
 	);
 
-	// Extras totals
-	const tradeExtrasTotal = $derived(
-		extras.reduce((sum, extra) => sum + (extra.trade_value || 0), 0)
-	);
-	const marketExtrasTotal = $derived(
-		extras.reduce((sum, extra) => sum + (extra.market_value || 0), 0)
-	);
-	const retailExtrasTotal = $derived(
-		extras.reduce((sum, extra) => sum + (extra.retail_value || 0), 0)
+	// Accessories total (applies equally to trade/market/retail)
+	const accessoriesTotal = $derived(
+		props.accessories.reduce((sum, acc) => sum + (acc.value || 0), 0)
 	);
 
 	// Total adjusted values
-	const tradeTotalAdjusted = $derived(tradeAdjusted + tradeExtrasTotal);
-	const marketTotalAdjusted = $derived(marketAdjusted + marketExtrasTotal);
-	const retailTotalAdjusted = $derived(retailAdjusted + retailExtrasTotal);
+	const tradeTotalAdjusted = $derived(tradeAdjusted + accessoriesTotal);
+	const marketTotalAdjusted = $derived(marketAdjusted + accessoriesTotal);
+	const retailTotalAdjusted = $derived(retailAdjusted + accessoriesTotal);
 
 	// Write-off calculations
 	const borderlineWriteoffTrade = $derived(tradeTotalAdjusted * (borderlinePercentage / 100));
@@ -209,14 +205,6 @@ import type { VehicleDetails } from '$lib/utils/report-data-helpers';
 			if (data.valuation_pdf_url) valuationPdfUrl = data.valuation_pdf_url;
 			if (data.valuation_pdf_path) valuationPdfPath = data.valuation_pdf_path;
 			if (data.remarks) remarks = data.remarks;
-
-			// Update extras
-			if (data.extras && Array.isArray(data.extras)) {
-				extras = data.extras.map((extra: any) => ({
-					...extra,
-					id: extra.id || crypto.randomUUID()
-				}));
-			}
 		}
 	});
 
@@ -270,7 +258,6 @@ import type { VehicleDetails } from '$lib/utils/report-data-helpers';
 			valuation_adjustment: valuationAdjustment || undefined,
 			valuation_adjustment_percentage: valuationAdjustmentPercentage || undefined,
 			condition_adjustment_value: conditionAdjustmentValue || undefined,
-			extras,
 			valuation_pdf_url: valuationPdfUrl || undefined,
 			valuation_pdf_path: valuationPdfPath || undefined,
 			remarks: remarks || undefined
@@ -299,18 +286,6 @@ import type { VehicleDetails } from '$lib/utils/report-data-helpers';
 		handleSave(); // Save to database
 	}, 2000);
 
-	function handleAddExtra() {
-		extras = [...extras, createEmptyExtra()];
-	}
-
-	function handleUpdateExtra(extraId: string, updates: Partial<VehicleValueExtra>) {
-		extras = extras.map((e) => (e.id === extraId ? { ...e, ...updates } : e));
-	}
-
-	function handleDeleteExtra(extraId: string) {
-		extras = extras.filter((e) => e.id !== extraId);
-	}
-
 	function handlePdfUpload(url: string, path: string) {
 		valuationPdfUrl = url;
 		valuationPdfPath = path;
@@ -337,6 +312,13 @@ import type { VehicleDetails } from '$lib/utils/report-data-helpers';
 			warranty_status: warrantyStatus,
 			valuation_pdf_url: valuationPdfUrl
 		});
+	});
+
+	// Report validation to parent for immediate badge updates
+	$effect(() => {
+		if (props.onValidationUpdate) {
+			props.onValidationUpdate(validation);
+		}
 	});
 </script>
 
@@ -685,12 +667,10 @@ import type { VehicleDetails } from '$lib/utils/report-data-helpers';
 		</div>
 	</Card>
 
-	<!-- Section 3: Optional Extras -->
+	<!-- Section 3: Accessories -->
 	<VehicleValueExtrasTable
-		{extras}
-		onAddExtra={handleAddExtra}
-		onUpdateExtra={handleUpdateExtra}
-		onDeleteExtra={handleDeleteExtra}
+		accessories={props.accessories}
+		onUpdateAccessoryValue={props.onUpdateAccessoryValue}
 	/>
 
 	<!-- Section 4: Total Adjusted Values -->
@@ -701,21 +681,21 @@ import type { VehicleDetails } from '$lib/utils/report-data-helpers';
 				<p class="text-sm text-gray-600">Trade Total</p>
 				<p class="text-xl font-bold text-blue-900">{formatCurrency(tradeTotalAdjusted)}</p>
 				<p class="mt-1 text-xs text-gray-500">
-					Adjusted: {formatCurrency(tradeAdjusted)} + Extras: {formatCurrency(tradeExtrasTotal)}
+					Adjusted: {formatCurrency(tradeAdjusted)} + Accessories: {formatCurrency(accessoriesTotal)}
 				</p>
 			</div>
 			<div class="rounded-lg bg-blue-50 p-4">
 				<p class="text-sm text-gray-600">Market Total</p>
 				<p class="text-xl font-bold text-blue-900">{formatCurrency(marketTotalAdjusted)}</p>
 				<p class="mt-1 text-xs text-gray-500">
-					Adjusted: {formatCurrency(marketAdjusted)} + Extras: {formatCurrency(marketExtrasTotal)}
+					Adjusted: {formatCurrency(marketAdjusted)} + Accessories: {formatCurrency(accessoriesTotal)}
 				</p>
 			</div>
 			<div class="rounded-lg bg-blue-50 p-4">
 				<p class="text-sm text-gray-600">Retail Total</p>
 				<p class="text-xl font-bold text-blue-900">{formatCurrency(retailTotalAdjusted)}</p>
 				<p class="mt-1 text-xs text-gray-500">
-					Adjusted: {formatCurrency(retailAdjusted)} + Extras: {formatCurrency(retailExtrasTotal)}
+					Adjusted: {formatCurrency(retailAdjusted)} + Accessories: {formatCurrency(accessoriesTotal)}
 				</p>
 			</div>
 		</div>

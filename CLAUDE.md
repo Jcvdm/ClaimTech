@@ -1,5 +1,39 @@
 # CLAUDE.md - Project Configuration
 
+## Quick Reference: How Claude Works Here
+
+```
+┌────────────────────────────────────────────────────────────────────────┐
+│  YOU ARE THE ORCHESTRATOR - DELEGATE, DON'T IMPLEMENT DIRECTLY         │
+├────────────────────────────────────────────────────────────────────────┤
+│                                                                        │
+│  1. ASSESS → Is this trivial (<10 lines, 1 file)? Execute directly.   │
+│              Otherwise, ALWAYS CREATE A TASK AND DELEGATE.             │
+│                                                                        │
+│  2. TASK   → Create task in .agent/Tasks/active/TASK_NAME.md          │
+│              (Coder agent reads this for context)                      │
+│                                                                        │
+│  3. DELEGATE → Coder Agent: "Implement .agent/Tasks/active/X.md"      │
+│                Context/Explore: For research, finding code            │
+│                Planner: For complex architectural decisions            │
+│                                                                        │
+│  4. TRACK  → Update task status, move to completed/ when done         │
+│                                                                        │
+├────────────────────────────────────────────────────────────────────────┤
+│  ⚠️  CRITICAL: Even after planning, DELEGATE implementation to Coder! │
+│  Do NOT implement directly just because you have a detailed plan.     │
+│  The plan becomes the task document → Coder executes it.              │
+├────────────────────────────────────────────────────────────────────────┤
+│  CONTEXT EFFICIENCY: Don't read files to "understand" - use agents.   │
+│  Task documents ARE the context. Reference, don't repeat.             │
+└────────────────────────────────────────────────────────────────────────┘
+```
+
+**Outstanding Tasks**: Check `.agent/Tasks/active/` for PRDs to continue
+**Documentation**: Check `.agent/README.md` for project context (87 lines)
+
+---
+
 ## Project Info
 
 **Supabase Project ID**: `cfblmkzleqtvtfxujikf`
@@ -161,75 +195,193 @@ Claude Skills are **domain expertise modules** that auto-invoke based on keyword
 
 ## Agent Orchestration
 
-Claude uses a **4-agent system** optimized for cost and capability. The main Claude instance (Sonnet) acts as the Orchestrator, delegating to specialized agents when appropriate.
+Claude uses a **multi-agent system** optimized for cost, capability, and **context efficiency**. The Orchestrator MUST delegate to specialized agents proactively—this is not optional for qualifying tasks.
 
-### Agents
+### Core Principle: Delegate, Don't Execute Directly
 
-| Agent | Model | Cost | Purpose | When Used |
-|-------|-------|------|---------|-----------|
-| **Context** | Haiku 4.5 | $ | Fast context gathering | Before complex planning |
-| **Planner** | Opus 4.5 | $$$$ | Deep reasoning, detailed plans | Complex features |
-| **Docs** | Haiku | $ | Update documentation | After implementations |
-| **Coder** | Sonnet | $$ | Execute code changes | Implementation phase |
+**The Orchestrator should NOT:**
+- Read dozens of files to gather context (use Context/Explore agents)
+- Implement multi-file changes directly (use Coder agent)
+- Design complex features inline (use Planner agent)
+- Search extensively to answer "how does X work?" (use Explore agent)
 
-### Orchestration Flow
+**The Orchestrator SHOULD:**
+- Quickly assess task complexity
+- Delegate to the right agent immediately
+- Coordinate agent outputs
+- Summarize results for the user
+
+### Available Agents
+
+| Agent | Model | Cost | Purpose | Trigger Keywords |
+|-------|-------|------|---------|-----------------|
+| **Explore** | Haiku | $ | Fast codebase exploration, file patterns, code search | "find", "where", "how does X work", "search" |
+| **Context** | Haiku | $ | Gather comprehensive context before planning | "understand", "research", "before implementing" |
+| **Planner** | Opus | $$$$ | Deep reasoning, complex plans | multi-file, architecture, ambiguous |
+| **Coder** | Sonnet | $$ | Execute code changes | "implement", "fix", "add feature" |
+| **Docs** | Haiku | $ | Update documentation | "update docs", after implementations |
+
+### Decision Matrix: When to Use Each Agent
 
 ```
-User Request → Orchestrator (Sonnet)
-    │
-    ├── Simple task ────────────► Execute directly
-    │
-    ├── Need context ───────────► Context Agent (Haiku)
-    │                                   │
-    │                                   ▼
-    │                              Return context
-    │
-    ├── Complex feature ────────► Planner Agent (Opus)
-    │                                   │
-    │                    ┌──────────────┴──────────────┐
-    │               Need more                     Plan ready
-    │               context?                           │
-    │                    │                             ▼
-    │                    ▼                      Coder Agent (Sonnet)
-    │              Context Agent                       │
-    │                                                  ▼
-    │                                           Changes made
-    │
-    └── Update docs ────────────► Document Updater (Haiku)
+┌─────────────────────────────────────────────────────────────────────────┐
+│ User Request                                                            │
+└─────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+                    ┌───────────────────────────────┐
+                    │   Is this a SEARCH/EXPLORE?   │
+                    │   ("find X", "where is Y",    │
+                    │    "how does Z work?")        │
+                    └───────────────────────────────┘
+                           │YES              │NO
+                           ▼                 ▼
+                    ┌─────────────┐  ┌───────────────────────────┐
+                    │ EXPLORE     │  │   Is this CODE CHANGES?    │
+                    │ Agent       │  └───────────────────────────┘
+                    │ (Haiku)     │         │YES            │NO
+                    └─────────────┘         ▼               ▼
+                                    ┌─────────────┐  ┌────────────────┐
+                                    │ How complex?│  │ Simple Q&A     │
+                                    └─────────────┘  │ → Answer       │
+                                           │         │   directly     │
+                        ┌──────────────────┼─────────────────┐
+                        │                  │                 │
+                        ▼                  ▼                 ▼
+                 ┌─────────────┐   ┌─────────────┐   ┌─────────────┐
+                 │ SIMPLE      │   │ MODERATE    │   │ COMPLEX     │
+                 │ (1-2 files, │   │ (3-5 files, │   │ (5+ files,  │
+                 │  clear fix) │   │  patterns)  │   │  arch, new) │
+                 └─────────────┘   └─────────────┘   └─────────────┘
+                        │                  │                 │
+                        ▼                  ▼                 ▼
+                 ┌─────────────┐   ┌─────────────┐   ┌─────────────┐
+                 │ Execute     │   │ CODER       │   │ CONTEXT →   │
+                 │ directly    │   │ Agent       │   │ PLANNER →   │
+                 │ (Orch)      │   │ (Sonnet)    │   │ CODER       │
+                 └─────────────┘   └─────────────┘   └─────────────┘
 ```
 
-### Orchestration Rules
+### Agent Usage Guidelines
 
-1. **Always use agents when relevant** - Delegate to specialized agents during planning and implementation instead of executing directly. This optimizes cost and leverages each agent's strengths.
-2. **Direct execution** for simple tasks (no agents needed)
-3. **Context first** before expensive Opus planning
-4. **Plan before code** for complex multi-file features
-5. **Auto-proceed** for straightforward plans (no user approval needed)
-6. **Document after** larger code changes or when user requests
+#### 1. Explore Agent (Haiku) - USE LIBERALLY
+**Cost**: Very low (~$0.001 per exploration)
+**When**: ANY time you need to find files, patterns, or understand code
+**Trigger**: Searches that might require multiple Glob/Grep/Read operations
 
-### When to Use Each Agent
+```
+✅ USE for:
+- "Where is the assessment service?"
+- "Find all components that use X"
+- "How does authentication work?"
+- "What files handle photo uploads?"
 
-**Context Agent (Haiku 4.5)**
-- Before planning complex features
-- When Planner needs more context
-- Research tasks ("how does X work?")
-- Finding patterns and examples
+❌ DON'T use for:
+- Reading a single known file
+- Simple grep for exact match
+```
 
-**Planner Agent (Opus 4.5)**
-- Complex multi-file features
-- Architectural decisions
-- Ambiguous requirements
-- When implementation path is unclear
+#### 2. Context Agent (Haiku) - USE BEFORE PLANNING
+**Cost**: Very low
+**When**: Before invoking Planner, or when comprehensive context needed
+**Purpose**: Gather related files, patterns, DB schema efficiently
 
-**Document Updater (Haiku)**
-- After feature implementation
-- When user runs `/update_doc`
-- After significant code changes
+```
+✅ USE for:
+- Gathering context before complex features
+- Understanding multiple related systems
+- Research tasks with broad scope
 
-**Coder Agent (Sonnet)**
+❌ DON'T use for:
+- Simple file lookups (use Explore)
+- When you already have context
+```
+
+#### 3. Planner Agent (Opus) - USE FOR COMPLEXITY
+**Cost**: High - but worth it for complex work
+**When**: Multi-file features, architectural decisions, ambiguous requirements
+**Purpose**: Deep reasoning, detailed implementation plans
+
+```
+✅ USE for:
+- Features touching 5+ files
+- New architectural patterns
+- Unclear requirements needing analysis
+- Database schema design
+
+❌ DON'T use for:
+- Bug fixes with clear cause
+- Changes following existing patterns
+- Simple CRUD operations
+```
+
+#### 4. Coder Agent (Sonnet) - USE FOR IMPLEMENTATION
+**Cost**: Medium
+**When**: Executing plans or straightforward code changes
+**Purpose**: Write code, make changes, run builds
+
+```
+✅ USE for:
 - Executing Planner's detailed plans
-- Straightforward code changes
-- Bug fixes with clear scope
+- Changes to 3+ files
+- Features following existing patterns
+- Bug fixes requiring multiple file changes
+
+❌ DON'T use for:
+- Trivial 1-2 line fixes
+- Single file changes
+```
+
+#### 5. Document Updater (Haiku) - USE AFTER CHANGES
+**Cost**: Very low
+**When**: After implementing features, user request
+**Purpose**: Keep .agent/ docs current
+
+### Context Efficiency Rules
+
+**CRITICAL: Minimize context consumption in main conversation**
+
+1. **Delegate searches immediately** - Don't Glob/Grep/Read extensively in main thread
+2. **Use agents for exploration** - They return summaries, not full file contents
+3. **Read only what's necessary** - When reading files, use offset/limit for large files
+4. **Trust agent summaries** - Don't re-read files agents have summarized
+5. **Batch agent calls** - Launch multiple agents in parallel when independent
+
+### Proactive Agent Usage Examples
+
+**Bad (wasteful):**
+```
+User: "Add a comments feature to assessments"
+Orchestrator:
+  - Reads 15 files to understand current patterns
+  - Reads database schema docs
+  - Reads component structure
+  - Then starts implementing directly
+  Result: 50k+ tokens consumed before any code written
+```
+
+**Good (efficient):**
+```
+User: "Add a comments feature to assessments"
+Orchestrator:
+  1. Launch Context Agent: "Gather context for comments feature on assessments"
+  2. Launch Planner Agent (with context): "Design comments feature implementation"
+  3. Launch Coder Agent: "Execute the plan"
+  Result: ~15k tokens, better quality code
+```
+
+### Parallel Agent Execution
+
+When tasks are independent, launch agents in parallel:
+
+```typescript
+// Good: Launch context gathering in parallel
+await Promise.all([
+  Task("Explore: find assessment components"),
+  Task("Context: gather database schema for assessments"),
+  Task("Explore: find existing comment implementations")
+]);
+```
 
 ### Agent Files
 
@@ -243,51 +395,164 @@ Detailed prompts for each agent are in `.claude/agents/`:
 
 ## Workflow Guidelines
 
-### Starting a New Task
+### Task-Driven Development
 
-1. **Understand Requirements**
-   - Clarify user needs
-   - Identify which skills are relevant (use keywords to trigger auto-invoke)
-   - Create implementation plan
+**CRITICAL: All significant work should be tracked in `.agent/Tasks/`**
 
-2. **Research Phase (if needed)**
-   - Check relevant skill resources (`.claude/skills/`)
-   - Read .agent documentation for current state
-   - Document findings in `.agent/tasks/research/`
+The `.agent/Tasks/` folder is the **central task tracker and lightweight code index**:
+```
+.agent/Tasks/
+├── README.md       - Template and guidelines
+├── active/         - Current PRDs and tasks (Coder reads these)
+├── completed/      - Finished tasks (reference)
+├── historical/     - Archived documentation
+└── future/         - Planned features
+```
 
-3. **Design Phase (if needed)**
-   - Reference skill patterns for implementation approach
-   - Document architecture in `.agent/system/`
+### The Orchestrator's Role
 
-4. **Implementation Phase**
-   - Follow skill workflows (e.g., claimtech-development workflows)
-   - Use skill patterns (e.g., supabase-development ServiceClient pattern)
-   - Ensure assessment-centric compliance for workflow features
-   - Track progress with task management tools
-   - Use code execution when appropriate for data processing
+**You (the Orchestrator) are a TASK MANAGER, not an implementer.**
 
-5. **Quality Assurance**
-   - Verify compliance with skill patterns
-   - Address any issues found
-   - Update documentation
+Your job is to:
+1. **Create PRDs/tasks** in `.agent/Tasks/active/` for complex work
+2. **Delegate implementation** to Coder agent with clear task references
+3. **Coordinate** between agents (Context → Planner → Coder → Docs)
+4. **Track progress** by updating task status
+5. **Summarize results** to the user
 
-6. **Deployment**
-   - Ensure all tests pass
-   - Update .agent docs to reflect changes
-   - Update skills if new patterns established
-   - Complete handoff documentation
+### Task-First Workflow
 
-### Context Management
+**Step 0: Assess Complexity (ALWAYS DO THIS FIRST)**
+```
+Is this task:
+□ TRIVIAL (1 file, <10 lines) → Execute directly
+□ SIMPLE (1-2 files, clear scope) → Create brief task note, execute
+□ MODERATE (3-5 files) → Create task in .agent/Tasks/active/, delegate to Coder
+□ COMPLEX (5+ files, architecture) → Create PRD, use Planner, delegate to Coder
+□ RESEARCH → Use Explore agent, document findings
+```
 
-**Task Documentation:**
-- Create context file in `.agent/tasks/active/[task_name].md` for complex tasks
-- Include: requirements, constraints, related files, deliverables
-- Move completed tasks to `.agent/tasks/completed/`
+### For MODERATE/COMPLEX Tasks: Create Task First
 
-**Maintain Coherent Architecture:**
-- Document key decisions and rationale
-- Ensure implementations align with project architecture
-- Update system documentation after changes
+**Before any implementation, create a task document:**
+
+```markdown
+# .agent/Tasks/active/FEATURE_NAME_TASK.md
+
+**Created**: YYYY-MM-DD
+**Status**: Planning | In Progress | Completed
+**Complexity**: Moderate | Complex
+
+## Overview
+What needs to be done and why.
+
+## Files to Modify
+- `path/to/file1.ts` - What changes needed
+- `path/to/file2.svelte` - What changes needed
+
+## Implementation Steps
+1. Step one
+2. Step two
+3. Step three
+
+## Verification
+- [ ] npm run check passes
+- [ ] Feature works as expected
+
+## Notes
+Any context Coder agent needs.
+```
+
+### Delegating to Coder Agent
+
+**Always include task reference when delegating:**
+
+```
+Good: "Implement the task defined in .agent/Tasks/active/COMMENTS_FEATURE_PDR.md"
+Bad: "Add a comments feature" (no task reference)
+```
+
+**Coder agent workflow:**
+1. Reads the task document from `.agent/Tasks/active/`
+2. Implements according to the plan
+3. Runs verification steps
+4. Reports completion
+5. Orchestrator moves task to `completed/` or updates status
+
+### Complete Task-Driven Flow
+
+```
+1. User: "Add feature X"
+         │
+         ▼
+2. Orchestrator assesses: "Complex feature"
+         │
+         ▼
+3. Orchestrator creates: .agent/Tasks/active/FEATURE_X_PDR.md
+         │
+         ▼
+4. (If needed) Context Agent: "Gather patterns for feature X"
+         │
+         ▼
+5. (If needed) Planner Agent: "Create detailed implementation plan"
+         │
+         ▼
+6. Update task document with plan details
+         │
+         ▼
+7. Coder Agent: "Implement task in .agent/Tasks/active/FEATURE_X_PDR.md"
+         │
+         ▼
+8. Coder reports completion → Orchestrator verifies
+         │
+         ▼
+9. Move task to .agent/Tasks/completed/
+         │
+         ▼
+10. Document Updater: "Update .agent docs for feature X"
+         │
+         ▼
+11. Report completion to user
+```
+
+### Working with Outstanding Tasks
+
+**When user asks "what's outstanding?" or "continue work":**
+
+1. **Read `.agent/Tasks/active/`** to find outstanding PRDs
+2. **List tasks** with status and next steps
+3. **Ask user** which task to continue, or suggest priority
+4. **Delegate to Coder** with specific task reference
+
+**Example:**
+```
+User: "Continue where we left off"
+
+Orchestrator:
+1. Reads .agent/Tasks/active/ directory
+2. Finds: BUG_8_NEXT_ACTIONS.md (Status: In Progress)
+3. Reports: "Found outstanding task: BUG_8 - SSE Streaming. Next action: Implement UI component"
+4. Asks: "Should I have Coder continue with this?"
+5. User: "Yes"
+6. Delegates: "Coder, implement the next action in .agent/Tasks/active/BUG_8_NEXT_ACTIONS.md"
+```
+
+### Context Efficiency in Task Workflow
+
+**CRITICAL: Don't load context into main conversation unnecessarily**
+
+- **Task documents ARE the context** - Coder reads them directly
+- **Don't duplicate** task content in your messages
+- **Reference, don't repeat**: "See implementation steps in the task document"
+- **Agents summarize** - Trust their summaries
+
+### Task Status Updates
+
+Keep task status current:
+- **Planning** → Initial creation
+- **In Progress** → Coder is implementing
+- **Blocked** → Waiting for user input/decision
+- **Completed** → Move to `completed/` folder
 
 ---
 
@@ -467,28 +732,66 @@ This table shows how Skills, Commands, and .agent Docs work together:
 
 ## Best Practices
 
-1. **Plan Complex Tasks**
-   - Break down complex tasks into manageable steps
-   - Identify dependencies between steps
-   - Create implementation plans for multi-phase work
+### 1. Task First, Code Second
 
-2. **Quality First**
-   - Never skip code quality analysis
-   - Address issues before moving forward
-   - Follow ClaimTech patterns and conventions
+**Before implementing anything non-trivial:**
 
-3. **Document Everything**
-   - Maintain task logs in `.agent/tasks/`
-   - Update system documentation after changes
-   - Track decisions and rationale
+1. **Check** `.agent/Tasks/active/` - Is there an existing task for this?
+2. **Create** a task document if not - This becomes Coder's context
+3. **Delegate** to Coder agent with task reference
+4. **Track** progress by updating task status
 
-4. **Use Code Execution When Appropriate**
-   - Multi-step workflows (3+ operations)
-   - Complex data transformations
-   - Batch processing operations
-   - Data analysis and reporting
+**The task document IS the implementation plan AND the context.**
 
-5. **Follow Established Patterns**
-   - Reference Skills for domain expertise
-   - Use Commands for structured workflows
-   - Consult .agent docs for current system state
+**IMPORTANT**: Even after Plan Mode produces a detailed plan, you MUST still delegate to the Coder agent. The plan file becomes the task document - copy/move it to `.agent/Tasks/active/` and delegate. Do NOT implement directly just because you already understand what needs to be done.
+
+### 2. Delegate, Don't Execute Directly
+
+**Before doing anything substantial, ask: "Should an agent do this?"**
+
+| Task Type | Action |
+|-----------|--------|
+| Research ("find X", "how does Y") | → Explore agent |
+| Need comprehensive context | → Context agent |
+| Complex feature (5+ files) | → Create task → Planner → Coder |
+| **Post-planning implementation** | → **Create task → Coder** |
+| Moderate change (3-5 files) | → Create task → Coder |
+| Simple fix (1-2 files) | → Execute directly |
+| Trivial (<10 lines) | → Execute directly |
+
+### 3. Context Efficiency
+
+**Minimize tokens consumed in main conversation:**
+
+- **Task documents ARE context** - Don't duplicate in messages
+- **Reference, don't repeat**: "See .agent/Tasks/active/X.md"
+- **Agents return summaries** - Trust them, don't re-read
+- **Read files only when editing** - Not for exploration
+- **Use offset/limit** for large files
+
+### 4. Quality First
+
+- Never skip code quality analysis
+- Run `npm run check` after code changes
+- Follow ClaimTech patterns and conventions
+- Address issues before moving forward
+
+### 5. Document After Changes
+
+- Use Document Updater agent after implementations
+- Keep `.agent/` docs current
+- Move completed tasks to `completed/` folder
+- Update `.agent/README.md` status line
+
+### 6. Use Code Execution When Appropriate
+
+- Multi-step workflows (3+ operations)
+- Complex data transformations
+- Batch processing operations
+- Data analysis and reporting
+
+### 7. Follow Established Patterns
+
+- Reference Skills for domain expertise
+- Use Commands for structured workflows
+- Consult .agent docs for current system state

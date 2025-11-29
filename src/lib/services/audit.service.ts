@@ -10,6 +10,22 @@ export class AuditService {
 		const db = client ?? supabase;
 
 		try {
+			// Determine changed_by: explicit > auth user > 'System'
+			let changedBy = input.changed_by;
+			if (!changedBy) {
+				// Try to get user from client (explicit) or fallback to global browser client
+				const authClient = client ?? supabase;
+				try {
+					const { data: { user } } = await authClient.auth.getUser();
+					if (user) {
+						changedBy = user.email || user.id;
+					}
+				} catch {
+					// Auth call failed, will use default
+				}
+			}
+			changedBy = changedBy || 'System';
+
 			const { data, error } = await db
 				.from('audit_logs')
 				.insert({
@@ -19,7 +35,7 @@ export class AuditService {
 					field_name: input.field_name || null,
 					old_value: input.old_value || null,
 					new_value: input.new_value || null,
-					changed_by: input.changed_by || 'System',
+					changed_by: changedBy,
 					metadata: input.metadata || null
 				})
 				.select()

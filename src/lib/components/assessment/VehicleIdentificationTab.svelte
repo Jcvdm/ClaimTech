@@ -8,7 +8,7 @@
 import { onMount } from 'svelte';
 import type { VehicleIdentification } from '$lib/types/assessment';
 import type { VehicleDetails } from '$lib/utils/report-data-helpers';
-import { validateVehicleIdentification } from '$lib/utils/validation';
+import { validateVehicleIdentification, type TabValidation } from '$lib/utils/validation';
 
 interface Props {
 	data: VehicleIdentification | null;
@@ -22,6 +22,7 @@ interface Props {
 	};
 	onUpdate: (data: Partial<VehicleIdentification>) => void;
 	vehicleDetails?: VehicleDetails | null;
+	onValidationUpdate?: (validation: TabValidation) => void;
 }
 
 	// Make props reactive using $derived pattern
@@ -195,6 +196,13 @@ interface Props {
 			registration_photo_url: registrationPhotoUrl,
 			vin_photo_url: vinPhotoUrl
 		});
+	});
+
+	// Report validation to parent for immediate badge updates
+	$effect(() => {
+		if (props.onValidationUpdate) {
+			props.onValidationUpdate(validation);
+		}
 	});
 </script>
 

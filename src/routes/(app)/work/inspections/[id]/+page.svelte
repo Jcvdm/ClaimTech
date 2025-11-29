@@ -40,6 +40,9 @@
 	import type { PageData } from './$types';
 	import { formatDateLong as formatDate } from '$lib/utils/formatters';
 	import type { AppointmentType } from '$lib/types/appointment';
+	import AddressInput from '$lib/components/forms/AddressInput.svelte';
+	import type { StructuredAddress } from '$lib/types/address';
+	import type { Province } from '$lib/types/engineer';
 
 	let { data }: { data: PageData } = $props();
 
@@ -87,9 +90,7 @@
 	let appointmentDate = $state('');
 	let appointmentTime = $state('');
 	let appointmentDuration = $state(60);
-	let locationAddress = $state('');
-	let locationCity = $state('');
-	let locationProvince = $state('');
+	let appointmentLocation = $state<StructuredAddress | null>(null);
 	let locationNotes = $state('');
 	let appointmentNotes = $state('');
 	let specialInstructions = $state('');
@@ -240,9 +241,16 @@
 		appointmentDate = '';
 		appointmentTime = '';
 		appointmentDuration = 60;
-		locationAddress = '';
-		locationCity = '';
-		locationProvince = inspection.vehicle_province || '';
+		// Pre-fill province from vehicle if available
+		if (inspection.vehicle_province) {
+			appointmentLocation = {
+				formatted_address: '',
+				province: inspection.vehicle_province as Province,
+				country: 'South Africa'
+			};
+		} else {
+			appointmentLocation = null;
+		}
 		locationNotes = '';
 		appointmentNotes = '';
 		specialInstructions = '';
@@ -286,9 +294,16 @@
 				appointment_date: appointmentDate,
 				appointment_time: appointmentTime || undefined,
 				duration_minutes: appointmentDuration,
-				location_address: appointmentType === 'in_person' ? locationAddress : undefined,
-				location_city: appointmentType === 'in_person' ? locationCity : undefined,
-				location_province: appointmentType === 'in_person' ? (locationProvince as any) : undefined,
+				// Location fields - flatten StructuredAddress
+				location_address: appointmentType === 'in_person' ? appointmentLocation?.formatted_address : undefined,
+				location_street_address: appointmentType === 'in_person' ? appointmentLocation?.street_address : undefined,
+				location_suburb: appointmentType === 'in_person' ? appointmentLocation?.suburb : undefined,
+				location_city: appointmentType === 'in_person' ? appointmentLocation?.city : undefined,
+				location_province: appointmentType === 'in_person' ? appointmentLocation?.province : undefined,
+				location_postal_code: appointmentType === 'in_person' ? appointmentLocation?.postal_code : undefined,
+				location_latitude: appointmentType === 'in_person' ? appointmentLocation?.latitude : undefined,
+				location_longitude: appointmentType === 'in_person' ? appointmentLocation?.longitude : undefined,
+				location_place_id: appointmentType === 'in_person' ? appointmentLocation?.place_id : undefined,
 				location_notes: appointmentType === 'in_person' ? locationNotes : undefined,
 				notes: appointmentNotes || undefined,
 				special_instructions: specialInstructions || undefined,
@@ -926,47 +941,16 @@
 						Location Details
 					</h4>
 
-					<div class="space-y-2">
-						<label for="location_address" class="text-sm font-medium text-gray-900">
-							Address
-						</label>
-						<input
-							id="location_address"
-							type="text"
-							bind:value={locationAddress}
-							placeholder="Street address"
-							class="flex h-10 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm ring-offset-white focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:outline-none"
-						/>
-					</div>
-
-					<div class="grid gap-4 md:grid-cols-2">
-						<div class="space-y-2">
-							<label for="location_city" class="text-sm font-medium text-gray-900">City</label>
-							<input
-								id="location_city"
-								type="text"
-								bind:value={locationCity}
-								placeholder="City"
-								class="flex h-10 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm ring-offset-white focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:outline-none"
-							/>
-						</div>
-						<div class="space-y-2">
-							<label for="location_province" class="text-sm font-medium text-gray-900">
-								Province
-							</label>
-							<input
-								id="location_province"
-								type="text"
-								bind:value={locationProvince}
-								placeholder="Province"
-								class="flex h-10 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm ring-offset-white focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:outline-none"
-							/>
-						</div>
-					</div>
+					<AddressInput
+						bind:value={appointmentLocation}
+						label="Appointment Location"
+						placeholder="Search for inspection address..."
+						allowManualEntry={true}
+					/>
 
 					<div class="space-y-2">
 						<label for="location_notes" class="text-sm font-medium text-gray-900">
-							Location Notes
+							Access Instructions
 						</label>
 						<textarea
 							id="location_notes"

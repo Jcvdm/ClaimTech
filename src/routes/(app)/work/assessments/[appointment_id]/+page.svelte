@@ -51,6 +51,7 @@
 		VehicleAccessory,
 		UpdatePreIncidentEstimateInput
 	} from '$lib/types/assessment';
+	import type { TabValidation } from '$lib/utils/validation';
 
 	let { data }: { data: PageData } = $props();
 
@@ -72,6 +73,12 @@
 	let preIncidentEstimateTabSaveFn: (() => Promise<void>) | null = null;
 	let tyresTabSaveFn: (() => Promise<void>) | null = null;
 	let damageTabSaveFn: (() => Promise<void>) | null = null;
+
+	// Handle validation updates from child tabs (for immediate badge updates)
+	function handleValidationUpdate(tabId: string, validation: TabValidation) {
+		// Validation is automatically tracked by AssessmentLayout via childValidations
+		// This handler exists for future extension if needed
+	}
 
 	async function handleTabChange(tabId: string) {
 		// Prevent concurrent tab changes
@@ -204,6 +211,7 @@
 	async function handleAddAccessory(accessory: {
 		accessory_type: AccessoryType;
 		custom_name?: string;
+		value?: number;
 	}): Promise<VehicleAccessory> {
 		try {
 			const newAccessory = await accessoriesService.create({
@@ -216,6 +224,18 @@
 		} catch (error) {
 			console.error('Error adding accessory:', error);
 			throw error; // Propagate error for queue pattern
+		}
+	}
+
+	async function handleUpdateAccessoryValue(accessoryId: string, value: number | null) {
+		try {
+			const updatedAccessory = await accessoriesService.updateValue(accessoryId, value);
+			// Update local state
+			data.accessories = data.accessories.map((a) =>
+				a.id === accessoryId ? updatedAccessory : a
+			);
+		} catch (error) {
+			console.error('Error updating accessory value:', error);
 		}
 	}
 
@@ -785,6 +805,7 @@
 	vehicleValues={data.vehicleValues}
 	{preIncidentEstimate}
 	{estimate}
+	onValidationUpdate={handleValidationUpdate}
 >
 	{#if currentTab === 'summary'}
 		<SummaryTab
@@ -812,6 +833,7 @@
 			}}
 			onUpdate={handleUpdateVehicleIdentification}
 			vehicleDetails={data.vehicleDetails}
+			onValidationUpdate={(v) => handleValidationUpdate('identification', v)}
 		/>
 	{:else if currentTab === '360'}
 		<Exterior360Tab
@@ -822,6 +844,7 @@
 			onUpdate={handleUpdateExterior360}
 			onAddAccessory={handleAddAccessory}
 			onDeleteAccessory={handleDeleteAccessory}
+			onUpdateAccessoryValue={handleUpdateAccessoryValue}
 			onPhotosUpdate={async () => {
 				// Reload exterior 360 photos from database
 				const updatedPhotos = await exterior360PhotosService.getPhotosByAssessment(
@@ -830,6 +853,7 @@
 				// Update local state (triggers reactivity)
 				data.exterior360Photos = updatedPhotos;
 			}}
+			onValidationUpdate={(v) => handleValidationUpdate('360', v)}
 		/>
 	{:else if currentTab === 'interior'}
 		<InteriorMechanicalTab
@@ -843,6 +867,7 @@
 				// Update local state (triggers reactivity)
 				data.interiorPhotos = updatedPhotos;
 			}}
+			onValidationUpdate={(v) => handleValidationUpdate('interior', v)}
 		/>
 	{:else if currentTab === 'tyres'}
 		<TyresTab
@@ -866,6 +891,7 @@
 				// Update local state (triggers reactivity)
 				data.tyrePhotos = updatedPhotos;
 			}}
+			onValidationUpdate={(v) => handleValidationUpdate('tyres', v)}
 		/>
 	{:else if currentTab === 'damage'}
 		<DamageTab
@@ -875,6 +901,7 @@
 			onRegisterSave={(saveFn) => {
 				damageTabSaveFn = saveFn;
 			}}
+			onValidationUpdate={(validation) => handleValidationUpdate('damage', validation)}
 		/>
 	{:else if currentTab === 'values'}
 		<VehicleValuesTab
@@ -883,6 +910,8 @@
 			client={data.client}
 			vehicleIdentification={data.vehicleIdentification}
 			interiorMechanical={data.interiorMechanical}
+			accessories={data.accessories}
+			onUpdateAccessoryValue={handleUpdateAccessoryValue}
 			requestInfo={{
 				request_number: data.request?.request_number,
 				claim_number: data.request?.claim_number,
@@ -896,6 +925,7 @@
 			}}
 			onUpdate={handleUpdateVehicleValues}
 			vehicleDetails={data.vehicleDetails}
+			onValidationUpdate={(v) => handleValidationUpdate('values', v)}
 		/>
 	{:else if currentTab === 'pre-incident'}
 		<PreIncidentEstimateTab
@@ -921,6 +951,7 @@
 			onRegisterSave={(saveFn) => {
 				preIncidentEstimateTabSaveFn = saveFn;
 			}}
+			onValidationUpdate={(v) => handleValidationUpdate('pre-incident', v)}
 		/>
 	{:else if currentTab === 'estimate'}
 		<EstimateTab
@@ -962,6 +993,7 @@
 				notes = updatedNotes; // Update local state to trigger reactivity
 			}}
 			vehicleDetails={data.vehicleDetails}
+			onValidationUpdate={(v) => handleValidationUpdate('estimate', v)}
 		/>
 	{:else if currentTab === 'finalize'}
 		<FinalizeTab

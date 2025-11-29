@@ -1,4 +1,4 @@
-import type { VehicleValueExtra } from '$lib/types/assessment';
+import type { VehicleValueExtra, VehicleAccessory, AccessoryType } from '$lib/types/assessment';
 
 export interface WriteOffPercentages {
 	borderline: number; // e.g., 65.00
@@ -241,6 +241,41 @@ export function createEmptyExtra(): VehicleValueExtra {
 		market_value: 0,
 		retail_value: 0
 	};
+}
+
+/**
+ * Calculate total value of all accessories
+ */
+export function calculateAccessoriesTotal(accessories: VehicleAccessory[]): number {
+	return accessories.reduce((sum, acc) => sum + (acc.value || 0), 0);
+}
+
+/**
+ * Get display name for accessory type
+ */
+export function getAccessoryDisplayName(
+	accessoryType: AccessoryType,
+	customName?: string | null
+): string {
+	if (accessoryType === 'custom' && customName) return customName;
+
+	const labels: Record<AccessoryType, string> = {
+		mags: 'Mags / Alloy Wheels',
+		spotlights: 'Spotlights',
+		park_sensors: 'Park Sensors',
+		tow_bar: 'Tow Bar',
+		bull_bar: 'Bull Bar',
+		roof_rack: 'Roof Rack',
+		side_steps: 'Side Steps',
+		canopy: 'Canopy / Bakkie Cover',
+		tonneau_cover: 'Tonneau Cover',
+		nudge_bar: 'Nudge Bar',
+		winch: 'Winch',
+		snorkel: 'Snorkel',
+		custom: 'Custom'
+	};
+
+	return labels[accessoryType] || accessoryType;
 }
 
 /**

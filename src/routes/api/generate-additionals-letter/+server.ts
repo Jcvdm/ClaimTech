@@ -39,16 +39,38 @@ export const POST: RequestHandler = async ({ request, locals }) => {
         { data: companySettings },
         { data: requestData },
         { data: estimate },
-        { data: vehicleIdentification }
+        { data: vehicleIdentification },
+        { data: appointment },
+        { data: allNotes }
       ] = await Promise.all([
         locals.supabase.from('assessment_additionals').select('*').eq('assessment_id', assessmentId).single(),
         locals.supabase.from('company_settings').select('*').single(),
         locals.supabase.from('requests').select('*').eq('id', assessment.request_id).single(),
         locals.supabase.from('assessment_estimates').select('*').eq('assessment_id', assessmentId).single(),
-        locals.supabase.from('assessment_vehicle_identification').select('*').eq('assessment_id', assessmentId).single()
+        locals.supabase.from('assessment_vehicle_identification').select('*').eq('assessment_id', assessmentId).single(),
+        assessment.appointment_id
+          ? locals.supabase.from('appointments').select('*').eq('id', assessment.appointment_id).single()
+          : Promise.resolve({ data: null, error: null }),
+        locals.supabase.from('assessment_notes').select('*').eq('assessment_id', assessmentId).order('created_at', { ascending: true })
       ]);
 
+      // Filter for additionals-specific notes only
+      const additionalsNotes = (allNotes || []).filter(
+        (note: any) => note.source_tab === 'additionals'
+      );
+
       yield { status: 'processing', progress: 35, message: 'Loading repairer...' };
+
+      // Fetch engineer/assessor info if appointment exists
+      let engineer = null;
+      if (appointment?.engineer_id) {
+        const { data: engineerData } = await locals.supabase
+          .from('engineers')
+          .select('id, name, email, phone, company_name, specialization')
+          .eq('id', appointment.engineer_id)
+          .single();
+        engineer = engineerData;
+      }
 
       // Fetch client and repairer sequentially
       const { data: client } = await getClientByRequestId(
@@ -77,7 +99,9 @@ export const POST: RequestHandler = async ({ request, locals }) => {
         request: (requestData || {}) as any,
         client: (client || {}) as any,
         repairer: (repairer || {}) as any,
-        logoBase64: getBrandLogoBase64()
+        engineer: (engineer || {}) as any,
+        logoBase64: getBrandLogoBase64(),
+        additionalsNotes: additionalsNotes
       });
 
       yield { status: 'processing', progress: 60, message: 'Rendering PDF...' };

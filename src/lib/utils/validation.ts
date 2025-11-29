@@ -227,6 +227,24 @@ export function validateEstimate(data: any): TabValidation {
 }
 
 /**
+ * Validate Additionals tab
+ * NOTE: Additionals is optional (post-finalization), so no required fields
+ * This function exists to prevent phantom badges from stale validation state
+ */
+export function validateAdditionals(data: any): TabValidation {
+	const missingFields: string[] = [];
+
+	// No required fields for Additionals tab - it's an optional post-finalization feature
+	// Engineers can add supplementary repairs as needed, but nothing is mandatory
+
+	return {
+		tabId: 'additionals',
+		isComplete: true, // Always complete since no required fields
+		missingFields
+	};
+}
+
+/**
  * Validate Pre-Incident Estimate tab
  */
 export function validatePreIncidentEstimate(data: any): TabValidation {

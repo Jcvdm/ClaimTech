@@ -1,13 +1,15 @@
 <script lang="ts">
 	import FormField from './FormField.svelte';
+	import AddressInput from './AddressInput.svelte';
 	import { Card } from '$lib/components/ui/card';
 	import { Separator } from '$lib/components/ui/separator';
+	import type { StructuredAddress } from '$lib/types/address';
 
 	type Props = {
 		owner_name: string;
 		owner_phone: string;
 		owner_email: string;
-		owner_address: string;
+		owner_address: StructuredAddress | null;
 		third_party_name: string;
 		third_party_phone: string;
 		third_party_email: string;
@@ -47,23 +49,19 @@
 			/>
 		</div>
 
-		<div class="grid gap-6 md:grid-cols-2">
-			<FormField
-				label="Owner Email"
-				name="owner_email"
-				type="email"
-				bind:value={owner_email}
-				placeholder="owner@example.com"
-			/>
+		<FormField
+			label="Owner Email"
+			name="owner_email"
+			type="email"
+			bind:value={owner_email}
+			placeholder="owner@example.com"
+		/>
 
-			<FormField
-				label="Owner Address"
-				name="owner_address"
-				type="text"
-				bind:value={owner_address}
-				placeholder="Full address"
-			/>
-		</div>
+		<AddressInput
+			label="Owner Address"
+			bind:value={owner_address}
+			placeholder="Start typing an address..."
+		/>
 	</div>
 
 	<Separator class="my-6" />

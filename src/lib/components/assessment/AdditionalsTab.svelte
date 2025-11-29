@@ -23,7 +23,8 @@
 		ShieldCheck,
 		Package,
 		Recycle,
-		FileText
+		FileText,
+		Plus
 	} from 'lucide-svelte';
 	import { Input } from '$lib/components/ui/input';
 	import type {
@@ -39,6 +40,7 @@
 	import { additionalsService } from '$lib/services/additionals.service';
 	import { additionalsPhotosService } from '$lib/services/additionals-photos.service';
 	import { documentGenerationService } from '$lib/services/document-generation.service';
+	import { validateAdditionals, type TabValidation } from '$lib/utils/validation';
 
 	interface Props {
 		assessmentId: string;
@@ -48,6 +50,7 @@
 		excessAmount?: number | null; // Excess payment from request
 		onUpdate: () => Promise<void>;
 		onDownloadDocument: (type: string) => void;
+		onValidationUpdate?: (validation: TabValidation) => void;
 	}
 
 	// Make props reactive using $derived pattern
@@ -61,6 +64,19 @@
 	const excessAmount = $derived(props.excessAmount ?? 0);
 	const onUpdate = $derived(props.onUpdate);
 	const onDownloadDocument = $derived(props.onDownloadDocument);
+
+	// Validation for badge prevention
+	// Additionals tab has no required fields, so always reports 0 missing fields
+	const validation = $derived.by(() => {
+		return validateAdditionals(additionals);
+	});
+
+	// Report validation to parent for badge updates
+	$effect(() => {
+		if (props.onValidationUpdate) {
+			props.onValidationUpdate(validation);
+		}
+	});
 
 	let additionals = $state<AssessmentAdditionals | null>(null);
 	let additionalsPhotos = $state<AdditionalsPhoto[]>([]);
@@ -594,9 +610,16 @@
 		<!-- Info Banner -->
 		<Card class="border-blue-200 bg-blue-50 p-4">
 			<p class="text-sm text-blue-900">
-				<strong>Additionals:</strong> Add new line items to this finalized estimate. Rates and repairer
-				are locked from the original estimate. You can exclude lines from the original estimate or replace
-				them with repair items.
+				<strong>Additionals:</strong>
+				{#if additionals.line_items.length === 0}
+					This estimate has been finalized. You can now add supplementary repairs,
+					replacement parts, or exclude items from the original estimate as needed.
+					Use the "Quick Add" form below to get started.
+				{:else}
+					Add new line items to this finalized estimate. Rates and repairer
+					are locked from the original estimate. You can exclude lines from the original estimate or replace
+					them with repair items.
+				{/if}
 			</p>
 		</Card>
 
@@ -760,7 +783,20 @@
 			</div>
 
 			{#if additionals.line_items.length === 0}
-				<p class="py-8 text-center text-gray-500">No additional items yet</p>
+				<div class="flex flex-col items-center justify-center py-12 text-center">
+					<div class="mb-4 rounded-full bg-slate-100 p-4">
+						<Plus class="h-8 w-8 text-slate-400" />
+					</div>
+					<h3 class="mb-2 text-lg font-medium text-slate-900">No Additional Items</h3>
+					<p class="mb-4 max-w-md text-sm text-slate-600">
+						Additional work items can be added after the estimate is finalized.
+						Use the "Quick Add Line Item" form above to add new repairs,
+						parts, or outwork discovered after the initial assessment.
+					</p>
+					<p class="text-xs text-slate-500">
+						Items you add will appear here for approval or decline.
+					</p>
+				</div>
 			{:else}
 				<div class="overflow-x-auto">
 					<table class="w-full text-sm">

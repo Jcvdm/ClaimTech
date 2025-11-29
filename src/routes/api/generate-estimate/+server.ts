@@ -97,6 +97,17 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 			locals.supabase
 		);
 
+		// Fetch engineer/assessor info if inspection exists with assigned_engineer_id
+		let engineer = null;
+		if (inspection?.assigned_engineer_id) {
+			const { data: engineerData } = await locals.supabase
+				.from('engineers')
+				.select('id, name, email, phone, company_name, specialization')
+				.eq('id', inspection.assigned_engineer_id)
+				.single();
+			engineer = engineerData;
+		}
+
 			// Line items are stored in the estimate JSONB column
 			const lineItems = (normalizedEstimate?.line_items as any[]) || [];
 
@@ -127,10 +138,12 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 				request: (requestData || {}) as any,
 				client: (client || {}) as any,
 				repairer: (repairer || {}) as any,
+				engineer: engineer || {},
 				logoBase64: getBrandLogoBase64(),
 				vehicleDetails,
 				clientDetails,
-				insuredDetails
+				insuredDetails,
+				excessAmount: (requestData as any)?.excess_amount
 			});
 
 			console.log(`[${new Date().toISOString()}] [Request ${requestId}] Yielding progress: 60%`);

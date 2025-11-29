@@ -29,7 +29,7 @@ import type { Repairer } from '$lib/types/repairer';
 		getWarrantyStatusClasses
 	} from '$lib/utils/estimateThresholds';
 	import { formatCurrency } from '$lib/utils/formatters';
-	import { validateEstimate } from '$lib/utils/validation';
+	import { validateEstimate, type TabValidation } from '$lib/utils/validation';
 	import { assessmentNotesService } from '$lib/services/assessment-notes.service';
 	import { generatePartsListText } from '$lib/utils/csv-generator';
 	import * as Dialog from '$lib/components/ui/dialog';
@@ -65,6 +65,7 @@ import type { Repairer } from '$lib/types/repairer';
 		onRegisterSave?: (saveFn: () => Promise<void>) => void; // Expose save function to parent
 		onNotesUpdate?: () => void; // Callback to refresh notes display
 		vehicleDetails?: VehicleDetails | null;
+		onValidationUpdate?: (validation: TabValidation) => void;
 	}
 
 	// Make props reactive using $derived pattern
@@ -533,11 +534,21 @@ import type { Repairer } from '$lib/types/repairer';
 		tempOutworkNett = null;
 	}
 
+	async function saveAssessmentResult(result: AssessmentResultType | null) {
+		if (!localEstimate) return;
+		try {
+			await onUpdateEstimate({ assessment_result: result });
+		} catch (error) {
+			console.error('Failed to save assessment result:', error);
+		}
+	}
+
 	function handleUpdateAssessmentResult(result: AssessmentResultType | null) {
-	if (!localEstimate) return;
-	localEstimate.assessment_result = result;
-	markDirty();
-}
+		if (!localEstimate) return;
+		localEstimate.assessment_result = result;
+		// Don't call markDirty() since we're saving immediately
+		saveAssessmentResult(result);  // Dedicated save without overlay
+	}
 
 	// Calculate category totals (nett for parts/outwork; show aggregate markup separately)
 	// Now includes betterment deduction
@@ -631,6 +642,13 @@ import type { Repairer } from '$lib/types/repairer';
 		return validateEstimate(estimate);
 	});
 
+	// Report validation to parent for immediate badge updates
+	$effect(() => {
+		if (props.onValidationUpdate) {
+			props.onValidationUpdate(validation);
+		}
+	});
+
 	async function handleLocalUpdateRates(
 		labourRate: number,
 		paintRate: number,
@@ -670,10 +688,20 @@ import type { Repairer } from '$lib/types/repairer';
 			recalculating = false;
 		}
 	}
+	// B012 Fix: Save repairer immediately without overlay (same pattern as B011 assessment_result)
+	async function saveRepairer(repairerId: string | null) {
+		if (!localEstimate) return;
+		try {
+			await onUpdateEstimate({ repairer_id: repairerId });
+		} catch (error) {
+			console.error('Failed to save repairer:', error);
+		}
+	}
+
 	function handleLocalUpdateRepairer(repairerId: string | null) {
 		if (!localEstimate) return;
 		localEstimate.repairer_id = repairerId;
-		markDirty();
+		saveRepairer(repairerId);  // Immediate save, no overlay
 	}
 
 </script>

@@ -8,6 +8,7 @@
 	import { useOptimisticArray } from '$lib/utils/useOptimisticArray.svelte';
 	import PhotoViewer from '$lib/components/photo-viewer/PhotoViewer.svelte';
 	import { FileUploadProgress } from '$lib/components/ui/progress';
+	import { shouldResetDragState } from '$lib/utils/drag-helpers';
 
 	interface Props {
 		tyreId: string;
@@ -53,7 +54,10 @@
 	function handleDragLeave(event: DragEvent) {
 		event.preventDefault();
 		event.stopPropagation();
-		isDragging = false;
+		// Only reset if cursor is actually outside the container boundary
+		if (shouldResetDragState(event)) {
+			isDragging = false;
+		}
 	}
 
 	async function handleDrop(event: DragEvent) {

@@ -74,12 +74,32 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 			yield { status: 'processing', progress: 25, message: 'Loading related data...' };
 			console.log(`[${new Date().toISOString()}] [Request ${requestId}] Progress 25% yielded successfully`);
 
+			// Fetch engineer/assessor info if appointment exists
+			let engineer = null;
+			if (assessment.appointment_id) {
+				const { data: appointment } = await locals.supabase
+					.from('appointments')
+					.select('engineer_id')
+					.eq('id', assessment.appointment_id)
+					.single();
+
+				if (appointment?.engineer_id) {
+					const { data: engineerData } = await locals.supabase
+						.from('engineers')
+						.select('id, name, email, phone, company_name, specialization')
+						.eq('id', appointment.engineer_id)
+						.single();
+					engineer = engineerData;
+				}
+			}
+
 			// Fetch related data (excluding client and repairer which have nested dependencies)
 			const [
 				{ data: vehicleIdentification },
 				{ data: estimate },
 				{ data: additionals },
-				{ data: companySettings }
+				{ data: companySettings },
+				{ data: requestData }
 			] = await Promise.all([
 				locals.supabase
 					.from('assessment_vehicle_identification')
@@ -88,7 +108,8 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 					.single(),
 				locals.supabase.from('assessment_estimates').select('*').eq('assessment_id', assessmentId).single(),
 				locals.supabase.from('assessment_additionals').select('*').eq('assessment_id', assessmentId).single(),
-				locals.supabase.from('company_settings').select('*').single()
+				locals.supabase.from('company_settings').select('*').single(),
+				locals.supabase.from('requests').select('excess_amount').eq('id', assessment.request_id).single()
 			]);
 
 			console.log(`[${new Date().toISOString()}] [Request ${requestId}] Yielding progress: 40%`);
@@ -139,7 +160,9 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 					frc_terms_and_conditions: termsAndConditions
 				} as any : normalizedCompanySettings,
 				logoBase64: getBrandLogoBase64(),
-				frcDocuments: (frcDocuments || []) as any
+				frcDocuments: (frcDocuments || []) as any,
+				excessAmount: (requestData as { excess_amount?: number | null } | null)?.excess_amount,
+				engineer: (engineer || {}) as any
 			});
 
 			console.log(`[${new Date().toISOString()}] [Request ${requestId}] Yielding progress: 60%`);

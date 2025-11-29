@@ -3,6 +3,7 @@
 	import { Button } from '$lib/components/ui/button';
 	import { Progress } from '$lib/components/ui/progress';
 	import { cn } from '$lib/utils';
+	import { shouldResetDragState } from '$lib/utils/drag-helpers';
 
 	interface Props {
 		/** Accepted MIME types (e.g., ['image/jpeg', 'image/png']) */
@@ -189,7 +190,10 @@
 	function handleDragLeave(event: DragEvent) {
 		event.preventDefault();
 		event.stopPropagation();
-		isDragging = false;
+		// Only reset if cursor is actually outside the container boundary
+		if (shouldResetDragState(event)) {
+			isDragging = false;
+		}
 	}
 
 	async function handleDrop(event: DragEvent) {

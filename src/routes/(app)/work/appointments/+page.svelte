@@ -25,6 +25,8 @@
 	import type { Assessment } from '$lib/types/assessment';
 	import type { AppointmentType } from '$lib/types/appointment';
 	import type { Province } from '$lib/types/engineer';
+	import type { StructuredAddress } from '$lib/types/address';
+	import AddressInput from '$lib/components/forms/AddressInput.svelte';
 	import { formatDateWithWeekday } from '$lib/utils/formatters';
 	import { formatTimeDisplay, isAppointmentOverdue } from '$lib/utils/table-helpers';
 	import { appointmentService } from '$lib/services/appointment.service';
@@ -49,9 +51,7 @@
 	let scheduleDate = $state('');
 	let scheduleTime = $state('');
 	let scheduleDuration = $state(60);
-	let scheduleLocationAddress = $state('');
-	let scheduleLocationCity = $state('');
-	let scheduleLocationProvince = $state<Province | ''>('');
+	let scheduleLocation = $state<StructuredAddress | null>(null);
 	let scheduleLocationNotes = $state('');
 	let scheduleNotes = $state('');
 	let scheduleSpecialInstructions = $state('');
@@ -163,9 +163,18 @@
 		scheduleDate = assessment.appointment_date.split('T')[0]; // Extract YYYY-MM-DD
 		scheduleTime = assessment.appointment_time || '';
 		scheduleDuration = assessment.duration_minutes || 60;
-		scheduleLocationAddress = assessment.location_address || '';
-		scheduleLocationCity = assessment.location_city || '';
-		scheduleLocationProvince = (assessment.location_province as Province) || '';
+		// Reconstruct StructuredAddress from existing data
+		if (assessment.location_address || assessment.location_city || assessment.location_province) {
+			scheduleLocation = {
+				formatted_address: [assessment.location_address, assessment.location_city, assessment.location_province].filter(Boolean).join(', '),
+				street_address: assessment.location_address || undefined,
+				city: assessment.location_city || undefined,
+				province: assessment.location_province as Province || undefined,
+				country: 'South Africa'
+			};
+		} else {
+			scheduleLocation = null;
+		}
 		scheduleLocationNotes = assessment.location_notes || '';
 		scheduleNotes = assessment.notes || '';
 		scheduleSpecialInstructions = assessment.special_instructions || '';
@@ -195,9 +204,15 @@
 
 			// Add location fields for in-person appointments
 			if (selectedAssessment.appointment_type === 'in_person') {
-				updateData.location_address = scheduleLocationAddress || null;
-				updateData.location_city = scheduleLocationCity || null;
-				updateData.location_province = scheduleLocationProvince || null;
+				updateData.location_address = scheduleLocation?.formatted_address || null;
+				updateData.location_street_address = scheduleLocation?.street_address || null;
+				updateData.location_suburb = scheduleLocation?.suburb || null;
+				updateData.location_city = scheduleLocation?.city || null;
+				updateData.location_province = scheduleLocation?.province || null;
+				updateData.location_postal_code = scheduleLocation?.postal_code || null;
+				updateData.location_latitude = scheduleLocation?.latitude || null;
+				updateData.location_longitude = scheduleLocation?.longitude || null;
+				updateData.location_place_id = scheduleLocation?.place_id || null;
 				updateData.location_notes = scheduleLocationNotes || null;
 			}
 
@@ -447,64 +462,21 @@
 				<div class="space-y-4 rounded-lg border border-gray-200 p-4">
 					<h4 class="text-sm font-semibold text-gray-900">Location Details</h4>
 
-					<div class="space-y-2">
-						<label for="schedule_location_address" class="text-sm font-medium text-gray-900">
-							Address
-						</label>
-						<input
-							id="schedule_location_address"
-							type="text"
-							bind:value={scheduleLocationAddress}
-							placeholder="Street address"
-							class="flex h-10 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm ring-offset-white focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:outline-none"
-						/>
-					</div>
-
-					<div class="grid gap-4 md:grid-cols-2">
-						<div class="space-y-2">
-							<label for="schedule_location_city" class="text-sm font-medium text-gray-900">
-								City
-							</label>
-							<input
-								id="schedule_location_city"
-								type="text"
-								bind:value={scheduleLocationCity}
-								placeholder="City"
-								class="flex h-10 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm ring-offset-white focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:outline-none"
-							/>
-						</div>
-						<div class="space-y-2">
-							<label for="schedule_location_province" class="text-sm font-medium text-gray-900">
-								Province
-							</label>
-							<select
-								id="schedule_location_province"
-								bind:value={scheduleLocationProvince}
-								class="flex h-10 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm ring-offset-white focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:outline-none"
-							>
-								<option value="">Select province</option>
-								<option value="Eastern Cape">Eastern Cape</option>
-								<option value="Free State">Free State</option>
-								<option value="Gauteng">Gauteng</option>
-								<option value="KwaZulu-Natal">KwaZulu-Natal</option>
-								<option value="Limpopo">Limpopo</option>
-								<option value="Mpumalanga">Mpumalanga</option>
-								<option value="Northern Cape">Northern Cape</option>
-								<option value="North West">North West</option>
-								<option value="Western Cape">Western Cape</option>
-							</select>
-						</div>
-					</div>
+					<AddressInput
+						label="Appointment Location"
+						bind:value={scheduleLocation}
+						placeholder="Start typing an address..."
+					/>
 
 					<div class="space-y-2">
 						<label for="schedule_location_notes" class="text-sm font-medium text-gray-900">
-							Location Notes
+							Access Instructions
 						</label>
 						<textarea
 							id="schedule_location_notes"
 							bind:value={scheduleLocationNotes}
 							rows="2"
-							placeholder="Additional location details or directions"
+							placeholder="Gate codes, parking info, landmarks..."
 							class="flex w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm ring-offset-white focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:outline-none"
 						></textarea>
 					</div>

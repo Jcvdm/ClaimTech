@@ -1,8 +1,10 @@
 <script lang="ts">
 	import FormField from './FormField.svelte';
+	import AddressInput from './AddressInput.svelte';
 	import { Card } from '$lib/components/ui/card';
 	import { DatePicker } from '$lib/components/ui/date-picker';
 	import { parseDate, type DateValue } from '@internationalized/date';
+	import type { StructuredAddress } from '$lib/types/address';
 
 	type Props = {
 		date_of_loss: string;
@@ -10,7 +12,8 @@
 		excess_amount: number | undefined;
 		incident_type: string;
 		incident_description: string;
-		incident_location: string;
+		incident_address: StructuredAddress | null;
+		incident_location_notes: string;
 	};
 
 	let {
@@ -19,7 +22,8 @@
 		excess_amount = $bindable(),
 		incident_type = $bindable(),
 		incident_description = $bindable(),
-		incident_location = $bindable()
+		incident_address = $bindable(),
+		incident_location_notes = $bindable()
 	}: Props = $props();
 
 	// Convert string date to DateValue for DatePicker
@@ -80,6 +84,8 @@
 				type="number"
 				bind:value={excess_amount}
 				placeholder="5000"
+				min="0"
+				step="0.01"
 			/>
 
 			<FormField
@@ -91,12 +97,19 @@
 			/>
 		</div>
 
-		<FormField
+		<AddressInput
 			label="Incident Location"
-			name="incident_location"
-			type="text"
-			bind:value={incident_location}
-			placeholder="e.g., Corner of Main Rd and 5th Ave, Sandton"
+			bind:value={incident_address}
+			placeholder="Start typing an address..."
+		/>
+
+		<FormField
+			label="Location Notes"
+			name="incident_location_notes"
+			type="textarea"
+			bind:value={incident_location_notes}
+			placeholder="Access instructions, gate codes, landmarks..."
+			rows={2}
 		/>
 
 		<FormField

@@ -141,10 +141,10 @@ export class TyresService {
 	async createDefaultTyres(assessmentId: string, client?: ServiceClient): Promise<Tyre[]> {
 		const db = client ?? supabase;
 		const defaultPositions = [
-			{ position: 'front_right', position_label: 'Front Right' },
-			{ position: 'front_left', position_label: 'Front Left' },
-			{ position: 'rear_right', position_label: 'Rear Right' },
-			{ position: 'rear_left', position_label: 'Rear Left' },
+			{ position: 'front_right', position_label: 'Right Front' },
+			{ position: 'rear_right', position_label: 'Right Rear' },
+			{ position: 'rear_left', position_label: 'Left Rear' },
+			{ position: 'front_left', position_label: 'Left Front' },
 			{ position: 'spare', position_label: 'Spare' }
 		];
 

@@ -175,6 +175,7 @@ export interface VehicleAccessory {
 	condition?: AccessoryCondition | null;
 	notes?: string | null;
 	photo_url?: string | null;
+	value?: number | null; // Single value that applies equally to trade/market/retail
 	created_at: string;
 	updated_at: string;
 }
@@ -345,6 +346,7 @@ export interface CreateAccessoryInput {
 	condition?: AccessoryCondition;
 	notes?: string;
 	photo_url?: string;
+	value?: number | null;
 }
 
 export interface UpdateAccessoryInput extends Partial<Omit<CreateAccessoryInput, 'assessment_id'>> {}

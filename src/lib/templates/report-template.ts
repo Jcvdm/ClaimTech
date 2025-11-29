@@ -5,7 +5,9 @@ import type {
 	InteriorMechanical,
 	DamageRecord,
 	CompanySettings,
-	VehicleValues
+	VehicleValues,
+	VehicleAccessory,
+	AccessoryType
 } from '$lib/types/assessment';
 import { formatCurrency, formatDateNumeric } from '$lib/utils/formatters';
 import { escapeHtmlWithLineBreaks } from '$lib/utils/sanitize';
@@ -24,13 +26,15 @@ interface ReportData {
 	estimate: any;
 	repairer: any;
 	tyres: any[] | null;
-	vehicleValues: VehicleValues | null; // NEW
+	vehicleValues: VehicleValues | null;
 	logoBase64?: string | null;
-	assessmentNotes: string; // NEW - concatenated notes
-	engineer: any; // NEW - engineer with user info
+	assessmentNotes: string;
+	engineer: any;
 	vehicleDetails: VehicleDetails;
 	clientDetails: ClientDetails;
 	insuredDetails: InsuredDetails;
+	excessAmount?: number | null;
+	accessories: VehicleAccessory[];
 }
 
 export function generateReportHTML(data: ReportData): string {
@@ -53,8 +57,39 @@ export function generateReportHTML(data: ReportData): string {
 		engineer,
 		vehicleDetails,
 		clientDetails,
-		insuredDetails
+		insuredDetails,
+		excessAmount,
+		accessories
 	} = data;
+
+	// Helper function to get display name for accessory type
+	const getAccessoryDisplayName = (type: AccessoryType, customName?: string | null): string => {
+		if (type === 'custom' && customName) return customName;
+		const labels: Record<AccessoryType, string> = {
+			mags: 'Mags / Alloy Wheels',
+			spotlights: 'Spotlights',
+			park_sensors: 'Park Sensors',
+			tow_bar: 'Tow Bar',
+			bull_bar: 'Bull Bar',
+			roof_rack: 'Roof Rack',
+			side_steps: 'Side Steps',
+			canopy: 'Canopy / Bakkie Cover',
+			tonneau_cover: 'Tonneau Cover',
+			nudge_bar: 'Nudge Bar',
+			winch: 'Winch',
+			snorkel: 'Snorkel',
+			custom: 'Custom'
+		};
+		return labels[type] || type;
+	};
+
+	// Calculate accessories total
+	const accessoriesTotal = accessories.reduce((sum, acc) => sum + (acc.value || 0), 0);
+
+	// Calculate excess and net payable
+	const excess = excessAmount ? Number(excessAmount) : 0;
+	const estimateTotal = estimate?.total ? Number(estimate.total) : 0;
+	const netPayable = estimateTotal - excess;
 
 	const row = (label: string, value: string | number | null | undefined) => {
 		const v = value === null || value === undefined ? '' : String(value).trim();
@@ -390,8 +425,10 @@ export function generateReportHTML(data: ReportData): string {
 					<span class="info-label">Inspection Date:</span>
 					<span class="info-value">${formatDateNumeric(assessment.created_at)}</span>
 				</div>
-				${row('Assessor:', engineer?.users?.full_name || '')}
-				${row('Contact:', engineer?.users?.phone || engineer?.users?.email || '')}
+				${row('Assessor:', engineer?.name || '')}
+				${row('Company:', engineer?.company_name || '')}
+				${row('Phone:', engineer?.phone || '')}
+				${row('Email:', engineer?.email || '')}
 			</div>
 		</div>
 
@@ -404,6 +441,25 @@ export function generateReportHTML(data: ReportData): string {
 				${row('Date of Loss:', request?.date_of_loss ? formatDateNumeric(request.date_of_loss) : '')}
 				${row('Instructed By:', client?.name || '')}
 			</div>
+		</div>
+
+		<!-- Insured Report Information -->
+		<div class="section">
+			<div class="section-title">INSURED REPORT INFORMATION</div>
+			<div class="info-grid">
+				${row('Insured Name:', insuredDetails.ownerName)}
+				${row('Contact Number:', insuredDetails.ownerPhone)}
+				${row('Email Address:', insuredDetails.ownerEmail)}
+				${row('Address:', insuredDetails.ownerAddress)}
+				${row('Date of Loss:', insuredDetails.dateOfLoss ? formatDateNumeric(insuredDetails.dateOfLoss) : '')}
+				${row('Incident Type:', insuredDetails.incidentType)}
+			</div>
+			${insuredDetails.incidentDescription ? `
+			<div class="info-row full-width">
+				<span class="info-label">Incident Description:</span>
+			</div>
+			<div class="notes-box">${insuredDetails.incidentDescription}</div>
+			` : ''}
 		</div>
 
 		<!-- Vehicle Information -->
@@ -486,6 +542,45 @@ export function generateReportHTML(data: ReportData): string {
 		</div>
 		` : ''}
 
+		<!-- Vehicle Accessories -->
+		${accessories && accessories.length > 0 ? `
+		<div class="section">
+			<div class="section-title">VEHICLE ACCESSORIES</div>
+			<table style="width: 100%; border-collapse: collapse; margin-top: 10px;">
+				<thead>
+					<tr style="background-color: #f9fafb; border-bottom: 2px solid #e5e7eb;">
+						<th style="padding: 8px; text-align: left; font-size: 9pt; font-weight: bold;">Accessory</th>
+						<th style="padding: 8px; text-align: left; font-size: 9pt; font-weight: bold;">Condition</th>
+						<th style="padding: 8px; text-align: right; font-size: 9pt; font-weight: bold;">Value</th>
+					</tr>
+				</thead>
+				<tbody>
+					${accessories.map((acc: VehicleAccessory) => `
+					<tr style="border-bottom: 1px solid #e5e7eb;">
+						<td style="padding: 6px; font-size: 9pt;">${getAccessoryDisplayName(acc.accessory_type, acc.custom_name)}</td>
+						<td style="padding: 6px; font-size: 9pt;">${acc.condition ? acc.condition.charAt(0).toUpperCase() + acc.condition.slice(1).replace(/_/g, ' ') : '-'}</td>
+						<td style="padding: 6px; font-size: 9pt; text-align: right;">${formatCurrency(acc.value)}</td>
+					</tr>
+					`).join('')}
+					<tr style="border-top: 2px solid #e5e7eb; font-weight: bold;">
+						<td colspan="2" style="padding: 8px; font-size: 9pt;">Total Accessories</td>
+						<td style="padding: 8px; font-size: 9pt; text-align: right;">${formatCurrency(accessoriesTotal)}</td>
+					</tr>
+				</tbody>
+			</table>
+			${accessories.some((acc: VehicleAccessory) => acc.notes) ? `
+			<div style="margin-top: 10px;">
+				<div style="font-weight: bold; font-size: 9pt; margin-bottom: 5px;">Notes:</div>
+				${accessories.filter((acc: VehicleAccessory) => acc.notes).map((acc: VehicleAccessory) => `
+				<div style="font-size: 9pt; margin-bottom: 5px;">
+					<strong>${getAccessoryDisplayName(acc.accessory_type, acc.custom_name)}:</strong> ${acc.notes}
+				</div>
+				`).join('')}
+			</div>
+			` : ''}
+		</div>
+		` : ''}
+
 		<!-- Damage Assessment -->
 		<div class="section">
 			<div class="section-title">DAMAGE ASSESSMENT</div>
@@ -538,11 +633,25 @@ export function generateReportHTML(data: ReportData): string {
 				</thead>
 				<tbody>
 					<tr>
-						<td style="padding: 6px; font-weight: bold;">Pre-Incident Value</td>
+						<td style="padding: 6px; font-weight: bold;">Adjusted Value</td>
 						<td style="padding: 6px; text-align: right;">${formatCurrency(vehicleValues.trade_total_adjusted_value)}</td>
 						<td style="padding: 6px; text-align: right;">${formatCurrency(vehicleValues.market_total_adjusted_value)}</td>
 						<td style="padding: 6px; text-align: right;">${formatCurrency(vehicleValues.retail_total_adjusted_value)}</td>
 					</tr>
+					${accessoriesTotal > 0 ? `
+					<tr>
+						<td style="padding: 6px; font-weight: bold;">Accessories</td>
+						<td style="padding: 6px; text-align: right;">+${formatCurrency(accessoriesTotal)}</td>
+						<td style="padding: 6px; text-align: right;">+${formatCurrency(accessoriesTotal)}</td>
+						<td style="padding: 6px; text-align: right;">+${formatCurrency(accessoriesTotal)}</td>
+					</tr>
+					<tr style="background-color: #f0fdf4; font-weight: bold;">
+						<td style="padding: 6px;">Pre-Incident Value</td>
+						<td style="padding: 6px; text-align: right;">${formatCurrency((vehicleValues.trade_total_adjusted_value || 0) + accessoriesTotal)}</td>
+						<td style="padding: 6px; text-align: right;">${formatCurrency((vehicleValues.market_total_adjusted_value || 0) + accessoriesTotal)}</td>
+						<td style="padding: 6px; text-align: right;">${formatCurrency((vehicleValues.retail_total_adjusted_value || 0) + accessoriesTotal)}</td>
+					</tr>
+					` : ''}
 					<tr>
 						<td style="padding: 6px; font-weight: bold;">Borderline Write-off</td>
 						<td style="padding: 6px; text-align: right;">${formatCurrency(vehicleValues.borderline_writeoff_trade)}</td>
@@ -585,7 +694,7 @@ export function generateReportHTML(data: ReportData): string {
 				${repairer ? `
 				<div class="info-row">
 					<span class="info-label">Repairer:</span>
-					<span class="info-value">${repairer.name || ''}</span>
+					<span class="info-value">${repairer?.name || 'N/A'}</span>
 				</div>
 				` : ''}
 				<div class="info-row">
@@ -600,6 +709,16 @@ export function generateReportHTML(data: ReportData): string {
 					<span class="info-label">Grand Total (incl VAT):</span>
 					<span class="info-value" style="font-weight: bold; font-size: 12pt; color: #e11d48;">${formatCurrency(estimate.total)}</span>
 				</div>
+				${excess > 0 ? `
+				<div class="info-row">
+					<span class="info-label" style="color: #ea580c;">Less: Excess:</span>
+					<span class="info-value" style="color: #ea580c;">-${formatCurrency(excess)}</span>
+				</div>
+				<div class="info-row">
+					<span class="info-label" style="color: #059669; font-weight: bold;">Net Payable:</span>
+					<span class="info-value" style="font-weight: bold; font-size: 12pt; color: #059669;">${formatCurrency(netPayable)}</span>
+				</div>
+				` : ''}
 				${estimate.assessment_result ? `
 				<div class="info-row">
 					<span class="info-label">Assessment Result:</span>

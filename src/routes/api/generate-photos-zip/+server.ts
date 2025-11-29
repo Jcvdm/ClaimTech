@@ -152,6 +152,27 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 					filename: `${photoCounter++}_Registration.jpg`
 				});
 			}
+			if (vehicleIdentification?.engine_number_photo_url) {
+				photoTasks.push({
+					url: vehicleIdentification.engine_number_photo_url,
+					folder: '01_Vehicle_Identification',
+					filename: `${photoCounter++}_Engine_Number.jpg`
+				});
+			}
+			if (vehicleIdentification?.license_disc_photo_url) {
+				photoTasks.push({
+					url: vehicleIdentification.license_disc_photo_url,
+					folder: '01_Vehicle_Identification',
+					filename: `${photoCounter++}_License_Disc.jpg`
+				});
+			}
+			if (vehicleIdentification?.driver_license_photo_url) {
+				photoTasks.push({
+					url: vehicleIdentification.driver_license_photo_url,
+					folder: '01_Vehicle_Identification',
+					filename: `${photoCounter++}_Driver_License.jpg`
+				});
+			}
 			// Note: odometer_photo_url field does not exist in assessment_vehicle_identification table
 			// Odometer reading is captured in assessment_interior_mechanical.mileage_photo_url
 
@@ -251,6 +272,34 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 					filename: `${photoCounter++}_Engine_Bay.jpg`
 				});
 			}
+			if (interiorMechanical?.mileage_photo_url) {
+				photoTasks.push({
+					url: interiorMechanical.mileage_photo_url,
+					folder: '03_Interior_Mechanical',
+					filename: `${photoCounter++}_Odometer_Mileage.jpg`
+				});
+			}
+			if (interiorMechanical?.battery_photo_url) {
+				photoTasks.push({
+					url: interiorMechanical.battery_photo_url,
+					folder: '03_Interior_Mechanical',
+					filename: `${photoCounter++}_Battery.jpg`
+				});
+			}
+			if (interiorMechanical?.oil_level_photo_url) {
+				photoTasks.push({
+					url: interiorMechanical.oil_level_photo_url,
+					folder: '03_Interior_Mechanical',
+					filename: `${photoCounter++}_Oil_Level.jpg`
+				});
+			}
+			if (interiorMechanical?.coolant_photo_url) {
+				photoTasks.push({
+					url: interiorMechanical.coolant_photo_url,
+					folder: '03_Interior_Mechanical',
+					filename: `${photoCounter++}_Coolant.jpg`
+				});
+			}
 
 			// Collect Additional Interior Photos
 			if (interiorPhotos && interiorPhotos.length > 0) {
@@ -316,6 +365,47 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 						url: photo.photo_url as string,
 						folder: '06_Pre_Incident',
 						filename: `${photoCounter++}_${description}.jpg`
+					});
+				}
+			}
+
+			// Collect Additionals Photos
+			const { data: additionalsPhotos } = await locals.supabase
+				.from('assessment_additionals_photos')
+				.select('*, assessment_additionals!inner(id, assessment_id)')
+				.eq('assessment_additionals.assessment_id', assessmentId)
+				.order('display_order', { ascending: true });
+
+			if (additionalsPhotos && additionalsPhotos.length > 0) {
+				photoCounter = 1;
+				for (const photo of additionalsPhotos) {
+					const label = (photo.label || 'Additional')
+						.replace(/[^a-zA-Z0-9]/g, '_');
+					photoTasks.push({
+						url: photo.photo_url,
+						folder: '07_Additionals',
+						filename: `${photoCounter++}_${label}.jpg`
+					});
+				}
+			}
+
+			// Collect Accessories Photos
+			const { data: accessories } = await locals.supabase
+				.from('assessment_accessories')
+				.select('id, accessory_type, custom_name, photo_url')
+				.eq('assessment_id', assessmentId)
+				.not('photo_url', 'is', null)
+				.order('created_at', { ascending: true });
+
+			if (accessories && accessories.length > 0) {
+				photoCounter = 1;
+				for (const accessory of accessories) {
+					const name = (accessory.custom_name || accessory.accessory_type || 'Accessory')
+						.replace(/[^a-zA-Z0-9]/g, '_');
+					photoTasks.push({
+						url: accessory.photo_url as string,
+						folder: '08_Accessories',
+						filename: `${photoCounter++}_${name}.jpg`
 					});
 				}
 			}

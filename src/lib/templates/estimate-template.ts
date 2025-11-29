@@ -20,10 +20,12 @@ import type { VehicleDetails, ClientDetails, InsuredDetails } from '$lib/utils/r
 		request: any;
 		client: any;
 		repairer: any;
+		engineer: any;
 		vehicleDetails: VehicleDetails;
 		clientDetails: ClientDetails;
 		insuredDetails: InsuredDetails;
 		logoBase64?: string | null;
+		excessAmount?: number | null; // Excess payment from request
 	}
 
 export function generateEstimateHTML(data: EstimateData): string {
@@ -36,10 +38,12 @@ export function generateEstimateHTML(data: EstimateData): string {
 		request,
 		client,
 		repairer,
+		engineer,
 		vehicleDetails,
 		clientDetails,
 		insuredDetails,
-		logoBase64
+		logoBase64,
+		excessAmount
 	} = data;
 
 	// Convert database values to numbers (they come as strings from PostgreSQL DECIMAL type)
@@ -51,6 +55,10 @@ export function generateEstimateHTML(data: EstimateData): string {
 	const subtotal = dbSubtotal;
 	const vat = dbVatAmount;
 	const grandTotal = dbTotal;
+
+	// Calculate net payable after excess
+	const excess = excessAmount ? Number(excessAmount) : 0;
+	const netPayable = grandTotal - excess;
 
 	// Calculate category totals breakdown (NETT values only - same logic as EstimateTab.svelte)
 	const partsNett = lineItems.reduce((sum, item) => sum + (item.part_price_nett || 0), 0);
@@ -180,6 +188,17 @@ export function generateEstimateHTML(data: EstimateData): string {
 		}
 
 		return html;
+	};
+
+	// Helper function for rendering info rows
+	const row = (label: string, value: string | number | null | undefined) => {
+		const displayValue = value || '';
+		return `
+			<div class="info-row">
+				<span class="info-label">${label}</span>
+				<span class="info-value">${displayValue}</span>
+			</div>
+		`;
 	};
 
 	const companyName = companySettings?.company_name || 'Claimtech';
@@ -600,7 +619,7 @@ export function generateEstimateHTML(data: EstimateData): string {
 				${repairer ? `
 				<div class="info-row">
 					<span class="info-label">Repairer:</span>
-					<span class="info-value">${repairer.name}</span>
+					<span class="info-value">${repairer?.name || 'N/A'}</span>
 				</div>
 				` : ''}
 				<div class="info-row">
@@ -698,7 +717,44 @@ export function generateEstimateHTML(data: EstimateData): string {
 						<td class="totals-label" style="color: #e11d48;">GRAND TOTAL:</td>
 						<td class="totals-value">${formatCurrency(grandTotal)}</td>
 					</tr>
+					${excess > 0 ? `
+					<tr>
+						<td class="totals-label" style="color: #ea580c;">Less: Excess</td>
+						<td class="totals-value" style="color: #ea580c;">-${formatCurrency(excess)}</td>
+					</tr>
+					<tr style="border-top: 2px solid #059669;">
+						<td class="totals-label" style="color: #059669; font-weight: bold;">NET PAYABLE:</td>
+						<td class="totals-value" style="color: #059669; font-weight: bold;">${formatCurrency(netPayable)}</td>
+					</tr>
+					` : ''}
 				</table>
+			</div>
+		</div>
+
+		<!-- Assessor & Instructions Section -->
+		<div style="margin-top: 30px;">
+			<div style="font-weight: bold; text-transform: uppercase; color: #111827; margin-bottom: 15px; padding-bottom: 5px; border-bottom: 2px solid #e11d48;">ASSESSOR INFORMATION</div>
+			<div class="info-grid">
+				${row('Assessor:', engineer?.name || '')}
+				${row('Company:', engineer?.company_name || '')}
+				${row('Phone:', engineer?.phone || '')}
+				${row('Email:', engineer?.email || '')}
+			</div>
+
+			<div style="margin-top: 20px; padding: 15px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 4px;">
+				<div style="font-weight: 600; margin-bottom: 10px;">Document Submission Instructions:</div>
+				<div style="margin-bottom: 5px;">• Additionals requests: <strong>add@claimtech.co.za</strong></div>
+				<div>• FRC documents & invoices: <strong>frc@claimtech.co.za</strong></div>
+			</div>
+
+			<div style="margin-top: 20px; padding: 15px; background: #fff1f2; border-left: 4px solid #e11d48; border-radius: 4px;">
+				<div style="font-weight: bold; color: #9f1239; text-transform: uppercase;">
+					ALL ADDITIONALS REQUIRE AN APPROVED AND AGREED LETTER BEFORE COMMENCING
+				</div>
+				<div style="color: #881337; margin-top: 10px;">
+					All additionals need to be requested before ordering parts and commencing repairs.
+					Claimtech and the insurer will take no responsibility for financial loss in failing to do so.
+				</div>
 			</div>
 		</div>
 

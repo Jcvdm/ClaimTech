@@ -60,6 +60,8 @@
 		vehicleValues?: any;
 		preIncidentEstimate?: any;
 		estimate?: any;
+		// Callback for child tabs to report their validation state
+		onValidationUpdate?: (tabId: string, validation: TabValidation) => void;
 		children?: any;
 	}
 
@@ -84,8 +86,21 @@
 		vehicleValues = null,
 		preIncidentEstimate = null,
 		estimate = null,
+		onValidationUpdate = undefined,
 		children
 	}: Props = $props();
+
+	// Track child-reported validations (these are more current than prop-based validations)
+	let childValidations = $state<Record<string, TabValidation>>({});
+
+	// Handle validation updates from child tabs
+	function handleChildValidationUpdate(tabId: string, validation: TabValidation) {
+		childValidations[tabId] = validation;
+		// Also forward to parent if callback provided
+		if (onValidationUpdate) {
+			onValidationUpdate(tabId, validation);
+		}
+	}
 
 	// Build tabs array dynamically based on finalization status
 	const tabs = $derived(() => {
@@ -122,10 +137,11 @@
 	});
 
 	// Validate tabs and get missing fields count
+	// Prefer child-reported validations (from local state) over prop-based validations
 	const tabValidations = $derived.by(() => {
 		const validations: Record<string, TabValidation> = {};
 
-		// Only validate tabs that have data
+		// Start with prop-based validations as fallback
 		if (vehicleIdentification) {
 			validations['identification'] = validateVehicleIdentification(vehicleIdentification);
 		}
@@ -152,6 +168,11 @@
 		}
 		if (estimate) {
 			validations['estimate'] = validateEstimate(estimate);
+		}
+
+		// Override with child-reported validations (these react to local state immediately)
+		for (const [tabId, validation] of Object.entries(childValidations)) {
+			validations[tabId] = validation;
 		}
 
 		return validations;

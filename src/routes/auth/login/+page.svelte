@@ -18,7 +18,12 @@
 		<div class="relative z-10 flex flex-col justify-between px-12 py-16 text-white">
 			<div class="space-y-6">
 				<div class="flex flex-col items-start gap-4">
-					<img src={logo} alt="ClaimTech logo" class="h-20 w-auto" />
+					<img
+								src={logo}
+								alt="ClaimTech logo"
+								class="h-20 w-auto cursor-pointer transition-all duration-200 ease-linear
+									   hover:scale-105 hover:brightness-110"
+							/>
 					<p class="text-sm tracking-[0.4em] text-slate-400 uppercase">ClaimTech Platform</p>
 				</div>
 				<h1 class="text-4xl leading-tight font-semibold">

@@ -20,6 +20,8 @@ import { escapeHtmlWithLineBreaks } from '$lib/utils/sanitize';
 		companySettings: CompanySettings | null;
 		frcDocuments: FRCDocument[];
 		logoBase64?: string | null;
+		excessAmount?: number | null; // Excess payment from request
+		engineer?: any; // Engineer/assessor details
 	}
 
 export function generateFRCReportHTML(data: FRCReportData): string {
@@ -32,8 +34,13 @@ export function generateFRCReportHTML(data: FRCReportData): string {
 		repairer,
 		companySettings,
 		frcDocuments,
-		logoBase64
+		logoBase64,
+		excessAmount,
+		engineer
 	} = data;
+
+	// Calculate excess and net payable
+	const excess = excessAmount ? Number(excessAmount) : 0;
 
 	const lineItems = frc.line_items ?? [];
 
@@ -458,6 +465,15 @@ export function generateFRCReportHTML(data: FRCReportData): string {
 				<div style="margin-top: 5px; color: #6b7280; font-size: 9pt;">Incl. VAT</div>
 			</div>
 
+			${excess > 0 ? `
+			<div class="summary-card">
+				<div class="summary-card-title">Net Payable</div>
+				<div class="summary-card-value" style="color: #2563eb;">
+					${formatCurrency(settlementAmount - excess)}
+				</div>
+				<div style="margin-top: 5px; color: #ea580c; font-size: 9pt;">After excess: ${formatCurrency(excess)}</div>
+			</div>
+			` : `
 			<div class="summary-card">
 				<div class="summary-card-title">Variance vs Baseline</div>
 				<div class="summary-card-value" style="color: ${varianceFromBaseline >= 0 ? '#d97706' : '#059669'};">
@@ -467,6 +483,7 @@ export function generateFRCReportHTML(data: FRCReportData): string {
 					${varianceFromBaselinePercentage}% Change
 				</div>
 			</div>
+			`}
 
 			<div class="summary-card">
 				<div class="summary-card-title">Client Reference</div>
@@ -503,10 +520,6 @@ export function generateFRCReportHTML(data: FRCReportData): string {
 			<div class="section-title">ASSESSMENT OVERVIEW</div>
 			<div class="info-grid">
 				<div class="info-row">
-					<span class="info-label">Pipeline Stage:</span>
-					<span class="info-value">${assessmentStageLabel}</span>
-				</div>
-				<div class="info-row">
 					<span class="info-label">FRC Status:</span>
 					<span class="info-value">${frcStatusLabel}</span>
 				</div>
@@ -517,6 +530,29 @@ export function generateFRCReportHTML(data: FRCReportData): string {
 				<div class="info-row">
 					<span class="info-label">Signed Off:</span>
 					<span class="info-value">${signedOffDate}</span>
+				</div>
+			</div>
+		</div>
+
+		<!-- Signed Off By Section -->
+		<div class="section">
+			<div class="section-title">SIGNED OFF BY</div>
+			<div class="info-grid">
+				<div class="info-row">
+					<span class="info-label">Assessor:</span>
+					<span class="info-value">${engineer?.name || 'N/A'}</span>
+				</div>
+				<div class="info-row">
+					<span class="info-label">Company:</span>
+					<span class="info-value">${engineer?.company_name || 'N/A'}</span>
+				</div>
+				<div class="info-row">
+					<span class="info-label">Phone:</span>
+					<span class="info-value">${engineer?.phone || 'N/A'}</span>
+				</div>
+				<div class="info-row">
+					<span class="info-label">Email:</span>
+					<span class="info-value">${engineer?.email || 'N/A'}</span>
 				</div>
 			</div>
 		</div>
@@ -600,6 +636,20 @@ export function generateFRCReportHTML(data: FRCReportData): string {
 						<td class="amount" style="color: #e11d48;">${formatCurrency(finalTotals.total)}</td>
 						<td class="amount">${formatCurrency(finalTotals.total - baseline.total)}</td>
 					</tr>
+					${excess > 0 ? `
+					<tr style="color: #ea580c;">
+						<td>Less: Excess</td>
+						<td class="amount">-</td>
+						<td class="amount">-${formatCurrency(excess)}</td>
+						<td class="amount">-</td>
+					</tr>
+					<tr style="font-weight: bold; font-size: 11pt; color: #059669; border-top: 2px solid #059669;">
+						<td>Net Payable</td>
+						<td class="amount">-</td>
+						<td class="amount">${formatCurrency(finalTotals.total - excess)}</td>
+						<td class="amount">-</td>
+					</tr>
+					` : ''}
 				</tbody>
 			</table>
 		</div>

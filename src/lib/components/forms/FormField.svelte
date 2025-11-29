@@ -79,15 +79,19 @@
 			{required}
 			{disabled}
 			bind:value
-			onchange={handleChange}
-			oninput={handleInput}
+			onchange={(e) => {
+				handleChange(e);
+				// Select elements don't fire 'input' events, only 'change' events
+				// So we manually call handleInput here to ensure oninput callbacks work
+				handleInput(e);
+			}}
 			class={cn(
 				'flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50',
 				error && 'border-red-500 focus:ring-red-500',
 				inputClass
 			)}
 		>
-			<option value="" disabled selected={!value}>{placeholder || 'Select...'}</option>
+			<option value="" disabled>{placeholder || 'Select...'}</option>
 			{#each options as option}
 				<option value={option.value}>{option.label}</option>
 			{/each}

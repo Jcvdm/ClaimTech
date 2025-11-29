@@ -24,10 +24,16 @@ export interface Appointment {
 	appointment_time?: string | null; // HH:MM format
 	duration_minutes: number;
 
-	// Location (for in-person)
+	// Location (for in-person) - structured address fields
 	location_address?: string | null;
+	location_street_address?: string | null;
+	location_suburb?: string | null;
 	location_city?: string | null;
 	location_province?: Province | null;
+	location_postal_code?: string | null;
+	location_latitude?: number | null;
+	location_longitude?: number | null;
+	location_place_id?: string | null;
 	location_notes?: string | null;
 
 	// Status
@@ -66,9 +72,16 @@ export interface CreateAppointmentInput {
 	appointment_date: string;
 	appointment_time?: string;
 	duration_minutes?: number;
+	// Location - structured address fields
 	location_address?: string;
+	location_street_address?: string;
+	location_suburb?: string;
 	location_city?: string;
 	location_province?: Province;
+	location_postal_code?: string;
+	location_latitude?: number;
+	location_longitude?: number;
+	location_place_id?: string;
 	location_notes?: string;
 	notes?: string;
 	special_instructions?: string;
@@ -93,9 +106,16 @@ export interface RescheduleAppointmentInput {
 	appointment_date: string;
 	appointment_time?: string | null;
 	duration_minutes?: number;
+	// Location - structured address fields
 	location_address?: string | null;
+	location_street_address?: string | null;
+	location_suburb?: string | null;
 	location_city?: string | null;
 	location_province?: Province | null;
+	location_postal_code?: string | null;
+	location_latitude?: number | null;
+	location_longitude?: number | null;
+	location_place_id?: string | null;
 	location_notes?: string | null;
 	notes?: string | null;
 	special_instructions?: string | null;

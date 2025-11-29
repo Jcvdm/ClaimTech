@@ -8,7 +8,7 @@
 	import { useDraft } from '$lib/utils/useDraft.svelte';
 	import { onMount, onDestroy } from 'svelte';
 	import type { InteriorMechanical, InteriorPhoto } from '$lib/types/assessment';
-	import { validateInteriorMechanical } from '$lib/utils/validation';
+	import { validateInteriorMechanical, type TabValidation } from '$lib/utils/validation';
 	import { interiorPhotosService } from '$lib/services/interior-photos.service';
 
 	interface Props {
@@ -17,6 +17,7 @@
 		interiorPhotos: InteriorPhoto[];
 		onUpdate: (data: Partial<InteriorMechanical>) => void;
 		onPhotosUpdate: () => void;
+		onValidationUpdate?: (validation: TabValidation) => void;
 	}
 
 	// Make props reactive using $derived pattern
@@ -154,6 +155,13 @@
 			brakes: brakes,
 			handbrake: handbrake
 		}, interiorPhotos);
+	});
+
+	// Report validation to parent for immediate badge updates
+	$effect(() => {
+		if (props.onValidationUpdate) {
+			props.onValidationUpdate(validation);
+		}
 	});
 </script>
 

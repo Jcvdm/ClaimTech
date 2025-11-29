@@ -15,12 +15,14 @@ interface AdditionalsLetterData {
   request: any;
   client: any;
   repairer: any;
+  engineer: any;
   vehicleIdentification: VehicleIdentification | null;
   logoBase64?: string | null;
+  additionalsNotes: any[];
 }
 
 export function generateAdditionalsLetterHTML(data: AdditionalsLetterData): string {
-  const { assessment, additionals, companySettings, request, client, repairer, vehicleIdentification, logoBase64 } = data;
+  const { assessment, additionals, companySettings, request, client, repairer, engineer, vehicleIdentification, logoBase64, additionalsNotes } = data;
 
   // Filter items by status and action
   // Approved table: only show true approved additions (exclude removals and reversals)
@@ -324,6 +326,15 @@ export function generateAdditionalsLetterHTML(data: AdditionalsLetterData): stri
       color: #9ca3af;
     }
 
+    .notes-box {
+      font-size: 9pt;
+      line-height: 1.6;
+      color: #374151;
+      border: 1px solid #e5e7eb;
+      padding: 15px;
+      background: #f9fafb;
+    }
+
     .page-break {
       page-break-after: always;
     }
@@ -415,7 +426,19 @@ export function generateAdditionalsLetterHTML(data: AdditionalsLetterData): stri
         </div>
         <div class="info-row">
           <span class="info-label">Assessor:</span>
-          <span class="info-value">${assessment.assessor_name || 'N/A'}</span>
+          <span class="info-value">${engineer?.name || ''}</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">Company:</span>
+          <span class="info-value">${engineer?.company_name || ''}</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">Phone:</span>
+          <span class="info-value">${engineer?.phone || ''}</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">Email:</span>
+          <span class="info-value">${engineer?.email || ''}</span>
         </div>
         <div class="info-row">
           <span class="info-label">Claim No.:</span>
@@ -522,6 +545,21 @@ export function generateAdditionalsLetterHTML(data: AdditionalsLetterData): stri
         </tr>
       </table>
     </div>
+
+    ${additionalsNotes.length > 0 ? `
+    <!-- Additionals Notes -->
+    <div class="section" style="margin-top: 30px;">
+      <div class="section-title">ADDITIONALS NOTES</div>
+      <div class="notes-box">
+        ${additionalsNotes.map((note: any) => `
+          <div style="margin-bottom: 10px;">
+            ${note.note_title ? `<strong>${escapeHtmlWithLineBreaks(note.note_title)}</strong><br/>` : ''}
+            ${escapeHtmlWithLineBreaks(note.note_text)}
+          </div>
+        `).join('')}
+      </div>
+    </div>
+    ` : ''}
 
     ${companySettings?.additionals_terms_and_conditions ? `
     <div class="section" style="page-break-inside:avoid;">

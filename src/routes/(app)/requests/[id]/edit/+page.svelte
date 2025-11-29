@@ -9,7 +9,9 @@
 	import { Card } from '$lib/components/ui/card';
 	import { requestService } from '$lib/services/request.service';
 	import type { UpdateRequestInput, RequestType } from '$lib/types/request';
+	import { getIncidentAddress, getOwnerAddress } from '$lib/types/request';
 	import type { Province } from '$lib/types/engineer';
+	import type { StructuredAddress } from '$lib/types/address';
 	import type { PageData } from './$types';
 	import { useUnsavedChanges } from '$lib/utils/useUnsavedChanges.svelte';
 
@@ -28,9 +30,11 @@
 	// Incident Details
 	let date_of_loss = $state(data.request.date_of_loss || '');
 	let insured_value = $state<number | undefined>(data.request.insured_value || undefined);
+	let excess_amount = $state<number | undefined>(data.request.excess_amount ?? undefined);
 	let incident_type = $state(data.request.incident_type || '');
 	let incident_description = $state(data.request.incident_description || '');
-	let incident_location = $state(data.request.incident_location || '');
+	let incident_address = $state<StructuredAddress | null>(getIncidentAddress(data.request));
+	let incident_location_notes = $state(data.request.incident_location_notes || '');
 
 	// Vehicle Information
 	let vehicle_make = $state(data.request.vehicle_make || '');
@@ -48,7 +52,7 @@
 	let owner_name = $state(data.request.owner_name || '');
 	let owner_phone = $state(data.request.owner_phone || '');
 	let owner_email = $state(data.request.owner_email || '');
-	let owner_address = $state(data.request.owner_address || '');
+	let owner_address = $state<StructuredAddress | null>(getOwnerAddress(data.request));
 
 	// Third Party Details
 	let third_party_name = $state(data.request.third_party_name || '');
@@ -64,6 +68,7 @@
 	// Mark as having unsaved changes on any input
 	$effect(() => {
 		// Track all form fields - if any change from initial values, mark as unsaved
+		// Note: Address comparison simplified - any address change triggers unsaved
 		const hasChanges =
 			client_id !== data.request.client_id ||
 			type !== data.request.type ||
@@ -71,9 +76,11 @@
 			description !== (data.request.description || '') ||
 			date_of_loss !== (data.request.date_of_loss || '') ||
 			insured_value !== (data.request.insured_value || undefined) ||
+			excess_amount !== (data.request.excess_amount || undefined) ||
 			incident_type !== (data.request.incident_type || '') ||
 			incident_description !== (data.request.incident_description || '') ||
-			incident_location !== (data.request.incident_location || '') ||
+			incident_address?.formatted_address !== (data.request.incident_location || '') ||
+			incident_location_notes !== (data.request.incident_location_notes || '') ||
 			vehicle_make !== (data.request.vehicle_make || '') ||
 			vehicle_model !== (data.request.vehicle_model || '') ||
 			vehicle_year !== (data.request.vehicle_year || undefined) ||
@@ -85,7 +92,7 @@
 			owner_name !== (data.request.owner_name || '') ||
 			owner_phone !== (data.request.owner_phone || '') ||
 			owner_email !== (data.request.owner_email || '') ||
-			owner_address !== (data.request.owner_address || '') ||
+			owner_address?.formatted_address !== (data.request.owner_address || '') ||
 			third_party_name !== (data.request.third_party_name || '') ||
 			third_party_phone !== (data.request.third_party_phone || '') ||
 			third_party_email !== (data.request.third_party_email || '') ||
@@ -113,9 +120,21 @@
 				description: description || undefined,
 				date_of_loss: date_of_loss || undefined,
 				insured_value: insured_value || undefined,
+				excess_amount: excess_amount ?? undefined,
 				incident_type: incident_type || undefined,
 				incident_description: incident_description || undefined,
-				incident_location: incident_location || undefined,
+				// Incident location - flatten structured address
+				incident_location: incident_address?.formatted_address || undefined,
+				incident_street_address: incident_address?.street_address || undefined,
+				incident_suburb: incident_address?.suburb || undefined,
+				incident_city: incident_address?.city || undefined,
+				incident_province: incident_address?.province || undefined,
+				incident_postal_code: incident_address?.postal_code || undefined,
+				incident_latitude: incident_address?.latitude || undefined,
+				incident_longitude: incident_address?.longitude || undefined,
+				incident_place_id: incident_address?.place_id || undefined,
+				incident_location_notes: incident_location_notes || undefined,
+				// Vehicle
 				vehicle_make: vehicle_make || undefined,
 				vehicle_model: vehicle_model || undefined,
 				vehicle_year: vehicle_year || undefined,
@@ -124,10 +143,20 @@
 				vehicle_color: vehicle_color || undefined,
 				vehicle_mileage: vehicle_mileage || undefined,
 				vehicle_province: vehicle_province || undefined,
+				// Owner
 				owner_name: owner_name || undefined,
 				owner_phone: owner_phone || undefined,
 				owner_email: owner_email || undefined,
-				owner_address: owner_address || undefined,
+				owner_address: owner_address?.formatted_address || undefined,
+				owner_street_address: owner_address?.street_address || undefined,
+				owner_suburb: owner_address?.suburb || undefined,
+				owner_city: owner_address?.city || undefined,
+				owner_province: owner_address?.province || undefined,
+				owner_postal_code: owner_address?.postal_code || undefined,
+				owner_latitude: owner_address?.latitude || undefined,
+				owner_longitude: owner_address?.longitude || undefined,
+				owner_place_id: owner_address?.place_id || undefined,
+				// Third party
 				third_party_name: third_party_name || undefined,
 				third_party_phone: third_party_phone || undefined,
 				third_party_email: third_party_email || undefined,
@@ -222,9 +251,11 @@
 		<IncidentInfoSection
 			bind:date_of_loss
 			bind:insured_value
+			bind:excess_amount
 			bind:incident_type
 			bind:incident_description
-			bind:incident_location
+			bind:incident_address
+			bind:incident_location_notes
 		/>
 
 		<!-- Vehicle Information -->

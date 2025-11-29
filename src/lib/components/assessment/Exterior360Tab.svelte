@@ -18,8 +18,9 @@
 		accessories: VehicleAccessory[];
 		exterior360Photos: Exterior360Photo[];
 		onUpdate: (data: Partial<Exterior360>) => void;
-		onAddAccessory: (accessory: { accessory_type: AccessoryType; custom_name?: string }) => Promise<VehicleAccessory>;
+		onAddAccessory: (accessory: { accessory_type: AccessoryType; custom_name?: string; value?: number }) => Promise<VehicleAccessory>;
 		onDeleteAccessory: (id: string) => Promise<void>;
+		onUpdateAccessoryValue: (accessoryId: string, value: number | null) => void;
 		onPhotosUpdate: () => void;
 		onValidationUpdate?: (validation: TabValidation) => void;
 	}
@@ -41,7 +42,8 @@
 			if (!draft.accessory_type) throw new Error('Accessory type is required');
 			return await onAddAccessory({
 				accessory_type: draft.accessory_type,
-				custom_name: draft.custom_name || undefined
+				custom_name: draft.custom_name || undefined,
+				value: draft.value ?? undefined
 			});
 		},
 		onDelete: async (id) => {
@@ -68,6 +70,7 @@
 	let showAccessoryModal = $state(false);
 	let selectedAccessoryType = $state<AccessoryType>('mags');
 	let customAccessoryName = $state('');
+	let accessoryValue = $state<number | null>(null);
 
 	const accessoryOptions: { value: AccessoryType; label: string }[] = [
 		{ value: 'mags', label: 'Mags / Alloy Wheels' },
@@ -117,12 +120,14 @@
 		handleSave();
 	});
 
-	function handleSave() {
-		// Don't save if values are empty (prevents overwriting DB with null)
-		if (!overallCondition && !vehicleColor) {
-			return;
-		}
+	// Helper function to save drafts to localStorage
+	function saveDrafts() {
+		overallConditionDraft.save(overallCondition);
+		vehicleColorDraft.save(vehicleColor);
+	}
 
+	function handleSave() {
+		// Always save - even if empty (so parent knows state changed)
 		const updateData: Partial<Exterior360> = {
 			overall_condition: (overallCondition || undefined) as any,
 			vehicle_color: vehicleColor || undefined
@@ -136,12 +141,9 @@
 	}
 
 	// Create debounced save function (saves 2 seconds after user stops typing)
+	// Used for TEXT fields - select fields use immediate save
 	const debouncedSave = debounce(() => {
-		// Save to localStorage FIRST (immediate persistence)
-		overallConditionDraft.save(overallCondition);
-		vehicleColorDraft.save(vehicleColor);
-
-		// Then save to database (async)
+		saveDrafts();
 		handleSave();
 	}, 2000);
 
@@ -163,17 +165,20 @@
 		// Save values before resetting form
 		const accessoryType = selectedAccessoryType;
 		const accessoryName = customAccessoryName;
+		const value = accessoryValue;
 
 		// Close modal and reset form first
 		showAccessoryModal = false;
 		customAccessoryName = '';
 		selectedAccessoryType = 'mags';
+		accessoryValue = null;
 
 		// Add to optimistic queue (handles temp ID, status tracking, and DB create)
 		await accessories.add({
 			assessment_id: assessmentId,
 			accessory_type: accessoryType,
 			custom_name: accessoryType === 'custom' ? accessoryName : undefined,
+			value: value,
 			created_at: new Date().toISOString(),
 			updated_at: new Date().toISOString()
 		} as VehicleAccessory);
@@ -226,16 +231,23 @@
 					{ value: 'very_poor', label: 'Very Poor' }
 				]}
 				required
-				oninput={debouncedSave}
+				onchange={(value: string) => {
+					overallCondition = value;
+					overallConditionDraft.save(value);
+					handleSave();
+				}}
 			/>
 			<FormField
 				name="vehicle_color"
 				label="Vehicle Color"
 				type="text"
-				bind:value={vehicleColor}
+				value={vehicleColor}
 				placeholder="e.g., White, Black, Silver"
 				required
-				oninput={() => {
+				oninput={(e: Event) => {
+					const value = (e.target as HTMLInputElement).value;
+					vehicleColor = value;
+					vehicleColorDraft.save(value);
 					debouncedSave();
 				}}
 			/>
@@ -267,8 +279,8 @@
 			<div class="space-y-2">
 				{#each accessories.value as accessory}
 					<div class="flex items-center justify-between rounded-lg border p-3">
-						<div class="flex items-center gap-2">
-							<div>
+						<div class="flex items-center gap-3 flex-1">
+							<div class="flex-1">
 								<p class="font-medium text-gray-900">
 									{accessory.accessory_type === 'custom'
 										? accessory.custom_name
@@ -277,6 +289,23 @@
 								{#if accessory.condition}
 									<p class="text-sm text-gray-600">Condition: {accessory.condition}</p>
 								{/if}
+							</div>
+
+							<!-- Value input -->
+							<div class="w-32">
+								<input
+									type="number"
+									value={accessory.value || 0}
+									oninput={(e) => {
+										const value = parseFloat((e.target as HTMLInputElement).value) || 0;
+										props.onUpdateAccessoryValue(accessory.id!, value);
+									}}
+									placeholder="Value"
+									class="w-full rounded-md border border-gray-300 px-2 py-1 text-sm text-right"
+									step="0.01"
+									min="0"
+									disabled={isSaving(accessory.id)}
+								/>
 							</div>
 
 							<!-- Status indicators -->
@@ -337,6 +366,22 @@
 						required
 					/>
 				{/if}
+
+				<div class="space-y-2">
+					<label class="block text-sm font-medium text-gray-700">Value (optional)</label>
+					<input
+						type="number"
+						value={accessoryValue ?? ''}
+						oninput={(e: Event) => {
+							const val = (e.target as HTMLInputElement).value;
+							accessoryValue = val ? parseFloat(val) : null;
+						}}
+						placeholder="0.00"
+						step="0.01"
+						min="0"
+						class="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+					/>
+				</div>
 			</div>
 
 			<div class="mt-6 flex justify-end gap-3">

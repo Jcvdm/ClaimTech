@@ -16,7 +16,7 @@
 	import { getProcessTypeOptions } from '$lib/constants/processTypes';
 	import { createEmptyLineItem, calculateLineItemTotal } from '$lib/utils/estimateCalculations';
 	import { formatCurrency } from '$lib/utils/formatters';
-	import { validatePreIncidentEstimate } from '$lib/utils/validation';
+	import { validatePreIncidentEstimate, type TabValidation } from '$lib/utils/validation';
 
 	interface Props {
 		estimate: PreIncidentEstimate | null;
@@ -35,6 +35,7 @@
 		) => void;
 		onComplete: () => void;
 		onRegisterSave?: (saveFn: () => Promise<void>) => void; // Expose save function to parent
+		onValidationUpdate?: (validation: TabValidation) => void;
 	}
 
 	// Make props reactive using $derived pattern
@@ -49,6 +50,7 @@
 	const onUpdateRates = $derived(props.onUpdateRates);
 	const onComplete = $derived(props.onComplete);
 	const onRegisterSave = $derived(props.onRegisterSave);
+	const onValidationUpdate = $derived(props.onValidationUpdate);
 
 	const processTypeOptions = getProcessTypeOptions();
 
@@ -405,6 +407,13 @@
 	// Validation for warning banner
 	const validation = $derived.by(() => {
 		return validatePreIncidentEstimate(localEstimate);
+	});
+
+	// Report validation to parent for immediate badge updates
+	$effect(() => {
+		if (onValidationUpdate) {
+			onValidationUpdate(validation);
+		}
 	});
 </script>
 
