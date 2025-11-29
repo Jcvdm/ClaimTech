@@ -1,5 +1,13 @@
 # CLAUDE.md - Project Configuration
 
+## Project Info
+
+**Supabase Project ID**: `cfblmkzleqtvtfxujikf`
+**Project Name**: SVA (ClaimTech)
+**Region**: eu-central-1
+
+---
+
 ## DOCS
 
 We keep all important docs in .agent folder with a lightweight, layered index system:
@@ -192,11 +200,12 @@ User Request → Orchestrator (Sonnet)
 
 ### Orchestration Rules
 
-1. **Direct execution** for simple tasks (no agents needed)
-2. **Context first** before expensive Opus planning
-3. **Plan before code** for complex multi-file features
-4. **Auto-proceed** for straightforward plans (no user approval needed)
-5. **Document after** larger code changes or when user requests
+1. **Always use agents when relevant** - Delegate to specialized agents during planning and implementation instead of executing directly. This optimizes cost and leverages each agent's strengths.
+2. **Direct execution** for simple tasks (no agents needed)
+3. **Context first** before expensive Opus planning
+4. **Plan before code** for complex multi-file features
+5. **Auto-proceed** for straightforward plans (no user approval needed)
+6. **Document after** larger code changes or when user requests
 
 ### When to Use Each Agent
 
