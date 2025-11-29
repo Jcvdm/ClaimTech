@@ -1,7 +1,7 @@
 # ClaimTech Documentation
 
 **Project**: ClaimTech (SVA - SvelteKit Validation App)
-**Last Updated**: November 29, 2025 (PDF Generation Enhancements: Damage Report + Estimate + Photos ✅ | Tyre Position Order & Additionals Assessor Fix ✅ | Damage Inspection Report Enhancements ✅ | Accessories Report Integration ✅)
+**Last Updated**: November 29, 2025 (Audit Trail User Context Feature ✅ | Additionals Letter Notes Section ✅ | PDF Generation Enhancements: Damage Report + Estimate + Photos ✅ | Tyre Position Order & Additionals Assessor Fix ✅ | Damage Inspection Report Enhancements ✅ | Accessories Report Integration ✅)
 **Status**: ✅ Svelte 5 Migration Complete - 0 Errors, 12 Warnings (All Intentional) | ✅ Accessories in Report PDF | ✅ C001: Vehicle Location Capturing (Google Places autocomplete with fallback) | ✅ Photo Compression Live (60-75% storage reduction) | ✅ Slate Theme Migration (Phases 1-5 complete, rose accents preserved)
 
 ---

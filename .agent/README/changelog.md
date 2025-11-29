@@ -5,6 +5,49 @@
 
 ---
 
+## November 29, 2025 (Session 4)
+
+### ✅ Audit Trail User Context - Auto-Capture from Auth
+- **FEATURE**: Audit logs now capture actual user email/ID instead of defaulting to 'System'
+- **IMPLEMENTATION**:
+  - Updated `audit.service.ts` `logChange()` to extract user from Supabase auth context
+  - Falls back to global browser client when no client parameter passed
+  - Priority: explicit `changed_by` → user email → user ID → 'System'
+- **COVERAGE**: Works for ALL 18 services automatically without individual refactoring needed
+- **DEMONSTRATION**: Refactored `accessories.service.ts` to follow ServiceClient pattern
+  - Added `client?: ServiceClient` parameter to all methods
+  - Shows proper pattern for other services to follow
+  - Not blocking - audit user context works with or without refactoring
+- **BENEFITS**:
+  - Complete user attribution in audit trail
+  - Automatic without service-level changes
+  - Backward compatible (still accepts explicit `changed_by`)
+  - Non-blocking (audit failures don't interrupt main operations)
+- **FILES MODIFIED**:
+  - `src/lib/services/audit.service.ts` - Extract user from auth context
+  - `src/lib/services/accessories.service.ts` - Refactored to ServiceClient pattern (demonstration)
+- **VERIFICATION**: ✅ npm run check passes with 0 errors
+
+---
+
+## November 29, 2025 (Session 3)
+
+### ✅ Additionals Letter - Notes Section Added
+- **FEATURE**: Added "ADDITIONALS NOTES" section to additionals letter PDF
+- **DATA SOURCE**: Fetches notes from `assessment_notes` table filtered by `source_tab === 'additionals'`
+- **DISPLAY LOGIC**: Only shows section if additionals-specific notes exist
+- **FORMATTING**: Note title (if present) displayed in bold, followed by note text
+- **FILES MODIFIED**:
+  - `src/routes/api/generate-additionals-letter/+server.ts` - Added notes fetch and filter logic
+  - `src/lib/templates/additionals-letter-template.ts` - Added notes section before Terms & Conditions
+- **BENEFITS**:
+  - Additionals-specific notes now appear in additionals letter PDF
+  - Matches pattern from assessment reports
+  - Improves documentation completeness
+- **VERIFICATION**: ✅ Additionals letter generates with notes section when applicable
+
+---
+
 ## November 29, 2025 (Session 2)
 
 ### ✅ PDF Generation Enhancements: Damage Report, Estimate, Photos & Metadata Fixes - COMPLETE

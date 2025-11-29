@@ -1,7 +1,7 @@
 # Audit Logging System
 
-**Last Updated**: January 30, 2025  
-**Status**: Comprehensive audit logging implemented across all assessment workflow operations
+**Last Updated**: November 29, 2025
+**Status**: Comprehensive audit logging with automatic user context capture implemented across all assessment workflow operations
 
 ---
 
@@ -34,11 +34,34 @@ CREATE TABLE audit_logs (
   field_name TEXT,              -- Optional: specific field changed
   old_value TEXT,               -- Optional: previous value
   new_value TEXT,               -- Optional: new value
-  changed_by TEXT,              -- User who made the change (defaults to 'System')
+  changed_by TEXT,              -- User who made the change (auto-captured from auth)
   metadata JSONB,               -- Additional context (descriptions, totals, etc.)
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 ```
+
+### User Information Captured
+
+The `changed_by` field now automatically captures user information using the following priority hierarchy:
+
+1. **Explicit `changed_by`** - If explicitly passed in `CreateAuditLogInput`
+2. **User Email** - Extracted from Supabase auth context
+3. **User ID** - If email not available, falls back to user ID
+4. **'System'** - Default for unauthenticated or system operations
+
+**Example**:
+```typescript
+// User email automatically captured from auth context
+await auditService.logChange({
+  entity_type: 'estimate',
+  entity_id: assessmentId,
+  action: 'line_item_added',
+  metadata: { /* context */ }
+});
+// Result: changed_by = "john@example.com" (extracted from auth, not passed explicitly)
+```
+
+This automatic capture works across ALL services without requiring individual refactoring. Services can pass their `ServiceClient` parameter to `logChange()` for better control, but the fallback to the global browser client's auth context ensures user attribution works everywhere.
 
 ### Indexes
 
@@ -106,6 +129,7 @@ Location: `src/lib/services/audit.service.ts`
 
 ```typescript
 // Log a change (never throws, returns null on failure)
+// Automatically extracts user from auth context
 async logChange(input: CreateAuditLogInput, client?: ServiceClient): Promise<AuditLog | null>
 
 // Get history for specific entity type
@@ -121,7 +145,56 @@ async getRecentLogs(limit: number = 50, client?: ServiceClient): Promise<AuditLo
 async getLogsByAction(action: string, limit: number = 50, client?: ServiceClient): Promise<AuditLog[]>
 ```
 
-**Key Pattern**: Always accepts optional `ServiceClient` parameter for RLS authentication.
+**User Context Extraction in `logChange()`:**
+
+The method automatically captures user information without requiring services to pass `changed_by`:
+
+```typescript
+async logChange(input: CreateAuditLogInput, client?: ServiceClient): Promise<AuditLog | null> {
+  const db = client ?? supabase;
+
+  try {
+    // Priority: explicit changed_by > user email > user ID > 'System'
+    let changedBy = input.changed_by;
+    if (!changedBy) {
+      const authClient = client ?? supabase;  // Use passed client OR global browser client
+      const { data: { user } } = await authClient.auth.getUser();
+      if (user) {
+        changedBy = user.email || user.id;
+      }
+    }
+    changedBy = changedBy || 'System';
+
+    // Insert with captured user information
+    const { data, error } = await db
+      .from('audit_logs')
+      .insert({
+        entity_type: input.entity_type,
+        entity_id: input.entity_id,
+        action: input.action,
+        field_name: input.field_name || null,
+        old_value: input.old_value || null,
+        new_value: input.new_value || null,
+        changed_by: changedBy,  // Auto-captured user
+        metadata: input.metadata || null
+      })
+      .select()
+      .single();
+
+    if (error) return null;
+    return data;
+  } catch (error) {
+    console.error('Audit log error:', error);
+    return null;  // Non-blocking
+  }
+}
+```
+
+**Key Patterns**:
+- Always accepts optional `ServiceClient` parameter for explicit control
+- Automatically falls back to global browser client for auth context
+- Non-blocking: catches all errors and returns null instead of throwing
+- Works across ALL services without individual refactoring required
 
 ### Error Handling Pattern
 
