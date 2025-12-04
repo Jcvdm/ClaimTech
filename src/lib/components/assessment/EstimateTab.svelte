@@ -9,6 +9,7 @@
 	import AssessmentResultSelector from './AssessmentResultSelector.svelte';
 	import RequiredFieldsWarning from './RequiredFieldsWarning.svelte';
 	import BettermentModal from './BettermentModal.svelte';
+	import LineItemCard from './LineItemCard.svelte';
     import { Plus, Trash2, Check, CircleAlert, CircleCheck, CircleX, Info, Percent, ShieldCheck, Package, Recycle, RefreshCw } from 'lucide-svelte';
 import type {
 	Estimate,
@@ -785,16 +786,20 @@ import type { Repairer } from '$lib/types/repairer';
 			onAddLineItem={(item) => { addLocalLine(item); }}
 		/>
 
-		<!-- Line Items Table -->
-		<Card class="p-6">
-			<div class="mb-4 flex items-center justify-between">
-				<h3 class="text-lg font-semibold text-gray-900">Line Items</h3>
-				<div class="flex gap-2">
+		<!-- Line Items Section -->
+		<Card class="p-3 sm:p-6">
+			<!-- Header - Responsive -->
+			<div class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+				<h3 class="text-base font-semibold text-gray-900 sm:text-lg">
+					Line Items
+					<span class="ml-2 text-sm font-normal text-gray-500">({localLineItems().length})</span>
+				</h3>
+				<div class="flex flex-wrap gap-2">
 					{#if dirty}
-						<Button onclick={saveAll} size="sm" disabled={saving}>
-							{saving ? 'Saving…' : 'Save Changes'}
+						<Button onclick={saveAll} size="sm" disabled={saving} class="flex-1 sm:flex-none">
+							{saving ? 'Saving…' : 'Save'}
 						</Button>
-						<Button onclick={discardAll} size="sm" variant="outline" disabled={saving}>
+						<Button onclick={discardAll} size="sm" variant="outline" disabled={saving} class="flex-1 sm:flex-none">
 							Discard
 						</Button>
 					{/if}
@@ -809,18 +814,49 @@ import type { Repairer } from '$lib/types/repairer';
 					</Button>
 					{#if selectedItems.size > 0}
 						<Button onclick={handleBulkDelete} size="sm" variant="destructive">
-							<Trash2 class="mr-2 h-4 w-4" />
-							Delete Selected ({selectedItems.size})
+							<Trash2 class="h-4 w-4 sm:mr-2" />
+							<span class="hidden sm:inline">Delete ({selectedItems.size})</span>
 						</Button>
 					{/if}
 					<Button onclick={handleAddEmptyLineItem} size="sm" variant="outline">
-						<Plus class="mr-2 h-4 w-4" />
-						Add Empty Row
+						<Plus class="h-4 w-4 sm:mr-2" />
+						<span class="hidden sm:inline">Add Row</span>
 					</Button>
 				</div>
 			</div>
 
-			<div class="rounded-lg border overflow-x-auto max-h-[70vh] overflow-y-auto">
+			<!-- Mobile: Card Layout -->
+			<div class="space-y-3 md:hidden">
+				{#if localLineItems().length === 0}
+					<div class="flex flex-col items-center justify-center py-12 text-center">
+						<p class="text-gray-500">No line items added.</p>
+						<p class="text-sm text-gray-400">Use "Quick Add" above or tap + to add items.</p>
+					</div>
+				{:else}
+					{#each localLineItems() as item (item.id)}
+						<LineItemCard
+							{item}
+							labourRate={localEstimate?.labour_rate ?? estimate?.labour_rate ?? 0}
+							paintRate={localEstimate?.paint_rate ?? estimate?.paint_rate ?? 0}
+							selected={selectedItems.has(item.id!)}
+							onToggleSelect={() => handleToggleSelect(item.id!)}
+							onUpdateDescription={(value) => handleUpdateLineItem(item.id!, 'description', value)}
+							onUpdateProcessType={(value) => handleUpdateLineItem(item.id!, 'process_type', value)}
+							onUpdatePartType={(value) => handleUpdateLineItem(item.id!, 'part_type', value)}
+							onEditPartPrice={() => handlePartPriceClick(item.id!, item.part_price_nett || null)}
+							onEditSA={() => handleSAClick(item.id!, item.strip_assemble_hours || null)}
+							onEditLabour={() => handleLabourClick(item.id!, item.labour_hours || null)}
+							onEditPaint={() => handlePaintClick(item.id!, item.paint_panels || null)}
+							onEditOutwork={() => handleOutworkClick(item.id!, item.outwork_charge_nett || null)}
+							onEditBetterment={() => handleBettermentClick(item)}
+							onDelete={() => removeLocalLines([item.id!])}
+						/>
+					{/each}
+				{/if}
+			</div>
+
+			<!-- Desktop: Table Layout -->
+			<div class="hidden rounded-lg border overflow-x-auto max-h-[70vh] overflow-y-auto md:block">
 				<Table.Root>
 					<Table.Header class="sticky top-0 z-10 bg-white">
 						<Table.Row class="hover:bg-transparent border-b-2">

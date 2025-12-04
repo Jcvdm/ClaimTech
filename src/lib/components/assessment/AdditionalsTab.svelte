@@ -11,6 +11,7 @@
 	import OriginalEstimateLinesPanel from './OriginalEstimateLinesPanel.svelte';
 	import AdditionalsPhotosPanel from './AdditionalsPhotosPanel.svelte';
 	import DocumentCard from './DocumentCard.svelte';
+	import AdditionalLineItemCard from './AdditionalLineItemCard.svelte';
 	import {
 		Check,
 		X,
@@ -763,20 +764,20 @@
 		/>
 
 		<!-- Line Items Table -->
-		<Card class="p-6">
-			<div class="mb-4 flex items-center justify-between">
+		<Card class="p-4 md:p-6">
+			<div class="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
 				<h3 class="text-lg font-semibold">Additional Line Items</h3>
-				<div class="flex gap-2">
-					<Badge class="bg-yellow-100 text-yellow-800">
+				<div class="flex flex-wrap gap-1.5 sm:gap-2">
+					<Badge class="bg-yellow-100 text-yellow-800 text-xs">
 						{statusCounts().pending} Pending
 					</Badge>
-					<Badge class="bg-green-100 text-green-800">
+					<Badge class="bg-green-100 text-green-800 text-xs">
 						{statusCounts().approved} Approved
 					</Badge>
-					<Badge class="bg-red-100 text-red-800">
+					<Badge class="bg-red-100 text-red-800 text-xs">
 						{statusCounts().declined} Declined
 					</Badge>
-					<Badge class="bg-blue-100 text-blue-800">
+					<Badge class="bg-blue-100 text-blue-800 text-xs">
 						{statusCounts().reversed} Reversed
 					</Badge>
 				</div>
@@ -798,7 +799,46 @@
 					</p>
 				</div>
 			{:else}
-				<div class="overflow-x-auto">
+				<!-- Mobile: Card Layout -->
+				<div class="space-y-3 md:hidden">
+					{#each additionals.line_items as item (item.id)}
+						{@const isRemoved = item.action === 'removed'}
+						{@const isReversal = item.action === 'reversal'}
+						{@const isReversed = !!(item.id && reversedTargets().has(item.id))}
+						{@const reversalEntry = item.id ? reversedBy().get(item.id) : null}
+						<AdditionalLineItemCard
+							{item}
+							{isRemoved}
+							{isReversal}
+							{isReversed}
+							reversalReason={reversalEntry?.reversal_reason}
+							labourRate={additionals.labour_rate}
+							paintRate={additionals.paint_rate}
+							onUpdateDescription={(value) => {
+								updateLocalDescription(item.id!, value);
+								updatePending(item.id!, { description: value });
+							}}
+							onUpdatePartType={(value) => {
+								updateLocalPartType(item.id!, value);
+								updatePending(item.id!, { part_type: value });
+							}}
+							onEditPartPrice={() => handlePartPriceClick(item.id!, item.part_price_nett || null)}
+							onEditSA={() => handleSAClick(item.id!, item.strip_assemble_hours || null)}
+							onEditLabour={() => handleLabourClick(item.id!, item.labour_hours || null)}
+							onEditPaint={() => handlePaintClick(item.id!, item.paint_panels || null)}
+							onEditOutwork={() => handleOutworkClick(item.id!, item.outwork_charge_nett || null)}
+							onApprove={() => handleApprove(item.id!)}
+							onDecline={() => handleDeclineClick(item.id!)}
+							onDelete={() => handleDelete(item.id!)}
+							onReverse={() => handleReverseClick(item.id!)}
+							onReinstate={() => handleReinstateClick(item.id!)}
+							onReinstateOriginal={() => handleReinstateOriginalClick(item.original_line_id!)}
+						/>
+					{/each}
+				</div>
+
+				<!-- Desktop: Table Layout -->
+				<div class="hidden overflow-x-auto md:block">
 					<table class="w-full text-sm">
 						<thead class="border-b">
 							<tr class="text-left">
