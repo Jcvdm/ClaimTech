@@ -17,6 +17,8 @@
 		onRemove?: () => void;
 		disabled?: boolean;
 		height?: string;
+		/** Optional callback when photo is clicked to view. If provided, overrides default PhotoViewer */
+		onView?: () => void;
 	}
 
 	// Make props reactive using $derived instead of destructuring
@@ -34,6 +36,7 @@
 	const onRemove = $derived(props.onRemove);
 	const disabled = $derived(props.disabled ?? false);
 	const height = $derived(props.height ?? 'h-32');
+	const onView = $derived(props.onView);
 
 	let uploading = $state(false);
 	let compressing = $state(false);
@@ -181,6 +184,11 @@
 
 	// Photo viewer functions
 	function openPhotoViewer() {
+		// If parent provides onView callback, use that instead
+		if (onView) {
+			onView();
+			return;
+		}
 		selectedPhotoIndex = 0;
 	}
 

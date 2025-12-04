@@ -3,12 +3,13 @@
 	import FormField from '$lib/components/forms/FormField.svelte';
 	import PhotoUpload from '$lib/components/forms/PhotoUpload.svelte';
 	import RequiredFieldsWarning from './RequiredFieldsWarning.svelte';
+	import FormFieldPhotoViewer, { type FieldConfig } from '$lib/components/photo-viewer/FormFieldPhotoViewer.svelte';
 	import { debounce } from '$lib/utils/useUnsavedChanges.svelte';
 	import { useDraft } from '$lib/utils/useDraft.svelte';
-import { onMount } from 'svelte';
-import type { VehicleIdentification } from '$lib/types/assessment';
-import type { VehicleDetails } from '$lib/utils/report-data-helpers';
-import { validateVehicleIdentification, type TabValidation } from '$lib/utils/validation';
+	import { onMount } from 'svelte';
+	import type { VehicleIdentification } from '$lib/types/assessment';
+	import type { VehicleDetails } from '$lib/utils/report-data-helpers';
+	import { validateVehicleIdentification, type TabValidation } from '$lib/utils/validation';
 
 interface Props {
 	data: VehicleIdentification | null;
@@ -70,6 +71,86 @@ interface Props {
 	let engineNumberPhotoUrl = $state('');
 	let licenseDiscPhotoUrl = $state('');
 	let driverLicensePhotoUrl = $state('');
+
+	// Photo-field viewer state
+	type PhotoFieldType = 'registration' | 'vin' | 'engine' | 'license_disc' | null;
+	let viewingPhotoField = $state<PhotoFieldType>(null);
+
+	// Field configurations for photo viewer
+	const fieldConfigs: Record<Exclude<PhotoFieldType, null>, FieldConfig> = {
+		registration: {
+			label: 'Registration Number',
+			type: 'text',
+			placeholder: 'e.g., ABC123GP'
+		},
+		vin: {
+			label: 'VIN Number',
+			type: 'text',
+			placeholder: '17-character VIN',
+			maxLength: 17,
+			validation: {
+				expectedLength: 17,
+				message: 'VIN should be 17 characters'
+			}
+		},
+		engine: {
+			label: 'Engine Number',
+			type: 'text',
+			placeholder: 'Enter engine number'
+		},
+		license_disc: {
+			label: 'License Disc Expiry',
+			type: 'date'
+		}
+	};
+
+	// Get current photo URL for viewer
+	const viewingPhotoUrl = $derived.by(() => {
+		switch (viewingPhotoField) {
+			case 'registration': return registrationPhotoUrl;
+			case 'vin': return vinPhotoUrl;
+			case 'engine': return engineNumberPhotoUrl;
+			case 'license_disc': return licenseDiscPhotoUrl;
+			default: return '';
+		}
+	});
+
+	// Get current field value for viewer
+	const viewingFieldValue = $derived.by(() => {
+		switch (viewingPhotoField) {
+			case 'registration': return registrationNumber;
+			case 'vin': return vinNumber;
+			case 'engine': return engineNumber;
+			case 'license_disc': return licenseDiscExpiry;
+			default: return '';
+		}
+	});
+
+	// Handle saving field value from photo viewer
+	async function handlePhotoFieldSave(value: string) {
+		if (!viewingPhotoField) return;
+
+		switch (viewingPhotoField) {
+			case 'registration':
+				registrationNumber = value;
+				registrationDraft.save(value);
+				break;
+			case 'vin':
+				vinNumber = value;
+				vinDraft.save(value);
+				break;
+			case 'engine':
+				engineNumber = value;
+				engineDraft.save(value);
+				break;
+			case 'license_disc':
+				licenseDiscExpiry = value;
+				break;
+		}
+
+		// Save to database
+		handleSave();
+	}
 
 	// Sync local state with data prop when it changes (after save)
 	$effect(() => {
@@ -280,6 +361,7 @@ interface Props {
 					registrationPhotoUrl = '';
 					handleSave();
 				}}
+				onView={() => { viewingPhotoField = 'registration'; }}
 			/>
 		</div>
 	</Card>
@@ -316,6 +398,7 @@ interface Props {
 					vinPhotoUrl = '';
 					handleSave();
 				}}
+				onView={() => { viewingPhotoField = 'vin'; }}
 			/>
 		</div>
 	</Card>
@@ -351,6 +434,7 @@ interface Props {
 					engineNumberPhotoUrl = '';
 					handleSave();
 				}}
+				onView={() => { viewingPhotoField = 'engine'; }}
 			/>
 		</div>
 	</Card>
@@ -381,6 +465,7 @@ interface Props {
 					licenseDiscPhotoUrl = '';
 					handleSave();
 				}}
+				onView={() => { viewingPhotoField = 'license_disc'; }}
 			/>
 		</div>
 	</Card>
@@ -416,3 +501,13 @@ interface Props {
 	</Card>
 </div>
 
+<!-- Photo Field Viewer -->
+{#if viewingPhotoField && viewingPhotoUrl}
+	<FormFieldPhotoViewer
+		photoUrl={viewingPhotoUrl}
+		field={fieldConfigs[viewingPhotoField]}
+		value={viewingFieldValue}
+		onSave={handlePhotoFieldSave}
+		onClose={() => { viewingPhotoField = null; }}
+	/>
+{/if}

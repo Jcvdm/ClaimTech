@@ -4,6 +4,7 @@
 	import PhotoUpload from '$lib/components/forms/PhotoUpload.svelte';
 	import InteriorPhotosPanel from './InteriorPhotosPanel.svelte';
 	import RequiredFieldsWarning from './RequiredFieldsWarning.svelte';
+	import FormFieldPhotoViewer, { type FieldConfig } from '$lib/components/photo-viewer/FormFieldPhotoViewer.svelte';
 	import { debounce } from '$lib/utils/useUnsavedChanges.svelte';
 	import { useDraft } from '$lib/utils/useDraft.svelte';
 	import { onMount, onDestroy } from 'svelte';
@@ -49,6 +50,23 @@
 	let coolantPhotoUrl = $state('');
 	let mileagePhotoUrl = $state('');
 	let gearLeverPhotoUrl = $state('');
+
+	// Mileage photo viewer state
+	let viewingMileagePhoto = $state(false);
+
+	// Mileage field configuration for photo viewer
+	const mileageFieldConfig: FieldConfig = {
+		label: 'Mileage Reading (km)',
+		type: 'number',
+		placeholder: 'e.g., 125000'
+	};
+
+	// Handle saving mileage from photo viewer
+	async function handleMileagePhotoSave(value: string) {
+		mileageReading = value;
+		mileageDraft.save(value);
+		handleSave();
+	}
 
 	// Data
 	let mileageReading = $state('');
@@ -238,6 +256,7 @@
 				subcategory="mileage"
 				onUpload={(url) => { mileagePhotoUrl = url; handleSave(); }}
 				onRemove={() => { mileagePhotoUrl = ''; handleSave(); }}
+				onView={() => { viewingMileagePhoto = true; }}
 			/>
 		</div>
 	</Card>
@@ -381,3 +400,13 @@
 	</Card>
 </div>
 
+<!-- Mileage Photo Field Viewer -->
+{#if viewingMileagePhoto && mileagePhotoUrl}
+	<FormFieldPhotoViewer
+		photoUrl={mileagePhotoUrl}
+		field={mileageFieldConfig}
+		value={mileageReading}
+		onSave={handleMileagePhotoSave}
+		onClose={() => { viewingMileagePhoto = false; }}
+	/>
+{/if}
