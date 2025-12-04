@@ -14,46 +14,80 @@ export default defineConfig({
 			scope: '/',
 			base: '/',
 			registerType: 'autoUpdate',
-			manifest: false, // We use static manifest.json
 			injectRegister: 'auto',
+			includeAssets: ['icons/*.png', 'favicon.ico'],
+			manifest: {
+				name: 'ClaimTech Assessments',
+				short_name: 'ClaimTech',
+				description: 'Vehicle assessment capture for engineers',
+				start_url: '/',
+				scope: '/',
+				display: 'standalone',
+				background_color: '#0f172a',
+				theme_color: '#0f172a',
+				orientation: 'portrait-primary',
+				categories: ['business', 'productivity'],
+				icons: [
+					{
+						src: '/icons/icon-192.png',
+						sizes: '192x192',
+						type: 'image/png',
+						purpose: 'any'
+					},
+					{
+						src: '/icons/icon-512.png',
+						sizes: '512x512',
+						type: 'image/png',
+						purpose: 'any'
+					},
+					{
+						src: '/icons/icon-maskable-192.png',
+						sizes: '192x192',
+						type: 'image/png',
+						purpose: 'maskable'
+					},
+					{
+						src: '/icons/icon-maskable-512.png',
+						sizes: '512x512',
+						type: 'image/png',
+						purpose: 'maskable'
+					}
+				]
+			},
 			workbox: {
 				globPatterns: ['**/*.{js,css,html,ico,png,svg,webp,woff,woff2}'],
-				// Don't cache API routes or server-rendered pages
 				navigateFallback: null,
 				runtimeCaching: [
 					{
-						// Cache static assets
 						urlPattern: /^https:\/\/.*\.(png|jpg|jpeg|svg|gif|webp|ico)$/,
 						handler: 'CacheFirst',
 						options: {
 							cacheName: 'images-cache',
 							expiration: {
 								maxEntries: 100,
-								maxAgeSeconds: 60 * 60 * 24 * 30 // 30 days
+								maxAgeSeconds: 60 * 60 * 24 * 30
 							}
 						}
 					},
 					{
-						// Cache fonts
 						urlPattern: /^https:\/\/.*\.(woff|woff2|ttf|eot)$/,
 						handler: 'CacheFirst',
 						options: {
 							cacheName: 'fonts-cache',
 							expiration: {
 								maxEntries: 20,
-								maxAgeSeconds: 60 * 60 * 24 * 365 // 1 year
+								maxAgeSeconds: 60 * 60 * 24 * 365
 							}
 						}
 					},
 					{
-						// Network first for API calls (when online, use network; when offline, use cache)
 						urlPattern: /\/api\//,
 						handler: 'NetworkFirst',
 						options: {
 							cacheName: 'api-cache',
 							expiration: {
 								maxEntries: 50,
-								maxAgeSeconds: 60 * 5 // 5 minutes
+								maxAgeSeconds: 60 * 5
 							},
 							networkTimeoutSeconds: 10
 						}
@@ -62,8 +96,7 @@ export default defineConfig({
 			},
 			devOptions: {
 				enabled: true,
-				type: 'module',
-				navigateFallback: '/'
+				type: 'module'
 			},
 			kit: {
 				includeVersionFile: true

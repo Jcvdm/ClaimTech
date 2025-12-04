@@ -39,21 +39,18 @@
 		// Check if previously dismissed this session
 		dismissed = sessionStorage.getItem('pwa-prompt-dismissed') === 'true';
 
-		// Register service worker manually if needed
+		// Check service worker status (registration handled by vite-pwa plugin)
 		if ('serviceWorker' in navigator) {
 			try {
-				const registration = await navigator.serviceWorker.register('/sw.js', {
-					scope: '/'
-				});
-				swRegistered = true;
-				console.log('PWA: Service worker registered', registration.scope);
-
-				// Check for updates
-				registration.addEventListener('updatefound', () => {
-					console.log('PWA: New service worker available');
-				});
+				const registrations = await navigator.serviceWorker.getRegistrations();
+				if (registrations.length > 0) {
+					swRegistered = true;
+					console.log('PWA: Service worker active', registrations[0].scope);
+				} else {
+					console.log('PWA: No service worker registered yet');
+				}
 			} catch (error) {
-				console.log('PWA: Service worker registration failed', error);
+				console.log('PWA: Service worker check failed', error);
 			}
 		}
 
