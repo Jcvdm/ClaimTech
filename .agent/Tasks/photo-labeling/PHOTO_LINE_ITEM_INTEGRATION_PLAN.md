@@ -157,7 +157,7 @@ async function handleAddLineItem() {
 }
 ```
 
-### 3. Photo Upload Helper
+### 3. Photo Upload Helper (Reusable for All Tabs)
 
 **Location**: `src/lib/utils/upload-photos-with-label.ts`
 
@@ -165,44 +165,66 @@ async function handleAddLineItem() {
 import { storageService } from '$lib/services/storage.service';
 import { estimatePhotosService } from '$lib/services/estimate-photos.service';
 import { preIncidentEstimatePhotosService } from '$lib/services/pre-incident-estimate-photos.service';
+import { additionalsPhotosService } from '$lib/services/additionals-photos.service';
 
+// Generic interface to support all photo types
 interface UploadOptions {
   photos: PendingPhoto[];
   label: string;
   assessmentId: string;
-  estimateId: string;
-  category: 'estimate' | 'pre-incident';
+  parentId: string;  // estimateId OR additionalsId
+  category: 'estimate' | 'pre-incident' | 'additionals';
   onProgress?: (uploaded: number, total: number) => void;
 }
 
+/**
+ * Upload photos with automatic labeling - REUSABLE for all tabs
+ * Leverages existing services: storageService, estimatePhotosService, etc.
+ */
 export async function uploadPhotosWithLabel(options: UploadOptions): Promise<void> {
-  const { photos, label, assessmentId, estimateId, category, onProgress } = options;
+  const { photos, label, assessmentId, parentId, category, onProgress } = options;
 
-  const service = category === 'estimate'
-    ? estimatePhotosService
-    : preIncidentEstimatePhotosService;
+  // Select correct service based on category
+  const serviceConfig = {
+    'estimate': {
+      service: estimatePhotosService,
+      storageCategory: 'estimate' as const,
+      subcategory: 'incident',
+      parentKey: 'estimate_id'
+    },
+    'pre-incident': {
+      service: preIncidentEstimatePhotosService,
+      storageCategory: 'pre-incident' as const,
+      subcategory: 'incident',
+      parentKey: 'estimate_id'
+    },
+    'additionals': {
+      service: additionalsPhotosService,
+      storageCategory: 'estimate' as const,  // Additionals photos stored in estimate folder
+      subcategory: 'additionals',
+      parentKey: 'additionals_id'
+    }
+  };
 
-  const storageCategory = category === 'estimate' ? 'estimate' : 'pre-incident';
-  const subcategory = 'incident';
-
+  const config = serviceConfig[category];
   let uploaded = 0;
 
   for (const photo of photos) {
-    // 1. Upload compressed file to storage
+    // 1. Upload compressed file to storage (using existing storageService)
     const result = await storageService.uploadAssessmentPhoto(
       photo.compressedFile,
       assessmentId,
-      storageCategory,
-      subcategory,
-      { skipCompression: true } // Already compressed
+      config.storageCategory,
+      config.subcategory,
+      { skipCompression: true } // Already compressed locally
     );
 
-    // 2. Get next display order
-    const displayOrder = await service.getNextDisplayOrder(estimateId);
+    // 2. Get next display order (using existing service method)
+    const displayOrder = await config.service.getNextDisplayOrder(parentId);
 
-    // 3. Create photo record with label
-    await service.createPhoto({
-      estimate_id: estimateId,
+    // 3. Create photo record with label (using existing service method)
+    await config.service.createPhoto({
+      [config.parentKey]: parentId,
       photo_url: result.url,
       photo_path: result.path,
       label: label, // Auto-label with line item description
@@ -214,6 +236,12 @@ export async function uploadPhotosWithLabel(options: UploadOptions): Promise<voi
   }
 }
 ```
+
+**Key Reusability Points:**
+- Uses existing `storageService.uploadAssessmentPhoto()` - no new upload logic
+- Uses existing `service.getNextDisplayOrder()` - no new ordering logic
+- Uses existing `service.createPhoto()` - no new DB logic
+- Single function supports Estimate, Pre-Incident, AND Additionals tabs
 
 ## Data Flow Diagram
 
@@ -262,15 +290,59 @@ onPhotosUploaded() → Parent refreshes EstimatePhotosPanel
 Photos appear in grid with "Front Bumper" label
 ```
 
+## Existing Functions to Leverage
+
+**IMPORTANT: Reuse existing code wherever possible**
+
+### From `imageCompressionService` (src/lib/services/image-compression.service.ts)
+```typescript
+// Already handles compression with progress - USE THIS
+compressImage(file: File, options?: CompressionOptions): Promise<CompressionResult>
+// Options: maxWidthOrHeight: 1920, maxSizeMB: 2, quality: 0.85, onProgress
+```
+
+### From `storageService` (src/lib/services/storage.service.ts)
+```typescript
+// Already handles assessment photo uploads - USE THIS
+uploadAssessmentPhoto(file, assessmentId, category, subcategory, options): Promise<UploadPhotoResult>
+// Can pass skipCompression: true since we pre-compress
+```
+
+### From Photo Services
+```typescript
+// estimate-photos.service.ts - USE THIS
+createPhoto(input: CreateEstimatePhotoInput): Promise<EstimatePhoto>
+getNextDisplayOrder(estimateId: string): Promise<number>
+
+// pre-incident-estimate-photos.service.ts - USE THIS (same interface)
+createPhoto(input): Promise<PreIncidentEstimatePhoto>
+getNextDisplayOrder(estimateId: string): Promise<number>
+
+// additionals-photos.service.ts - USE THIS for additionals
+createPhoto(input): Promise<AdditionalsPhoto>
+getNextDisplayOrder(additionalsId: string): Promise<number>
+```
+
+### From Existing Components
+```typescript
+// PhotoUploadZone pattern from EstimatePhotosPanel - ADAPT THIS
+// - Camera capture input with capture="environment"
+// - File input with multiple and accept="image/*"
+// - Drag and drop zone
+
+// useOptimisticArray from utils - USE THIS for pending photos state
+```
+
 ## File Changes Summary
 
 | File | Change Type | Description |
 |------|-------------|-------------|
-| `PendingPhotoCapture.svelte` | **NEW** | Photo capture/preview component |
-| `upload-photos-with-label.ts` | **NEW** | Utility for labeled photo upload |
+| `PendingPhotoCapture.svelte` | **NEW** | Reusable photo capture/preview component |
+| `upload-photos-with-label.ts` | **NEW** | Utility for labeled photo upload (uses existing services) |
 | `QuickAddLineItem.svelte` | MODIFY | Add photo integration props and logic |
 | `EstimateTab.svelte` | MODIFY | Pass photo props to QuickAddLineItem |
 | `PreIncidentEstimateTab.svelte` | MODIFY | Pass photo props to QuickAddLineItem |
+| `AdditionalsTab.svelte` | MODIFY | Pass photo props to QuickAddLineItem |
 
 ## Implementation Phases
 
@@ -294,11 +366,12 @@ Photos appear in grid with "Front Bumper" label
 - [ ] Add upload progress indicator
 - [ ] Handle errors gracefully
 
-### Phase 4: Tab Integration (Est: 1 hour)
+### Phase 4: Tab Integration (Est: 1.5 hours)
 - [ ] Update EstimateTab to pass photo props
 - [ ] Update PreIncidentEstimateTab to pass photo props
-- [ ] Test end-to-end flow
-- [ ] Verify photos appear with correct labels
+- [ ] Update AdditionalsTab to pass photo props
+- [ ] Test end-to-end flow on all three tabs
+- [ ] Verify photos appear with correct labels in each photo panel
 
 ### Phase 5: Polish & Testing (Est: 1-2 hours)
 - [ ] Mobile responsiveness testing
@@ -323,12 +396,13 @@ Photos appear in grid with "Front Bumper" label
 - Template labels (common descriptions)
 - Link existing photos to line items (reverse association)
 
-## Questions for User
+## User Requirements (Confirmed)
 
-1. **Max photos per line item?** Suggest 5 as default, configurable
-2. **Required or optional?** Photos should be optional
-3. **Additionals tab too?** Can enable for additionals with same pattern
-4. **Cancel behavior?** If user cancels/clears form, discard pending photos
+1. **Max photos per line item:** 5 (confirmed)
+2. **Required or optional:** Photos are optional
+3. **Additionals tab:** Yes, include additionals tab support
+4. **Cancel behavior:** Discard pending photos when form is cleared/cancelled
+5. **Reusability:** Must use reusable components and leverage existing functions
 
 ## Verification Checklist
 
