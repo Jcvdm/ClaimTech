@@ -1,12 +1,13 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
 	import type { ActionData } from './$types';
-	import { Lock, Mail, ShieldCheck } from 'lucide-svelte';
+	import { Eye, EyeOff, Lock, Mail, ShieldCheck } from 'lucide-svelte';
 	import logo from '$lib/assets/logo.png';
 
 	let { form }: { form: ActionData } = $props();
 
 	let loading = $state(false);
+	let showPassword = $state(false);
 </script>
 
 <div class="grid min-h-screen bg-gray-50 text-gray-900 lg:grid-cols-[1.05fr_0.95fr]">
@@ -54,15 +55,25 @@
 		</div>
 	</section>
 
-	<section class="flex items-center justify-center p-6 sm:p-10">
-		<div class="w-full max-w-md space-y-6">
+	<section class="flex flex-col items-center justify-center p-4 sm:p-6 lg:p-10">
+		<!-- Mobile Header - Logo and branding for small screens -->
+		<div class="flex flex-col items-center pb-6 lg:hidden">
+			<img
+				src={logo}
+				alt="ClaimTech logo"
+				class="h-14 w-auto"
+			/>
+			<p class="mt-2 text-xs tracking-[0.3em] text-slate-500 uppercase">ClaimTech Platform</p>
+		</div>
+
+		<div class="w-full max-w-md space-y-5 sm:space-y-6">
 			<div class="text-center">
 				<p class="text-xs font-semibold tracking-[0.3em] text-gray-400 uppercase">Secure sign in</p>
-				<h2 class="mt-3 text-3xl font-semibold">Welcome back</h2>
-				<p class="mt-2 text-sm text-gray-500">Access your assessment workspace</p>
+				<h2 class="mt-2 text-2xl font-semibold sm:mt-3 sm:text-3xl">Welcome back</h2>
+				<p class="mt-1.5 text-sm text-gray-500 sm:mt-2">Access your assessment workspace</p>
 			</div>
 
-			<div class="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm shadow-gray-100">
+			<div class="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm shadow-gray-100 sm:p-6">
 				<form
 					method="POST"
 					class="space-y-5"
@@ -92,7 +103,7 @@
 								type="email"
 								autocomplete="email"
 								required
-								class="h-11 flex-1 rounded-xl border-none bg-transparent px-3 text-gray-900 placeholder:text-gray-400 focus:outline-none"
+								class="h-12 flex-1 rounded-xl border-none bg-transparent px-3 text-gray-900 placeholder:text-gray-400 focus:outline-none"
 								placeholder="you@claimtech.com"
 							/>
 						</div>
@@ -107,26 +118,46 @@
 							<input
 								id="password"
 								name="password"
-								type="password"
+								type={showPassword ? 'text' : 'password'}
 								autocomplete="current-password"
 								required
-								class="h-11 flex-1 rounded-xl border-none bg-transparent px-3 text-gray-900 placeholder:text-gray-400 focus:outline-none"
+								class="h-12 flex-1 rounded-xl border-none bg-transparent px-3 text-gray-900 placeholder:text-gray-400 focus:outline-none"
 								placeholder="Enter your password"
 							/>
+							<button
+								type="button"
+								onclick={() => (showPassword = !showPassword)}
+								class="mr-3 flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600"
+								aria-label={showPassword ? 'Hide password' : 'Show password'}
+							>
+								{#if showPassword}
+									<EyeOff class="h-4 w-4" />
+								{:else}
+									<Eye class="h-4 w-4" />
+								{/if}
+							</button>
 						</div>
 					</label>
 
-					<div class="flex items-center justify-between text-sm text-gray-500">
-						<a href="/auth/forgot-password" class="font-medium text-slate-700 hover:text-slate-900">
+					<div class="flex items-center justify-between gap-2 text-sm text-gray-500">
+						<a
+							href="/auth/forgot-password"
+							class="rounded-md px-1 py-1.5 font-medium text-slate-700 transition-colors hover:text-slate-900"
+						>
 							Forgot password?
 						</a>
-						<a href="/auth/signup" class="hover:text-gray-700">Need an account?</a>
+						<a
+							href="/auth/signup"
+							class="rounded-md px-1 py-1.5 transition-colors hover:text-gray-700"
+						>
+							Need an account?
+						</a>
 					</div>
 
 					<button
 						type="submit"
 						disabled={loading}
-						class="inline-flex w-full items-center justify-center rounded-xl bg-slate-900 px-4 py-3 text-sm font-semibold text-white shadow-sm shadow-slate-200 transition hover:bg-slate-800 focus:ring-2 focus:ring-slate-300 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
+						class="inline-flex h-12 w-full items-center justify-center rounded-xl bg-slate-900 px-4 text-sm font-semibold text-white shadow-sm shadow-slate-200 transition hover:bg-slate-800 focus:ring-2 focus:ring-slate-300 focus:outline-none active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
 					>
 						{loading ? 'Signing in...' : 'Sign in'}
 					</button>
