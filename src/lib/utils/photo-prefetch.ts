@@ -107,42 +107,84 @@ export function prefetchPhotos(
 
 /**
  * Extract all photo URLs from assessment data
- * Collects URLs from all photo arrays in the assessment
+ * Collects URLs from all photo arrays AND individual photo fields
  *
  * IMPORTANT: Uses storageService.toPhotoProxyUrl() to transform URLs
  * to match exactly what the photo components will request.
  * This ensures browser cache hits when navigating to tabs.
  */
 export function collectAssessmentPhotoUrls(data: {
+	// Photo arrays
 	exterior360Photos?: Array<{ photo_url?: string | null }>;
 	interiorPhotos?: Array<{ photo_url?: string | null }>;
 	tyrePhotos?: Array<{ photo_url?: string | null }>;
 	estimatePhotos?: Array<{ photo_url?: string | null }>;
 	preIncidentEstimatePhotos?: Array<{ photo_url?: string | null }>;
 	additionalsPhotos?: Array<{ photo_url?: string | null }>;
+	// Main 360 photos (8 positions) stored in exterior360 object
+	exterior360?: {
+		front_photo_url?: string | null;
+		front_left_photo_url?: string | null;
+		left_photo_url?: string | null;
+		rear_left_photo_url?: string | null;
+		rear_photo_url?: string | null;
+		rear_right_photo_url?: string | null;
+		right_photo_url?: string | null;
+		front_right_photo_url?: string | null;
+	} | null;
+	// Vehicle identification photos
+	vehicleIdentification?: {
+		registration_photo_url?: string | null;
+		vin_photo_url?: string | null;
+		mileage_photo_url?: string | null;
+		license_disc_photo_url?: string | null;
+	} | null;
 }): string[] {
 	const urls: string[] = [];
 
-	const extractUrls = (photos?: Array<{ photo_url?: string | null }>) => {
-		if (!photos) return;
-		photos.forEach((photo) => {
-			if (photo.photo_url) {
-				// Transform to proxy URL format - MUST match what components use
-				const proxyUrl = storageService.toPhotoProxyUrl(photo.photo_url);
-				if (proxyUrl) {
-					urls.push(proxyUrl);
-				}
+	// Helper to add a single URL
+	const addUrl = (url?: string | null) => {
+		if (url) {
+			const proxyUrl = storageService.toPhotoProxyUrl(url);
+			if (proxyUrl) {
+				urls.push(proxyUrl);
 			}
-		});
+		}
 	};
 
-	// Collect from all photo sources
-	extractUrls(data.exterior360Photos);
-	extractUrls(data.interiorPhotos);
-	extractUrls(data.tyrePhotos);
-	extractUrls(data.estimatePhotos);
-	extractUrls(data.preIncidentEstimatePhotos);
-	extractUrls(data.additionalsPhotos);
+	// Helper to extract from photo arrays
+	const extractFromArray = (photos?: Array<{ photo_url?: string | null }>) => {
+		if (!photos) return;
+		photos.forEach((photo) => addUrl(photo.photo_url));
+	};
+
+	// Main 8-position 360° photos (these are the ones loading slow!)
+	if (data.exterior360) {
+		addUrl(data.exterior360.front_photo_url);
+		addUrl(data.exterior360.front_left_photo_url);
+		addUrl(data.exterior360.left_photo_url);
+		addUrl(data.exterior360.rear_left_photo_url);
+		addUrl(data.exterior360.rear_photo_url);
+		addUrl(data.exterior360.rear_right_photo_url);
+		addUrl(data.exterior360.right_photo_url);
+		addUrl(data.exterior360.front_right_photo_url);
+	}
+
+	// Vehicle ID photos
+	if (data.vehicleIdentification) {
+		addUrl(data.vehicleIdentification.registration_photo_url);
+		addUrl(data.vehicleIdentification.vin_photo_url);
+		addUrl(data.vehicleIdentification.mileage_photo_url);
+		addUrl(data.vehicleIdentification.license_disc_photo_url);
+	}
+
+	// Photo arrays
+	extractFromArray(data.exterior360Photos);
+	extractFromArray(data.interiorPhotos);
+	extractFromArray(data.tyrePhotos);
+	extractFromArray(data.estimatePhotos);
+	extractFromArray(data.preIncidentEstimatePhotos);
+	extractFromArray(data.additionalsPhotos);
 
 	return urls;
 }

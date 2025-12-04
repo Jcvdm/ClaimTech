@@ -178,7 +178,13 @@
 		});
 
 		// Prefetch all assessment photos in background for faster tab navigation
+		// Includes: main 360 photos, vehicle ID photos, and all photo arrays
 		cancelPhotoPrefetch = prefetchAssessmentPhotos({
+			// Main 8-position 360° photos (stored in exterior360 object)
+			exterior360: data.exterior360,
+			// Vehicle identification photos
+			vehicleIdentification: data.vehicleIdentification,
+			// Photo arrays
 			exterior360Photos: data.exterior360Photos,
 			interiorPhotos: data.interiorPhotos,
 			tyrePhotos: data.tyrePhotos,
