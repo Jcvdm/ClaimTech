@@ -34,8 +34,11 @@ export function prefetchPhotos(
 		return () => {};
 	}
 
+	console.log(`[Photo Prefetch] Starting prefetch of ${validUrls.length} photos`);
+
 	let cancelled = false;
 	let loaded = 0;
+	let errors = 0;
 	const total = validUrls.length;
 	const queue = [...validUrls];
 	const activeLoads = new Set<HTMLImageElement>();
@@ -47,18 +50,33 @@ export function prefetchPhotos(
 		const img = new Image();
 		activeLoads.add(img);
 
-		// Use low priority for background prefetch
-		if (priority === 'low') {
-			img.loading = 'lazy';
-			img.decoding = 'async';
+		// Set decoding to async for non-blocking decode
+		img.decoding = 'async';
+
+		// Use fetchpriority for low priority (NOT loading='lazy' which prevents loading)
+		if (priority === 'low' && 'fetchPriority' in img) {
+			(img as any).fetchPriority = 'low';
 		}
 
-		img.onload = img.onerror = () => {
+		img.onload = () => {
 			activeLoads.delete(img);
 			loaded++;
 			onProgress?.(loaded, total);
 
-			if (loaded === total) {
+			if (loaded + errors === total) {
+				console.log(`[Photo Prefetch] Complete: ${loaded} loaded, ${errors} errors`);
+				onComplete?.();
+			} else {
+				loadNext();
+			}
+		};
+
+		img.onerror = () => {
+			activeLoads.delete(img);
+			errors++;
+
+			if (loaded + errors === total) {
+				console.log(`[Photo Prefetch] Complete: ${loaded} loaded, ${errors} errors`);
 				onComplete?.();
 			} else {
 				loadNext();
@@ -77,6 +95,7 @@ export function prefetchPhotos(
 	// Return cancel function
 	return () => {
 		cancelled = true;
+		console.log(`[Photo Prefetch] Cancelled with ${loaded} loaded`);
 		activeLoads.forEach((img) => {
 			img.src = ''; // Cancel pending loads
 		});
