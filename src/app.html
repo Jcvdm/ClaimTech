@@ -2,7 +2,26 @@
 <html lang="en">
 	<head>
 		<meta charset="utf-8" />
-		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+
+		<!-- PWA Meta Tags -->
+		<meta name="theme-color" content="#0f172a" />
+		<meta name="description" content="ClaimTech - Vehicle assessment capture for engineers" />
+		<meta name="application-name" content="ClaimTech" />
+
+		<!-- Apple PWA Meta Tags -->
+		<meta name="apple-mobile-web-app-capable" content="yes" />
+		<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+		<meta name="apple-mobile-web-app-title" content="ClaimTech" />
+		<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
+
+		<!-- Favicon -->
+		<link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32.png" />
+		<link rel="icon" type="image/png" sizes="16x16" href="/icons/favicon-16.png" />
+
+		<!-- PWA Manifest -->
+		<link rel="manifest" href="/manifest.json" />
+
 		%sveltekit.head%
 	</head>
 	<body data-sveltekit-preload-data="hover">

@@ -5,6 +5,7 @@
 	import { invalidate } from '$app/navigation';
 	import NavigationLoadingBar from '$lib/components/layout/NavigationLoadingBar.svelte';
 	import NavigationLoadingModal from '$lib/components/layout/NavigationLoadingModal.svelte';
+	import InstallPrompt from '$lib/components/pwa/InstallPrompt.svelte';
 
 	let { children, data } = $props();
 
@@ -31,5 +32,6 @@
 
 <NavigationLoadingBar />
 <NavigationLoadingModal />
+<InstallPrompt />
 
 {@render children?.()}
