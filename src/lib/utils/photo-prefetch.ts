@@ -5,6 +5,8 @@
  * when the user navigates to different assessment tabs.
  */
 
+import { storageService } from '$lib/services/storage.service';
+
 interface PrefetchOptions {
 	/** Number of images to load concurrently (default: 4) */
 	concurrency?: number;
@@ -106,6 +108,10 @@ export function prefetchPhotos(
 /**
  * Extract all photo URLs from assessment data
  * Collects URLs from all photo arrays in the assessment
+ *
+ * IMPORTANT: Uses storageService.toPhotoProxyUrl() to transform URLs
+ * to match exactly what the photo components will request.
+ * This ensures browser cache hits when navigating to tabs.
  */
 export function collectAssessmentPhotoUrls(data: {
 	exterior360Photos?: Array<{ photo_url?: string | null }>;
@@ -121,7 +127,11 @@ export function collectAssessmentPhotoUrls(data: {
 		if (!photos) return;
 		photos.forEach((photo) => {
 			if (photo.photo_url) {
-				urls.push(photo.photo_url);
+				// Transform to proxy URL format - MUST match what components use
+				const proxyUrl = storageService.toPhotoProxyUrl(photo.photo_url);
+				if (proxyUrl) {
+					urls.push(proxyUrl);
+				}
 			}
 		});
 	};
