@@ -1,10 +1,12 @@
 <script lang="ts">
 	import { Card } from '$lib/components/ui/card';
-	import { StickyNote, MessageSquare } from 'lucide-svelte';
+	import { StickyNote, MessageSquare, ChevronDown, ChevronUp } from 'lucide-svelte';
 	import { assessmentNotesService } from '$lib/services/assessment-notes.service';
 	import type { AssessmentNote } from '$lib/types/assessment';
 	import NoteBubble from './NoteBubble.svelte';
 	import AddNoteInput from './AddNoteInput.svelte';
+	import { browser } from '$app/environment';
+	import { onMount } from 'svelte';
 
 	interface Props {
 		assessmentId: string;
@@ -16,6 +18,16 @@
 
 	let { assessmentId, notes, currentTab, onUpdate, lastSaved = null }: Props = $props();
 
+	// Collapsible state - default to expanded, but collapse on mobile
+	let isExpanded = $state(true);
+
+	// On mount, collapse on small screens
+	onMount(() => {
+		if (browser && window.innerWidth < 640) {
+			isExpanded = false;
+		}
+	});
+
 	// Sort notes by created_at (oldest first for chat-style display)
 	const sortedNotes = $derived(
 		[...notes].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
@@ -24,7 +36,7 @@
 	// Scroll to bottom when new notes are added
 	let notesContainer: HTMLDivElement;
 	$effect(() => {
-		if (notesContainer && notes.length > 0) {
+		if (notesContainer && notes.length > 0 && isExpanded) {
 			// Small delay to ensure DOM is updated
 			setTimeout(() => {
 				notesContainer.scrollTop = notesContainer.scrollHeight;
@@ -73,39 +85,53 @@
 </script>
 
 <Card class="border-blue-200 bg-blue-50/50">
-	<!-- Header -->
-	<div class="flex items-center justify-between border-b border-blue-200 p-4">
-		<div class="flex items-center gap-2">
-			<StickyNote class="h-5 w-5 text-blue-600" />
-			<h3 class="text-lg font-semibold text-gray-900">Assessment Notes</h3>
-		</div>
-		<div class="flex items-center gap-2 text-sm text-gray-600">
-			<MessageSquare class="h-4 w-4" />
-			<span>{notes.length} {notes.length === 1 ? 'note' : 'notes'}</span>
-		</div>
-	</div>
-
-	<!-- Notes List (scrollable) -->
-	<div
-		bind:this={notesContainer}
-		class="max-h-[500px] min-h-[200px] space-y-3 overflow-y-auto p-4"
+	<!-- Header - Clickable to expand/collapse -->
+	<button
+		type="button"
+		onclick={() => (isExpanded = !isExpanded)}
+		class="flex w-full items-center justify-between border-b border-blue-200 p-3 transition-colors hover:bg-blue-100/50 sm:p-4"
+		class:border-b-0={!isExpanded}
 	>
-		{#if sortedNotes.length === 0}
-			<div class="flex h-[180px] flex-col items-center justify-center text-center text-gray-500">
-				<MessageSquare class="mb-2 h-12 w-12 opacity-30" />
-				<p class="text-sm font-medium">No notes yet</p>
-				<p class="text-xs">Add your first note below</p>
-			</div>
-		{:else}
-			{#each sortedNotes as note (note.id)}
-				<NoteBubble {note} onEdit={handleEditNote} onDelete={handleDeleteNote} />
-			{/each}
-		{/if}
-	</div>
+		<div class="flex items-center gap-2">
+			<StickyNote class="h-4 w-4 text-blue-600 sm:h-5 sm:w-5" />
+			<h3 class="text-base font-semibold text-gray-900 sm:text-lg">Notes</h3>
+			<span class="text-xs text-gray-500 sm:text-sm">({notes.length})</span>
+		</div>
+		<div class="flex items-center gap-2">
+			{#if !isExpanded && notes.length > 0}
+				<span class="text-xs text-gray-500">Tap to expand</span>
+			{/if}
+			{#if isExpanded}
+				<ChevronUp class="h-4 w-4 text-gray-500 sm:h-5 sm:w-5" />
+			{:else}
+				<ChevronDown class="h-4 w-4 text-gray-500 sm:h-5 sm:w-5" />
+			{/if}
+		</div>
+	</button>
 
-	<!-- Add Note Input (sticky at bottom) -->
-	<div class="border-t border-blue-200 bg-white p-4">
-		<AddNoteInput onAdd={handleAddNote} />
-	</div>
+	{#if isExpanded}
+		<!-- Notes List (scrollable) - responsive heights -->
+		<div
+			bind:this={notesContainer}
+			class="max-h-[250px] min-h-[100px] space-y-3 overflow-y-auto p-3 sm:max-h-[400px] sm:min-h-[150px] sm:p-4"
+		>
+			{#if sortedNotes.length === 0}
+				<div class="flex h-[80px] flex-col items-center justify-center text-center text-gray-500 sm:h-[130px]">
+					<MessageSquare class="mb-2 h-8 w-8 opacity-30 sm:h-12 sm:w-12" />
+					<p class="text-sm font-medium">No notes yet</p>
+					<p class="text-xs">Add your first note below</p>
+				</div>
+			{:else}
+				{#each sortedNotes as note (note.id)}
+					<NoteBubble {note} onEdit={handleEditNote} onDelete={handleDeleteNote} />
+				{/each}
+			{/if}
+		</div>
+
+		<!-- Add Note Input (sticky at bottom) -->
+		<div class="border-t border-blue-200 bg-white p-3 sm:p-4">
+			<AddNoteInput onAdd={handleAddNote} />
+		</div>
+	{/if}
 </Card>
 

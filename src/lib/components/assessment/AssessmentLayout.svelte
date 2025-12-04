@@ -17,7 +17,8 @@
 		FileCheck,
 		Plus,
 		Trash2,
-		History
+		History,
+		Clock
 	} from 'lucide-svelte';
 	import type { Assessment } from '$lib/types/assessment';
 	import {
@@ -212,67 +213,73 @@
 	<!-- Sticky Header Container -->
 	<div class="relative z-30 flex flex-col bg-gray-50 shadow-sm">
 		<!-- Header -->
-		<div class="border-b bg-white px-4 py-3 sm:px-6 sm:py-4 lg:px-8">
-			<div class="flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-center">
+		<div class="border-b bg-white px-3 py-2 sm:px-6 sm:py-4 lg:px-8">
+			<div class="flex items-center justify-between gap-2 sm:gap-3">
+				<!-- Title Section -->
 				<div class="min-w-0 flex-1">
-					<h1 class="truncate text-xl font-bold text-gray-900 sm:text-2xl">
-						Assessment {assessment.assessment_number}
+					<h1 class="truncate text-base font-bold text-gray-900 sm:text-xl lg:text-2xl">
+						{assessment.assessment_number}
 					</h1>
-					<p class="mt-1 text-xs text-gray-500 sm:text-sm">
-						Complete the vehicle assessment by filling in all required sections
+					<p class="mt-0.5 hidden text-xs text-gray-500 sm:block sm:text-sm">
+						Complete the vehicle assessment
 					</p>
 				</div>
-				<div
-					class="flex w-full flex-col items-stretch gap-2 sm:w-auto sm:flex-row sm:items-center sm:gap-3"
-				>
+
+				<!-- Actions Section -->
+				<div class="flex items-center gap-1.5 sm:gap-2">
+					<!-- Last saved indicator -->
 					{#if lastSaved}
-						<span class="text-center text-xs text-gray-500 sm:text-left sm:text-sm">
-							Last saved: {new Date(lastSaved).toLocaleTimeString()}
-						</span>
+						<div class="hidden items-center gap-1 text-xs text-gray-500 sm:flex sm:text-sm" title="Last saved: {new Date(lastSaved).toLocaleTimeString()}">
+							<Clock class="h-3.5 w-3.5" />
+							<span class="hidden md:inline">Saved {new Date(lastSaved).toLocaleTimeString()}</span>
+						</div>
 					{/if}
-					<div class="flex gap-2">
-						<LoadingButton
-							variant="outline"
-							onclick={onSave}
-							loading={saving}
-							class="flex-1 sm:flex-none"
-						>
-							{#if !saving}
-								<Save class="mr-2 h-4 w-4" />
-							{/if}
-							{saving ? 'Saving...' : 'Save'}
-						</LoadingButton>
-						{#if onCancel && ['assessment_in_progress', 'estimate_review', 'estimate_sent'].includes(assessment.stage)}
-							<Button variant="destructive" onclick={onCancel} class="flex-1 sm:flex-none">
-								<Trash2 class="mr-2 h-4 w-4" />
-								Cancel
-							</Button>
+
+					<!-- Buttons - icon only on xs, with text on sm+ -->
+					<LoadingButton
+						variant="outline"
+						onclick={onSave}
+						loading={saving}
+						size="sm"
+						class="h-8 px-2 sm:h-9 sm:px-3"
+					>
+						{#if !saving}
+							<Save class="h-4 w-4 sm:mr-1.5" />
 						{/if}
-						<Button variant="outline" onclick={onExit} class="flex-1 sm:flex-none">
-							<X class="mr-2 h-4 w-4" />
-							Exit
+						<span class="hidden sm:inline">{saving ? 'Saving...' : 'Save'}</span>
+					</LoadingButton>
+
+					{#if onCancel && ['assessment_in_progress', 'estimate_review', 'estimate_sent'].includes(assessment.stage)}
+						<Button variant="destructive" onclick={onCancel} size="sm" class="h-8 px-2 sm:h-9 sm:px-3">
+							<Trash2 class="h-4 w-4 sm:mr-1.5" />
+							<span class="hidden sm:inline">Cancel</span>
 						</Button>
-					</div>
+					{/if}
+
+					<Button variant="outline" onclick={onExit} size="sm" class="h-8 px-2 sm:h-9 sm:px-3">
+						<X class="h-4 w-4 sm:mr-1.5" />
+						<span class="hidden sm:inline">Exit</span>
+					</Button>
 				</div>
 			</div>
 		</div>
 
 		<!-- Tabs -->
-		<div class="border-b bg-white px-4 py-2 sm:px-6 lg:px-8">
+		<div class="border-b bg-white px-2 py-2 sm:px-6 lg:px-8">
 			<Tabs
 				bind:value={currentTab}
 				class="w-full"
 				onValueChange={(value: string) => onTabChange(value)}
 			>
 				<TabsList
-					class="grid h-auto w-full grid-cols-2 gap-1.5 bg-transparent p-0 sm:grid-cols-4 sm:gap-2 md:grid-cols-6 lg:grid-cols-6"
+					class="flex h-auto w-full snap-x snap-mandatory gap-1.5 overflow-x-auto bg-transparent p-0 pb-2 scrollbar-hide sm:grid sm:snap-none sm:grid-cols-4 sm:gap-2 sm:overflow-visible sm:pb-0 md:grid-cols-6 lg:grid-cols-6"
 				>
 					{#each tabs() as tab}
 						{@const missingCount = getMissingFieldsCount(tab.id)}
 						<TabsTrigger
 							value={tab.id}
 							disabled={tabLoading}
-							class="relative flex h-8 items-center justify-center gap-1.5 rounded-md border border-transparent px-2 py-1.5 text-xs font-medium text-muted-foreground ring-offset-background transition-all hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-rose-500 data-[state=active]:text-white data-[state=active]:shadow-sm sm:h-9 sm:gap-2 sm:px-3 sm:py-2 sm:text-sm"
+							class="relative flex h-8 min-w-[4.5rem] shrink-0 snap-start items-center justify-center gap-1 rounded-md border border-transparent px-2 py-1.5 text-xs font-medium text-muted-foreground ring-offset-background transition-all hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-rose-500 data-[state=active]:text-white data-[state=active]:shadow-sm sm:h-9 sm:min-w-0 sm:shrink sm:gap-2 sm:px-3 sm:py-2 sm:text-sm"
 						>
 							<TabLoadingIndicator
 								isLoading={tabLoading && currentTab === tab.id}
@@ -301,3 +308,14 @@
 		</div>
 	</div>
 </div>
+
+<style>
+	/* Hide scrollbar for horizontal tab scroll on mobile */
+	:global(.scrollbar-hide) {
+		-ms-overflow-style: none; /* IE and Edge */
+		scrollbar-width: none; /* Firefox */
+	}
+	:global(.scrollbar-hide::-webkit-scrollbar) {
+		display: none; /* Chrome, Safari, Opera */
+	}
+</style>
