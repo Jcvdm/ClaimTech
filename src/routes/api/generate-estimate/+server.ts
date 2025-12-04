@@ -62,20 +62,49 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 			{ data: requestData, error: requestError },
 			{ data: inspection, error: inspectionError }
 		] = await Promise.all([
+			// Use maybeSingle() for vehicle identification - it may not exist yet on mobile
 			locals.supabase
 				.from('assessment_vehicle_identification')
 				.select('*')
 				.eq('assessment_id', assessmentId)
-				.single(),
-			locals.supabase.from('assessment_estimates').select('*').eq('assessment_id', assessmentId).single(),
+				.maybeSingle(),
+			// Use maybeSingle() for estimate - may not exist in early workflow stages
+			locals.supabase.from('assessment_estimates').select('*').eq('assessment_id', assessmentId).maybeSingle(),
 			locals.supabase.from('company_settings').select('*').single(),
 			locals.supabase.from('requests').select('*').eq('id', assessment.request_id).single(),
 			assessment.inspection_id ? locals.supabase.from('inspections').select('*').eq('id', assessment.inspection_id).single() : Promise.resolve({ data: null, error: null })
 		]);
 
-		// Check for errors
+		// Check for critical errors (company settings and request are required)
+		if (settingsError) {
+			console.error(`[${new Date().toISOString()}] [Request ${requestId}] Company settings fetch error:`, settingsError);
+			yield {
+				status: 'error',
+				progress: 0,
+				error: 'Failed to load company settings'
+			};
+			return;
+		}
+
+		if (requestError || !requestData) {
+			console.error(`[${new Date().toISOString()}] [Request ${requestId}] Request fetch error:`, requestError);
+			yield {
+				status: 'error',
+				progress: 0,
+				error: 'Failed to load request data'
+			};
+			return;
+		}
+
+		// Log non-critical errors (vehicle identification and estimate are optional at this stage)
+		if (vehicleError) {
+			console.warn(`[${new Date().toISOString()}] [Request ${requestId}] Vehicle identification fetch warning:`, vehicleError);
+		}
 		if (estimateError) {
-			console.error('Estimate fetch error:', estimateError);
+			console.warn(`[${new Date().toISOString()}] [Request ${requestId}] Estimate fetch warning:`, estimateError);
+		}
+		if (inspectionError) {
+			console.warn(`[${new Date().toISOString()}] [Request ${requestId}] Inspection fetch warning:`, inspectionError);
 		}
 
 		console.log(`[${new Date().toISOString()}] [Request ${requestId}] Yielding progress: 35%`);

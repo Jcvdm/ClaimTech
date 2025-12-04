@@ -95,22 +95,47 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
 			// Fetch related data (excluding client and repairer which have nested dependencies)
 			const [
-				{ data: vehicleIdentification },
-				{ data: estimate },
-				{ data: additionals },
-				{ data: companySettings },
-				{ data: requestData }
+				{ data: vehicleIdentification, error: vehicleError },
+				{ data: estimate, error: estimateError },
+				{ data: additionals, error: additionalsError },
+				{ data: companySettings, error: settingsError },
+				{ data: requestData, error: requestError }
 			] = await Promise.all([
+				// Use maybeSingle() for optional data that may not exist yet on mobile
 				locals.supabase
 					.from('assessment_vehicle_identification')
 					.select('*')
 					.eq('assessment_id', assessmentId)
-					.single(),
-				locals.supabase.from('assessment_estimates').select('*').eq('assessment_id', assessmentId).single(),
-				locals.supabase.from('assessment_additionals').select('*').eq('assessment_id', assessmentId).single(),
+					.maybeSingle(),
+				locals.supabase.from('assessment_estimates').select('*').eq('assessment_id', assessmentId).maybeSingle(),
+				locals.supabase.from('assessment_additionals').select('*').eq('assessment_id', assessmentId).maybeSingle(),
 				locals.supabase.from('company_settings').select('*').single(),
 				locals.supabase.from('requests').select('excess_amount').eq('id', assessment.request_id).single()
 			]);
+
+			// Check for critical errors
+			if (settingsError) {
+				console.error(`[${new Date().toISOString()}] [Request ${requestId}] Company settings fetch error:`, settingsError);
+				yield { status: 'error', progress: 0, error: 'Failed to load company settings' };
+				return;
+			}
+
+			if (requestError) {
+				console.error(`[${new Date().toISOString()}] [Request ${requestId}] Request fetch error:`, requestError);
+				yield { status: 'error', progress: 0, error: 'Failed to load request data' };
+				return;
+			}
+
+			// Log non-critical warnings
+			if (vehicleError) {
+				console.warn(`[${new Date().toISOString()}] [Request ${requestId}] Vehicle identification fetch warning:`, vehicleError);
+			}
+			if (estimateError) {
+				console.warn(`[${new Date().toISOString()}] [Request ${requestId}] Estimate fetch warning:`, estimateError);
+			}
+			if (additionalsError) {
+				console.warn(`[${new Date().toISOString()}] [Request ${requestId}] Additionals fetch warning:`, additionalsError);
+			}
 
 			console.log(`[${new Date().toISOString()}] [Request ${requestId}] Yielding progress: 40%`);
 			yield { status: 'processing', progress: 40, message: 'Loading repairer and documents...' };
