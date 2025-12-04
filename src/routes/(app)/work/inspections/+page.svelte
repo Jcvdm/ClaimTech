@@ -3,6 +3,7 @@
 	import { useNavigationLoading } from '$lib/utils/useNavigationLoading.svelte';
 	import PageHeader from '$lib/components/layout/PageHeader.svelte';
 	import ModernDataTable from '$lib/components/data/ModernDataTable.svelte';
+import type { CardConfig } from '$lib/components/data/ListItemCard.svelte';
 	import ActionButtonGroup from '$lib/components/data/ActionButtonGroup.svelte';
 	import ActionIconButton from '$lib/components/data/ActionIconButton.svelte';
 	import GradientBadge from '$lib/components/data/GradientBadge.svelte';
@@ -90,13 +91,21 @@
 		}
 	];
 
+	// Mobile card configuration
+	const mobileCardConfig: CardConfig<(typeof assessmentsWithDetails)[0]> = {
+		primaryField: 'assessment_number',
+		secondaryField: 'type',
+		bodyFields: ['client_name', 'vehicle_display', 'request_date'],
+		footerField: 'stage'
+	};
+
 	function handleRowClick(row: (typeof assessmentsWithDetails)[0]) {
 		// Navigate directly to inspection detail page with loading state
 		startNavigation(row.id, `/work/inspections/${row.id}`);
 	}
 </script>
 
-<div class="flex-1 space-y-6 p-8">
+<div class="flex-1 space-y-4 p-4 md:space-y-6 md:p-8">
 	<PageHeader title="Inspections" description="Manage vehicle damage inspections" />
 
 	{#if data.error}
@@ -121,6 +130,7 @@
 			loadingRowId={loadingId}
 			rowIdKey="id"
 			striped
+			{mobileCardConfig}
 		>
 			{#snippet cellContent(column, row)}
 				{#if column.key === 'assessment_number'}
@@ -137,6 +147,27 @@
 					<GradientBadge variant="yellow" label="Inspection Scheduled" />
 				{:else}
 					{row[column.key]}
+				{/if}
+			{/snippet}
+			{#snippet mobileCardContent(field, row)}
+				{#if field === 'assessment_number'}
+					<span class="font-semibold text-gray-900">{row.assessment_number}</span>
+				{:else if field === 'type'}
+					{@const isInsurance = row.type === 'insurance'}
+					<GradientBadge
+						variant={isInsurance ? 'blue' : 'purple'}
+						label={isInsurance ? 'Insurance' : 'Private'}
+					/>
+				{:else if field === 'client_name'}
+					<span class="text-gray-600"><User class="inline h-3.5 w-3.5 mr-1 text-gray-400" />{row.client_name}</span>
+				{:else if field === 'vehicle_display'}
+					<span class="text-gray-600"><Car class="inline h-3.5 w-3.5 mr-1 text-gray-400" />{row.vehicle_display}</span>
+				{:else if field === 'request_date'}
+					<span class="text-gray-500"><Calendar class="inline h-3.5 w-3.5 mr-1 text-gray-400" />{row.request_date}</span>
+				{:else if field === 'stage'}
+					<GradientBadge variant="yellow" label="Inspection Scheduled" />
+				{:else}
+					{row[field]}
 				{/if}
 			{/snippet}
 		</ModernDataTable>

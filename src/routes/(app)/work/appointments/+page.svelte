@@ -5,6 +5,7 @@
 	import PageHeader from '$lib/components/layout/PageHeader.svelte';
 	import EmptyState from '$lib/components/data/EmptyState.svelte';
 	import ModernDataTable from '$lib/components/data/ModernDataTable.svelte';
+	import type { CardConfig } from '$lib/components/data/ListItemCard.svelte';
 	import TableCell from '$lib/components/data/TableCell.svelte';
 	import GradientBadge from '$lib/components/data/GradientBadge.svelte';
 	import ActionButtonGroup from '$lib/components/data/ActionButtonGroup.svelte';
@@ -148,6 +149,14 @@
 		{ key: 'location_display' as const, label: 'Location', sortable: false, icon: MapPin }
 	];
 
+	// Mobile card configuration
+	const mobileCardConfig: CardConfig<(typeof allAssessmentsWithDetails)[0]> = {
+		primaryField: 'appointment_number',
+		secondaryField: 'appointment_type',
+		bodyFields: ['datetime_display', 'client_name', 'vehicle_display'],
+		footerField: 'location_display'
+	};
+
 	function handleRowClick(row: (typeof allAssessmentsWithDetails)[0]) {
 		startNavigation(row.appointment_id, `/work/appointments/${row.appointment_id}`);
 	}
@@ -252,7 +261,7 @@
 	}
 </script>
 
-<div class="flex-1 space-y-6 p-8">
+<div class="flex-1 space-y-4 p-4 md:space-y-6 md:p-8">
 	<PageHeader
 		title="Appointments"
 		description="Upcoming inspection appointments - both in-person and digital assessments"
@@ -294,7 +303,7 @@
 					<h2 class="text-lg font-semibold text-red-600">Overdue ({overdueAssessments.length})</h2>
 				</div>
 
-				<div class="overflow-hidden rounded-xl border-2 border-red-200 bg-red-50/30 shadow-sm">
+				<div class="overflow-hidden rounded-xl border-2 border-red-200 bg-red-50/30 shadow-sm md:bg-transparent md:border-0 md:shadow-none">
 					<ModernDataTable
 						data={overdueAssessments}
 						{columns}
@@ -302,6 +311,7 @@
 						loadingRowId={loadingId}
 						rowIdKey="appointment_id"
 						striped
+						{mobileCardConfig}
 					>
 						{#snippet cellContent(column, row)}
 							{#if column.key === 'appointment_number'}
@@ -325,6 +335,26 @@
 								{row[column.key]}
 							{/if}
 						{/snippet}
+						{#snippet mobileCardContent(field, row)}
+							{#if field === 'appointment_number'}
+								<span class="font-semibold text-red-900">{row.appointment_number}</span>
+							{:else if field === 'appointment_type'}
+								<GradientBadge
+									variant={row.appointment_type === 'in_person' ? 'blue' : 'purple'}
+									label={row.type_display}
+								/>
+							{:else if field === 'datetime_display'}
+								<span class="text-red-700"><Clock class="inline h-3.5 w-3.5 mr-1" />{row.datetime_display} · {row.time_display}</span>
+							{:else if field === 'client_name'}
+								<span class="text-gray-600"><User class="inline h-3.5 w-3.5 mr-1 text-gray-400" />{row.client_name}</span>
+							{:else if field === 'vehicle_display'}
+								<span class="text-gray-600"><Car class="inline h-3.5 w-3.5 mr-1 text-gray-400" />{row.vehicle_display}</span>
+							{:else if field === 'location_display'}
+								<span class="text-gray-500"><MapPin class="inline h-3.5 w-3.5 mr-1" />{row.location_display}</span>
+							{:else}
+								{row[field]}
+							{/if}
+						{/snippet}
 					</ModernDataTable>
 				</div>
 			</div>
@@ -346,6 +376,7 @@
 					loadingRowId={loadingId}
 					rowIdKey="appointment_id"
 					striped
+					{mobileCardConfig}
 				>
 					{#snippet cellContent(column, row)}
 						{#if column.key === 'appointment_number'}
@@ -367,6 +398,26 @@
 							</div>
 						{:else}
 							{row[column.key]}
+						{/if}
+					{/snippet}
+					{#snippet mobileCardContent(field, row)}
+						{#if field === 'appointment_number'}
+							<span class="font-semibold text-gray-900">{row.appointment_number}</span>
+						{:else if field === 'appointment_type'}
+							<GradientBadge
+								variant={row.appointment_type === 'in_person' ? 'blue' : 'purple'}
+								label={row.type_display}
+							/>
+						{:else if field === 'datetime_display'}
+							<span class="text-gray-700"><Clock class="inline h-3.5 w-3.5 mr-1 text-gray-400" />{row.datetime_display} · {row.time_display}</span>
+						{:else if field === 'client_name'}
+							<span class="text-gray-600"><User class="inline h-3.5 w-3.5 mr-1 text-gray-400" />{row.client_name}</span>
+						{:else if field === 'vehicle_display'}
+							<span class="text-gray-600"><Car class="inline h-3.5 w-3.5 mr-1 text-gray-400" />{row.vehicle_display}</span>
+						{:else if field === 'location_display'}
+							<span class="text-gray-500"><MapPin class="inline h-3.5 w-3.5 mr-1" />{row.location_display}</span>
+						{:else}
+							{row[field]}
 						{/if}
 					{/snippet}
 				</ModernDataTable>

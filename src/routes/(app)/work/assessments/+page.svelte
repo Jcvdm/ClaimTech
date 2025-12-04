@@ -6,6 +6,7 @@
 	import { useNavigationLoading } from '$lib/utils/useNavigationLoading.svelte';
 	import PageHeader from '$lib/components/layout/PageHeader.svelte';
 	import ModernDataTable from '$lib/components/data/ModernDataTable.svelte';
+	import type { CardConfig } from '$lib/components/data/ListItemCard.svelte';
 	import ActionButtonGroup from '$lib/components/data/ActionButtonGroup.svelte';
 	import ActionIconButton from '$lib/components/data/ActionIconButton.svelte';
 	import GradientBadge from '$lib/components/data/GradientBadge.svelte';
@@ -146,6 +147,14 @@
 		}
 	];
 
+	// Mobile card configuration
+	const mobileCardConfig: CardConfig<(typeof assessmentsWithDetails)[0]> = {
+		primaryField: 'assessment_number',
+		secondaryField: 'progress_display',
+		bodyFields: ['vehicle_display', 'vehicle_registration', 'engineer_name'],
+		footerField: 'formatted_updated'
+	};
+
 	function handleRowClick(assessment: (typeof assessmentsWithDetails)[0]) {
 		// Navigate directly to assessment detail page with loading state
 		startNavigation(assessment.appointment_id, `/work/assessments/${assessment.appointment_id}`);
@@ -179,7 +188,7 @@
 	}
 </script>
 
-<div class="flex-1 space-y-6 p-8">
+<div class="flex-1 space-y-4 p-4 md:space-y-6 md:p-8">
 	<PageHeader
 		title="Open Assessments"
 		description="Active vehicle assessments currently in progress"
@@ -216,6 +225,7 @@
 			loadingRowId={loadingId}
 			rowIdKey="appointment_id"
 			striped
+			{mobileCardConfig}
 		>
 			{#snippet cellContent(column, row)}
 				{#if column.key === 'progress_display'}
@@ -256,6 +266,30 @@
 					</ActionButtonGroup>
 				{:else}
 					{row[column.key]}
+				{/if}
+			{/snippet}
+			{#snippet mobileCardContent(field, row)}
+				{#if field === 'assessment_number'}
+					<span class="font-semibold text-gray-900">{row.assessment_number}</span>
+				{:else if field === 'progress_display'}
+					{@const percentage = row.progress_percentage}
+					{@const variant =
+						percentage === 100
+							? 'green'
+							: percentage >= 60
+								? 'blue'
+								: percentage >= 30
+									? 'yellow'
+									: 'gray'}
+					<GradientBadge {variant} label={`${percentage}%`} />
+				{:else if field === 'vehicle_display'}
+					<span class="text-gray-600"><Car class="inline h-3.5 w-3.5 mr-1 text-gray-400" />{row.vehicle_display}</span>
+				{:else if field === 'vehicle_registration'}
+					<span class="text-gray-500"><CreditCard class="inline h-3.5 w-3.5 mr-1 text-gray-400" />{row.vehicle_registration}</span>
+				{:else if field === 'engineer_name'}
+					<span class="text-gray-600"><User class="inline h-3.5 w-3.5 mr-1 text-gray-400" />{row.engineer_name}</span>
+				{:else}
+					{row[field]}
 				{/if}
 			{/snippet}
 		</ModernDataTable>

@@ -3,6 +3,7 @@
 	import * as Table from '$lib/components/ui/table';
 	import { ChevronUp, ChevronDown, ChevronsUpDown, Loader2 } from 'lucide-svelte';
 	import type { Snippet, Component } from 'svelte';
+	import ListItemCard, { type CardConfig } from './ListItemCard.svelte';
 
 	type Column<T extends Record<string, any>> = {
 		key: keyof T;
@@ -25,6 +26,10 @@
 		loadingRowId?: string | null;
 		loadingIndicator?: 'spinner' | 'pulse' | 'none';
 		rowIdKey?: keyof T;
+		/** Configuration for mobile card view - if provided, cards shown on mobile */
+		mobileCardConfig?: CardConfig<T>;
+		/** Custom content for mobile card fields */
+		mobileCardContent?: Snippet<[keyof T, T]>;
 	};
 
 	let {
@@ -39,7 +44,9 @@
 		animated = true,
 		loadingRowId = null,
 		loadingIndicator = 'spinner',
-		rowIdKey = 'id' as keyof T
+		rowIdKey = 'id' as keyof T,
+		mobileCardConfig,
+		mobileCardContent
 	}: Props = $props();
 
 	let sortKey = $state<keyof T | null>(null);
@@ -92,7 +99,31 @@
 </script>
 
 <div class="space-y-4 {className}">
-	<div class="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
+	<!-- Mobile Card View (shown below md breakpoint when mobileCardConfig is provided) -->
+	{#if mobileCardConfig}
+		<div class="space-y-3 md:hidden">
+			{#if paginatedData().length === 0}
+				<div class="rounded-xl border border-gray-200 bg-white p-8 text-center text-gray-500 shadow-sm">
+					{emptyMessage}
+				</div>
+			{:else}
+				{#each paginatedData() as row}
+					{@const rowId = String(row[rowIdKey])}
+					{@const isLoading = loadingRowId === rowId}
+					<ListItemCard
+						item={row}
+						config={mobileCardConfig}
+						onclick={onRowClick ? () => onRowClick(row) : undefined}
+						loading={isLoading}
+						fieldContent={mobileCardContent}
+					/>
+				{/each}
+			{/if}
+		</div>
+	{/if}
+
+	<!-- Desktop Table View (hidden below md breakpoint when mobileCardConfig is provided) -->
+	<div class="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm {mobileCardConfig ? 'hidden md:block' : ''}">
 		<Table.Root>
 			<Table.Header>
 				<Table.Row

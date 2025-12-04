@@ -4,6 +4,7 @@
 	import { page } from '$app/stores';
 	import PageHeader from '$lib/components/layout/PageHeader.svelte';
 	import ModernDataTable from '$lib/components/data/ModernDataTable.svelte';
+	import type { CardConfig } from '$lib/components/data/ListItemCard.svelte';
 	import ActionButtonGroup from '$lib/components/data/ActionButtonGroup.svelte';
 	import ActionIconButton from '$lib/components/data/ActionIconButton.svelte';
 	import GradientBadge from '$lib/components/data/GradientBadge.svelte';
@@ -289,6 +290,14 @@
 		}
 	];
 
+	// Mobile card configuration
+	const mobileCardConfig: CardConfig<ArchiveItem> = {
+		primaryField: 'number',
+		secondaryField: 'status',
+		bodyFields: ['clientName', 'vehicle', 'registration'],
+		footerField: 'formattedDate'
+	};
+
 	function handleRowClick(item: ArchiveItem) {
 		goto(item.detailUrl);
 	}
@@ -306,7 +315,7 @@
 	}
 </script>
 
-<div class="flex-1 space-y-6 p-8">
+<div class="flex-1 space-y-4 p-4 md:space-y-6 md:p-8">
 	<PageHeader
 		title="Archive"
 		description="Search and view all completed requests, inspections, assessments, and FRC records"
@@ -344,7 +353,13 @@
 				: 'Completed items will appear here'}
 		/>
 	{:else}
-		<ModernDataTable data={archiveItems} {columns} onRowClick={handleRowClick} striped>
+		<ModernDataTable
+			data={archiveItems}
+			{columns}
+			onRowClick={handleRowClick}
+			striped
+			{mobileCardConfig}
+		>
 			{#snippet cellContent(column, row)}
 				{#if column.key === 'type'}
 					{@const config = typeBadgeConfig[row.type]}
@@ -376,6 +391,26 @@
 					/>
 				{:else}
 					{row[column.key]}
+				{/if}
+			{/snippet}
+			{#snippet mobileCardContent(field, row)}
+				{#if field === 'number'}
+					<span class="font-semibold text-gray-900">{row.number}</span>
+				{:else if field === 'status'}
+					{@const isCompleted = row.status === 'Completed'}
+					<GradientBadge
+						variant={isCompleted ? 'green' : 'red'}
+						label={row.status}
+						icon={isCompleted ? CheckCircle2 : XCircle}
+					/>
+				{:else if field === 'clientName'}
+					<span class="text-gray-600"><User class="inline h-3.5 w-3.5 mr-1 text-gray-400" />{row.clientName}</span>
+				{:else if field === 'vehicle'}
+					<span class="text-gray-600"><Car class="inline h-3.5 w-3.5 mr-1 text-gray-400" />{row.vehicle}</span>
+				{:else if field === 'registration'}
+					<span class="text-gray-500"><CreditCard class="inline h-3.5 w-3.5 mr-1 text-gray-400" />{row.registration}</span>
+				{:else}
+					{row[field]}
 				{/if}
 			{/snippet}
 		</ModernDataTable>

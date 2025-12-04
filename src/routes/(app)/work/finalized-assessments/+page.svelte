@@ -6,6 +6,7 @@
 	import { useNavigationLoading } from '$lib/utils/useNavigationLoading.svelte';
 	import PageHeader from '$lib/components/layout/PageHeader.svelte';
 	import ModernDataTable from '$lib/components/data/ModernDataTable.svelte';
+import type { CardConfig } from '$lib/components/data/ListItemCard.svelte';
 	import ActionButtonGroup from '$lib/components/data/ActionButtonGroup.svelte';
 	import ActionIconButton from '$lib/components/data/ActionIconButton.svelte';
 	import EmptyState from '$lib/components/data/EmptyState.svelte';
@@ -186,9 +187,17 @@
 			icon: Calendar
 		}
 	];
+
+	// Mobile card configuration
+	const mobileCardConfig: CardConfig<(typeof tableData)[0]> = {
+		primaryField: 'assessmentNumber',
+		secondaryField: 'clientType',
+		bodyFields: ['clientName', 'vehicle', 'registration'],
+		footerField: 'finalizedAt'
+	};
 </script>
 
-<div class="flex-1 space-y-6 p-8">
+<div class="flex-1 space-y-4 p-4 md:space-y-6 md:p-8">
 	<PageHeader
 		title="Finalized Assessments"
 		description="View all finalized assessments with estimates sent to clients"
@@ -223,6 +232,7 @@
 			loadingRowId={loadingId}
 			rowIdKey="appointmentId"
 			striped={true}
+			{mobileCardConfig}
 		>
 			{#snippet cellContent(column, row)}
 				{#if column.key === 'assessmentNumber'}
@@ -262,6 +272,26 @@
 					</TableCell>
 				{:else}
 					{row[column.key]}
+				{/if}
+			{/snippet}
+			{#snippet mobileCardContent(field, row)}
+				{#if field === 'assessmentNumber'}
+					<span class="font-semibold text-gray-900">{row.assessmentNumber}</span>
+				{:else if field === 'clientType'}
+					<GradientBadge
+						variant={row.clientType === 'insurance' ? 'blue' : 'purple'}
+						label={row.clientType === 'insurance' ? 'Insurance' : 'Private'}
+					/>
+				{:else if field === 'clientName'}
+					<span class="text-gray-600"><User class="inline h-3.5 w-3.5 mr-1 text-gray-400" />{row.clientName}</span>
+				{:else if field === 'vehicle'}
+					<span class="text-gray-600"><Car class="inline h-3.5 w-3.5 mr-1 text-gray-400" />{row.vehicle}</span>
+				{:else if field === 'registration'}
+					<span class="text-gray-500"><Hash class="inline h-3.5 w-3.5 mr-1 text-gray-400" />{row.registration}</span>
+				{:else if field === 'finalizedAt'}
+					{formatDateTime(row.finalizedAt)}
+				{:else}
+					{row[field]}
 				{/if}
 			{/snippet}
 		</ModernDataTable>

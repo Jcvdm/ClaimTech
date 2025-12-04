@@ -3,6 +3,7 @@
 	import { useNavigationLoading } from '$lib/utils/useNavigationLoading.svelte';
 	import PageHeader from '$lib/components/layout/PageHeader.svelte';
 	import ModernDataTable from '$lib/components/data/ModernDataTable.svelte';
+import type { CardConfig } from '$lib/components/data/ListItemCard.svelte';
 	import GradientBadge from '$lib/components/data/GradientBadge.svelte';
 	import TableCell from '$lib/components/data/TableCell.svelte';
 	import EmptyState from '$lib/components/data/EmptyState.svelte';
@@ -89,12 +90,20 @@ import { FilterTabs } from '$lib/components/ui/tabs';
 		}
 	];
 
+	// Mobile card configuration
+	const mobileCardConfig: CardConfig<RequestWithClient> = {
+		primaryField: 'request_number',
+		secondaryField: 'type',
+		bodyFields: ['client_name', 'vehicle_make'],
+		footerField: 'formatted_date'
+	};
+
 	function handleRowClick(request: RequestWithClient) {
 		startNavigation(request.id, `/requests/${request.id}`);
 	}
 </script>
 
-<div class="flex-1 space-y-6 p-8">
+<div class="flex-1 space-y-4 p-4 md:space-y-6 md:p-8">
 	<PageHeader title="Requests" description="Review and accept new vehicle damage assessment requests">
 		{#snippet actions()}
 			<Button href="/requests/new">
@@ -133,6 +142,7 @@ import { FilterTabs } from '$lib/components/ui/tabs';
 			loadingRowId={loadingId}
 			rowIdKey="id"
 			striped
+			{mobileCardConfig}
 		>
 			{#snippet cellContent(column, row)}
 				{#if column.key === 'request_number'}
@@ -152,6 +162,26 @@ import { FilterTabs } from '$lib/components/ui/tabs';
 					/>
 				{:else}
 					{row[column.key]}
+				{/if}
+			{/snippet}
+			{#snippet mobileCardContent(field, row)}
+				{#if field === 'request_number'}
+					<span class="font-semibold text-gray-900">{row.request_number}</span>
+				{:else if field === 'type'}
+					{@const isInsurance = row.type === 'insurance'}
+					<GradientBadge
+						variant={isInsurance ? 'blue' : 'purple'}
+						label={isInsurance ? 'Insurance' : 'Private'}
+					/>
+				{:else if field === 'client_name'}
+					<span class="text-gray-600"><User class="inline h-3.5 w-3.5 mr-1 text-gray-400" />{row.client_name}</span>
+				{:else if field === 'vehicle_make'}
+					{@const vehicle = row.vehicle_make
+						? `${row.vehicle_make} ${row.vehicle_model || ''}`.trim()
+						: '-'}
+					<span class="text-gray-600"><Car class="inline h-3.5 w-3.5 mr-1 text-gray-400" />{vehicle}</span>
+				{:else}
+					{row[field]}
 				{/if}
 			{/snippet}
 		</ModernDataTable>
