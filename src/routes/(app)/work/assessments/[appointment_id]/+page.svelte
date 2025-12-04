@@ -34,6 +34,7 @@
 	import { vehicleValuesService } from '$lib/services/vehicle-values.service';
 	import { documentGenerationService } from '$lib/services/document-generation.service';
 	import { assessmentNotesService } from '$lib/services/assessment-notes.service';
+	import { prefetchAssessmentPhotos } from '$lib/utils/photo-prefetch';
 	import type {
 		Assessment,
 		VehicleIdentification,
@@ -67,6 +68,7 @@
 	let generatingDocument = $state(false); // Flag to pause auto-save during document generation
 	let lastSaved = $state<string | null>(null);
 	let autoSaveInterval: ReturnType<typeof setInterval> | null = null;
+	let cancelPhotoPrefetch: (() => void) | null = null;
 
 	// Store reference to tab save functions for auto-save on tab change
 	let estimateTabSaveFn: (() => Promise<void>) | null = null;
@@ -174,12 +176,24 @@
 			minute: '2-digit',
 			second: '2-digit'
 		});
+
+		// Prefetch all assessment photos in background for faster tab navigation
+		cancelPhotoPrefetch = prefetchAssessmentPhotos({
+			exterior360Photos: data.exterior360Photos,
+			interiorPhotos: data.interiorPhotos,
+			tyrePhotos: data.tyrePhotos,
+			estimatePhotos: data.estimatePhotos,
+			preIncidentEstimatePhotos: data.preIncidentEstimatePhotos
+		});
 	});
 
-	// Clean up interval on component destroy
+	// Clean up interval and prefetch on component destroy
 	onDestroy(() => {
 		if (autoSaveInterval) {
 			clearInterval(autoSaveInterval);
+		}
+		if (cancelPhotoPrefetch) {
+			cancelPhotoPrefetch();
 		}
 	});
 
