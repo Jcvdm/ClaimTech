@@ -446,6 +446,11 @@
 			secondHandMarkup={localEstimate.second_hand_markup_percentage}
 			outworkMarkup={localEstimate.outwork_markup_percentage}
 			onAddLineItem={(item) => { addLocalLine(item); }}
+			enablePhotos={true}
+			{assessmentId}
+			parentId={estimate?.id}
+			photoCategory="pre-incident"
+			onPhotosUploaded={onPhotosUpdate}
 		/>
 
 		<!-- Line Items Table -->

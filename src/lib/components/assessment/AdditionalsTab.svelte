@@ -761,6 +761,11 @@
 			secondHandMarkup={additionals.second_hand_markup_percentage}
 			outworkMarkup={additionals.outwork_markup_percentage}
 			onAddLineItem={handleAddLineItem}
+			enablePhotos={true}
+			{assessmentId}
+			parentId={additionals.id}
+			photoCategory="additionals"
+			onPhotosUploaded={handlePhotosUpdate}
 		/>
 
 		<!-- Line Items Table -->

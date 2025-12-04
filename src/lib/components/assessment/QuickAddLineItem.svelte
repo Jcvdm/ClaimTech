@@ -2,13 +2,21 @@
 	import { Card } from '$lib/components/ui/card';
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
-	import { Plus, X } from 'lucide-svelte';
+	import { Plus, X, Loader2 } from 'lucide-svelte';
 	import type { EstimateLineItem, ProcessType, PartType } from '$lib/types/assessment';
 	import { getProcessTypeOptions } from '$lib/constants/processTypes';
 	import {
 		calculateLineItemTotal,
 		calculatePartSellingPrice
 	} from '$lib/utils/estimateCalculations';
+	import PendingPhotoCapture, {
+		type PendingPhoto
+	} from '$lib/components/assessment/PendingPhotoCapture.svelte';
+	import {
+		uploadPhotosWithLabel,
+		hasReadyPhotos,
+		type PhotoCategory
+	} from '$lib/utils/upload-photos-with-label';
 
 	interface Props {
 		labourRate: number;
@@ -18,10 +26,32 @@
 		secondHandMarkup: number;
 		outworkMarkup: number;
 		onAddLineItem: (item: EstimateLineItem) => void;
+		/** Enable photo capture feature */
+		enablePhotos?: boolean;
+		/** Assessment ID for storage path (required if enablePhotos=true) */
+		assessmentId?: string;
+		/** Parent ID - estimateId for estimate/pre-incident, additionalsId for additionals */
+		parentId?: string;
+		/** Photo category determines where photos are stored */
+		photoCategory?: PhotoCategory;
+		/** Callback after photos are uploaded successfully */
+		onPhotosUploaded?: () => void;
 	}
 
-	let { labourRate, paintRate, oemMarkup, altMarkup, secondHandMarkup, outworkMarkup, onAddLineItem }: Props =
-		$props();
+	let {
+		labourRate,
+		paintRate,
+		oemMarkup,
+		altMarkup,
+		secondHandMarkup,
+		outworkMarkup,
+		onAddLineItem,
+		enablePhotos = false,
+		assessmentId,
+		parentId,
+		photoCategory = 'estimate',
+		onPhotosUploaded
+	}: Props = $props();
 
 	// Form state
 	let processType = $state<ProcessType>('N');
@@ -33,6 +63,14 @@
 	let paintPanels = $state<number | null>(null);
 	let outworkChargeNett = $state<number | null>(null); // Nett outwork cost without markup
 	let errors = $state<string[]>([]);
+
+	// Photo state
+	let pendingPhotos = $state<PendingPhoto[]>([]);
+	let isUploading = $state(false);
+	let uploadError = $state<string | null>(null);
+	let photoCaptureRef = $state<{ clear: () => void; getReadyPhotos: () => PendingPhoto[] } | null>(
+		null
+	);
 
 	const processTypeOptions = getProcessTypeOptions();
 
@@ -57,7 +95,9 @@
 		errors = [];
 	}
 
-	function handleAdd() {
+	async function handleAdd() {
+		uploadError = null;
+
 		// Calculate costs
 		const labourCost = labourHours ? labourHours * labourRate : 0;
 		const paintCost = paintPanels ? paintPanels * paintRate : 0;
@@ -104,7 +144,34 @@
 			)
 		};
 
-		// No validation - allow all fields to be optional
+		// Upload photos if enabled and there are photos to upload
+		if (enablePhotos && hasReadyPhotos(pendingPhotos) && assessmentId && parentId) {
+			isUploading = true;
+			try {
+				const result = await uploadPhotosWithLabel({
+					photos: pendingPhotos,
+					label: description || '', // Use description as label
+					assessmentId,
+					parentId,
+					category: photoCategory
+				});
+
+				if (result.errorCount > 0) {
+					uploadError = `${result.errorCount} photo(s) failed to upload`;
+					// Continue to add line item even if some photos failed
+				}
+
+				// Notify parent to refresh photos
+				onPhotosUploaded?.();
+			} catch (error) {
+				uploadError = error instanceof Error ? error.message : 'Failed to upload photos';
+				isUploading = false;
+				return; // Don't add line item if upload completely failed
+			}
+			isUploading = false;
+		}
+
+		// Add line item
 		onAddLineItem(item);
 		handleClear();
 	}
@@ -118,6 +185,15 @@
 		paintPanels = null;
 		outworkChargeNett = null;
 		errors = [];
+		// Clear photos
+		pendingPhotos = [];
+		photoCaptureRef?.clear();
+		uploadError = null;
+	}
+
+	// Handler for photo changes from PendingPhotoCapture
+	function handlePhotosChange(photos: PendingPhoto[]) {
+		pendingPhotos = photos;
 	}
 </script>
 
@@ -279,11 +355,35 @@
 			{/if}
 		</div>
 
+		<!-- Photo Capture (if enabled) -->
+		{#if enablePhotos && assessmentId && parentId}
+			<div class="pt-3 sm:pt-4 border-t border-gray-200">
+				<PendingPhotoCapture
+					bind:this={photoCaptureRef}
+					maxPhotos={5}
+					onPhotosChange={handlePhotosChange}
+					showCamera={true}
+					compact={true}
+					disabled={isUploading}
+				/>
+			</div>
+		{/if}
+
+		<!-- Upload Error -->
+		{#if uploadError}
+			<p class="text-sm text-red-600 pt-2">{uploadError}</p>
+		{/if}
+
 		<!-- Actions -->
 		<div class="flex justify-end pt-3 sm:pt-4 border-t border-gray-200">
-			<Button onclick={handleAdd} class="w-full sm:w-auto">
-				<Plus class="h-4 w-4 mr-2" />
-				Add Line Item
+			<Button onclick={handleAdd} disabled={isUploading} class="w-full sm:w-auto">
+				{#if isUploading}
+					<Loader2 class="h-4 w-4 mr-2 animate-spin" />
+					Uploading...
+				{:else}
+					<Plus class="h-4 w-4 mr-2" />
+					Add Line Item
+				{/if}
 			</Button>
 		</div>
 	</div>

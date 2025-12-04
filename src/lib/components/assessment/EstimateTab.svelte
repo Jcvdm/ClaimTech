@@ -784,6 +784,11 @@ import type { Repairer } from '$lib/types/repairer';
 			secondHandMarkup={localEstimate ? localEstimate.second_hand_markup_percentage : estimate.second_hand_markup_percentage}
 			outworkMarkup={localEstimate ? localEstimate.outwork_markup_percentage : estimate.outwork_markup_percentage}
 			onAddLineItem={(item) => { addLocalLine(item); }}
+			enablePhotos={true}
+			{assessmentId}
+			parentId={estimate.id}
+			photoCategory="estimate"
+			onPhotosUploaded={onPhotosUpdate}
 		/>
 
 		<!-- Line Items Section -->
