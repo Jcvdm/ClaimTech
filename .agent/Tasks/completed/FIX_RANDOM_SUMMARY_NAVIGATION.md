@@ -1,8 +1,17 @@
 # Fix: Random Navigation to Summary Page
 
 **Priority**: Critical
-**Status**: Ready for Investigation
+**Status**: ✅ COMPLETED (2025-12-05)
 **Related**: FIELD_TESTING_ISSUES.md - Issue 2
+**Commit**: 107bda5
+
+## Resolution
+
+Implemented URL-based tab persistence:
+- Tab is now stored in URL query param (`?tab=damage`)
+- Survives page reloads and back/forward navigation
+- Added `setTabWithUrl()` helper for programmatic tab changes
+- DB save is now fire-and-forget (non-blocking)
 
 ---
 
