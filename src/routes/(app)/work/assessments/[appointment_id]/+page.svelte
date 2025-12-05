@@ -65,11 +65,12 @@
 		requestId: data.request?.id
 	});
 
-	// Local reactive state for estimates and notes (Svelte 5 runes pattern)
+	// Local reactive state for estimates, notes, and photos (Svelte 5 runes pattern)
 	// Reassigning these triggers reactivity in child components
 	let estimate = $state(data.estimate);
 	let preIncidentEstimate = $state(data.preIncidentEstimate);
 	let notes = $state(data.notes); // Extract notes to local state for reactivity
+	let estimatePhotos = $state(data.estimatePhotos); // Photos need $state for reactivity after quick add
 
 	// Valid tab IDs for validation
 	const validTabs = [
@@ -1032,7 +1033,7 @@
 			{estimate}
 			assessmentId={data.assessment.id}
 			assessmentNumber={data.assessment.assessment_number}
-			estimatePhotos={data.estimatePhotos}
+			{estimatePhotos}
 			vehicleValues={data.vehicleValues}
 			vehicleIdentification={data.vehicleIdentification}
 			repairers={data.repairers}
@@ -1046,8 +1047,8 @@
 				// Reload incident photos from database
 				if (estimate) {
 					const updatedPhotos = await estimatePhotosService.getPhotosByEstimate(estimate.id);
-					// Update local state (triggers reactivity)
-					data.estimatePhotos = updatedPhotos;
+					// Update reactive state (triggers reactivity in child components)
+					estimatePhotos = updatedPhotos;
 				}
 			}}
 			onUpdateRates={handleUpdateRates}

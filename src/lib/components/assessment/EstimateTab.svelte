@@ -187,7 +187,7 @@ import type { Repairer } from '$lib/types/repairer';
 		markDirty();
 	}
 
-	function addLocalLine(item: Partial<EstimateLineItem>) {
+	async function addLocalLine(item: Partial<EstimateLineItem>) {
 		if (!localEstimate) return;
 
 		// Ensure every new item has a unique id (generate if missing)
@@ -202,7 +202,8 @@ import type { Repairer } from '$lib/types/repairer';
 		);
 
 		localEstimate.line_items = [...localEstimate.line_items, li];
-		markDirty();
+		// Auto-save immediately after adding line item (no need to scroll to Save button)
+		await saveAll();
 	}
 
 	function removeLocalLines(ids: string[]) {
