@@ -494,9 +494,9 @@ Comprehensive system documentation covering architecture, database design, secur
 
 ### 11. PWA Offline Implementation ⭐ COMPLETE (Dec 5, 2025)
 - **File**: [pwa_offline_implementation.md](../System/pwa_offline_implementation.md)
-- **Size**: ~2,000 lines | **Last Updated**: December 5, 2025
+- **Size**: ~2,300 lines | **Last Updated**: December 5, 2025 (Enhanced with detailed UI Components documentation)
 - **Status**: ✅ Complete - All 6 phases implemented and integrated
-- **Read When**: Implementing offline features, working with IndexedDB, adding background sync, supporting PWA installation
+- **Read When**: Implementing offline features, working with IndexedDB, adding background sync, supporting PWA installation, understanding network status indicators
 
 **Complete Offline-First PWA Implementation**:
 - Phase 1: PWA Foundation (service worker, manifest, install prompts, Vercel headers)
@@ -511,6 +511,7 @@ Comprehensive system documentation covering architecture, database design, secur
 - Technology stack (Vite PWA plugin, Dexie.js, workbox, Service Worker API)
 - File structure and module organization
 - Integration points (root layout, assessment page)
+- **UI Components - Visual Indicators** (OfflineIndicator behavior: shows only when offline/slow/reconnecting, not during normal online operation)
 - Usage patterns with code examples
 - Data flow diagrams (online and offline capture)
 - Performance characteristics (storage, sync latency)

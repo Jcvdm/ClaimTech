@@ -101,9 +101,14 @@ Implemented complete Progressive Web App (PWA) infrastructure enabling engineers
 - **Network Detection**: Real-time via Window `online` event
 
 #### Documentation
-- **New**: `.agent/System/pwa_offline_implementation.md` - Complete 2,000+ line guide
+- **New**: `.agent/System/pwa_offline_implementation.md` - Complete 2,300+ line guide
   - Architecture overview
   - 6-phase implementation details
+  - **UI Components - Visual Indicators** (Detailed OfflineIndicator behavior documentation)
+    - Amber banner: Shows when offline
+    - Yellow banner: Shows during slow connections
+    - Green banner: Brief 5-second notification when reconnecting
+    - **Critical**: Indicator does NOT show during normal online operation (reduces UI clutter)
   - Usage patterns and examples
   - Integration points
   - Troubleshooting guide

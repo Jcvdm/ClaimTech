@@ -218,6 +218,93 @@ const { assessmentData, syncStatus } = useOfflineAssessment(assessmentId);
 
 ---
 
+## UI Components - Visual Indicators
+
+### OfflineIndicator Component
+**File**: `src/lib/offline/components/OfflineIndicator.svelte`
+
+The OfflineIndicator is a fixed banner that displays network status to users. **CRITICAL BEHAVIOR: The banner ONLY shows in three specific scenarios. It does NOT show when online normally.**
+
+#### Visual States
+
+**1. Offline State (Amber Banner) - When NOT Connected**
+- **Shows when**: `networkStatus.isOnline === false`
+- **Background color**: Amber (#CA8A04 / bg-amber-500)
+- **Icon**: WifiOff
+- **Message**: "You're offline — changes will sync when connected"
+- **Duration**: Persistent until back online
+- **Additional info**: Shows offline duration if offline for >30 seconds
+
+**2. Slow Connection State (Yellow Banner) - When Connection is Poor**
+- **Shows when**: `networkStatus.isOnline === true AND networkStatus.connectionQuality === 'slow'`
+- **Background color**: Yellow (#EAB308 / bg-yellow-500)
+- **Icon**: AlertTriangle
+- **Message**: "Slow connection — some features may be delayed"
+- **Duration**: Persistent while connection is slow
+- **Use case**: 3G connections, poor signal strength, or high latency
+
+**3. Back Online State (Green Banner) - Brief 5-Second Notification**
+- **Shows when**:
+  - `showWhenOnline prop = true` AND
+  - User comes back online AND
+  - Less than 5 seconds since `lastOffline` timestamp
+- **Background color**: Green (#22C55E / bg-green-500)
+- **Icon**: Wifi
+- **Message**: "You're back online — syncing changes..."
+- **Duration**: Auto-hides after 5 seconds
+- **Animation**: Pulse animation for visibility
+- **Purpose**: Confirms to user that offline changes are syncing
+
+#### Key Behavior: When Indicator Does NOT Show
+
+**OfflineIndicator does NOT display when:**
+- User is online with normal connection quality
+- No previous offline period (first time visiting)
+- More than 5 seconds have passed since coming back online (if `showWhenOnline=true`)
+
+This design reduces visual clutter and only notifies users of important network status changes.
+
+#### Props
+
+```typescript
+interface Props {
+  position?: 'top' | 'bottom';      // Banner position (default: 'top')
+  showWhenOnline?: boolean;          // Show brief "back online" notification (default: false)
+}
+```
+
+#### Usage
+
+```svelte
+<!-- Root layout - always visible, shows offline/slow status -->
+<OfflineIndicator position="top" showWhenOnline={false} />
+
+<!-- Alternative - show reconnection confirmation -->
+<OfflineIndicator position="bottom" showWhenOnline={true} />
+```
+
+#### Network Status Store
+
+The OfflineIndicator relies on the `networkStatus` Svelte store:
+
+```typescript
+// src/lib/offline/network-status.svelte.ts
+export const networkStatus = {
+  isOnline: boolean;                  // Current online/offline state
+  connectionQuality: 'fast' | 'slow'; // Connection quality
+  lastOffline: Date | null;          // Timestamp of last offline period
+  getOfflineDurationText(): string;   // Human-readable duration
+};
+```
+
+#### Integration
+
+- **Root Layout**: `src/routes/+layout.svelte` - Always includes OfflineIndicator
+- **Default behavior**: Shows offline/slow banners only, no "back online" notification
+- **Z-index**: 50 (fixed positioning, visible above most content)
+
+---
+
 ## Technology Stack
 
 ### Core Libraries
