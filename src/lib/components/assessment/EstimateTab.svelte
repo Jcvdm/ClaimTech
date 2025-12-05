@@ -357,8 +357,9 @@ import type { Repairer } from '$lib/types/repairer';
 	addLocalLine(newItem);
 }
 
-	function handleUpdateLineItem(itemId: string, field: keyof EstimateLineItem, value: any) {
+	async function handleUpdateLineItem(itemId: string, field: keyof EstimateLineItem, value: any) {
 		updateLocalItem(itemId, { [field]: value } as Partial<EstimateLineItem>);
+		await saveAll();
 	}
 
 	// Multi-select handlers
@@ -413,17 +414,18 @@ import type { Repairer } from '$lib/types/repairer';
 		tempSAHours = currentHours;
 	}
 
-	function handleSASave(itemId: string) {
-	if (tempSAHours !== null && localEstimate) {
-		const saCost = tempSAHours * localEstimate.labour_rate;
-		updateLocalItem(itemId, {
-			strip_assemble_hours: tempSAHours,
-			strip_assemble: saCost
-		});
+	async function handleSASave(itemId: string) {
+		if (tempSAHours !== null && localEstimate) {
+			const saCost = tempSAHours * localEstimate.labour_rate;
+			updateLocalItem(itemId, {
+				strip_assemble_hours: tempSAHours,
+				strip_assemble: saCost
+			});
+			await saveAll();
+		}
+		editingSA = null;
+		tempSAHours = null;
 	}
-	editingSA = null;
-	tempSAHours = null;
-}
 
 	function handleSACancel() {
 		editingSA = null;
@@ -438,17 +440,18 @@ import type { Repairer } from '$lib/types/repairer';
 		tempLabourHours = currentHours;
 	}
 
-	function handleLabourSave(itemId: string) {
-	if (tempLabourHours !== null && localEstimate) {
-		const labourCost = tempLabourHours * localEstimate.labour_rate;
-		updateLocalItem(itemId, {
-			labour_hours: tempLabourHours,
-			labour_cost: labourCost
-		});
+	async function handleLabourSave(itemId: string) {
+		if (tempLabourHours !== null && localEstimate) {
+			const labourCost = tempLabourHours * localEstimate.labour_rate;
+			updateLocalItem(itemId, {
+				labour_hours: tempLabourHours,
+				labour_cost: labourCost
+			});
+			await saveAll();
+		}
+		editingLabour = null;
+		tempLabourHours = null;
 	}
-	editingLabour = null;
-	tempLabourHours = null;
-}
 
 	function handleLabourCancel() {
 		editingLabour = null;
@@ -461,17 +464,18 @@ import type { Repairer } from '$lib/types/repairer';
 		tempPaintPanels = currentPanels;
 	}
 
-	function handlePaintSave(itemId: string) {
-	if (tempPaintPanels !== null && localEstimate) {
-		const paintCost = tempPaintPanels * localEstimate.paint_rate;
-		updateLocalItem(itemId, {
-			paint_panels: tempPaintPanels,
-			paint_cost: paintCost
-		});
+	async function handlePaintSave(itemId: string) {
+		if (tempPaintPanels !== null && localEstimate) {
+			const paintCost = tempPaintPanels * localEstimate.paint_rate;
+			updateLocalItem(itemId, {
+				paint_panels: tempPaintPanels,
+				paint_cost: paintCost
+			});
+			await saveAll();
+		}
+		editingPaint = null;
+		tempPaintPanels = null;
 	}
-	editingPaint = null;
-	tempPaintPanels = null;
-}
 
 	function handlePaintCancel() {
 		editingPaint = null;
@@ -485,7 +489,7 @@ import type { Repairer } from '$lib/types/repairer';
 		tempPartPriceNett = currentNettPrice;
 	}
 
-	function handlePartPriceSave(itemId: string, item: EstimateLineItem) {
+	async function handlePartPriceSave(itemId: string, item: EstimateLineItem) {
 		if (tempPartPriceNett !== null && estimate) {
 			// Get markup percentage based on part type
 			let markupPercentage = 0;
@@ -500,6 +504,7 @@ import type { Repairer } from '$lib/types/repairer';
 				part_price_nett: tempPartPriceNett,
 				part_price: Number(sellingPrice.toFixed(2))
 			});
+			await saveAll();
 		}
 		editingPartPrice = null;
 		tempPartPriceNett = null;
@@ -517,7 +522,7 @@ import type { Repairer } from '$lib/types/repairer';
 		tempOutworkNett = currentNettPrice;
 	}
 
-	function handleOutworkSave(itemId: string) {
+	async function handleOutworkSave(itemId: string) {
 		if (tempOutworkNett !== null && estimate) {
 			const markupPercentage = estimate.outwork_markup_percentage;
 			const sellingPrice = tempOutworkNett * (1 + markupPercentage / 100);
@@ -526,6 +531,7 @@ import type { Repairer } from '$lib/types/repairer';
 				outwork_charge_nett: tempOutworkNett,
 				outwork_charge: Number(sellingPrice.toFixed(2))
 			});
+			await saveAll();
 		}
 		editingOutwork = null;
 		tempOutworkNett = null;
