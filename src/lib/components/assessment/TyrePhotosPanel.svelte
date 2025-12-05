@@ -143,6 +143,9 @@
 			compressing = false;
 			uploadProgress = 0;
 			compressionProgress = 0;
+			// Reset file inputs to allow re-capture
+			if (fileInput) fileInput.value = '';
+			if (cameraInput) cameraInput.value = '';
 		}
 	}
 
