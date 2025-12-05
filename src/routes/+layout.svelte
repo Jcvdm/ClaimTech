@@ -6,20 +6,25 @@
 	import NavigationLoadingBar from '$lib/components/layout/NavigationLoadingBar.svelte';
 	import NavigationLoadingModal from '$lib/components/layout/NavigationLoadingModal.svelte';
 	import InstallPrompt from '$lib/components/pwa/InstallPrompt.svelte';
+	import OfflineIndicator from '$lib/offline/components/OfflineIndicator.svelte';
+	import { syncManager } from '$lib/offline';
 
 	let { children, data } = $props();
 
 	// Listen for auth state changes (login, logout, token refresh)
 	onMount(() => {
-		const { data: { subscription } } = data.supabase.auth.onAuthStateChange(
-			(event, _session) => {
-				// If session changed (expired, revoked, refreshed), reload auth-dependent data
-				// This ensures the app reacts to auth changes in real-time
-				if (_session?.expires_at !== data.session?.expires_at) {
-					invalidate('supabase:auth');
-				}
+		const {
+			data: { subscription }
+		} = data.supabase.auth.onAuthStateChange((event, _session) => {
+			// If session changed (expired, revoked, refreshed), reload auth-dependent data
+			// This ensures the app reacts to auth changes in real-time
+			if (_session?.expires_at !== data.session?.expires_at) {
+				invalidate('supabase:auth');
 			}
-		);
+		});
+
+		// Set up sync manager with Supabase client
+		syncManager.setSupabaseClient(data.supabase);
 
 		// Cleanup subscription on unmount
 		return () => subscription.unsubscribe();
@@ -29,6 +34,9 @@
 <svelte:head>
 	<link rel="icon" href={favicon} />
 </svelte:head>
+
+<!-- Offline indicator banner -->
+<OfflineIndicator position="top" showWhenOnline={true} />
 
 <NavigationLoadingBar />
 <NavigationLoadingModal />
