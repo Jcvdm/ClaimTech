@@ -73,14 +73,29 @@ export function useOptimisticArray<T extends { id: string }>(
 			: parentArray;
 	});
 
+	// Track pending optimistic items (added locally but not yet in parent)
+	let pendingOptimisticIds = $state<Set<string>>(new Set());
+
 	// Sync with parent props whenever they change
-	// Using $derived ensures we track the array contents, not just the reference
+	// CRITICAL: Preserve optimistic items that haven't been confirmed by parent yet
+	// This prevents race conditions where parent refetch returns before DB write commits
 	$effect(() => {
 		const currentParent = parentArrayValue;
-		// Always sync to ensure we have the latest data from parent
-		// The comparison check prevents unnecessary updates but we need to ensure
-		// we sync when parent data loads initially
-		localArray = [...currentParent];
+		const parentIds = new Set(currentParent.map(item => item.id));
+
+		// Find optimistic items not yet in parent data
+		const optimisticItems = localArray.filter(item =>
+			pendingOptimisticIds.has(item.id) && !parentIds.has(item.id)
+		);
+
+		// Remove confirmed items from pending set
+		const confirmedIds = [...pendingOptimisticIds].filter(id => parentIds.has(id));
+		if (confirmedIds.length > 0) {
+			pendingOptimisticIds = new Set([...pendingOptimisticIds].filter(id => !parentIds.has(id)));
+		}
+
+		// Merge: parent data + unconfirmed optimistic items
+		localArray = [...currentParent, ...optimisticItems];
 	});
 
 	return {
@@ -95,20 +110,24 @@ export function useOptimisticArray<T extends { id: string }>(
 		/**
 		 * Add an item to the array (optimistic update)
 		 * Updates UI immediately before parent prop updates
-		 * 
+		 * Item is tracked as pending until confirmed by parent data
+		 *
 		 * @param item - The item to add
 		 */
 		add(item: T): void {
+			pendingOptimisticIds = new Set([...pendingOptimisticIds, item.id]);
 			localArray = [...localArray, item];
 		},
 
 		/**
 		 * Add multiple items to the array (optimistic update)
 		 * Updates UI immediately before parent prop updates
-		 * 
+		 * Items are tracked as pending until confirmed by parent data
+		 *
 		 * @param items - The items to add
 		 */
 		addMany(items: T[]): void {
+			pendingOptimisticIds = new Set([...pendingOptimisticIds, ...items.map(i => i.id)]);
 			localArray = [...localArray, ...items];
 		},
 
@@ -159,9 +178,11 @@ export function useOptimisticArray<T extends { id: string }>(
 
 		/**
 		 * Reset the local array to match parent props
+		 * Clears all pending optimistic items
 		 * Useful for error recovery or manual sync
 		 */
 		reset(): void {
+			pendingOptimisticIds = new Set();
 			localArray = [...parentArrayValue];
 		},
 
