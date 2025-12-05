@@ -46,7 +46,7 @@ export type { AssessmentTab } from './services/assessment-cache';
 export { photoStorage } from './services/photo-storage';
 export type { PhotoCategory } from './services/photo-storage';
 
-export { syncManager } from './services/sync-manager';
+export { syncManager } from './services/sync-manager.svelte';
 
 export {
 	compressPhoto,
