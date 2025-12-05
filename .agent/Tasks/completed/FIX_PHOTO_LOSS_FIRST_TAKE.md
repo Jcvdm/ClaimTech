@@ -1,8 +1,16 @@
 # Fix: Photo Loss on First Take
 
 **Priority**: High
-**Status**: Ready for Investigation
+**Status**: ✅ COMPLETED (2025-12-05)
 **Related**: FIELD_TESTING_ISSUES.md - Issue 1
+**Commit**: c665849
+
+## Resolution
+
+Fixed race condition in `useOptimisticArray.svelte.ts`:
+- Added `pendingOptimisticIds` tracking
+- Preserve optimistic items until confirmed by parent
+- Prevents parent refetch from overwriting local additions
 
 ---
 
