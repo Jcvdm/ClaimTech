@@ -11,6 +11,7 @@
 	import BettermentModal from './BettermentModal.svelte';
 	import LineItemCard from './LineItemCard.svelte';
     import { Plus, Trash2, Check, CircleAlert, CircleCheck, CircleX, Info, Percent, ShieldCheck, Package, Recycle, RefreshCw } from 'lucide-svelte';
+	import { onDestroy, onMount } from 'svelte';
 import type {
 	Estimate,
 	EstimateLineItem,
@@ -110,6 +111,7 @@ import type { Repairer } from '$lib/types/repairer';
 	let localEstimate = $state<Estimate | null>(null);
 	let dirty = $state(false);
 	let saving = $state(false);
+	let saveInFlight = $state(false); // Track when save is happening to prevent race conditions
 	let recalculating = $state(false);
 
 	// Parts list modal state
@@ -117,8 +119,9 @@ import type { Repairer } from '$lib/types/repairer';
 	let partsListText = $state('');
 
 	$effect(() => {
-		// When parent estimate changes and we are not dirty, resync local buffer
-		if (!dirty) {
+		// When parent estimate changes and we are not dirty and not saving, resync local buffer
+		// This prevents race conditions where a save is in-flight and parent data updates prematurely
+		if (!dirty && !saveInFlight) {
 			if (estimate) {
 				const cloned = deepClone(estimate);
 				// Normalize line items to ensure all have IDs (handles legacy data)
@@ -132,8 +135,47 @@ import type { Repairer } from '$lib/types/repairer';
 
 	function markDirty() { dirty = true; }
 
+	// Timeout handle for debounced saves
+	let saveTimeout: number | null = null;
+
+	// Schedule a debounced save (1 second delay)
+	function scheduleSave() {
+		if (saveTimeout) {
+			clearTimeout(saveTimeout);
+		}
+		saveTimeout = window.setTimeout(() => {
+			saveNow();
+		}, 1000);
+	}
+
+	// Save immediately (for tab changes, component unmount)
+	async function saveNow() {
+		console.log('[EstimateTab] saveNow called', { dirty, hasLocalEstimate: !!localEstimate });
+		if (saveTimeout) {
+			clearTimeout(saveTimeout);
+			saveTimeout = null;
+		}
+		await saveAll();
+	}
+
 	async function saveAll() {
-		if (!localEstimate) return;
+		console.log('[EstimateTab] saveAll called', {
+			hasLocalEstimate: !!localEstimate,
+			dirty,
+			lineItemCount: localEstimate?.line_items?.length ?? 0
+		});
+
+		if (!localEstimate) {
+			console.warn('[EstimateTab] saveAll skipped - no local estimate');
+			return;
+		}
+
+		if (!dirty) {
+			console.log('[EstimateTab] saveAll skipped - no changes');
+			return;
+		}
+
+		saveInFlight = true;
 		saving = true;
 		try {
 			await onUpdateEstimate({
@@ -149,26 +191,42 @@ import type { Repairer } from '$lib/types/repairer';
 				assessment_result: localEstimate.assessment_result
 			});
 			dirty = false;
+			console.log('[EstimateTab] Save successful');
+		} catch (error) {
+			console.error('[EstimateTab] Save failed:', error);
+			throw error;
 		} finally {
 			saving = false;
+			saveInFlight = false;
 		}
 	}
 
 	// Register save function with parent on mount
-	$effect(() => {
-		if (onRegisterSave) {
-			onRegisterSave(saveAll);
+	// Using onMount instead of $effect to avoid closure issues with stale state
+	onMount(() => {
+		const stableSave = async () => {
+			console.log('[EstimateTab] stableSave called via parent');
+			await saveNow();
+		};
+		if (props.onRegisterSave) {
+			console.log('[EstimateTab] Registering save function with parent');
+			props.onRegisterSave(stableSave);
 		}
 	});
 
 	function discardAll() {
+		// Clear any pending save timeout
+		if (saveTimeout) {
+			clearTimeout(saveTimeout);
+			saveTimeout = null;
+		}
 		localEstimate = estimate ? deepClone(estimate) : null;
 		dirty = false;
 	}
 
 	// Convenience getter for local line items
 	// Filter out any items without IDs as a defensive fallback
-	const localLineItems = $derived(() => {
+	const localLineItems = $derived.by(() => {
 		if (!localEstimate) return [];
 		const items = localEstimate.line_items ?? [];
 		// Belt-and-braces: filter out any items that somehow don't have IDs
@@ -187,7 +245,7 @@ import type { Repairer } from '$lib/types/repairer';
 		markDirty();
 	}
 
-	async function addLocalLine(item: Partial<EstimateLineItem>) {
+	function addLocalLine(item: Partial<EstimateLineItem>) {
 		if (!localEstimate) return;
 
 		// Ensure every new item has a unique id (generate if missing)
@@ -202,8 +260,11 @@ import type { Repairer } from '$lib/types/repairer';
 		);
 
 		localEstimate.line_items = [...localEstimate.line_items, li];
-		// Auto-save immediately after adding line item (no need to scroll to Save button)
-		await saveAll();
+		// Mark dirty - auto-save happens on tab change or explicit save
+		// This enables rapid line item entry without waiting for each save
+		markDirty();
+		scheduleSave();  // Queue debounced save as backup
+		console.log('[EstimateTab] Line item added, save scheduled', { id: li.id });
 	}
 
 	function removeLocalLines(ids: string[]) {
@@ -297,7 +358,7 @@ import type { Repairer } from '$lib/types/repairer';
 
 	// Show parts list as plain text in modal for easy copy/paste
 	function handleShowPartsListText() {
-		const partsOnly = localLineItems().filter(item => item.process_type === 'N');
+		const partsOnly = localLineItems.filter(item => item.process_type === 'N');
 
 		if (partsOnly.length === 0) {
 			console.warn('No parts to export');
@@ -359,7 +420,7 @@ import type { Repairer } from '$lib/types/repairer';
 
 	async function handleUpdateLineItem(itemId: string, field: keyof EstimateLineItem, value: any) {
 		updateLocalItem(itemId, { [field]: value } as Partial<EstimateLineItem>);
-		await saveAll();
+		scheduleSave(); // Debounced save instead of immediate
 	}
 
 	// Multi-select handlers
@@ -379,14 +440,14 @@ import type { Repairer } from '$lib/types/repairer';
 			selectedItems.add(itemId);
 		}
 		selectedItems = new Set(selectedItems); // Trigger reactivity
-		selectAll = selectedItems.size === localLineItems().length;
+		selectAll = selectedItems.size === localLineItems.length;
 	}
 
 	function handleSelectAll() {
 		if (selectAll) {
 			selectedItems.clear();
 		} else {
-			localLineItems().forEach((item: any) => {
+			localLineItems.forEach((item: any) => {
 				if (item.id) selectedItems.add(item.id);
 			});
 		}
@@ -421,7 +482,7 @@ import type { Repairer } from '$lib/types/repairer';
 				strip_assemble_hours: tempSAHours,
 				strip_assemble: saCost
 			});
-			await saveAll();
+			scheduleSave();
 		}
 		editingSA = null;
 		tempSAHours = null;
@@ -447,7 +508,7 @@ import type { Repairer } from '$lib/types/repairer';
 				labour_hours: tempLabourHours,
 				labour_cost: labourCost
 			});
-			await saveAll();
+			scheduleSave();
 		}
 		editingLabour = null;
 		tempLabourHours = null;
@@ -471,7 +532,7 @@ import type { Repairer } from '$lib/types/repairer';
 				paint_panels: tempPaintPanels,
 				paint_cost: paintCost
 			});
-			await saveAll();
+			scheduleSave();
 		}
 		editingPaint = null;
 		tempPaintPanels = null;
@@ -504,7 +565,7 @@ import type { Repairer } from '$lib/types/repairer';
 				part_price_nett: tempPartPriceNett,
 				part_price: Number(sellingPrice.toFixed(2))
 			});
-			await saveAll();
+			scheduleSave();
 		}
 		editingPartPrice = null;
 		tempPartPriceNett = null;
@@ -531,7 +592,7 @@ import type { Repairer } from '$lib/types/repairer';
 				outwork_charge_nett: tempOutworkNett,
 				outwork_charge: Number(sellingPrice.toFixed(2))
 			});
-			await saveAll();
+			scheduleSave();
 		}
 		editingOutwork = null;
 		tempOutworkNett = null;
@@ -563,7 +624,7 @@ import type { Repairer } from '$lib/types/repairer';
 	const categoryTotals = $derived(() => {
 		if (!estimate) return null;
 
-		const vis = localLineItems();
+		const vis = localLineItems;
 
 		const effectivePct = (localEstimate?.sundries_percentage ?? estimate?.sundries_percentage ?? 1);
 
@@ -628,7 +689,7 @@ import type { Repairer } from '$lib/types/repairer';
 	// Check if estimate is complete
 	const isComplete = $derived(() => {
 		const totals = categoryTotals();
-		return estimate !== null && (localLineItems().length > 0) && !!totals && (totals.totalIncVat > 0);
+		return estimate !== null && (localLineItems.length > 0) && !!totals && (totals.totalIncVat > 0);
 	});
 
 	// Calculate threshold for estimate total vs retail borderline
@@ -711,6 +772,13 @@ import type { Repairer } from '$lib/types/repairer';
 		localEstimate.repairer_id = repairerId;
 		saveRepairer(repairerId);  // Immediate save, no overlay
 	}
+
+	// Cleanup on component destroy
+	onDestroy(() => {
+		if (saveTimeout) {
+			clearTimeout(saveTimeout);
+		}
+	});
 
 </script>
 
@@ -804,7 +872,12 @@ import type { Repairer } from '$lib/types/repairer';
 			<div class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
 				<h3 class="text-base font-semibold text-gray-900 sm:text-lg">
 					Line Items
-					<span class="ml-2 text-sm font-normal text-gray-500">({localLineItems().length})</span>
+					<span class="ml-2 text-sm font-normal text-gray-500">({localLineItems.length})</span>
+					{#if dirty}
+						<span class="ml-2 inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700">
+							Unsaved
+						</span>
+					{/if}
 				</h3>
 				<div class="flex flex-wrap gap-2">
 					{#if dirty}
@@ -839,13 +912,13 @@ import type { Repairer } from '$lib/types/repairer';
 
 			<!-- Mobile: Card Layout -->
 			<div class="space-y-3 md:hidden">
-				{#if localLineItems().length === 0}
+				{#if localLineItems.length === 0}
 					<div class="flex flex-col items-center justify-center py-12 text-center">
 						<p class="text-gray-500">No line items added.</p>
 						<p class="text-sm text-gray-400">Use "Quick Add" above or tap + to add items.</p>
 					</div>
 				{:else}
-					{#each localLineItems() as item (item.id)}
+					{#each localLineItems as item (item.id)}
 						<LineItemCard
 							{item}
 							labourRate={localEstimate?.labour_rate ?? estimate?.labour_rate ?? 0}
@@ -895,14 +968,14 @@ import type { Repairer } from '$lib/types/repairer';
 						</Table.Row>
 					</Table.Header>
 					<Table.Body>
-						{#if localLineItems().length === 0}
+						{#if localLineItems.length === 0}
 							<Table.Row class="hover:bg-transparent">
 								<Table.Cell colspan={11} class="h-24 text-center text-gray-500">
 									No line items added. Use "Quick Add" above or click "Add Empty Row".
 								</Table.Cell>
 							</Table.Row>
 						{:else}
-							{#each localLineItems() as item (item.id)}
+							{#each localLineItems as item (item.id)}
 								<Table.Row class="hover:bg-gray-50">
 									<!-- Checkbox -->
 									<Table.Cell class="px-3 py-2">
@@ -1347,7 +1420,7 @@ import type { Repairer } from '$lib/types/repairer';
 		<AssessmentResultSelector
 			assessmentResult={localEstimate ? localEstimate.assessment_result : estimate.assessment_result}
 			onUpdate={handleUpdateAssessmentResult}
-			disabled={!localEstimate || localLineItems().length === 0}
+			disabled={!localEstimate || localLineItems.length === 0}
 		/>
 
 		<!-- Incident Photos -->

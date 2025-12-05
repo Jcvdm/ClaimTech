@@ -119,11 +119,15 @@
 		// Prevent concurrent tab changes
 		if (tabLoading || currentTab === tabId) return;
 
+		console.log('[AssessmentPage] Tab change requested', { from: currentTab, to: tabId });
+
 		tabLoading = true;
 		try {
 			// Auto-save current tab if leaving it with unsaved changes
 			if (currentTab === 'estimate' && estimateTabSaveFn) {
+				console.log('[AssessmentPage] Calling estimate tab save');
 				await estimateTabSaveFn();
+				console.log('[AssessmentPage] Estimate tab save complete');
 			} else if (currentTab === 'pre-incident' && preIncidentEstimateTabSaveFn) {
 				await preIncidentEstimateTabSaveFn();
 			} else if (currentTab === 'tyres' && tyresTabSaveFn) {
@@ -152,7 +156,7 @@
 				console.error('Failed to persist tab to DB:', err)
 			);
 		} catch (error) {
-			console.error('Error changing tab:', error);
+			console.error('[AssessmentPage] Error during tab change:', error);
 		} finally {
 			tabLoading = false;
 		}
