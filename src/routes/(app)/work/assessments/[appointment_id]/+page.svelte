@@ -1,6 +1,7 @@
 <script lang="ts">
 	import type { PageData } from './$types';
-	import { goto } from '$app/navigation';
+	import { goto, replaceState } from '$app/navigation';
+	import { page } from '$app/stores';
 	import { onMount, onDestroy } from 'svelte';
 	import AssessmentLayout from '$lib/components/assessment/AssessmentLayout.svelte';
 	import SummaryTab from '$lib/components/assessment/SummaryTab.svelte';
@@ -70,7 +71,22 @@
 	let preIncidentEstimate = $state(data.preIncidentEstimate);
 	let notes = $state(data.notes); // Extract notes to local state for reactivity
 
-	let currentTab = $state(data.assessment.current_tab || 'identification');
+	// Valid tab IDs for validation
+	const validTabs = [
+		'summary', 'identification', 'exterior', 'interior', 'tyres', 'damage',
+		'values', 'pre-incident', 'estimate', 'finalize', 'additionals', 'frc', 'audit'
+	];
+
+	// Initialize tab from URL first (survives reloads), fallback to DB value
+	function getInitialTab(): string {
+		const urlTab = $page.url.searchParams.get('tab');
+		if (urlTab && validTabs.includes(urlTab)) {
+			return urlTab;
+		}
+		return data.assessment.current_tab || 'identification';
+	}
+
+	let currentTab = $state(getInitialTab());
 	let saving = $state(false);
 	let tabLoading = $state(false);
 	let generatingDocument = $state(false); // Flag to pause auto-save during document generation
@@ -88,6 +104,14 @@
 	function handleValidationUpdate(tabId: string, validation: TabValidation) {
 		// Validation is automatically tracked by AssessmentLayout via childValidations
 		// This handler exists for future extension if needed
+	}
+
+	// Helper to set tab and update URL (for programmatic tab changes)
+	function setTabWithUrl(tabId: string) {
+		currentTab = tabId;
+		const url = new URL($page.url);
+		url.searchParams.set('tab', tabId);
+		replaceState(url, {});
 	}
 
 	async function handleTabChange(tabId: string) {
@@ -116,7 +140,16 @@
 			data.notes = updatedNotes;
 
 			currentTab = tabId;
-			await assessmentService.updateCurrentTab(data.assessment.id, tabId);
+
+			// Update URL with current tab (survives page reloads and back/forward)
+			const url = new URL($page.url);
+			url.searchParams.set('tab', tabId);
+			replaceState(url, {});
+
+			// Save to database (non-blocking, fire-and-forget)
+			assessmentService.updateCurrentTab(data.assessment.id, tabId).catch(err =>
+				console.error('Failed to persist tab to DB:', err)
+			);
 		} catch (error) {
 			console.error('Error changing tab:', error);
 		} finally {
@@ -987,7 +1020,7 @@
 			onUpdateRates={handleUpdatePreIncidentRates}
 			onComplete={() => {
 				// Move to estimate tab after pre-incident estimate is complete
-				currentTab = 'estimate';
+				setTabWithUrl('estimate');
 			}}
 			onRegisterSave={(saveFn) => {
 				preIncidentEstimateTabSaveFn = saveFn;
@@ -1023,7 +1056,7 @@
 			onUpdateAssessmentResult={handleUpdateAssessmentResult}
 			onComplete={() => {
 				// Move to finalize tab after estimate is complete
-				currentTab = 'finalize';
+				setTabWithUrl('finalize');
 			}}
 			onRegisterSave={(saveFn) => {
 				estimateTabSaveFn = saveFn;
