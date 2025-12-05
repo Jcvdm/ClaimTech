@@ -58,6 +58,10 @@ export {
 } from './services/photo-compressor';
 export type { CompressionOptions } from './services/photo-compressor';
 
+// Hooks
+export { useOfflineAssessment, wrapSaveWithOffline } from './hooks/useOfflineAssessment';
+export type { UseOfflineAssessmentOptions } from './hooks/useOfflineAssessment';
+
 // Components (for lazy loading)
 // Note: Components should be imported directly from their files
 // to enable proper code splitting

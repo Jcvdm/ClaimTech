@@ -35,6 +35,7 @@
 	import { documentGenerationService } from '$lib/services/document-generation.service';
 	import { assessmentNotesService } from '$lib/services/assessment-notes.service';
 	import { prefetchAssessmentPhotos } from '$lib/utils/photo-prefetch';
+	import { useOfflineAssessment } from '$lib/offline';
 	import type {
 		Assessment,
 		VehicleIdentification,
@@ -55,6 +56,13 @@
 	import type { TabValidation } from '$lib/utils/validation';
 
 	let { data }: { data: PageData } = $props();
+
+	// Offline support - caches assessment data for offline access
+	const offlineAssessment = useOfflineAssessment({
+		assessmentId: data.assessment.id,
+		appointmentId: data.appointment?.id,
+		requestId: data.request?.id
+	});
 
 	// Local reactive state for estimates and notes (Svelte 5 runes pattern)
 	// Reassigning these triggers reactivity in child components
@@ -175,6 +183,19 @@
 			hour: '2-digit',
 			minute: '2-digit',
 			second: '2-digit'
+		});
+
+		// Cache assessment data for offline support
+		offlineAssessment.cacheAssessment({
+			vehicle_id: data.vehicleIdentification,
+			exterior_360: data.exterior360,
+			damage: data.damageRecord,
+			tyres: data.tyres,
+			mileage: data.interiorMechanical,
+			notes: data.notes,
+			estimate: data.estimate,
+			interior: data.interiorMechanical,
+			accessories: data.accessories
 		});
 
 		// Prefetch all assessment photos in background for faster tab navigation

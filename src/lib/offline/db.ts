@@ -5,13 +5,16 @@
 
 import Dexie, { type Table } from 'dexie';
 import type {
-	AssessmentTabData,
 	OfflineAssessmentStatus,
 	OfflinePhotoStatus,
 	SyncQueueStatus,
 	SyncQueueType,
 	SyncQueueAction
 } from './schema';
+
+// Generic assessment data - stores raw data from server as-is
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export type AssessmentTabData = Record<string, any>;
 
 /**
  * Offline Assessment Record
@@ -173,5 +176,4 @@ class ClaimTechOfflineDB extends Dexie {
 // Singleton instance
 export const db = new ClaimTechOfflineDB();
 
-// Export types
-export type { AssessmentTabData };
+// Note: AssessmentTabData is already exported at definition
