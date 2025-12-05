@@ -42,8 +42,7 @@
 			data-sidebar="sidebar"
 			data-slot="sidebar"
 			data-mobile="true"
-			class="bg-sidebar text-sidebar-foreground w-(--sidebar-width) p-0 [&>button]:hidden"
-			style="--sidebar-width: {SIDEBAR_WIDTH_MOBILE};"
+			class="bg-sidebar text-sidebar-foreground !w-[18rem] !max-w-[85vw] !border-r-0 p-0 [&>button]:top-3 [&>button]:right-3 [&>button]:text-sidebar-foreground [&>button]:opacity-70 [&>button]:hover:opacity-100"
 			{side}
 		>
 			<Sheet.Header class="sr-only">
