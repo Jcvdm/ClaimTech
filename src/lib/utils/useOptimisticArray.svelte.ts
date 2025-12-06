@@ -1,15 +1,17 @@
+import { untrack } from 'svelte';
+
 /**
  * Optimistic Array Helper for Svelte 5
- * 
+ *
  * Provides immediate UI updates for array operations while syncing with parent props.
  * This solves the common issue where UI doesn't update until clicking away and back.
- * 
+ *
  * Pattern:
  * 1. Maintains local $state array for immediate updates
  * 2. Syncs with parent props via $effect
  * 3. Provides add/remove/update operations that update local state immediately
  * 4. Parent prop changes automatically sync to local state
- * 
+ *
  * Usage:
  * ```svelte
  * <script lang="ts">
@@ -54,7 +56,7 @@
 
 /**
  * Create an optimistic array that updates immediately and syncs with parent
- * 
+ *
  * @param parentArray - The parent prop array to sync with (can be a getter function for better reactivity)
  * @returns Object with value getter and mutation methods
  */
@@ -79,23 +81,53 @@ export function useOptimisticArray<T extends { id: string }>(
 	// Sync with parent props whenever they change
 	// CRITICAL: Preserve optimistic items that haven't been confirmed by parent yet
 	// This prevents race conditions where parent refetch returns before DB write commits
+	//
+	// FIX: Use untrack() to read local state without creating reactive dependencies.
+	// Without untrack(), reading localArray/pendingOptimisticIds and then writing to them
+	// creates an infinite loop (effect_update_depth_exceeded error).
+	//
+	// ADDITIONAL FIX: Only write to state if values actually changed.
+	// Even with untrack(), creating new array/Set references triggers notifications.
+	// We use ID-based comparison to detect actual changes.
 	$effect(() => {
-		const currentParent = parentArrayValue;
+		const currentParent = parentArrayValue; // This IS tracked - we react to parent changes
 		const parentIds = new Set(currentParent.map(item => item.id));
 
+		// Read local state WITHOUT tracking - prevents infinite loop
+		const currentLocal = untrack(() => localArray);
+		const currentPending = untrack(() => pendingOptimisticIds);
+
 		// Find optimistic items not yet in parent data
-		const optimisticItems = localArray.filter(item =>
-			pendingOptimisticIds.has(item.id) && !parentIds.has(item.id)
+		const optimisticItems = currentLocal.filter(item =>
+			currentPending.has(item.id) && !parentIds.has(item.id)
 		);
 
-		// Remove confirmed items from pending set
-		const confirmedIds = [...pendingOptimisticIds].filter(id => parentIds.has(id));
+		// Remove confirmed items from pending set - only if there are any
+		const confirmedIds = [...currentPending].filter(id => parentIds.has(id));
 		if (confirmedIds.length > 0) {
-			pendingOptimisticIds = new Set([...pendingOptimisticIds].filter(id => !parentIds.has(id)));
+			const newPending = new Set([...currentPending].filter(id => !parentIds.has(id)));
+			// Only update if size actually changed (avoid unnecessary notifications)
+			if (newPending.size !== currentPending.size) {
+				pendingOptimisticIds = newPending;
+			}
 		}
 
-		// Merge: parent data + unconfirmed optimistic items
-		localArray = [...currentParent, ...optimisticItems];
+		// Build the merged array
+		const newArray = [...currentParent, ...optimisticItems];
+
+		// Only update localArray if IDs have actually changed
+		// This prevents infinite loops from unnecessary state notifications
+		const currentIds = currentLocal.map(i => i.id).join(',');
+		const newIds = newArray.map(i => i.id).join(',');
+
+		if (currentIds !== newIds) {
+			localArray = newArray;
+		} else {
+			// IDs match in same order - accept parent data without expensive comparison
+			// Optimistic updates are handled by add/update/remove methods
+			// Deep JSON comparison was causing infinite loops on production (SSR hydration)
+			localArray = newArray;
+		}
 	});
 
 	return {

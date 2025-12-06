@@ -168,8 +168,15 @@
 	});
 
 	// Report validation to parent whenever it changes (for immediate badge updates)
+	let lastValidationKey = '';
+
 	$effect(() => {
-		if (onValidationUpdate) {
+		// Create stable key for semantic comparison
+		const key = `${validation.isComplete}|${validation.missingFields.join(',')}`;
+
+		// Only report if validation actually changed
+		if (onValidationUpdate && key !== lastValidationKey) {
+			lastValidationKey = key;
 			onValidationUpdate(validation);
 		}
 	});

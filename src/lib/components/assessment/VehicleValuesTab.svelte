@@ -315,8 +315,15 @@ import type { VehicleDetails } from '$lib/utils/report-data-helpers';
 	});
 
 	// Report validation to parent for immediate badge updates
+	let lastValidationKey = '';
+
 	$effect(() => {
-		if (props.onValidationUpdate) {
+		// Create stable key for semantic comparison
+		const key = `${validation.isComplete}|${validation.missingFields.join(',')}`;
+
+		// Only report if validation actually changed
+		if (props.onValidationUpdate && key !== lastValidationKey) {
+			lastValidationKey = key;
 			props.onValidationUpdate(validation);
 		}
 	});
