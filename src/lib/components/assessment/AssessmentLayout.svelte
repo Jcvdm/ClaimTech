@@ -211,16 +211,16 @@
 
 <div class="flex h-full flex-col bg-gray-50">
 	<!-- Sticky Header Container -->
-	<div class="relative z-30 flex flex-col bg-gray-50 shadow-sm">
+	<div class="relative z-[var(--z-sticky)] flex flex-col bg-gray-50 shadow-sm">
 		<!-- Header -->
-		<div class="border-b bg-white px-3 py-2 sm:px-6 sm:py-4 lg:px-8">
-			<div class="flex items-center justify-between gap-2 sm:gap-3">
+		<div class="border-b bg-white px-3 py-2 sm:px-4 sm:py-3 md:px-6 md:py-4 lg:px-8">
+			<div class="flex items-center justify-between gap-2 sm:gap-2.5 md:gap-3 lg:gap-4">
 				<!-- Title Section -->
 				<div class="min-w-0 flex-1">
-					<h1 class="truncate text-base font-bold text-gray-900 sm:text-xl lg:text-2xl">
+					<h1 class="truncate text-base font-bold text-gray-900 sm:text-lg md:text-xl lg:text-2xl">
 						{assessment.assessment_number}
 					</h1>
-					<p class="mt-0.5 hidden text-xs text-gray-500 sm:block sm:text-sm">
+					<p class="mt-0.5 hidden text-xs text-gray-500 sm:block md:text-sm">
 						Complete the vehicle assessment
 					</p>
 				</div>
@@ -265,14 +265,14 @@
 		</div>
 
 		<!-- Tabs -->
-		<div class="border-b bg-white px-2 py-2 sm:px-6 lg:px-8">
+		<div class="border-b bg-white px-2 py-2 sm:px-4 md:px-6 lg:px-8">
 			<Tabs
 				bind:value={currentTab}
 				class="w-full"
 				onValueChange={(value: string) => onTabChange(value)}
 			>
 				<TabsList
-					class="flex h-auto w-full snap-x snap-mandatory gap-1.5 overflow-x-auto bg-transparent p-0 pb-2 scrollbar-hide sm:grid sm:snap-none sm:grid-cols-4 sm:gap-2 sm:overflow-visible sm:pb-0 md:grid-cols-6 lg:grid-cols-6"
+					class="flex h-auto w-full snap-x snap-mandatory gap-1.5 overflow-x-auto bg-transparent p-0 pb-2 scrollbar-hide sm:grid sm:snap-none sm:grid-cols-3 sm:gap-1.5 sm:overflow-visible sm:pb-0 md:grid-cols-4 md:gap-2 lg:grid-cols-6 lg:gap-2.5"
 				>
 					{#each tabs() as tab}
 						{@const missingCount = getMissingFieldsCount(tab.id)}
