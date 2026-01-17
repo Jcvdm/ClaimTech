@@ -1,11 +1,12 @@
 <script lang="ts">
 	import Sidebar from '$lib/components/layout/Sidebar.svelte';
+	import MobileSidebarHandler from '$lib/components/layout/MobileSidebarHandler.svelte';
 	import { SidebarProvider, SidebarTrigger, SidebarInset } from '$lib/components/ui/sidebar';
 	import { Separator } from '$lib/components/ui/separator';
 	import * as Breadcrumb from '$lib/components/ui/breadcrumb';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
 	import * as Avatar from '$lib/components/ui/avatar';
-	import { LogOut, User } from 'lucide-svelte';
+	import { LogOut } from 'lucide-svelte';
 	import { enhance } from '$app/forms';
 	import { page } from '$app/stores';
 	import { invalidateAll, invalidate, goto } from '$app/navigation';
@@ -13,12 +14,12 @@
 
 	let { data, children }: { data: LayoutData; children: any } = $props();
 
-	// Get user info from layout data
+	// Get user info from layout data (with null checks for SSR/hydration)
 	const userEmail = $derived(
-		(data.user as any)?.email || (data.session?.user as any)?.email || 'User'
+		(data?.user as any)?.email || (data?.session?.user as any)?.email || 'User'
 	);
-	const userName = $derived((data.user as any)?.full_name || userEmail);
-	const userRole = $derived(data.role || 'user');
+	const userName = $derived((data?.user as any)?.full_name || userEmail);
+	const userRole = $derived(data?.role || 'user');
 
 	// Generate breadcrumbs from current path
 	const breadcrumbs = $derived(
@@ -36,7 +37,9 @@
 </script>
 
 <SidebarProvider>
-	<Sidebar role={userRole} engineer_id={data.engineer_id} />
+	<!-- Mobile sidebar behavior handler (must be inside SidebarProvider for context) -->
+	<MobileSidebarHandler />
+	<Sidebar role={userRole} engineer_id={data?.engineer_id} />
 
 	<SidebarInset>
 		<!-- Top bar -->
