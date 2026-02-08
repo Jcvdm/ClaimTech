@@ -14,9 +14,105 @@ ClaimTech has a **solid architectural foundation** — proper RLS coverage, role
 
 ---
 
-## TIER 1 — MUST FIX BEFORE EMPLOYEE ROLLOUT
+## Part 1: End-to-End Flow Analysis
 
-These are security or data integrity issues that could expose data or cause real problems.
+### Flow 1: User Management (Admin creates engineers)
+
+**What works:**
+- Admin can create engineer accounts at `/engineers/new`
+- Supabase auth user created with temporary password
+- Profile auto-created via DB trigger (`handle_new_user()`)
+- Password reset email sent to new engineer
+- Admin can list, view, edit, deactivate engineers
+- Role stored in `user_profiles.role` and embedded in JWT claims
+- Admin-only route protection in layout server
+
+**Issues found:**
+| Issue | Severity | Details |
+|-------|----------|---------|
+| No admin user creation UI | HIGH | Only 'engineer' role can be created. Admins must be made via Supabase console |
+| Password reset redirect bug | HIGH | `/auth/callback` ignores the `next` parameter — always redirects to `/auth/reset-password` instead of `/account/set-password` |
+| No role change UI | MEDIUM | Can't promote engineer to admin or vice versa |
+| No self-service profile editing | LOW | Engineers can't update their own profile |
+| No email format validation | LOW | Only HTML5 `type=email`, no server-side check |
+
+### Flow 2: Client/Insurer Management
+
+**What works:**
+- Full CRUD for clients at `/clients` (create, list, view, edit, soft delete)
+- Two client types: `insurance` and `private`
+- Per-client write-off percentages (borderline, total, salvage)
+- Per-client Terms & Conditions (assessment, estimate, FRC) that override company defaults
+- Quick-add client modal inside request creation form
+- T&Cs validation (10,000 char limit)
+- Soft delete pattern (never loses data)
+
+**Issues found:**
+| Issue | Severity | Details |
+|-------|----------|---------|
+| No duplicate client prevention | MEDIUM | No uniqueness constraint on name — easy to create "ABC Insurance" twice |
+| No way to restore deactivated clients | LOW | Soft-deleted clients can't be reactivated from UI |
+| Delete uses `confirm()` | LOW | Browser alert instead of modal |
+| No client email validation server-side | LOW | Only HTML5 validation |
+
+### Flow 3: Claims/Assessment Lifecycle (Core Workflow)
+
+**What works:**
+- Request creation at `/requests/new` with auto-generated number (CLM/REQ-YYYY-NNN)
+- Assessment auto-created with request (assessment-centric architecture)
+- 10-stage pipeline: `request_submitted` → `archived`/`cancelled`
+- Auto-transitions when engineer opens assessment (early stages → `assessment_in_progress`)
+- Default records created idempotently (tyres, damage, values, estimates)
+- 13 tabs for data capture: summary, identification, exterior 360, interior/mechanical, tyres, damage, values, pre-incident, estimate, finalize, additionals, FRC, audit
+- Comprehensive data model with photos for every section
+- Auto-save on tab change
+- Estimate finalization freezes rates (snapshot pattern)
+- Full audit trail on all changes
+- Retry logic for number generation (handles race conditions)
+
+**Issues found:**
+| Issue | Severity | Details |
+|-------|----------|---------|
+| No validation before finalization | HIGH | Can finalize estimate with empty/incomplete data tabs |
+| `estimate_sent` stage never used | MEDIUM | Defined in DB but no transition triggers it |
+| No "complete" action on assessment | MEDIUM | User just leaves the page — no completion confirmation |
+| Auto-save has no UI feedback | MEDIUM | Users don't know saves are happening (Tier 2.5 above) |
+| No required-field enforcement | MEDIUM | Every data field is optional — can submit nearly empty assessments |
+| No claim_number validation for insurance type | LOW | Should require claim number when request type is 'insurance' |
+| Vehicle data not pre-validated | LOW | Can proceed through pipeline with no vehicle info |
+
+### Flow 4: Report Generation & Output
+
+**What works:**
+- **6 document types** all fully implemented:
+  - Assessment Report (PDF via Puppeteer)
+  - Estimate Report (PDF with T&Cs fallback chain)
+  - FRC Report (PDF with signed URL, 1hr expiry)
+  - Additionals Letter (PDF)
+  - Photos PDF (base64 embedded, 8 organized sections)
+  - Photos ZIP (JSZip, organized folders, concurrent downloads)
+- Batch "Generate All Documents" with SSE progress streaming
+- Print routes with image-wait logic and `window.print()` fallback
+- Document proxy endpoint with auth, ETag caching, proper content types
+- Photo proxy for private bucket access
+- Timeout handling optimized for Vercel Hobby (8-second target)
+- Retry logic (3x exponential backoff) on uploads and downloads
+- Keep-alive SSE pings prevent browser timeout during generation
+
+**Issues found:**
+| Issue | Severity | Details |
+|-------|----------|---------|
+| No email sending | HIGH | Documents can be generated and downloaded but not emailed to clients/insurers |
+| Finalized assessments page has stub buttons | HIGH | "Generate Report" and "Download Docs" buttons on list pages are fake (simulated delays) — the real generation works from the assessment detail page |
+| Image resizing TODO | MEDIUM | Photos PDF uses CSS sizing, no server-side resize (slow for large photos) |
+| Print image timeout 3s | LOW | May miss images on slow connections |
+| FRC uses signed URL (1hr expiry) | LOW | If user doesn't download quickly, link expires |
+
+---
+
+## Part 2: Security & Infrastructure Issues
+
+### TIER 1 — MUST FIX BEFORE EMPLOYEE ROLLOUT
 
 ### 1.1 Overly Permissive RLS on 4 Assessment Detail Tables
 **Risk**: Data leak between users
@@ -28,140 +124,147 @@ These are security or data integrity issues that could expose data or cause real
 
 **Problem**: These tables use `USING (true)` / `WITH CHECK (true)` policies, meaning ANY authenticated user can read/modify ANY record. The parent `assessments` table has proper role-based RLS, but these child tables bypass it entirely.
 
-**Fix**: Create a new migration that drops the permissive policies and adds role-based policies matching the parent assessment access pattern (admin full access, engineers only via assigned appointments/inspections). Follow the pattern used in migration 059 for `assessment_estimates`.
-
-**File**: `supabase/migrations/006_create_assessments.sql` (lines 248-256)
-**Effort**: ~1 migration file
+**Fix**: Create a new migration with role-based policies matching the parent assessment access pattern.
 
 ### 1.2 Verify JWT Claims Hook is Enabled
 **Risk**: If disabled, all RLS policies using `user_role` silently fail
-**Problem**: The JWT hook (`custom_access_token_hook`) must be manually enabled in Supabase Dashboard under Authentication → Hooks. There's no runtime check.
-
-**Fix**:
-- Verify in Supabase Dashboard that the hook is enabled
-- Add a startup validation in `src/hooks.server.ts` that warns if JWT claims are missing `user_role`
+**Fix**: Verify in Supabase Dashboard (Authentication → Hooks) and add runtime validation.
 
 ### 1.3 Overly Broad SELECT on Financial Tables
 **Risk**: Any authenticated user can read all estimates, valuations, FRC data
 **Tables**: `assessment_estimates`, `assessment_vehicle_values`, `assessment_frc`
-**Problem**: SELECT policies use `USING (true)` — any logged-in user can query all financial data even if they don't have access to the parent assessment.
-
-**Fix**: Restrict SELECT to users who can access the parent assessment (same pattern as assessment RLS).
+**Fix**: Restrict SELECT to users who can access the parent assessment.
 
 ---
 
-## TIER 2 — FIX BEFORE EMPLOYEE ROLLOUT (UX Critical)
-
-These are user experience issues that will cause confusion, support tickets, and lost confidence.
+### TIER 2 — FIX BEFORE EMPLOYEE ROLLOUT (UX Critical)
 
 ### 2.1 No Toast/Notification System
-**Impact**: Users get no feedback on success or failure of actions
-**Scope**: App-wide (~40+ pages affected)
-**Details**: There's no notification library integrated. 9 explicit `// TODO: Show toast` comments exist. Users will click buttons with no visible result.
+Users get zero feedback on success/failure. 9 explicit `// TODO: Show toast` comments.
 
-**Fix**: Integrate a toast library (e.g., `svelte-french-toast` or `svelte-sonner`) and add success/error toasts to all user actions.
-
-### 2.2 Browser `alert()` / `confirm()` / `prompt()` Usage
-**Count**: 32 instances across the codebase
-**Impact**: Breaks the PWA native-app feel, looks unprofessional, blocks all interaction
-**Examples**:
-- `quotes/new/+page.svelte` — alert for save feedback
-- `work/appointments/+page.svelte` — prompt for reschedule reason
-- Multiple pages — confirm for destructive actions
-
-**Fix**: Replace with modal dialogs or the new toast system. Use existing Dialog components.
+### 2.2 Browser `alert()`/`confirm()`/`prompt()` — 32 instances
+Breaks the PWA native-app feel.
 
 ### 2.3 Stub/Fake Features Still in UI
-**Impact**: Users will click buttons that do nothing real
-**Broken features**:
-- **Quotes page** (`/quotes/new/`) — hardcoded demo data, no API calls, `console.log` only
-- **Generate Report** button (`/work/finalized-assessments/`) — fake 1.5s delay, no actual generation
-- **Download Documents** button (`/work/finalized-assessments/`, `/work/archive/`) — stub implementations
-- **Generate Package ZIP** (`/work/assessments/[id]`) — not implemented
-
-**Fix**: Either implement these features or remove/disable the buttons with "Coming soon" labels.
+Quotes page is entirely fake. Finalized assessments list page buttons are stubs.
 
 ### 2.4 No Error Pages
-**Impact**: Users see raw SvelteKit error pages on failures
-**Problem**: No `+error.svelte` files exist anywhere in the app. No 404, no 500, no friendly error page.
-
-**Fix**: Create `src/routes/+error.svelte` with a user-friendly error page.
+No `+error.svelte` — users see raw SvelteKit errors.
 
 ### 2.5 Auto-Save Has No User Feedback
-**File**: `src/routes/(app)/work/assessments/[appointment_id]/+page.svelte`
-**Impact**: Users don't know if their work is being saved
-**Problem**: Auto-save runs every 30s but there's no indicator. `lastSaved` state exists but is never displayed. No error state if save fails.
-
-**Fix**: Add a save status indicator (e.g., "Saved 5 seconds ago" / "Saving..." / "Save failed").
+`lastSaved` state exists but is never displayed.
 
 ---
 
-## TIER 3 — FIX DURING INITIAL ROLLOUT
+### TIER 3 — FIX DURING INITIAL ROLLOUT
 
-These are quality-of-life issues you'll encounter during internal use. Track them and fix as you go.
+- 3.1 Missing toast notifications at specific locations
+- 3.2 Navigation dead ends (only 4 routes have back buttons)
+- 3.3 Offline sync status not visible to users
+- 3.4 Print/PDF image loading timeout (3s, silent failure)
+- 3.5 Route-level access guards missing (URL guessing bypasses sidebar)
+- 3.6 Error handling only logs to console, nothing shown to users
 
-### 3.1 Missing Toast Notifications (Specific Locations)
-| Location | Action Missing Feedback |
-|----------|------------------------|
-| `EstimateTab.svelte` | Parts list copy to clipboard |
-| `TyresTab.svelte` (4 places) | Save/error for tyre data |
-| `FRC page` (2 places) | Error notifications |
-| `Finalized assessments` | Report generation, document download |
-| `Archive page` | Document download |
+### TIER 4 — NICE TO HAVE
 
-### 3.2 Navigation Dead Ends
-**Problem**: Only 4 routes have explicit back buttons. Users on detail pages (especially mobile) may struggle to navigate back.
-**Fix**: Add consistent back navigation to all detail/form pages.
-
-### 3.3 Offline Sync Status Not Visible
-**Problem**: The offline sync infrastructure works but there's no UI showing sync status. Users won't know if changes are queued, syncing, or failed.
-**Fix**: Add a sync status component showing pending/failed/completed items.
-
-### 3.4 Print/PDF Image Loading
-**Problem**: Print pages use a 3-second timeout for images. On slow connections, images may not load and print without them — silently.
-**Fix**: Add a loading indicator and warn if images fail to load.
-
-### 3.5 Route-Level Access Guards
-**Problem**: Sidebar hides admin-only items, but there are no route-level guards. If an engineer knows the URL, they can navigate to admin pages (server-side RLS still protects data, but the page may error or show empty).
-**Fix**: Add role checks in `+page.server.ts` load functions for admin-only routes.
-
-### 3.6 Error Handling Shows Nothing to Users
-**Problem**: 32 routes catch errors but only `console.error()` them. Users see blank states or broken UI.
-**Fix**: Surface error messages in the UI, even if just "Something went wrong. Please try again."
+- 4.1 Console.log in production code
+- 4.2 Hardcoded configuration values in EstimateTab
+- 4.3 Image optimization (sharp library TODO)
+- 4.4 Rate limiting on auth endpoints
+- 4.5 Verify appointment RLS migration was superseded
 
 ---
 
-## TIER 4 — NICE TO HAVE / TRACK FOR LATER
+## Part 3: Testing Strategy
 
-### 4.1 Console.log in Production Code
-4 `console.log` statements in production routes that should be removed or converted to proper logging.
+### Recommendation: Manual Test Scripts + Targeted Automated Tests
 
-### 4.2 Hardcoded Configuration Values
-`EstimateTab.svelte` has hardcoded values marked `// TODO: Get from company settings`. Should eventually pull from a settings table.
+Given the app's current state (no existing test infrastructure), here's the practical approach:
 
-### 4.3 Image Optimization
-`generate-photos-pdf` has `// TODO: Add sharp library for server-side image resizing`. PDFs with large photos will be slow to generate.
+### A. Manual Test Checklist (Use During Internal Testing)
 
-### 4.4 Rate Limiting
-No rate limiting on auth endpoints. Low risk for internal use, but should be added before wider deployment.
+These are step-by-step scripts you walk through to verify each flow works:
 
-### 4.5 RLS Policy on Appointments (Migration 005)
-Comment in migration: `-- TODO: Replace with proper policies based on user roles in production`. Verify this was addressed in later migrations (likely was, given migrations 046+).
+**Test 1: Engineer Onboarding**
+- [ ] Log in as admin
+- [ ] Navigate to Engineers → New Engineer
+- [ ] Fill form (name, email, phone, province, specialization)
+- [ ] Submit — verify engineer appears in list
+- [ ] Check email received with password reset link
+- [ ] Click link → verify redirect to set-password page
+- [ ] Set password → verify login works with new credentials
+- [ ] Verify new engineer sees correct dashboard (not admin pages)
+- [ ] As admin: deactivate engineer → verify they can't access app
 
----
+**Test 2: Client Setup**
+- [ ] Navigate to Clients → New Client
+- [ ] Create insurance client (fill all fields including write-off %)
+- [ ] Create private client
+- [ ] Verify both appear in client list
+- [ ] Edit a client → change contact info → verify saved
+- [ ] Set custom T&Cs → verify they persist
+- [ ] Delete a client → verify soft-deleted (gone from list, not from DB)
 
-## What Will Work Well
+**Test 3: Full Claim Lifecycle**
+- [ ] Create new request → select insurance client → fill vehicle info
+- [ ] Verify request number generated (CLM-YYYY-NNN)
+- [ ] Verify assessment auto-created
+- [ ] Schedule inspection → verify stage transitions
+- [ ] Create appointment → assign engineer
+- [ ] As engineer: open assessment → verify auto-transition to `assessment_in_progress`
+- [ ] Fill each tab:
+  - [ ] Identification: enter vehicle details, upload 5 photos
+  - [ ] Exterior 360: upload 8 position photos
+  - [ ] Interior/Mechanical: fill systems check, upload photos
+  - [ ] Tyres: fill 4 tyres with condition and tread depth
+  - [ ] Damage: add 2-3 damage records with photos
+  - [ ] Values: enter trade/market/retail values
+  - [ ] Pre-incident estimate: add line items
+  - [ ] Estimate: add line items with parts, labour, paint
+  - [ ] Additionals: add additional work items if needed
+- [ ] Switch between tabs → verify auto-save works
+- [ ] Finalize estimate → verify rates are frozen
+- [ ] Open FRC tab → verify data populated correctly
 
-The audit also found many things that are solid:
+**Test 4: Document Generation**
+- [ ] From assessment detail → Finalize tab
+- [ ] Generate Assessment Report → verify PDF opens/downloads
+- [ ] Generate Estimate → verify PDF with correct line items and T&Cs
+- [ ] Generate FRC Report → verify PDF downloads (signed URL)
+- [ ] Generate Photos PDF → verify all 8 sections with photos
+- [ ] Generate Photos ZIP → verify organized folder structure
+- [ ] Generate All Documents → verify batch progress works
+- [ ] Use Print route → verify print dialog opens with correct content
+- [ ] Verify documents use client-specific T&Cs (not just company defaults)
 
-- **Authentication flow** — Proper session-only cookies, JWT validation, auth guards on routes
-- **SQL injection protection** — All 331+ database calls use parameterized Supabase client, zero raw SQL
-- **Service layer error handling** — 342+ error/throw/catch patterns, consistent across 31 service files
-- **Audit logging** — Immutable insert-only audit_logs table
-- **Storage security** — All buckets set to private, authenticated access only
-- **Multi-role access control** — Admin/engineer separation throughout
-- **Assessment-centric architecture** — Clean 10-stage pipeline with proper stage transitions
-- **PWA infrastructure** — Service worker, IndexedDB caching, background sync framework in place
+**Test 5: Edge Cases**
+- [ ] Create request with missing optional fields → verify no errors
+- [ ] Upload very large photo (10MB+) → verify handling
+- [ ] Open assessment on mobile → verify layout works
+- [ ] Lose internet during assessment → verify offline behavior
+- [ ] Two users edit same assessment simultaneously → verify no data loss
+- [ ] Generate report for assessment with missing photos → verify no crash
+- [ ] Try accessing admin URL as engineer → verify redirect
+
+### B. Automated Tests (Build Incrementally)
+
+For automated testing, I'd recommend building **Playwright E2E tests** that mirror the manual scripts above. This gives you:
+- Browser-based testing (real user simulation)
+- Screenshot on failure (easy debugging)
+- Can run before each deployment
+
+**Priority order for automation:**
+1. Login/auth flow (highest value — gates everything)
+2. Request creation → assessment creation (core workflow)
+3. Document generation (most complex, most likely to break)
+4. Client CRUD (straightforward, good for regression)
+
+### C. What I Can Build Now
+
+I can create:
+1. **Manual test checklist document** — printable, with pass/fail columns
+2. **Playwright test scaffolding** — project setup, test helpers, auth fixtures
+3. **Critical path E2E tests** — login → create request → open assessment → generate report
 
 ---
 
@@ -172,8 +275,10 @@ The audit also found many things that are solid:
 - [ ] Verify JWT hook is enabled in Supabase Dashboard
 - [ ] Add basic toast notification system (2.1)
 - [ ] Create error page (2.4)
+- [ ] Fix password reset redirect bug
 
 ### Phase 2: During Internal Testing (You Using It)
+- [ ] Walk through all 5 manual test scripts
 - [ ] Replace browser alerts with modals (2.2)
 - [ ] Disable or remove stub features (2.3)
 - [ ] Add auto-save indicator (2.5)
@@ -183,10 +288,12 @@ The audit also found many things that are solid:
 - [ ] Fix all Tier 3 items
 - [ ] Add route-level access guards (3.5)
 - [ ] Add user-facing error messages (3.6)
-- [ ] Full manual testing of all workflows
+- [ ] Set up Playwright E2E for critical path
 - [ ] Create user training documentation
 
 ### Phase 4: Post-Employee Rollout
 - [ ] Address Tier 4 items based on feedback
 - [ ] Monitor error logs
 - [ ] Add rate limiting and security hardening
+- [ ] Implement email sending for documents
+- [ ] Expand automated test coverage
