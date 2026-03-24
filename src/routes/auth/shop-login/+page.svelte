@@ -25,31 +25,29 @@
 								class="h-20 w-auto cursor-pointer transition-all duration-200 ease-linear
 									   hover:scale-105 hover:brightness-110"
 							/>
-					<p class="text-sm tracking-[0.4em] text-slate-400 uppercase">ClaimTech Platform</p>
+					<p class="text-sm tracking-[0.4em] text-slate-400 uppercase">Workshop Portal</p>
 				</div>
 				<h1 class="text-4xl leading-tight font-semibold">
-					Modern tools for streamlined assessments & repairs
+					Manage your workshop jobs, estimates & invoices
 				</h1>
 				<p class="max-w-md text-slate-300">
-					Securely manage inspection workflows, collaborate with engineers, and deliver actionable
-					vehicle insights from one dashboard.
+					Stay on top of your workshop operations with tools built for job tracking, customer
+					management, and streamlined invoicing.
 				</p>
 			</div>
 
 			<div class="space-y-4 text-sm text-slate-300">
 				<p class="flex items-start gap-3">
 					<ShieldCheck class="mt-0.5 h-5 w-5 text-slate-400" />
-					<span
-						>Centralized dashboards keep inspections, appointments, and assessments in sync.</span
-					>
+					<span>Track jobs from intake to completion with a clear workflow pipeline.</span>
 				</p>
 				<p class="flex items-start gap-3">
 					<ShieldCheck class="mt-0.5 h-5 w-5 text-slate-400" />
-					<span>Guided workflows help engineers capture consistent, auditable vehicle data.</span>
+					<span>Generate estimates and invoices quickly with line-item precision.</span>
 				</p>
 				<p class="flex items-start gap-3">
 					<ShieldCheck class="mt-0.5 h-5 w-5 text-slate-400" />
-					<span>Automated reminders ensure stakeholders stay informed as work progresses.</span>
+					<span>Manage customer records and communication from a single dashboard.</span>
 				</p>
 			</div>
 		</div>
@@ -63,14 +61,14 @@
 				alt="ClaimTech logo"
 				class="h-14 w-auto"
 			/>
-			<p class="mt-2 text-xs tracking-[0.3em] text-slate-500 uppercase">ClaimTech Platform</p>
+			<p class="mt-2 text-xs tracking-[0.3em] text-slate-500 uppercase">Workshop Portal</p>
 		</div>
 
 		<div class="w-full max-w-md space-y-5 sm:space-y-6">
 			<div class="text-center">
 				<p class="text-xs font-semibold tracking-[0.3em] text-gray-400 uppercase">Secure sign in</p>
 				<h2 class="mt-2 text-2xl font-semibold sm:mt-3 sm:text-3xl">Welcome back</h2>
-				<p class="mt-1.5 text-sm text-gray-500 sm:mt-2">Access your assessment workspace</p>
+				<p class="mt-1.5 text-sm text-gray-500 sm:mt-2">Access your workshop</p>
 			</div>
 
 			<div class="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm shadow-gray-100 sm:p-6">
@@ -104,7 +102,7 @@
 								autocomplete="email"
 								required
 								class="h-12 flex-1 rounded-xl border-none bg-transparent px-3 text-gray-900 placeholder:text-gray-400 focus:outline-none"
-								placeholder="you@claimtech.com"
+								placeholder="you@workshop.co.za"
 							/>
 						</div>
 					</label>
@@ -165,13 +163,13 @@
 			</div>
 
 			<p class="text-center text-xs text-gray-500">
-				By continuing you agree to ClaimTech’s
+				By continuing you agree to ClaimTech's
 				<a class="text-slate-700 hover:text-slate-900" href="/legal/terms">Terms</a>
 				and
 				<a class="text-slate-700 hover:text-slate-900" href="/legal/privacy">Privacy Policy</a>.
 			</p>
 			<p class="text-center text-xs text-gray-500">
-				<a class="text-slate-700 hover:text-slate-900" href="/auth/shop-login">Workshop login &rarr;</a>
+				<a class="text-slate-700 hover:text-slate-900" href="/auth/login">Assessment login &rarr;</a>
 			</p>
 		</div>
 	</section>

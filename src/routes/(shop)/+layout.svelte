@@ -1,7 +1,7 @@
 <script lang="ts">
-	import Sidebar from '$lib/components/layout/Sidebar.svelte';
+	import ShopSidebar from '$lib/components/layout/ShopSidebar.svelte';
 	import MobileSidebarHandler from '$lib/components/layout/MobileSidebarHandler.svelte';
-import { SidebarProvider, SidebarTrigger, SidebarInset } from '$lib/components/ui/sidebar';
+	import { SidebarProvider, SidebarTrigger, SidebarInset } from '$lib/components/ui/sidebar';
 	import { Separator } from '$lib/components/ui/separator';
 	import * as Breadcrumb from '$lib/components/ui/breadcrumb';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
@@ -39,7 +39,7 @@ import { SidebarProvider, SidebarTrigger, SidebarInset } from '$lib/components/u
 <SidebarProvider>
 	<!-- Mobile sidebar behavior handler (must be inside SidebarProvider for context) -->
 	<MobileSidebarHandler />
-	<Sidebar role={userRole} engineer_id={data?.engineer_id} />
+	<ShopSidebar role={userRole} />
 
 	<SidebarInset>
 		<!-- Top bar -->
@@ -52,7 +52,7 @@ import { SidebarProvider, SidebarTrigger, SidebarInset } from '$lib/components/u
 				<Breadcrumb.Root>
 					<Breadcrumb.List>
 						<Breadcrumb.Item class="hidden md:block">
-							<Breadcrumb.Link href="/dashboard">Home</Breadcrumb.Link>
+							<Breadcrumb.Link href="/shop/dashboard">Home</Breadcrumb.Link>
 						</Breadcrumb.Item>
 						{#each breadcrumbs as crumb}
 							<Breadcrumb.Separator class="hidden md:block" />
@@ -88,9 +88,6 @@ import { SidebarProvider, SidebarTrigger, SidebarInset } from '$lib/components/u
 						</div>
 					</DropdownMenu.Trigger>
 					<DropdownMenu.Content align="end">
-						<DropdownMenu.Item onclick={() => goto('/company/settings')} class="cursor-pointer">
-							Company Settings
-						</DropdownMenu.Item>
 						<DropdownMenu.Separator />
 						<DropdownMenu.Item
 							class="cursor-pointer"

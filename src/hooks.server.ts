@@ -115,7 +115,7 @@ const authGuard: Handle = async ({ event, resolve }) => {
 	}
 
 	// Public routes that don't require authentication
-	const publicRoutes = ['/auth/login', '/auth/callback', '/auth/confirm', '/auth/forgot-password']
+	const publicRoutes = ['/auth/login', '/auth/shop-login', '/auth/callback', '/auth/confirm', '/auth/forgot-password']
 	const isPublicRoute = publicRoutes.some(route => event.url.pathname.startsWith(route))
 
 	// If not authenticated and trying to access protected route, redirect to login
@@ -123,8 +123,11 @@ const authGuard: Handle = async ({ event, resolve }) => {
 		redirect(303, '/auth/login')
 	}
 
-	// If authenticated and trying to access auth pages, redirect to dashboard
+	// If authenticated and trying to access auth pages, redirect to appropriate dashboard
 	if (session && isPublicRoute && event.url.pathname !== '/auth/callback' && event.url.pathname !== '/auth/confirm') {
+		if (event.url.pathname.startsWith('/auth/shop-login')) {
+			redirect(303, '/shop/dashboard')
+		}
 		redirect(303, '/dashboard')
 	}
 
