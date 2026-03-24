@@ -1,25 +1,41 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
+	import { useNavigationLoading } from '$lib/utils/useNavigationLoading.svelte';
+	import PageHeader from '$lib/components/layout/PageHeader.svelte';
+	import ModernDataTable from '$lib/components/data/ModernDataTable.svelte';
+	import GradientBadge from '$lib/components/data/GradientBadge.svelte';
+	import TableCell from '$lib/components/data/TableCell.svelte';
+	import EmptyState from '$lib/components/data/EmptyState.svelte';
+	import { Button } from '$lib/components/ui/button';
+	import { Briefcase, Hash, User, Car, Activity, Calendar, Plus } from 'lucide-svelte';
 	import type { PageData } from './$types';
 	import type { ShopJobStatus } from '$lib/services/shop-job.service';
 
 	let { data }: { data: PageData } = $props();
+	const { loadingId, startNavigation } = useNavigationLoading();
 
-	const statusConfig: Record<ShopJobStatus, { label: string; classes: string }> = {
-		quote_requested: { label: 'Quote Requested', classes: 'bg-gray-100 text-gray-700' },
-		quoted: { label: 'Quoted', classes: 'bg-blue-100 text-blue-700' },
-		approved: { label: 'Approved', classes: 'bg-green-100 text-green-700' },
-		checked_in: { label: 'Checked In', classes: 'bg-yellow-100 text-yellow-700' },
-		in_progress: { label: 'In Progress', classes: 'bg-orange-100 text-orange-700' },
-		quality_check: { label: 'Quality Check', classes: 'bg-purple-100 text-purple-700' },
-		ready_for_collection: { label: 'Ready for Collection', classes: 'bg-teal-100 text-teal-700' },
-		completed: { label: 'Completed', classes: 'bg-green-200 text-green-800' },
-		cancelled: { label: 'Cancelled', classes: 'bg-red-100 text-red-700' }
+	const statusVariantMap: Record<ShopJobStatus, 'gray' | 'blue' | 'green' | 'yellow' | 'red' | 'purple'> = {
+		quote_requested: 'gray',
+		quoted: 'blue',
+		approved: 'green',
+		checked_in: 'yellow',
+		in_progress: 'yellow',
+		quality_check: 'purple',
+		ready_for_collection: 'green',
+		completed: 'green',
+		cancelled: 'red'
 	};
 
-	const jobTypeConfig: Record<string, { label: string; classes: string }> = {
-		autobody: { label: 'Autobody', classes: 'bg-blue-100 text-blue-700' },
-		mechanical: { label: 'Mechanical', classes: 'bg-orange-100 text-orange-700' }
+	const statusLabelMap: Record<ShopJobStatus, string> = {
+		quote_requested: 'Quote Requested',
+		quoted: 'Quoted',
+		approved: 'Approved',
+		checked_in: 'Checked In',
+		in_progress: 'In Progress',
+		quality_check: 'Quality Check',
+		ready_for_collection: 'Ready for Collection',
+		completed: 'Completed',
+		cancelled: 'Cancelled'
 	};
 
 	function formatDate(dateStr: string | null) {
@@ -30,81 +46,100 @@
 			day: 'numeric'
 		});
 	}
+
+	const jobsWithDetails = $derived(
+		data.jobs.map((job) => {
+			const vehicleParts = [
+				job.vehicle_year ? String(job.vehicle_year) : null,
+				job.vehicle_make,
+				job.vehicle_model
+			].filter(Boolean);
+			const vehicleDisplay = vehicleParts.length > 0
+				? vehicleParts.join(' ') + (job.vehicle_reg ? ` (${job.vehicle_reg})` : '')
+				: '—';
+			return {
+				id: job.id,
+				job_number: job.job_number,
+				customer_name: job.customer_name,
+				vehicle_display: vehicleDisplay,
+				job_type: job.job_type,
+				status: job.status as ShopJobStatus,
+				date_in: formatDate(job.date_in)
+			};
+		})
+	);
+
+	const columns = [
+		{ key: 'job_number' as const, label: 'Job #', sortable: true, icon: Hash },
+		{ key: 'customer_name' as const, label: 'Customer', sortable: true, icon: User },
+		{ key: 'vehicle_display' as const, label: 'Vehicle', sortable: false, icon: Car },
+		{ key: 'job_type' as const, label: 'Type', sortable: true },
+		{ key: 'status' as const, label: 'Status', sortable: true, icon: Activity },
+		{ key: 'date_in' as const, label: 'Date In', sortable: true, icon: Calendar }
+	];
+
+	function handleRowClick(row: (typeof jobsWithDetails)[0]) {
+		startNavigation(row.id, `/shop/jobs/${row.id}`);
+	}
 </script>
 
-<div class="space-y-6 pt-4">
-	<div class="flex items-center justify-between">
-		<div>
-			<h1 class="text-2xl font-semibold text-gray-900">Jobs</h1>
-			<p class="mt-1 text-sm text-gray-500">Manage workshop jobs from intake to completion.</p>
-		</div>
-		<a
-			href="/shop/jobs/new"
-			class="inline-flex items-center gap-2 rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700"
-		>
-			+ New Job
-		</a>
-	</div>
+<div class="flex-1 space-y-4 p-4 md:space-y-6 md:p-8">
+	<PageHeader title="Jobs" description="Manage workshop jobs from intake to completion.">
+		{#snippet actions()}
+			<Button href="/shop/jobs/new">
+				<Plus class="h-4 w-4 mr-2" />
+				New Job
+			</Button>
+		{/snippet}
+	</PageHeader>
 
-	<div class="rounded-2xl border border-gray-200 bg-white shadow-sm">
-		{#if data.jobs.length === 0}
-			<div class="py-16 text-center">
-				<p class="text-sm text-gray-500">No jobs found. Create your first job to get started.</p>
-			</div>
-		{:else}
-			<div class="overflow-x-auto">
-				<table class="w-full text-left text-sm">
-					<thead class="border-b border-gray-200 bg-gray-50 text-xs font-medium uppercase tracking-wide text-gray-500">
-						<tr>
-							<th class="px-4 py-3">Job #</th>
-							<th class="px-4 py-3">Customer</th>
-							<th class="px-4 py-3">Vehicle</th>
-							<th class="px-4 py-3">Type</th>
-							<th class="px-4 py-3">Status</th>
-							<th class="px-4 py-3">Date In</th>
-							<th class="px-4 py-3">Promised</th>
-						</tr>
-					</thead>
-					<tbody class="divide-y divide-gray-100">
-						{#each data.jobs as job}
-							<tr
-								class="cursor-pointer transition-colors hover:bg-gray-50"
-								onclick={() => goto(`/shop/jobs/${job.id}`)}
-							>
-								<td class="px-4 py-3 font-medium text-gray-900">{job.job_number}</td>
-								<td class="px-4 py-3 text-gray-700">{job.customer_name}</td>
-								<td class="px-4 py-3 text-gray-700">
-									{job.vehicle_year ? `${job.vehicle_year} ` : ''}{job.vehicle_make}
-									{job.vehicle_model}
-									{#if job.vehicle_reg}
-										<span class="ml-1 text-xs text-gray-400">({job.vehicle_reg})</span>
-									{/if}
-								</td>
-								<td class="px-4 py-3">
-									{#if jobTypeConfig[job.job_type]}
-										<span
-											class="inline-flex rounded-full px-2 py-0.5 text-xs font-medium {jobTypeConfig[job.job_type].classes}"
-										>
-											{jobTypeConfig[job.job_type].label}
-										</span>
-									{/if}
-								</td>
-								<td class="px-4 py-3">
-									{#if statusConfig[job.status as ShopJobStatus]}
-										<span
-											class="inline-flex rounded-full px-2 py-0.5 text-xs font-medium {statusConfig[job.status as ShopJobStatus].classes}"
-										>
-											{statusConfig[job.status as ShopJobStatus].label}
-										</span>
-									{/if}
-								</td>
-								<td class="px-4 py-3 text-gray-600">{formatDate(job.date_in)}</td>
-								<td class="px-4 py-3 text-gray-600">{formatDate(job.date_promised)}</td>
-							</tr>
-						{/each}
-					</tbody>
-				</table>
-			</div>
-		{/if}
-	</div>
+	{#if data.jobs.length === 0}
+		<EmptyState
+			icon={Briefcase}
+			title="No jobs found"
+			description="Create your first job to get started."
+			actionLabel="New Job"
+			onAction={() => goto('/shop/jobs/new')}
+		/>
+	{:else}
+		<ModernDataTable
+			data={jobsWithDetails}
+			{columns}
+			onRowClick={handleRowClick}
+			loadingRowId={loadingId}
+			rowIdKey="id"
+			striped
+			emptyMessage="No jobs found"
+		>
+			{#snippet cellContent(column, row)}
+				{#if column.key === 'job_number'}
+					<TableCell variant="primary" bold>
+						{row.job_number}
+					</TableCell>
+				{:else if column.key === 'job_type'}
+					{#if row.job_type}
+						<GradientBadge
+							variant={row.job_type === 'autobody' ? 'blue' : 'yellow'}
+							label={row.job_type.charAt(0).toUpperCase() + row.job_type.slice(1)}
+						/>
+					{:else}
+						<span class="text-gray-400">—</span>
+					{/if}
+				{:else if column.key === 'status'}
+					{@const variant = statusVariantMap[row.status] ?? 'gray'}
+					{@const label = statusLabelMap[row.status] ?? row.status}
+					<GradientBadge {variant} {label} />
+				{:else}
+					{row[column.key]}
+				{/if}
+			{/snippet}
+		</ModernDataTable>
+
+		<div class="flex items-center justify-between text-sm text-gray-500">
+			<p>
+				Showing <span class="font-medium text-gray-900">{jobsWithDetails.length}</span>
+				{jobsWithDetails.length === 1 ? 'job' : 'jobs'}
+			</p>
+		</div>
+	{/if}
 </div>

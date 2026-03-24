@@ -1,23 +1,37 @@
 <script lang="ts">
-	import { Plus, FileText } from 'lucide-svelte';
+	import { goto } from '$app/navigation';
+	import { useNavigationLoading } from '$lib/utils/useNavigationLoading.svelte';
+	import PageHeader from '$lib/components/layout/PageHeader.svelte';
+	import ModernDataTable from '$lib/components/data/ModernDataTable.svelte';
+	import GradientBadge from '$lib/components/data/GradientBadge.svelte';
+	import TableCell from '$lib/components/data/TableCell.svelte';
+	import EmptyState from '$lib/components/data/EmptyState.svelte';
+	import { Button } from '$lib/components/ui/button';
+	import { FileText, Hash, User, Car, Activity, DollarSign, Calendar, Plus } from 'lucide-svelte';
 	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();
+	const { loadingId, startNavigation } = useNavigationLoading();
 
 	type EstimateStatus = 'draft' | 'sent' | 'approved' | 'declined' | 'revised' | 'expired';
 
-	const statusConfig: Record<EstimateStatus, { label: string; classes: string }> = {
-		draft: { label: 'Draft', classes: 'bg-gray-100 text-gray-700' },
-		sent: { label: 'Sent', classes: 'bg-blue-100 text-blue-700' },
-		approved: { label: 'Approved', classes: 'bg-green-100 text-green-700' },
-		declined: { label: 'Declined', classes: 'bg-red-100 text-red-700' },
-		revised: { label: 'Revised', classes: 'bg-orange-100 text-orange-700' },
-		expired: { label: 'Expired', classes: 'bg-gray-100 text-gray-500' }
+	const statusVariantMap: Record<EstimateStatus, 'gray' | 'blue' | 'green' | 'red' | 'yellow' | 'purple'> = {
+		draft: 'gray',
+		sent: 'blue',
+		approved: 'green',
+		declined: 'red',
+		revised: 'yellow',
+		expired: 'gray'
 	};
 
-	function getStatusConfig(status: string) {
-		return statusConfig[status as EstimateStatus] ?? { label: status, classes: 'bg-gray-100 text-gray-700' };
-	}
+	const statusLabelMap: Record<EstimateStatus, string> = {
+		draft: 'Draft',
+		sent: 'Sent',
+		approved: 'Approved',
+		declined: 'Declined',
+		revised: 'Revised',
+		expired: 'Expired'
+	};
 
 	function formatCurrency(amount: number) {
 		return new Intl.NumberFormat('en-ZA', { style: 'currency', currency: 'ZAR' }).format(amount);
@@ -30,98 +44,99 @@
 			year: 'numeric'
 		});
 	}
+
+	const estimatesWithDetails = $derived(
+		data.estimates.map((estimate) => {
+			const job = estimate.shop_jobs;
+			const vehicleParts = [job?.vehicle_make, job?.vehicle_model].filter(Boolean);
+			const vehicleDisplay = vehicleParts.length > 0
+				? vehicleParts.join(' ') + (job?.vehicle_reg ? ` (${job.vehicle_reg})` : '')
+				: '—';
+			return {
+				id: estimate.id,
+				estimate_number: estimate.estimate_number,
+				customer_name: job?.customer_name ?? '—',
+				vehicle_display: vehicleDisplay,
+				job_type: job?.job_type ?? '—',
+				status: estimate.status as EstimateStatus,
+				total_display: formatCurrency(estimate.total),
+				created_at: formatDate(estimate.created_at)
+			};
+		})
+	);
+
+	const columns = [
+		{ key: 'estimate_number' as const, label: 'Estimate #', sortable: true, icon: Hash },
+		{ key: 'customer_name' as const, label: 'Customer', sortable: true, icon: User },
+		{ key: 'vehicle_display' as const, label: 'Vehicle', sortable: false, icon: Car },
+		{ key: 'job_type' as const, label: 'Type', sortable: true },
+		{ key: 'status' as const, label: 'Status', sortable: true, icon: Activity },
+		{ key: 'total_display' as const, label: 'Total', sortable: false, icon: DollarSign },
+		{ key: 'created_at' as const, label: 'Date', sortable: true, icon: Calendar }
+	];
+
+	function handleRowClick(row: (typeof estimatesWithDetails)[0]) {
+		startNavigation(row.id, `/shop/estimates/${row.id}`);
+	}
 </script>
 
-<div class="space-y-6 pt-4">
-	<div class="flex items-center justify-between">
-		<div>
-			<h1 class="text-2xl font-semibold text-gray-900">Estimates</h1>
-			<p class="mt-1 text-sm text-gray-500">Manage repair estimates for customers.</p>
-		</div>
-		<a
-			href="/shop/estimates/new"
-			class="inline-flex items-center gap-2 rounded-lg bg-slate-800 px-4 py-2 text-sm font-medium text-white shadow-sm transition-colors hover:bg-slate-700"
-		>
-			<Plus class="h-4 w-4" />
-			New Estimate
-		</a>
-	</div>
+<div class="flex-1 space-y-4 p-4 md:space-y-6 md:p-8">
+	<PageHeader title="Estimates" description="Manage repair estimates for customers.">
+		{#snippet actions()}
+			<Button href="/shop/estimates/new">
+				<Plus class="h-4 w-4 mr-2" />
+				New Estimate
+			</Button>
+		{/snippet}
+	</PageHeader>
 
-	{#if data.estimates.length === 0}
-		<div class="rounded-2xl border border-gray-200 bg-white p-12 shadow-sm">
-			<div class="flex flex-col items-center gap-3 text-center">
-				<div class="rounded-full bg-gray-100 p-4">
-					<FileText class="h-8 w-8 text-gray-400" />
-				</div>
-				<h3 class="font-semibold text-gray-900">No estimates yet</h3>
-				<p class="text-sm text-gray-500">Create your first estimate to get started.</p>
-				<a
-					href="/shop/estimates/new"
-					class="mt-2 inline-flex items-center gap-2 rounded-lg bg-slate-800 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700"
-				>
-					<Plus class="h-4 w-4" />
-					New Estimate
-				</a>
-			</div>
-		</div>
+	{#if estimatesWithDetails.length === 0}
+		<EmptyState
+			icon={FileText}
+			title="No estimates yet"
+			description="Create your first estimate to get started."
+			actionLabel="New Estimate"
+			onAction={() => goto('/shop/estimates/new')}
+		/>
 	{:else}
-		<div class="rounded-2xl border border-gray-200 bg-white shadow-sm">
-			<div class="overflow-x-auto">
-				<table class="w-full text-sm">
-					<thead>
-						<tr class="border-b border-gray-100">
-							<th class="px-4 py-3 text-left font-medium text-gray-500">Estimate #</th>
-							<th class="px-4 py-3 text-left font-medium text-gray-500">Customer</th>
-							<th class="px-4 py-3 text-left font-medium text-gray-500">Vehicle</th>
-							<th class="px-4 py-3 text-left font-medium text-gray-500">Type</th>
-							<th class="px-4 py-3 text-left font-medium text-gray-500">Status</th>
-							<th class="px-4 py-3 text-right font-medium text-gray-500">Total</th>
-							<th class="px-4 py-3 text-left font-medium text-gray-500">Date</th>
-						</tr>
-					</thead>
-					<tbody class="divide-y divide-gray-50">
-						{#each data.estimates as estimate}
-							{@const job = estimate.shop_jobs}
-							{@const sc = getStatusConfig(estimate.status)}
-							<tr
-								class="cursor-pointer transition-colors hover:bg-gray-50"
-								onclick={() => window.location.href = `/shop/estimates/${estimate.id}`}
-							>
-								<td class="px-4 py-3 font-medium text-gray-900">
-									{estimate.estimate_number}
-								</td>
-								<td class="px-4 py-3 text-gray-700">
-									{job?.customer_name ?? '—'}
-								</td>
-								<td class="px-4 py-3 text-gray-700">
-									{#if job?.vehicle_make || job?.vehicle_model}
-										{[job?.vehicle_make, job?.vehicle_model].filter(Boolean).join(' ')}
-										{#if job?.vehicle_reg}
-											<span class="ml-1 text-gray-400">({job.vehicle_reg})</span>
-										{/if}
-									{:else}
-										—
-									{/if}
-								</td>
-								<td class="px-4 py-3">
-									<span class="capitalize text-gray-700">{job?.job_type ?? '—'}</span>
-								</td>
-								<td class="px-4 py-3">
-									<span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium {sc.classes}">
-										{sc.label}
-									</span>
-								</td>
-								<td class="px-4 py-3 text-right font-medium text-gray-900">
-									{formatCurrency(estimate.total)}
-								</td>
-								<td class="px-4 py-3 text-gray-500">
-									{formatDate(estimate.created_at)}
-								</td>
-							</tr>
-						{/each}
-					</tbody>
-				</table>
-			</div>
+		<ModernDataTable
+			data={estimatesWithDetails}
+			{columns}
+			onRowClick={handleRowClick}
+			loadingRowId={loadingId}
+			rowIdKey="id"
+			striped
+			emptyMessage="No estimates found"
+		>
+			{#snippet cellContent(column, row)}
+				{#if column.key === 'estimate_number'}
+					<TableCell variant="primary" bold>
+						{row.estimate_number}
+					</TableCell>
+				{:else if column.key === 'status'}
+					{@const variant = statusVariantMap[row.status] ?? 'gray'}
+					{@const label = statusLabelMap[row.status] ?? row.status}
+					<GradientBadge {variant} {label} />
+				{:else if column.key === 'job_type'}
+					{#if row.job_type && row.job_type !== '—'}
+						<GradientBadge
+							variant={row.job_type === 'autobody' ? 'blue' : 'yellow'}
+							label={row.job_type.charAt(0).toUpperCase() + row.job_type.slice(1)}
+						/>
+					{:else}
+						<span class="text-gray-400">—</span>
+					{/if}
+				{:else}
+					{row[column.key]}
+				{/if}
+			{/snippet}
+		</ModernDataTable>
+
+		<div class="flex items-center justify-between text-sm text-gray-500">
+			<p>
+				Showing <span class="font-medium text-gray-900">{estimatesWithDetails.length}</span>
+				{estimatesWithDetails.length === 1 ? 'estimate' : 'estimates'}
+			</p>
 		</div>
 	{/if}
 </div>
