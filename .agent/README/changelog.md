@@ -1,7 +1,321 @@
 # Changelog - Recent Updates
 
-**Last Updated**: December 5, 2025 (PWA Offline Infrastructure Complete - All 6 Phases Implemented ✅)
+**Last Updated**: March 24, 2026 (Shop Module Complete - Full Database, Services, UI, Workflow ✅)
 
+
+---
+
+## March 24, 2026
+
+### ✅ Shop Module - Complete Implementation
+
+**Status**: ✅ Complete - Full shop management system live on production DB
+
+#### Summary
+Completed end-to-end shop module for managing mechanical and autobody repair shops. Includes complete database schema (9 tables), service layer (5 services), 9 UI pages, and full workflow (estimate → approval → job → invoice). All live on production database cfblmkzleqtvtfxujikf with RLS policies enabled.
+
+#### Database Schema (9 Tables + 3 Enums + RLS)
+
+1. **shop_settings** - Shop configuration, defaults, terms, pricing
+2. **shop_customers** - Customer database with search indexing
+3. **shop_customer_vehicles** - Vehicles linked to customers (UNIQUE constraint)
+4. **shop_jobs** - Work orders with 9-stage workflow (shop_job_status enum)
+   - Fields: job_number, status, job_type, customer info, dates, workflow fields
+   - Relationships: shop_id, customer_id, assigned_to, created_by
+5. **shop_estimates** - Quotes with JSONB line items (shop_estimate_status enum)
+   - Line items matching assessment_estimates pattern (parts, labor, sublet, sundries)
+   - Totals tracking with VAT, discount, subtotal
+6. **shop_invoices** - Invoicing with payment tracking (shop_invoice_status enum)
+   - Payment method, date, reference, amount_paid, amount_due
+   - Relationships: job_id, estimate_id (SET NULL)
+7. **shop_job_photos** - Photos with categories (before, during, after, damage, general)
+8. **shop_labor_rates** - Configurable labor rates per shop and job type
+9. **shop_audit_logs** - Change audit trail for all shop operations
+   - Entity types: job, estimate, invoice, customer
+   - Linked to performed_by user
+
+#### Enums
+- `shop_job_status` (9 states) - checked_in, in_progress, quality_check, ready_for_collection, completed, on_hold, cancelled, closed, archived
+- `shop_estimate_status` (6 states) - draft, sent, approved, declined, revising, completed
+- `shop_invoice_status` (7 states) - draft, sent, payment_pending, partial_payment, paid, overdue, void
+
+#### Services (5 TypeScript Files)
+
+1. **shop-estimate.service.ts** - Estimate lifecycle
+   - `create()` - Create draft estimate with JSONB line items
+   - `send()` - Send to customer
+   - `approve()` - Customer approval triggers job creation
+   - `decline()` - Decline with notes
+   - `revise()` - Create new revision
+
+2. **shop-job.service.ts** - Job management and workflow
+   - `create()` - Create from estimate approval or manually
+   - `update()` - Update job details
+   - `transitionStatus()` - Validate and transition between statuses
+   - Status validation: checked_in → in_progress → quality_check → ready_for_collection → completed
+   - `delete()` - Soft delete (cancelled status)
+
+3. **shop-customer.service.ts** - Customer database
+   - `create()` - Add new customer with validation
+   - `search()` - Full-text search by name/phone
+   - `getJobHistory()` - Get all jobs for customer
+   - `update()` - Update customer details
+   - `delete()` - Archive customer
+
+4. **shop-settings.service.ts** - Configuration management
+   - `getSettings()` - Retrieve shop config
+   - `updateSettings()` - Update basic info, defaults, terms
+   - `getLaborRates()` - Get configurable rates
+   - `createLaborRate()` - Add new rate for job type
+   - `updateLaborRate()` - Modify existing rate
+   - `deleteLaborRate()` - Remove rate (cascade safe)
+
+5. **shop-invoice.service.ts** - Invoicing and payments
+   - `createFromJob()` - Auto-generate from completed job
+   - `send()` - Send to customer
+   - `recordPayment()` - Track payment (partial or full)
+   - `void()` - Cancel invoice
+   - `getPaymentStatus()` - Calculate outstanding amount
+
+#### UI Pages (9 Pages Using Shared Components)
+
+1. **Dashboard** (`/shop/dashboard`)
+   - Live stats: active jobs, open estimates, total customers
+   - Recent activity feed
+   - Quick actions
+
+2. **Estimates** (`/shop/estimates`)
+   - List with ModernDataTable (estimate number, job, customer, amount, status)
+   - Filters by status, date range
+   - Create new estimate button
+
+3. **New Estimate** (`/shop/estimates/new`)
+   - Vehicle info input (using VehicleInfoSection component)
+   - Customer selection or walk-in entry
+   - Line items editor with parts, labor, sundries
+   - Discount and VAT calculation
+   - Submit to draft
+
+4. **Estimate Detail** (`/shop/estimates/[id]`)
+   - Full estimate display
+   - Line items editor (inline editing)
+   - Status actions: Send, Approve, Decline, Revise
+   - Customer communication history
+
+5. **Jobs** (`/shop/jobs`)
+   - List with ModernDataTable (job number, customer, status, date_in, assigned_to)
+   - Filters by status, assigned_to
+   - Color-coded status badges (9-stage workflow)
+
+6. **Job Detail** (`/shop/jobs/[id]`)
+   - Full job information
+   - Status stepper showing all 9 stages
+   - Status transition buttons with validation
+   - "Create Invoice" button for completed jobs
+   - Photo gallery
+   - Job history/audit trail
+
+7. **Invoices** (`/shop/invoices`)
+   - List with ModernDataTable (invoice number, job, customer, amount, payment_status)
+   - Filters by payment status, date range
+
+8. **Invoice Detail** (`/shop/invoices/[id]`)
+   - Invoice display with line items from estimate
+   - Payment tracking section
+   - Record payment form (method, amount, date, reference)
+   - Outstanding balance calculation
+   - Send/void actions
+
+9. **Customers** (`/shop/customers`)
+   - List with search (ModernDataTable)
+   - Search by name, phone
+   - Create new customer button
+   - Filters and pagination
+
+10. **Customer Detail** (`/shop/customers/[id]`)
+    - Customer information
+    - Job history
+    - Vehicle history
+    - Contact details
+    - Notes
+
+11. **Settings** (`/shop/settings`)
+    - Shop info form (name, address, contact, VAT number)
+    - Default pricing (labor rate, markup percentages)
+    - Terms and conditions editor
+    - Labor rates CRUD with job type configuration
+
+#### Workflow
+
+**Estimate → Job → Invoice**
+
+```
+Customer Request
+    ↓
+Create Estimate (draft)
+    ↓
+Send to Customer
+    ↓
+Customer Approves
+    ↓ (auto-creates Job in checked_in status)
+Job Progresses (9 stages):
+  checked_in → in_progress → quality_check → ready_for_collection → completed
+    ↓
+Create Invoice (from completed job)
+    ↓
+Send Invoice to Customer
+    ↓
+Record Payment (full or partial)
+    ↓
+Paid (or Payment Plan)
+```
+
+#### Auth & Layout
+- Shared Supabase auth (same users as assessment module)
+- Separate `(shop)` route group (distinct from `(app)` assessment routes)
+- ShopSidebar component with shop-specific navigation
+- Shop login page at `/auth/shop-login`
+
+#### RLS Policies
+- All 9 tables have RLS enabled
+- Admin: full access to all shop tables
+- Staff: scoped to their shop (shop_id linkage)
+- Audit logging: all changes tracked in shop_audit_logs
+
+#### Files Created/Modified
+
+**Services**:
+- `src/lib/services/shop-estimate.service.ts` - New
+- `src/lib/services/shop-job.service.ts` - New
+- `src/lib/services/shop-customer.service.ts` - New
+- `src/lib/services/shop-settings.service.ts` - New
+- `src/lib/services/shop-invoice.service.ts` - New
+
+**Routes & Pages**:
+- `src/routes/(shop)/` - New route group
+- `src/routes/(shop)/shop/dashboard/+page.svelte` - New
+- `src/routes/(shop)/shop/estimates/+page.svelte` - New
+- `src/routes/(shop)/shop/estimates/new/+page.svelte` - New
+- `src/routes/(shop)/shop/estimates/[id]/+page.svelte` - New
+- `src/routes/(shop)/shop/jobs/+page.svelte` - New
+- `src/routes/(shop)/shop/jobs/[id]/+page.svelte` - New
+- `src/routes/(shop)/shop/invoices/+page.svelte` - New
+- `src/routes/(shop)/shop/invoices/[id]/+page.svelte` - New
+- `src/routes/(shop)/shop/customers/+page.svelte` - New
+- `src/routes/(shop)/shop/customers/[id]/+page.svelte` - New
+- `src/routes/(shop)/shop/settings/+page.svelte` - New
+- `src/routes/(shop)/+layout.svelte` - New (shop layout)
+- `src/routes/auth/shop-login/+page.svelte` - New
+
+**Layout Components**:
+- `src/lib/components/layout/ShopSidebar.svelte` - New
+
+**Database Migrations** (Supabase):
+- `supabase/migrations/00000000000000_baseline_tables.sql` - Tables
+- `supabase/migrations/00000000000001_baseline_constraints.sql` - FKs & constraints
+- `supabase/migrations/00000000000002_baseline_functions.sql` - Audit triggers
+- `supabase/migrations/00000000000003_baseline_rls.sql` - RLS policies
+- `supabase/migrations/00000000000004_add_shop_job_type_columns.sql` - Autobody fields
+- `supabase/migrations/00000000000005_add_shop_mechanical_fields.sql` - Mechanical fields
+
+#### Assessment Changes (Minimal)
+- Removed DevModeSwitcher from `(app)/+layout.svelte`
+- Added "Workshop login" link on assessment login page (`src/routes/auth/login/+page.svelte`)
+- Added shop-login route to public routes in `src/hooks.server.ts`
+- **Zero changes** to assessment tables, services, or core functionality
+
+#### Commits (3 commits on `auto` branch)
+- `3862e1b` - Initial shop module (database + services)
+- `1a356c2` - Shared component refactor (ModernDataTable, etc)
+- `67bd96e` - Dashboard, settings, invoices, VehicleInfoSection
+
+#### Testing & QA
+- [x] All service methods tested with sample data
+- [x] RLS policies verified - admin access confirmed, staff scope working
+- [x] UI pages render correctly with ModernDataTable
+- [x] Workflow tested: estimate → job → invoice
+- [x] Database migrations apply without errors
+- [x] npm run check passes
+
+#### Related Documentation
+- `.agent/shop.md` - Shop expansion planning (architecture, market analysis, SaaS strategy)
+- `.agent/README.md` - Main project overview
+
+#### Next Steps
+- User testing with beta shops
+- Payment processing integration (Stripe/Yoco)
+- Marketing site for shop tier
+- Iterate based on feedback
+
+---
+
+## January 17, 2026
+
+### ✅ Shop Expansion - Phase 1: Dev Infrastructure
+
+**Status**: ✅ Complete - Foundation for autobody/mechanical shop support
+
+#### Summary
+Implemented development infrastructure for the ClaimTech Shop Expansion, enabling the same app to serve insurance assessors, autobody shops, and mechanical workshops. This phase establishes the dev mode switcher and new quote flow for shop modes.
+
+#### New Features
+
+1. **Dev Mode Switcher** (Admin Only)
+   - Dropdown in header for switching between Insurance, Autobody, Mechanical modes
+   - Persists selection to localStorage (`dev:app-mode`)
+   - Only visible to admin users
+   - File: `src/lib/stores/app-mode.svelte.ts`
+   - Component: `src/lib/components/layout/DevModeSwitcher.svelte`
+
+2. **New Quote Flow** (Autobody/Mechanical Modes)
+   - "New Quote" replaces "New Request" in sidebar
+   - Simplified form: Client Type (Private/Insurance), Vehicle, Owner
+   - Private quotes: Only owner details (no insurer)
+   - Insurance quotes: Client dropdown + claim number
+   - Creates assessment and redirects to estimate tab
+   - Files: `src/routes/(app)/quotes/new/+page.svelte`, `+page.server.ts`
+
+3. **Open Quotes List**
+   - New `/quotes` page showing pending quotes
+   - Uses ModernDataTable component
+   - Columns: Quote #, Vehicle, Owner/Client, Type, Created, Status
+   - Row click navigates to estimate tab
+   - Only visible in autobody/mechanical modes
+
+4. **Supabase Branching**
+   - `auto` branch for shop development (preview database)
+   - `main` branch for production (insurance system)
+   - `.env.auto` and `.env.main` for environment switching
+
+#### Files Created/Modified
+- `src/lib/stores/app-mode.svelte.ts` - App mode store
+- `src/lib/components/layout/DevModeSwitcher.svelte` - Mode switcher dropdown
+- `src/lib/components/layout/Sidebar.svelte` - Conditional navigation
+- `src/routes/(app)/quotes/new/+page.svelte` - New quote form
+- `src/routes/(app)/quotes/new/+page.server.ts` - Server load
+- `src/routes/(app)/quotes/+page.svelte` - Quotes list page
+- `src/routes/(app)/quotes/+page.server.ts` - Quotes data load
+- `src/lib/services/request.service.ts` - Added `createQuoteJob` method
+- `src/lib/components/forms/OwnerInfoSection.svelte` - Added `hideThirdParty` prop
+- `.env.auto` - Preview database config
+- `.env.main` - Production database backup
+
+#### Architecture Pattern
+```
+┌─────────────────────────────────────────────────────────────────┐
+│   CREATE NEW JOB                                                │
+├─────────────────────────────────────────────────────────────────┤
+│   Job Type:     ○ Autobody        ○ Mechanical                  │
+│   Client Type:  ○ Private         ○ Insurance                   │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+Same components serve all modes - 90%+ code reuse.
+
+#### Related Documentation
+- `.agent/shop.md` - Shop expansion planning document
+- `.agent/Tasks/completed/DEV_MODE_SWITCHER.md` - Implementation details
+- `.agent/Tasks/completed/NEW_QUOTE_FLOW.md` - Quote flow details
 
 ---
 

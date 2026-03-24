@@ -1,8 +1,8 @@
 # ClaimTech Documentation
 
 **Project**: ClaimTech (SVA - SvelteKit Validation App)
-**Last Updated**: December 5, 2025 (PWA Documentation Enhanced - UI Components Visual Indicator Behavior Documented)
-**Status**: ✅ PWA Complete (Offline data caching, IndexedDB, background sync, visual indicators documented) | ✅ Svelte 5 Migration Complete - 0 Errors, 12 Warnings (All Intentional) | ✅ Accessories in Report PDF | ✅ C001: Vehicle Location Capturing (Google Places autocomplete with fallback) | ✅ Photo Compression Live (60-75% storage reduction)
+**Last Updated**: March 24, 2026 (Shop Module Complete - Full DB, Services, UI, Workflow)
+**Status**: ✅ Shop Module Complete (9 tables, 5 services, 9 UI pages, full workflow) | ✅ PWA Complete | ✅ Svelte 5 Migration Complete | ✅ Photo Compression Live
 
 ---
 
@@ -13,7 +13,7 @@
 - **Auth**: Supabase Auth with 100% RLS coverage
 - **Architecture**: Assessment-centric (10-stage pipeline)
 - **PWA**: ✅ Complete offline capability (IndexedDB caching, background sync, installable app)
-- **Documentation**: 43 System docs, 19 SOPs, 31 database tables
+- **Documentation**: 43 System docs, 19 SOPs, 40 database tables (31 assessment + 9 shop)
 - **Deployment**: ✅ Live on Vercel (https://claimtech.vercel.app)
 - **Type Safety**: ✅ Full Supabase type generation with PostgrestFilterBuilder inference working
 
@@ -31,6 +31,9 @@
 ---
 
 ## Documentation Categories
+
+### 🛒 [Shop Expansion](./shop.md)
+SaaS planning document for mechanical/autobody shop market expansion. Includes unified architecture, dev setup with Supabase branching, and implementation roadmap.
 
 ### 📚 [System Documentation](./README/system_docs.md)
 Complete index of architecture, database, security, UI patterns, and bug postmortems (30 files).

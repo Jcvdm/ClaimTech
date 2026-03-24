@@ -1,9 +1,9 @@
 # ClaimTech Shop Expansion - SaaS Planning
 
 **Created**: 2026-01-17
-**Updated**: 2026-01-17
-**Status**: Planning
-**Branch**: Mechanical & Autobody Shop Market
+**Updated**: 2026-03-24 (Shop Module Complete ✅)
+**Status**: ✅ Complete - Live on production DB cfblmkzleqtvtfxujikf
+**Branch**: Mechanical & Autobody Shop Market (implemented on `auto` branch)
 
 ---
 
@@ -364,26 +364,80 @@ CREATE TABLE labor_rates (
    - [x] `.env.auto` and `.env.main` environment files
    - [x] Documentation in Development Setup section
 
+### ✅ Completed (March 24, 2026) - Full Shop Module
+
+1. **Database Schema (9 Tables)**
+   - [x] shop_settings - Shop configuration, defaults, terms
+   - [x] shop_customers - Customer database with search
+   - [x] shop_customer_vehicles - Vehicles linked to customers
+   - [x] shop_jobs - Work orders (9-stage workflow)
+   - [x] shop_estimates - Quotes with JSONB line items
+   - [x] shop_invoices - Invoicing with payment tracking
+   - [x] shop_job_photos - Photo management
+   - [x] shop_labor_rates - Configurable rates per job type
+   - [x] shop_audit_logs - Change audit trail
+   - [x] 3 enums: shop_job_status, shop_estimate_status, shop_invoice_status
+   - [x] RLS policies on all tables
+
+2. **Service Layer (5 Services)**
+   - [x] shop-estimate.service.ts - Estimate lifecycle (create, send, approve, decline, revise)
+   - [x] shop-job.service.ts - Job management (CRUD, status transitions, workflow validation)
+   - [x] shop-customer.service.ts - Customer database (CRUD, search, job history)
+   - [x] shop-settings.service.ts - Configuration (shop info, labor rates, terms)
+   - [x] shop-invoice.service.ts - Invoicing (create from job, payment tracking, void)
+
+3. **UI Pages (9 Pages)**
+   - [x] /shop/dashboard - Live stats, recent activity
+   - [x] /shop/estimates - List view with ModernDataTable
+   - [x] /shop/estimates/new - Create estimate form
+   - [x] /shop/estimates/[id] - Detail with line items editor
+   - [x] /shop/jobs - List view with status badges
+   - [x] /shop/jobs/[id] - Detail with 9-stage status stepper
+   - [x] /shop/invoices - List view with payment status
+   - [x] /shop/invoices/[id] - Detail with payment tracking
+   - [x] /shop/customers - List with search
+   - [x] /shop/customers/[id] - Detail with job history
+   - [x] /shop/settings - Shop configuration, labor rates
+
+4. **Complete Workflow**
+   - [x] Estimate → approval → Job creation (auto)
+   - [x] Job status progression (9 stages with validation)
+   - [x] Job completion → Invoice creation
+   - [x] Invoice payment tracking (full/partial)
+   - [x] RLS preventing data leakage between shops
+
+5. **Assessment Module Integration (Minimal)**
+   - [x] Separate route group `(shop)` from `(app)`
+   - [x] Shared auth, separate data
+   - [x] Workshop login page
+   - [x] No changes to assessment core functionality
+
 ---
 
 ## Next Steps
 
-### Immediate (This Week)
-- [ ] Validate assumptions with 3-5 shop owners (interviews)
-- [ ] Research competitor pricing in SA market
-- [x] ~~Design UI for job type + client type toggles~~ (Completed)
+### Immediate (Next Week)
+- [ ] User testing with 2-3 beta shops
+- [ ] Collect feedback on workflow, UI, terminology
+- [ ] Document shop-specific SOPs
 
-### Short-term (This Month)
-- [ ] Add job_type and client_type columns to assessments table (schema migration)
-- [ ] Create customers table for private jobs (repeat customers)
-- [ ] Add conditional fields (complaint/diagnosis for mechanical)
-- [ ] Create customer-facing quote PDF variant
+### Short-term (Next Month)
+- [ ] Payment processing integration (Stripe/Yoco)
+- [ ] Email notifications (estimate ready, payment received)
+- [ ] Reports and analytics dashboard
+- [ ] Customer self-service portal (view estimates, invoices)
 
-### Medium-term (Next Quarter)
+### Medium-term (Q2 2026)
 - [ ] Beta launch with 5-10 shops
-- [ ] Subscription billing integration
 - [ ] Marketing website
-- [ ] Iterate based on feedback
+- [ ] Onboarding flow and tutorials
+- [ ] Accounting integrations (Xero/QuickBooks)
+
+### Long-term (Q3-Q4 2026)
+- [ ] API for integrations
+- [ ] Advanced features based on feedback
+- [ ] Expand to neighboring countries
+- [ ] Enterprise features (multi-location, reporting)
 
 ---
 
