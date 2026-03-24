@@ -1,11 +1,13 @@
-import { error, fail } from '@sveltejs/kit';
+import { error, fail, redirect } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
 import { createShopJobService } from '$lib/services/shop-job.service';
 import type { ShopJobStatus } from '$lib/services/shop-job.service';
+import { createShopInvoiceService } from '$lib/services/shop-invoice.service';
 
 export const load: PageServerLoad = async ({ params, locals }) => {
 	const { supabase } = locals;
 	const jobService = createShopJobService(supabase);
+	const invoiceService = createShopInvoiceService(supabase);
 
 	const { data: job, error: jobError } = await jobService.getJob(params.id);
 
@@ -13,7 +15,10 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 		error(404, 'Job not found');
 	}
 
-	return { job };
+	// Check for an existing non-void invoice for this job
+	const { data: existingInvoice } = await invoiceService.getInvoiceForJob(params.id);
+
+	return { job, existingInvoice: existingInvoice ?? null };
 };
 
 export const actions: Actions = {
@@ -35,6 +40,42 @@ export const actions: Actions = {
 		}
 
 		return { success: true };
+	},
+
+	createInvoice: async ({ params, locals }) => {
+		const { supabase } = locals;
+		const invoiceService = createShopInvoiceService(supabase);
+
+		// Check if an invoice already exists for this job
+		const { data: existingInvoice } = await invoiceService.getInvoiceForJob(params.id);
+		if (existingInvoice) {
+			redirect(303, `/shop/invoices/${existingInvoice.id}`);
+		}
+
+		// Get the job's most recent approved/sent estimate
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		const db = supabase as any;
+		const { data: estimates } = await db
+			.from('shop_estimates')
+			.select('id, status, total')
+			.eq('job_id', params.id)
+			.in('status', ['approved', 'sent', 'draft'])
+			.order('created_at', { ascending: false })
+			.limit(1);
+
+		const estimate = estimates?.[0] as { id: string; status: string; total: number } | undefined;
+
+		if (!estimate) {
+			return fail(400, { error: 'No estimate found for this job. Please create an estimate first.' });
+		}
+
+		try {
+			const invoice = await invoiceService.createFromEstimate(estimate.id, params.id);
+			redirect(303, `/shop/invoices/${invoice.id}`);
+		} catch (err) {
+			const message = err instanceof Error ? err.message : 'Failed to create invoice';
+			return fail(400, { error: message });
+		}
 	},
 
 	update: async ({ params, request, locals }) => {

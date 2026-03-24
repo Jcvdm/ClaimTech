@@ -6,6 +6,8 @@
 	import * as Card from '$lib/components/ui/card';
 	import { Input } from '$lib/components/ui/input';
 	import { Separator } from '$lib/components/ui/separator';
+	import VehicleInfoSection from '$lib/components/forms/VehicleInfoSection.svelte';
+	import type { Province } from '$lib/types/engineer';
 
 	type ShopCustomer = { id: string; name: string; phone: string | null; email: string | null };
 
@@ -27,6 +29,16 @@
 	let customer_name = $state('');
 	let customer_phone = $state('');
 	let customer_email = $state('');
+
+	// Vehicle fields
+	let vehicle_make = $state('');
+	let vehicle_model = $state('');
+	let vehicle_year = $state<number | undefined>(undefined);
+	let vehicle_vin = $state('');
+	let vehicle_registration = $state('');
+	let vehicle_color = $state('');
+	let vehicle_mileage = $state<number | undefined>(undefined);
+	let vehicle_province = $state<Province | ''>('');
 
 	$effect(() => {
 		if (selectedCustomer) {
@@ -193,101 +205,18 @@
 		</Card.Root>
 
 		<!-- Vehicle Info -->
-		<Card.Root>
-			<Card.Header>
-				<Card.Title>Vehicle Information</Card.Title>
-			</Card.Header>
-			<Card.Content class="space-y-4">
-				<div class="grid gap-4 md:grid-cols-2">
-					<div>
-						<label class="mb-1.5 block text-sm font-medium text-gray-700" for="vehicle_make">
-							Make <span class="text-red-500">*</span>
-						</label>
-						<Input
-							id="vehicle_make"
-							name="vehicle_make"
-							type="text"
-							required
-							placeholder="e.g., BMW, Toyota"
-						/>
-					</div>
-					<div>
-						<label class="mb-1.5 block text-sm font-medium text-gray-700" for="vehicle_model">
-							Model <span class="text-red-500">*</span>
-						</label>
-						<Input
-							id="vehicle_model"
-							name="vehicle_model"
-							type="text"
-							required
-							placeholder="e.g., 320i, Corolla"
-						/>
-					</div>
-				</div>
-				<div class="grid gap-4 md:grid-cols-3">
-					<div>
-						<label class="mb-1.5 block text-sm font-medium text-gray-700" for="vehicle_year">
-							Year
-						</label>
-						<Input
-							id="vehicle_year"
-							name="vehicle_year"
-							type="number"
-							min="1900"
-							max="2100"
-							placeholder="2023"
-						/>
-					</div>
-					<div>
-						<label class="mb-1.5 block text-sm font-medium text-gray-700" for="vehicle_color">
-							Color
-						</label>
-						<Input
-							id="vehicle_color"
-							name="vehicle_color"
-							type="text"
-							placeholder="White, Black, Silver"
-						/>
-					</div>
-					<div>
-						<label class="mb-1.5 block text-sm font-medium text-gray-700" for="vehicle_mileage">
-							Mileage (km)
-						</label>
-						<Input
-							id="vehicle_mileage"
-							name="vehicle_mileage"
-							type="number"
-							min="0"
-							placeholder="50000"
-						/>
-					</div>
-				</div>
-				<div class="grid gap-4 md:grid-cols-2">
-					<div>
-						<label class="mb-1.5 block text-sm font-medium text-gray-700" for="vehicle_reg">
-							Registration
-						</label>
-						<Input
-							id="vehicle_reg"
-							name="vehicle_reg"
-							type="text"
-							placeholder="CA 123 456"
-						/>
-					</div>
-					<div>
-						<label class="mb-1.5 block text-sm font-medium text-gray-700" for="vehicle_vin">
-							VIN
-						</label>
-						<Input
-							id="vehicle_vin"
-							name="vehicle_vin"
-							type="text"
-							placeholder="Vehicle Identification Number"
-						/>
-					</div>
-				</div>
-			</Card.Content>
-		</Card.Root>
+		<!-- Hidden input to map vehicle_registration -> vehicle_reg for server action -->
+		<input type="hidden" name="vehicle_reg" value={vehicle_registration} />
+		<VehicleInfoSection
+			bind:vehicle_make
+			bind:vehicle_model
+			bind:vehicle_year
+			bind:vehicle_vin
+			bind:vehicle_registration
+			bind:vehicle_color
+			bind:vehicle_mileage
+			bind:vehicle_province
+		/>
 
 		<!-- Job Details (conditional) -->
 		<Card.Root>

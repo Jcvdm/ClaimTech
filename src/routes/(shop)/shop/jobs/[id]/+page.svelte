@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
-	import type { PageData } from './$types';
+	import type { PageData, ActionData } from './$types';
 	import type { ShopJobStatus } from '$lib/services/shop-job.service';
 	import { Button } from '$lib/components/ui/button';
 	import * as Card from '$lib/components/ui/card';
@@ -8,7 +8,7 @@
 	import { Badge } from '$lib/components/ui/badge';
 	import { Separator } from '$lib/components/ui/separator';
 
-	let { data }: { data: PageData } = $props();
+	let { data, form }: { data: PageData; form: ActionData } = $props();
 
 	// Status workflow order (excluding cancelled)
 	const STATUS_STEPS: ShopJobStatus[] = [
@@ -68,6 +68,12 @@
 	let job = $state(data.job);
 	let saving = $state(false);
 	let statusUpdating = $state(false);
+	let creatingInvoice = $state(false);
+
+	const existingInvoice = $derived(data.existingInvoice);
+	const canCreateInvoice = $derived(
+		job.status === 'ready_for_collection' || job.status === 'completed'
+	);
 
 	let currentStepIndex = $derived(
 		STATUS_STEPS.indexOf(job.status as ShopJobStatus)
@@ -118,6 +124,34 @@
 					{job.job_type === 'autobody' ? 'Autobody' : 'Mechanical'}
 				</Badge>
 			</div>
+		</div>
+
+		<!-- Invoice Actions -->
+		<div class="flex items-center gap-2">
+			{#if form?.error}
+				<p class="text-sm text-red-600">{form.error}</p>
+			{/if}
+			{#if existingInvoice}
+				<Button variant="outline" size="sm" href="/shop/invoices/{existingInvoice.id}">
+					View Invoice ({existingInvoice.invoice_number})
+				</Button>
+			{:else if canCreateInvoice}
+				<form
+					method="POST"
+					action="?/createInvoice"
+					use:enhance={() => {
+						creatingInvoice = true;
+						return async ({ update }) => {
+							creatingInvoice = false;
+							await update();
+						};
+					}}
+				>
+					<Button type="submit" variant="default" size="sm" disabled={creatingInvoice}>
+						{creatingInvoice ? 'Creating...' : 'Create Invoice'}
+					</Button>
+				</form>
+			{/if}
 		</div>
 	</div>
 
