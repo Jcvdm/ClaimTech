@@ -1,0 +1,1 @@
+ALTER TABLE shop_jobs ADD COLUMN IF NOT EXISTS engine_number TEXT;

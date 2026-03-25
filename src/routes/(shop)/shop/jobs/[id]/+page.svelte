@@ -121,6 +121,38 @@
 	// Linked estimates (array from join)
 	let estimates = $derived(Array.isArray(job.shop_estimates) ? job.shop_estimates : []);
 
+	// Vehicle Check-In Details state
+	let vehicleMileage = $state<string>(String(job.vehicle_mileage ?? ''));
+	let vehicleVin = $state<string>(job.vehicle_vin ?? '');
+	let engineNumber = $state<string>((job as Record<string, unknown>).engine_number as string ?? '');
+	let vehicleReg = $state<string>(job.vehicle_reg ?? '');
+	let vehicleDetailsDirty = $state(false);
+	let savingVehicleDetails = $state(false);
+
+	let vehicleSaveTimeout: ReturnType<typeof setTimeout>;
+
+	function scheduleVehicleSave() {
+		vehicleDetailsDirty = true;
+		clearTimeout(vehicleSaveTimeout);
+		vehicleSaveTimeout = setTimeout(() => saveVehicleDetails(), 1500);
+	}
+
+	async function saveVehicleDetails() {
+		if (!vehicleDetailsDirty || savingVehicleDetails) return;
+		savingVehicleDetails = true;
+		try {
+			const form = new FormData();
+			form.append('vehicle_mileage', vehicleMileage);
+			form.append('vehicle_vin', vehicleVin);
+			form.append('engine_number', engineNumber);
+			form.append('vehicle_reg', vehicleReg);
+			await fetch('?/updateVehicleDetails', { method: 'POST', body: form });
+			vehicleDetailsDirty = false;
+		} finally {
+			savingVehicleDetails = false;
+		}
+	}
+
 </script>
 
 <div class="space-y-6 pt-4">
@@ -480,6 +512,43 @@
 		{#if showBooking}
 			<Tabs.Content value="booking">
 				<div class="mt-4 space-y-6">
+					<!-- Vehicle Check-In Details Card -->
+					<Card.Root>
+						<Card.Header>
+							<div class="flex items-center justify-between">
+								<div>
+									<Card.Title>Vehicle Check-In Details</Card.Title>
+									<Card.Description>Verify and update vehicle details at check-in</Card.Description>
+								</div>
+								{#if savingVehicleDetails}
+									<Badge variant="outline" class="animate-pulse">Saving...</Badge>
+								{:else if vehicleDetailsDirty}
+									<Button size="sm" variant="outline" onclick={saveVehicleDetails}>Save</Button>
+								{/if}
+							</div>
+						</Card.Header>
+						<Card.Content>
+							<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+								<div class="space-y-1">
+									<label for="checkin_mileage" class="text-sm font-medium text-gray-700">Mileage (km)</label>
+									<Input id="checkin_mileage" type="number" bind:value={vehicleMileage} placeholder="e.g. 85000" oninput={scheduleVehicleSave} />
+								</div>
+								<div class="space-y-1">
+									<label for="checkin_vin" class="text-sm font-medium text-gray-700">VIN Number</label>
+									<Input id="checkin_vin" bind:value={vehicleVin} placeholder="17-character VIN" oninput={scheduleVehicleSave} />
+								</div>
+								<div class="space-y-1">
+									<label for="checkin_engine" class="text-sm font-medium text-gray-700">Engine Number</label>
+									<Input id="checkin_engine" bind:value={engineNumber} placeholder="Engine number" oninput={scheduleVehicleSave} />
+								</div>
+								<div class="space-y-1">
+									<label for="checkin_reg" class="text-sm font-medium text-gray-700">Registration</label>
+									<Input id="checkin_reg" bind:value={vehicleReg} placeholder="e.g. ABC 123 GP" oninput={scheduleVehicleSave} />
+								</div>
+							</div>
+						</Card.Content>
+					</Card.Root>
+
 					<ShopPhotosPanel
 						jobId={job.id}
 						category="before"

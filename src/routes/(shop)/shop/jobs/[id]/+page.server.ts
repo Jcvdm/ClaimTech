@@ -83,6 +83,25 @@ export const actions: Actions = {
 		}
 	},
 
+	updateVehicleDetails: async ({ params, request, locals }) => {
+		const formData = await request.formData();
+		const jobService = createShopJobService(locals.supabase);
+
+		const mileageRaw = formData.get('vehicle_mileage') as string;
+		const vehicle_mileage = mileageRaw ? parseInt(mileageRaw, 10) : null;
+
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		const { error: updateError } = await jobService.updateJob(params.id, {
+			vehicle_mileage: vehicle_mileage !== null && isNaN(vehicle_mileage) ? null : vehicle_mileage,
+			vehicle_vin: (formData.get('vehicle_vin') as string) || null,
+			engine_number: (formData.get('engine_number') as string) || null,
+			vehicle_reg: (formData.get('vehicle_reg') as string) || null,
+		} as any);
+
+		if (updateError) return fail(400, { error: updateError.message });
+		return { success: true };
+	},
+
 	update: async ({ params, request, locals }) => {
 		const { supabase } = locals;
 		const jobService = createShopJobService(supabase);
