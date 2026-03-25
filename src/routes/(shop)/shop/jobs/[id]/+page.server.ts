@@ -5,8 +5,6 @@ import type { ShopJobStatus } from '$lib/services/shop-job.service';
 import { createShopInvoiceService } from '$lib/services/shop-invoice.service';
 import { createShopJobPhotosService } from '$lib/services/shop-job-photos.service';
 
-const PHOTOS_BUCKET = 'SVA Photos';
-
 export const load: PageServerLoad = async ({ params, locals }) => {
 	const { supabase } = locals;
 	const jobService = createShopJobService(supabase);
@@ -116,99 +114,6 @@ export const actions: Actions = {
 
 		if (updateError) {
 			return fail(400, { error: updateError.message ?? 'Failed to update job' });
-		}
-
-		return { success: true };
-	},
-
-	uploadPhoto: async ({ params, request, locals }) => {
-		const { supabase } = locals;
-		const photosService = createShopJobPhotosService(supabase);
-
-		const formData = await request.formData();
-		const file = formData.get('file') as File;
-		const category = (formData.get('category') as string) || 'general';
-		const label = (formData.get('label') as string) || 'Photo';
-
-		if (!file || file.size === 0) {
-			return fail(400, { error: 'No file provided' });
-		}
-
-		if (!file.type.startsWith('image/')) {
-			return fail(400, { error: 'Only image files are allowed' });
-		}
-
-		const timestamp = Date.now();
-		const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
-		const storagePath = `shop-jobs/${params.id}/${timestamp}_${safeName}`;
-
-		// Upload to Supabase storage
-		const { error: uploadError } = await supabase.storage
-			.from(PHOTOS_BUCKET)
-			.upload(storagePath, file, { contentType: file.type });
-
-		if (uploadError) {
-			return fail(500, { error: uploadError.message });
-		}
-
-		// Create DB record
-		const { error: dbError } = await photosService.createPhoto({
-			job_id: params.id,
-			storage_path: storagePath,
-			label,
-			category
-		});
-
-		if (dbError) {
-			// Clean up storage if DB insert fails
-			await supabase.storage.from(PHOTOS_BUCKET).remove([storagePath]);
-			return fail(500, { error: 'Failed to save photo record' });
-		}
-
-		return { success: true };
-	},
-
-	deletePhoto: async ({ request, locals }) => {
-		const { supabase } = locals;
-		const photosService = createShopJobPhotosService(supabase);
-
-		const formData = await request.formData();
-		const photoId = formData.get('photo_id') as string;
-		const storagePath = formData.get('storage_path') as string;
-
-		if (!photoId) {
-			return fail(400, { error: 'Photo ID is required' });
-		}
-
-		// Delete DB record first
-		const { error: dbError } = await photosService.deletePhoto(photoId);
-		if (dbError) {
-			return fail(500, { error: 'Failed to delete photo record' });
-		}
-
-		// Delete from storage (best effort)
-		if (storagePath) {
-			await supabase.storage.from(PHOTOS_BUCKET).remove([storagePath]);
-		}
-
-		return { success: true };
-	},
-
-	updatePhotoLabel: async ({ request, locals }) => {
-		const { supabase } = locals;
-		const photosService = createShopJobPhotosService(supabase);
-
-		const formData = await request.formData();
-		const photoId = formData.get('photo_id') as string;
-		const label = formData.get('label') as string;
-
-		if (!photoId || !label) {
-			return fail(400, { error: 'Photo ID and label are required' });
-		}
-
-		const { error: updateError } = await photosService.updateLabel(photoId, label);
-		if (updateError) {
-			return fail(500, { error: 'Failed to update photo label' });
 		}
 
 		return { success: true };

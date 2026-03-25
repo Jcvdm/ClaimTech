@@ -46,6 +46,17 @@ export function createShopJobPhotosService(supabase: SupabaseClient) {
 
 		async deletePhoto(photoId: string) {
 			return db.from('shop_job_photos').delete().eq('id', photoId);
+		},
+
+		async getNextSortOrder(jobId: string, category: string) {
+			const { data } = await db
+				.from('shop_job_photos')
+				.select('sort_order')
+				.eq('job_id', jobId)
+				.eq('category', category)
+				.order('sort_order', { ascending: false })
+				.limit(1);
+			return (data?.[0]?.sort_order ?? 0) + 1;
 		}
 	};
 }

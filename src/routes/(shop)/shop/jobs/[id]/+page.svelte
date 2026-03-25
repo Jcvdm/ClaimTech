@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
+	import { invalidateAll } from '$app/navigation';
 	import type { PageData, ActionData } from './$types';
 	import type { ShopJobStatus } from '$lib/services/shop-job.service';
 	import { Button } from '$lib/components/ui/button';
@@ -8,7 +9,7 @@
 	import { Badge } from '$lib/components/ui/badge';
 	import { Separator } from '$lib/components/ui/separator';
 	import * as Tabs from '$lib/components/ui/tabs';
-	import { Camera, X, Image } from 'lucide-svelte';
+	import ShopPhotosPanel from '$lib/components/shop/ShopPhotosPanel.svelte';
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();
 
@@ -71,7 +72,6 @@
 	let saving = $state(false);
 	let statusUpdating = $state(false);
 	let creatingInvoice = $state(false);
-	let uploadingPhoto = $state(false);
 
 	const existingInvoice = $derived(data.existingInvoice);
 	const canCreateInvoice = $derived(
@@ -97,23 +97,9 @@
 	// Photos from server
 	const photos = $derived(data.photos ?? []);
 
-	// Photo grouping by category and label prefix
-	const vehicleIdPhotos = $derived(
-		photos.filter((p: { category: string; label?: string }) =>
-			p.category === 'before' && p.label?.startsWith('ID: ')
-		)
-	);
-	const exteriorPhotos = $derived(
-		photos.filter((p: { category: string; label?: string }) =>
-			p.category === 'before' && p.label?.startsWith('360: ')
-		)
-	);
-	const damagePhotos = $derived(
-		photos.filter((p: { category: string }) => p.category === 'damage')
-	);
-	const workPhotos = $derived(
-		photos.filter((p: { category: string }) => p.category === 'during')
-	);
+	async function refreshPhotos() {
+		await invalidateAll();
+	}
 
 	function formatDate(dateStr: string | null) {
 		if (!dateStr) return '-';
@@ -135,31 +121,6 @@
 	// Linked estimates (array from join)
 	let estimates = $derived(Array.isArray(job.shop_estimates) ? job.shop_estimates : []);
 
-	// Photo URL helper - SVA Photos bucket uses /api/photo/{path} proxy
-	function photoUrl(storagePath: string): string {
-		return `/api/photo/${storagePath}`;
-	}
-
-	// Vehicle ID label options
-	const vehicleIdLabels = [
-		'ID: Registration Plate',
-		'ID: VIN Plate',
-		'ID: Odometer',
-		'ID: Engine Number',
-		'ID: Licence Disc'
-	];
-
-	// 360 Exterior label options
-	const exteriorLabels = [
-		'360: Front',
-		'360: Rear',
-		'360: Left Side',
-		'360: Right Side',
-		'360: Front Left',
-		'360: Front Right',
-		'360: Rear Left',
-		'360: Rear Right'
-	];
 </script>
 
 <div class="space-y-6 pt-4">
@@ -519,328 +480,40 @@
 		{#if showBooking}
 			<Tabs.Content value="booking">
 				<div class="mt-4 space-y-6">
-					<!-- Vehicle ID Section -->
-					<Card.Root>
-						<Card.Header>
-							<Card.Title>Vehicle Identification</Card.Title>
-							<p class="text-sm text-gray-500">
-								Photos of registration plate, VIN, odometer, and other ID markers.
-							</p>
-						</Card.Header>
-						<Card.Content>
-							<!-- Photo grid -->
-							{#if vehicleIdPhotos.length > 0}
-								<div class="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
-									{#each vehicleIdPhotos as photo}
-										<div class="group relative aspect-square overflow-hidden rounded-lg bg-gray-100">
-											<img
-												src={photoUrl(photo.storage_path)}
-												alt={photo.label}
-												class="h-full w-full object-cover"
-											/>
-											<!-- Label overlay -->
-											<div
-												class="absolute bottom-0 left-0 right-0 bg-black/60 px-2 py-1 text-xs text-white"
-											>
-												{photo.label?.replace('ID: ', '') ?? ''}
-											</div>
-											<!-- Delete button -->
-											<form
-												method="POST"
-												action="?/deletePhoto"
-												use:enhance={() => {
-													return async ({ update }) => {
-														await update();
-													};
-												}}
-												class="absolute right-1 top-1 opacity-0 transition-opacity group-hover:opacity-100"
-											>
-												<input type="hidden" name="photo_id" value={photo.id} />
-												<input type="hidden" name="storage_path" value={photo.storage_path} />
-												<button
-													type="submit"
-													class="flex h-6 w-6 items-center justify-center rounded-full bg-red-600 text-white hover:bg-red-700"
-													title="Delete photo"
-												>
-													<X size={12} />
-												</button>
-											</form>
-										</div>
-									{/each}
-								</div>
-							{:else}
-								<div
-									class="mb-4 flex flex-col items-center justify-center rounded-lg border-2 border-dashed border-gray-200 py-8 text-gray-400"
-								>
-									<Image size={32} class="mb-2" />
-									<p class="text-sm">No vehicle ID photos yet</p>
-								</div>
-							{/if}
+					<ShopPhotosPanel
+						jobId={job.id}
+						category="before"
+						labelPrefix="ID"
+						photos={photos.filter((p: { category: string; label?: string | null }) =>
+							p.category === 'before' && (p.label?.startsWith('ID:') || p.label?.startsWith('ID '))
+						)}
+						title="Vehicle Identification Photos"
+						description="Registration plate, VIN, odometer, engine number"
+						onUpdate={refreshPhotos}
+					/>
 
-							<!-- Upload form -->
-							<form
-								method="POST"
-								action="?/uploadPhoto"
-								enctype="multipart/form-data"
-								use:enhance={() => {
-									uploadingPhoto = true;
-									return async ({ update }) => {
-										uploadingPhoto = false;
-										await update();
-									};
-								}}
-								class="flex flex-wrap items-end gap-3"
-							>
-								<input type="hidden" name="category" value="before" />
-								<div>
-									<label for="vehicle-id-label" class="block text-xs font-medium text-gray-500 mb-1">
-										Photo Type
-									</label>
-									<select
-										id="vehicle-id-label"
-										name="label"
-										class="rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-slate-400 focus:outline-none"
-									>
-										{#each vehicleIdLabels as lbl}
-											<option value={lbl}>{lbl.replace('ID: ', '')}</option>
-										{/each}
-									</select>
-								</div>
-								<div>
-									<label
-										for="vehicle-id-file"
-										class="block text-xs font-medium text-gray-500 mb-1"
-									>
-										Photo
-									</label>
-									<input
-										id="vehicle-id-file"
-										name="file"
-										type="file"
-										accept="image/*"
-										capture="environment"
-										required
-										class="text-sm text-gray-600"
-									/>
-								</div>
-								<Button type="submit" size="sm" disabled={uploadingPhoto}>
-									<Camera size={14} class="mr-1" />
-									{uploadingPhoto ? 'Uploading...' : 'Upload'}
-								</Button>
-							</form>
-						</Card.Content>
-					</Card.Root>
+					<ShopPhotosPanel
+						jobId={job.id}
+						category="before"
+						labelPrefix="360"
+						photos={photos.filter((p: { category: string; label?: string | null }) =>
+							p.category === 'before' && (p.label?.startsWith('360:') || p.label?.startsWith('360 '))
+						)}
+						title="360 Exterior Photos"
+						description="Front, rear, left side, right side, angles"
+						onUpdate={refreshPhotos}
+					/>
 
-					<!-- 360 Exterior Section -->
-					<Card.Root>
-						<Card.Header>
-							<Card.Title>360° Exterior</Card.Title>
-							<p class="text-sm text-gray-500">
-								Photos of all sides of the vehicle at check-in.
-							</p>
-						</Card.Header>
-						<Card.Content>
-							{#if exteriorPhotos.length > 0}
-								<div class="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
-									{#each exteriorPhotos as photo}
-										<div class="group relative aspect-square overflow-hidden rounded-lg bg-gray-100">
-											<img
-												src={photoUrl(photo.storage_path)}
-												alt={photo.label}
-												class="h-full w-full object-cover"
-											/>
-											<div
-												class="absolute bottom-0 left-0 right-0 bg-black/60 px-2 py-1 text-xs text-white"
-											>
-												{photo.label?.replace('360: ', '') ?? ''}
-											</div>
-											<form
-												method="POST"
-												action="?/deletePhoto"
-												use:enhance={() => {
-													return async ({ update }) => {
-														await update();
-													};
-												}}
-												class="absolute right-1 top-1 opacity-0 transition-opacity group-hover:opacity-100"
-											>
-												<input type="hidden" name="photo_id" value={photo.id} />
-												<input type="hidden" name="storage_path" value={photo.storage_path} />
-												<button
-													type="submit"
-													class="flex h-6 w-6 items-center justify-center rounded-full bg-red-600 text-white hover:bg-red-700"
-													title="Delete photo"
-												>
-													<X size={12} />
-												</button>
-											</form>
-										</div>
-									{/each}
-								</div>
-							{:else}
-								<div
-									class="mb-4 flex flex-col items-center justify-center rounded-lg border-2 border-dashed border-gray-200 py-8 text-gray-400"
-								>
-									<Image size={32} class="mb-2" />
-									<p class="text-sm">No exterior photos yet</p>
-								</div>
-							{/if}
+					<ShopPhotosPanel
+						jobId={job.id}
+						category="damage"
+						photos={photos.filter((p: { category: string }) => p.category === 'damage')}
+						title="Pre-Existing Damage"
+						description="Document any existing damage before work begins"
+						onUpdate={refreshPhotos}
+					/>
 
-							<form
-								method="POST"
-								action="?/uploadPhoto"
-								enctype="multipart/form-data"
-								use:enhance={() => {
-									uploadingPhoto = true;
-									return async ({ update }) => {
-										uploadingPhoto = false;
-										await update();
-									};
-								}}
-								class="flex flex-wrap items-end gap-3"
-							>
-								<input type="hidden" name="category" value="before" />
-								<div>
-									<label for="exterior-label" class="block text-xs font-medium text-gray-500 mb-1">
-										Position
-									</label>
-									<select
-										id="exterior-label"
-										name="label"
-										class="rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-slate-400 focus:outline-none"
-									>
-										{#each exteriorLabels as lbl}
-											<option value={lbl}>{lbl.replace('360: ', '')}</option>
-										{/each}
-									</select>
-								</div>
-								<div>
-									<label for="exterior-file" class="block text-xs font-medium text-gray-500 mb-1">
-										Photo
-									</label>
-									<input
-										id="exterior-file"
-										name="file"
-										type="file"
-										accept="image/*"
-										capture="environment"
-										required
-										class="text-sm text-gray-600"
-									/>
-								</div>
-								<Button type="submit" size="sm" disabled={uploadingPhoto}>
-									<Camera size={14} class="mr-1" />
-									{uploadingPhoto ? 'Uploading...' : 'Upload'}
-								</Button>
-							</form>
-						</Card.Content>
-					</Card.Root>
-
-					<!-- Pre-existing Damage Section -->
-					<Card.Root>
-						<Card.Header>
-							<Card.Title>Pre-existing Damage</Card.Title>
-							<p class="text-sm text-gray-500">
-								Document any existing damage at the time of check-in.
-							</p>
-						</Card.Header>
-						<Card.Content>
-							{#if damagePhotos.length > 0}
-								<div class="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
-									{#each damagePhotos as photo}
-										<div class="group relative aspect-square overflow-hidden rounded-lg bg-gray-100">
-											<img
-												src={photoUrl(photo.storage_path)}
-												alt={photo.label}
-												class="h-full w-full object-cover"
-											/>
-											{#if photo.label}
-												<div
-													class="absolute bottom-0 left-0 right-0 bg-black/60 px-2 py-1 text-xs text-white"
-												>
-													{photo.label}
-												</div>
-											{/if}
-											<form
-												method="POST"
-												action="?/deletePhoto"
-												use:enhance={() => {
-													return async ({ update }) => {
-														await update();
-													};
-												}}
-												class="absolute right-1 top-1 opacity-0 transition-opacity group-hover:opacity-100"
-											>
-												<input type="hidden" name="photo_id" value={photo.id} />
-												<input type="hidden" name="storage_path" value={photo.storage_path} />
-												<button
-													type="submit"
-													class="flex h-6 w-6 items-center justify-center rounded-full bg-red-600 text-white hover:bg-red-700"
-													title="Delete photo"
-												>
-													<X size={12} />
-												</button>
-											</form>
-										</div>
-									{/each}
-								</div>
-							{:else}
-								<div
-									class="mb-4 flex flex-col items-center justify-center rounded-lg border-2 border-dashed border-gray-200 py-8 text-gray-400"
-								>
-									<Image size={32} class="mb-2" />
-									<p class="text-sm">No damage photos yet</p>
-								</div>
-							{/if}
-
-							<form
-								method="POST"
-								action="?/uploadPhoto"
-								enctype="multipart/form-data"
-								use:enhance={() => {
-									uploadingPhoto = true;
-									return async ({ update }) => {
-										uploadingPhoto = false;
-										await update();
-									};
-								}}
-								class="flex flex-wrap items-end gap-3"
-							>
-								<input type="hidden" name="category" value="damage" />
-								<div>
-									<label for="damage-label" class="block text-xs font-medium text-gray-500 mb-1">
-										Description
-									</label>
-									<input
-										id="damage-label"
-										name="label"
-										type="text"
-										placeholder="e.g. Scratch on front bumper"
-										class="rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-slate-400 focus:outline-none"
-									/>
-								</div>
-								<div>
-									<label for="damage-file" class="block text-xs font-medium text-gray-500 mb-1">
-										Photo
-									</label>
-									<input
-										id="damage-file"
-										name="file"
-										type="file"
-										accept="image/*"
-										capture="environment"
-										required
-										class="text-sm text-gray-600"
-									/>
-								</div>
-								<Button type="submit" size="sm" disabled={uploadingPhoto}>
-									<Camera size={14} class="mr-1" />
-									{uploadingPhoto ? 'Uploading...' : 'Upload'}
-								</Button>
-							</form>
-						</Card.Content>
-					</Card.Root>
-				</div>
+					</div>
 			</Tabs.Content>
 		{/if}
 
@@ -897,107 +570,14 @@
 		{#if showWork}
 			<Tabs.Content value="work">
 				<div class="mt-4 space-y-6">
-					<Card.Root>
-						<Card.Header>
-							<Card.Title>Work in Progress Photos</Card.Title>
-							<p class="text-sm text-gray-500">Document the repair work as it progresses.</p>
-						</Card.Header>
-						<Card.Content>
-							{#if workPhotos.length > 0}
-								<div class="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
-									{#each workPhotos as photo}
-										<div class="group relative aspect-square overflow-hidden rounded-lg bg-gray-100">
-											<img
-												src={photoUrl(photo.storage_path)}
-												alt={photo.label}
-												class="h-full w-full object-cover"
-											/>
-											{#if photo.label}
-												<div
-													class="absolute bottom-0 left-0 right-0 bg-black/60 px-2 py-1 text-xs text-white"
-												>
-													{photo.label}
-												</div>
-											{/if}
-											<form
-												method="POST"
-												action="?/deletePhoto"
-												use:enhance={() => {
-													return async ({ update }) => {
-														await update();
-													};
-												}}
-												class="absolute right-1 top-1 opacity-0 transition-opacity group-hover:opacity-100"
-											>
-												<input type="hidden" name="photo_id" value={photo.id} />
-												<input type="hidden" name="storage_path" value={photo.storage_path} />
-												<button
-													type="submit"
-													class="flex h-6 w-6 items-center justify-center rounded-full bg-red-600 text-white hover:bg-red-700"
-													title="Delete photo"
-												>
-													<X size={12} />
-												</button>
-											</form>
-										</div>
-									{/each}
-								</div>
-							{:else}
-								<div
-									class="mb-4 flex flex-col items-center justify-center rounded-lg border-2 border-dashed border-gray-200 py-8 text-gray-400"
-								>
-									<Image size={32} class="mb-2" />
-									<p class="text-sm">No work photos yet</p>
-								</div>
-							{/if}
-
-							<form
-								method="POST"
-								action="?/uploadPhoto"
-								enctype="multipart/form-data"
-								use:enhance={() => {
-									uploadingPhoto = true;
-									return async ({ update }) => {
-										uploadingPhoto = false;
-										await update();
-									};
-								}}
-								class="flex flex-wrap items-end gap-3"
-							>
-								<input type="hidden" name="category" value="during" />
-								<div>
-									<label for="work-label" class="block text-xs font-medium text-gray-500 mb-1">
-										Description (optional)
-									</label>
-									<input
-										id="work-label"
-										name="label"
-										type="text"
-										placeholder="e.g. Panel after straightening"
-										class="rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-slate-400 focus:outline-none"
-									/>
-								</div>
-								<div>
-									<label for="work-file" class="block text-xs font-medium text-gray-500 mb-1">
-										Photo
-									</label>
-									<input
-										id="work-file"
-										name="file"
-										type="file"
-										accept="image/*"
-										capture="environment"
-										required
-										class="text-sm text-gray-600"
-									/>
-								</div>
-								<Button type="submit" size="sm" disabled={uploadingPhoto}>
-									<Camera size={14} class="mr-1" />
-									{uploadingPhoto ? 'Uploading...' : 'Upload'}
-								</Button>
-							</form>
-						</Card.Content>
-					</Card.Root>
+					<ShopPhotosPanel
+						jobId={job.id}
+						category="during"
+						photos={photos.filter((p: { category: string }) => p.category === 'during')}
+						title="Work Progress Photos"
+						description="Document work as it progresses"
+						onUpdate={refreshPhotos}
+					/>
 				</div>
 			</Tabs.Content>
 		{/if}
