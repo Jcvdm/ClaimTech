@@ -86,6 +86,7 @@
 
 	<form
 		method="POST"
+		action="?/createEstimate"
 		use:enhance={() => {
 			submitting = true;
 			return async ({ update }) => {

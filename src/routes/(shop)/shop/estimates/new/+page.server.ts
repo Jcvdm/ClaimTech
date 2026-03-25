@@ -57,7 +57,7 @@ export const actions: Actions = {
 		return { newCustomer: customer };
 	},
 
-	default: async ({ request, locals }) => {
+	createEstimate: async ({ request, locals }) => {
 		const { supabase, user } = locals;
 
 		if (!user) {
@@ -105,6 +105,7 @@ export const actions: Actions = {
 
 		const estimateService = createShopEstimateService(supabase);
 
+		let estimateId: string;
 		try {
 			const { estimate } = await estimateService.createEstimate(
 				{
@@ -127,13 +128,14 @@ export const actions: Actions = {
 				},
 				user.id
 			);
-
-			redirect(303, `/shop/estimates/${estimate.id}`);
+			estimateId = estimate.id;
 		} catch (err) {
 			console.error('Error creating estimate:', err);
 			return fail(500, {
 				error: err instanceof Error ? err.message : 'Failed to create estimate'
 			});
 		}
+
+		redirect(303, `/shop/estimates/${estimateId}`);
 	}
 };
