@@ -363,6 +363,99 @@
 						/>
 					</div>
 
+					<!-- Part-type specific markup percentages -->
+					<div class="sm:col-span-3">
+						<p class="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-400">Part-Type Markups</p>
+						<div class="grid grid-cols-2 gap-4 sm:grid-cols-4">
+							<div>
+								<label for="oem_markup_percentage" class="block text-xs font-medium text-gray-500">
+									OEM Markup (%)
+								</label>
+								<Input
+									id="oem_markup_percentage"
+									name="oem_markup_percentage"
+									type="number"
+									step="0.01"
+									min="0"
+									value={settings.oem_markup_percentage ?? 25}
+									class="mt-1"
+								/>
+							</div>
+							<div>
+								<label for="alt_markup_percentage" class="block text-xs font-medium text-gray-500">
+									ALT Markup (%)
+								</label>
+								<Input
+									id="alt_markup_percentage"
+									name="alt_markup_percentage"
+									type="number"
+									step="0.01"
+									min="0"
+									value={settings.alt_markup_percentage ?? 25}
+									class="mt-1"
+								/>
+							</div>
+							<div>
+								<label for="second_hand_markup_percentage" class="block text-xs font-medium text-gray-500">
+									Second Hand Markup (%)
+								</label>
+								<Input
+									id="second_hand_markup_percentage"
+									name="second_hand_markup_percentage"
+									type="number"
+									step="0.01"
+									min="0"
+									value={settings.second_hand_markup_percentage ?? 0}
+									class="mt-1"
+								/>
+							</div>
+							<div>
+								<label for="outwork_markup_percentage" class="block text-xs font-medium text-gray-500">
+									Outwork Markup (%)
+								</label>
+								<Input
+									id="outwork_markup_percentage"
+									name="outwork_markup_percentage"
+									type="number"
+									step="0.01"
+									min="0"
+									value={settings.outwork_markup_percentage ?? 25}
+									class="mt-1"
+								/>
+							</div>
+						</div>
+					</div>
+
+					<!-- Default rates -->
+					<div>
+						<label for="default_labour_rate" class="block text-xs font-medium text-gray-500">
+							Default Labour Rate (R/hr)
+						</label>
+						<Input
+							id="default_labour_rate"
+							name="default_labour_rate"
+							type="number"
+							step="0.01"
+							min="0"
+							value={settings.default_labour_rate ?? 450}
+							class="mt-1"
+						/>
+					</div>
+					<div>
+						<label for="default_paint_rate" class="block text-xs font-medium text-gray-500">
+							Default Paint Rate (R/panel)
+						</label>
+						<Input
+							id="default_paint_rate"
+							name="default_paint_rate"
+							type="number"
+							step="0.01"
+							min="0"
+							value={settings.default_paint_rate ?? 350}
+							class="mt-1"
+						/>
+					</div>
+
 					<div class="flex items-center gap-3 sm:col-span-3">
 						<Button type="submit" disabled={savingPricing}>
 							{savingPricing ? 'Saving...' : 'Save Pricing'}

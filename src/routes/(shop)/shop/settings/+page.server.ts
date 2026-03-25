@@ -108,7 +108,13 @@ export const actions: Actions = {
 		const { error } = await settingsService.updateSettings(id, {
 			default_markup_parts: partsMarkup,
 			default_markup_labor: laborMarkup,
-			default_vat_rate: vatRate
+			default_vat_rate: vatRate,
+			oem_markup_percentage: parseFloat(formData.get('oem_markup_percentage') as string) || 0,
+			alt_markup_percentage: parseFloat(formData.get('alt_markup_percentage') as string) || 0,
+			second_hand_markup_percentage: parseFloat(formData.get('second_hand_markup_percentage') as string) || 0,
+			outwork_markup_percentage: parseFloat(formData.get('outwork_markup_percentage') as string) || 0,
+			default_labour_rate: parseFloat(formData.get('default_labour_rate') as string) || 0,
+			default_paint_rate: parseFloat(formData.get('default_paint_rate') as string) || 0
 		});
 
 		if (error) {

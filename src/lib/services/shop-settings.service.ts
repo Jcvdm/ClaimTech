@@ -19,6 +19,12 @@ export interface ShopSettings {
 	default_vat_rate: number;
 	default_markup_parts: number;
 	default_markup_labor: number;
+	oem_markup_percentage: number;
+	alt_markup_percentage: number;
+	second_hand_markup_percentage: number;
+	outwork_markup_percentage: number;
+	default_labour_rate: number;
+	default_paint_rate: number;
 	currency: string;
 	logo_url: string | null;
 	estimate_terms: string | null;

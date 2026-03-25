@@ -2243,6 +2243,650 @@ export type Database = {
           },
         ]
       }
+      shop_audit_logs: {
+        Row: {
+          action: string
+          changes: Json | null
+          created_at: string
+          entity_id: string
+          entity_type: string
+          id: string
+          ip_address: string | null
+          performed_by: string | null
+          user_agent: string | null
+        }
+        Insert: {
+          action: string
+          changes?: Json | null
+          created_at?: string
+          entity_id: string
+          entity_type: string
+          id?: string
+          ip_address?: string | null
+          performed_by?: string | null
+          user_agent?: string | null
+        }
+        Update: {
+          action?: string
+          changes?: Json | null
+          created_at?: string
+          entity_id?: string
+          entity_type?: string
+          id?: string
+          ip_address?: string | null
+          performed_by?: string | null
+          user_agent?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shop_audit_logs_performed_by_fkey"
+            columns: ["performed_by"]
+            isOneToOne: false
+            referencedRelation: "user_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      shop_customer_vehicles: {
+        Row: {
+          color: string | null
+          created_at: string
+          customer_id: string
+          engine_number: string | null
+          id: string
+          make: string
+          mileage_at_registration: number | null
+          model: string
+          notes: string | null
+          reg_number: string | null
+          vin: string | null
+          year: number | null
+        }
+        Insert: {
+          color?: string | null
+          created_at?: string
+          customer_id: string
+          engine_number?: string | null
+          id?: string
+          make: string
+          mileage_at_registration?: number | null
+          model: string
+          notes?: string | null
+          reg_number?: string | null
+          vin?: string | null
+          year?: number | null
+        }
+        Update: {
+          color?: string | null
+          created_at?: string
+          customer_id?: string
+          engine_number?: string | null
+          id?: string
+          make?: string
+          mileage_at_registration?: number | null
+          model?: string
+          notes?: string | null
+          reg_number?: string | null
+          vin?: string | null
+          year?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shop_customer_vehicles_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "shop_customers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      shop_customers: {
+        Row: {
+          address: string | null
+          city: string | null
+          company_name: string | null
+          created_at: string
+          email: string | null
+          id: string
+          id_number: string | null
+          is_active: boolean
+          name: string
+          notes: string | null
+          phone: string | null
+          province: string | null
+          shop_id: string
+          updated_at: string
+          vat_number: string | null
+        }
+        Insert: {
+          address?: string | null
+          city?: string | null
+          company_name?: string | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          id_number?: string | null
+          is_active?: boolean
+          name: string
+          notes?: string | null
+          phone?: string | null
+          province?: string | null
+          shop_id: string
+          updated_at?: string
+          vat_number?: string | null
+        }
+        Update: {
+          address?: string | null
+          city?: string | null
+          company_name?: string | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          id_number?: string | null
+          is_active?: boolean
+          name?: string
+          notes?: string | null
+          phone?: string | null
+          province?: string | null
+          shop_id?: string
+          updated_at?: string
+          vat_number?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shop_customers_shop_id_fkey"
+            columns: ["shop_id"]
+            isOneToOne: false
+            referencedRelation: "shop_settings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      shop_estimates: {
+        Row: {
+          approved_at: string | null
+          created_at: string
+          discount_amount: number
+          discount_description: string | null
+          estimate_number: string
+          id: string
+          internal_notes: string | null
+          job_id: string
+          labor_total: number
+          line_items: Json
+          markup_labor_pct: number | null
+          markup_parts_pct: number | null
+          notes: string | null
+          parts_total: number
+          pdf_url: string | null
+          sent_at: string | null
+          status: Database["public"]["Enums"]["shop_estimate_status"]
+          sublet_total: number
+          subtotal: number
+          sundries_total: number
+          total: number
+          updated_at: string
+          valid_until: string | null
+          vat_amount: number
+          vat_rate: number
+          version: number
+        }
+        Insert: {
+          approved_at?: string | null
+          created_at?: string
+          discount_amount?: number
+          discount_description?: string | null
+          estimate_number: string
+          id?: string
+          internal_notes?: string | null
+          job_id: string
+          labor_total?: number
+          line_items?: Json
+          markup_labor_pct?: number | null
+          markup_parts_pct?: number | null
+          notes?: string | null
+          parts_total?: number
+          pdf_url?: string | null
+          sent_at?: string | null
+          status?: Database["public"]["Enums"]["shop_estimate_status"]
+          sublet_total?: number
+          subtotal?: number
+          sundries_total?: number
+          total?: number
+          updated_at?: string
+          valid_until?: string | null
+          vat_amount?: number
+          vat_rate?: number
+          version?: number
+        }
+        Update: {
+          approved_at?: string | null
+          created_at?: string
+          discount_amount?: number
+          discount_description?: string | null
+          estimate_number?: string
+          id?: string
+          internal_notes?: string | null
+          job_id?: string
+          labor_total?: number
+          line_items?: Json
+          markup_labor_pct?: number | null
+          markup_parts_pct?: number | null
+          notes?: string | null
+          parts_total?: number
+          pdf_url?: string | null
+          sent_at?: string | null
+          status?: Database["public"]["Enums"]["shop_estimate_status"]
+          sublet_total?: number
+          subtotal?: number
+          sundries_total?: number
+          total?: number
+          updated_at?: string
+          valid_until?: string | null
+          vat_amount?: number
+          vat_rate?: number
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shop_estimates_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "shop_jobs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      shop_invoices: {
+        Row: {
+          amount_due: number
+          amount_paid: number
+          created_at: string
+          discount_amount: number
+          due_date: string | null
+          estimate_id: string | null
+          id: string
+          invoice_number: string
+          issue_date: string
+          job_id: string
+          line_items: Json
+          notes: string | null
+          paid_at: string | null
+          payment_date: string | null
+          payment_method: string | null
+          payment_reference: string | null
+          pdf_url: string | null
+          sent_at: string | null
+          status: Database["public"]["Enums"]["shop_invoice_status"]
+          subtotal: number
+          total: number
+          updated_at: string
+          vat_amount: number
+          vat_rate: number
+        }
+        Insert: {
+          amount_due?: number
+          amount_paid?: number
+          created_at?: string
+          discount_amount?: number
+          due_date?: string | null
+          estimate_id?: string | null
+          id?: string
+          invoice_number: string
+          issue_date?: string
+          job_id: string
+          line_items?: Json
+          notes?: string | null
+          paid_at?: string | null
+          payment_date?: string | null
+          payment_method?: string | null
+          payment_reference?: string | null
+          pdf_url?: string | null
+          sent_at?: string | null
+          status?: Database["public"]["Enums"]["shop_invoice_status"]
+          subtotal?: number
+          total?: number
+          updated_at?: string
+          vat_amount?: number
+          vat_rate?: number
+        }
+        Update: {
+          amount_due?: number
+          amount_paid?: number
+          created_at?: string
+          discount_amount?: number
+          due_date?: string | null
+          estimate_id?: string | null
+          id?: string
+          invoice_number?: string
+          issue_date?: string
+          job_id?: string
+          line_items?: Json
+          notes?: string | null
+          paid_at?: string | null
+          payment_date?: string | null
+          payment_method?: string | null
+          payment_reference?: string | null
+          pdf_url?: string | null
+          sent_at?: string | null
+          status?: Database["public"]["Enums"]["shop_invoice_status"]
+          subtotal?: number
+          total?: number
+          updated_at?: string
+          vat_amount?: number
+          vat_rate?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shop_invoices_estimate_id_fkey"
+            columns: ["estimate_id"]
+            isOneToOne: false
+            referencedRelation: "shop_estimates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shop_invoices_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "shop_jobs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      shop_job_photos: {
+        Row: {
+          category: string
+          created_at: string
+          id: string
+          job_id: string
+          label: string | null
+          sort_order: number
+          storage_path: string
+        }
+        Insert: {
+          category?: string
+          created_at?: string
+          id?: string
+          job_id: string
+          label?: string | null
+          sort_order?: number
+          storage_path: string
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          id?: string
+          job_id?: string
+          label?: string | null
+          sort_order?: number
+          storage_path?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shop_job_photos_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "shop_jobs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      shop_jobs: {
+        Row: {
+          assigned_to: string | null
+          complaint: string | null
+          created_at: string
+          created_by: string
+          customer_email: string | null
+          customer_id: string | null
+          customer_name: string
+          customer_phone: string | null
+          damage_description: string | null
+          date_completed: string | null
+          date_in: string | null
+          date_promised: string | null
+          diagnosis: string | null
+          fault_codes: string | null
+          id: string
+          job_number: string
+          job_type: string
+          notes: string | null
+          shop_id: string
+          status: Database["public"]["Enums"]["shop_job_status"]
+          updated_at: string
+          vehicle_color: string | null
+          vehicle_make: string
+          vehicle_mileage: number | null
+          vehicle_model: string
+          vehicle_reg: string | null
+          vehicle_vin: string | null
+          vehicle_year: number | null
+        }
+        Insert: {
+          assigned_to?: string | null
+          complaint?: string | null
+          created_at?: string
+          created_by: string
+          customer_email?: string | null
+          customer_id?: string | null
+          customer_name: string
+          customer_phone?: string | null
+          damage_description?: string | null
+          date_completed?: string | null
+          date_in?: string | null
+          date_promised?: string | null
+          diagnosis?: string | null
+          fault_codes?: string | null
+          id?: string
+          job_number: string
+          job_type: string
+          notes?: string | null
+          shop_id: string
+          status?: Database["public"]["Enums"]["shop_job_status"]
+          updated_at?: string
+          vehicle_color?: string | null
+          vehicle_make: string
+          vehicle_mileage?: number | null
+          vehicle_model: string
+          vehicle_reg?: string | null
+          vehicle_vin?: string | null
+          vehicle_year?: number | null
+        }
+        Update: {
+          assigned_to?: string | null
+          complaint?: string | null
+          created_at?: string
+          created_by?: string
+          customer_email?: string | null
+          customer_id?: string | null
+          customer_name?: string
+          customer_phone?: string | null
+          damage_description?: string | null
+          date_completed?: string | null
+          date_in?: string | null
+          date_promised?: string | null
+          diagnosis?: string | null
+          fault_codes?: string | null
+          id?: string
+          job_number?: string
+          job_type?: string
+          notes?: string | null
+          shop_id?: string
+          status?: Database["public"]["Enums"]["shop_job_status"]
+          updated_at?: string
+          vehicle_color?: string | null
+          vehicle_make?: string
+          vehicle_mileage?: number | null
+          vehicle_model?: string
+          vehicle_reg?: string | null
+          vehicle_vin?: string | null
+          vehicle_year?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shop_jobs_assigned_to_fkey"
+            columns: ["assigned_to"]
+            isOneToOne: false
+            referencedRelation: "user_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shop_jobs_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "user_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shop_jobs_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "shop_customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shop_jobs_shop_id_fkey"
+            columns: ["shop_id"]
+            isOneToOne: false
+            referencedRelation: "shop_settings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      shop_labor_rates: {
+        Row: {
+          created_at: string
+          description: string | null
+          hourly_rate: number
+          id: string
+          is_active: boolean
+          is_default: boolean
+          job_type: string
+          rate_name: string
+          shop_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          hourly_rate: number
+          id?: string
+          is_active?: boolean
+          is_default?: boolean
+          job_type: string
+          rate_name: string
+          shop_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          hourly_rate?: number
+          id?: string
+          is_active?: boolean
+          is_default?: boolean
+          job_type?: string
+          rate_name?: string
+          shop_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shop_labor_rates_shop_id_fkey"
+            columns: ["shop_id"]
+            isOneToOne: false
+            referencedRelation: "shop_settings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      shop_settings: {
+        Row: {
+          address: string | null
+          alt_markup_percentage: number | null
+          city: string | null
+          created_at: string
+          currency: string
+          default_labour_rate: number | null
+          default_markup_labor: number
+          default_markup_parts: number
+          default_paint_rate: number | null
+          default_vat_rate: number
+          email: string | null
+          estimate_terms: string | null
+          id: string
+          invoice_payment_days: number
+          invoice_terms: string | null
+          logo_url: string | null
+          oem_markup_percentage: number | null
+          outwork_markup_percentage: number | null
+          phone: string | null
+          postal_code: string | null
+          province: string | null
+          registration_number: string | null
+          second_hand_markup_percentage: number | null
+          shop_name: string
+          updated_at: string
+          vat_number: string | null
+        }
+        Insert: {
+          address?: string | null
+          alt_markup_percentage?: number | null
+          city?: string | null
+          created_at?: string
+          currency?: string
+          default_labour_rate?: number | null
+          default_markup_labor?: number
+          default_markup_parts?: number
+          default_paint_rate?: number | null
+          default_vat_rate?: number
+          email?: string | null
+          estimate_terms?: string | null
+          id?: string
+          invoice_payment_days?: number
+          invoice_terms?: string | null
+          logo_url?: string | null
+          oem_markup_percentage?: number | null
+          outwork_markup_percentage?: number | null
+          phone?: string | null
+          postal_code?: string | null
+          province?: string | null
+          registration_number?: string | null
+          second_hand_markup_percentage?: number | null
+          shop_name: string
+          updated_at?: string
+          vat_number?: string | null
+        }
+        Update: {
+          address?: string | null
+          alt_markup_percentage?: number | null
+          city?: string | null
+          created_at?: string
+          currency?: string
+          default_labour_rate?: number | null
+          default_markup_labor?: number
+          default_markup_parts?: number
+          default_paint_rate?: number | null
+          default_vat_rate?: number
+          email?: string | null
+          estimate_terms?: string | null
+          id?: string
+          invoice_payment_days?: number
+          invoice_terms?: string | null
+          logo_url?: string | null
+          oem_markup_percentage?: number | null
+          outwork_markup_percentage?: number | null
+          phone?: string | null
+          postal_code?: string | null
+          province?: string | null
+          registration_number?: string | null
+          second_hand_markup_percentage?: number | null
+          shop_name?: string
+          updated_at?: string
+          vat_number?: string | null
+        }
+        Relationships: []
+      }
       user_profiles: {
         Row: {
           company: string | null
@@ -2301,6 +2945,31 @@ export type Database = {
         | "estimate_finalized"
         | "frc_in_progress"
         | "archived"
+        | "cancelled"
+      shop_estimate_status:
+        | "draft"
+        | "sent"
+        | "approved"
+        | "declined"
+        | "revised"
+        | "expired"
+      shop_invoice_status:
+        | "draft"
+        | "sent"
+        | "paid"
+        | "partially_paid"
+        | "overdue"
+        | "void"
+        | "credited"
+      shop_job_status:
+        | "quote_requested"
+        | "quoted"
+        | "approved"
+        | "checked_in"
+        | "in_progress"
+        | "quality_check"
+        | "ready_for_collection"
+        | "completed"
         | "cancelled"
     }
     CompositeTypes: {
@@ -2441,6 +3110,34 @@ export const Constants = {
         "estimate_finalized",
         "frc_in_progress",
         "archived",
+        "cancelled",
+      ],
+      shop_estimate_status: [
+        "draft",
+        "sent",
+        "approved",
+        "declined",
+        "revised",
+        "expired",
+      ],
+      shop_invoice_status: [
+        "draft",
+        "sent",
+        "paid",
+        "partially_paid",
+        "overdue",
+        "void",
+        "credited",
+      ],
+      shop_job_status: [
+        "quote_requested",
+        "quoted",
+        "approved",
+        "checked_in",
+        "in_progress",
+        "quality_check",
+        "ready_for_collection",
+        "completed",
         "cancelled",
       ],
     },

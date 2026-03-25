@@ -2,7 +2,12 @@ import { error, fail } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
 import { createShopEstimateService } from '$lib/services/shop-estimate.service';
 import { createShopSettingsService } from '$lib/services/shop-settings.service';
-import type { ShopEstimateLineItem, ShopEstimateTotals } from '$lib/services/shop-estimate.service';
+import type { EstimateLineItem } from '$lib/types/assessment';
+import {
+	calculateSubtotal,
+	calculateVAT,
+	calculateTotal
+} from '$lib/utils/estimateCalculations';
 
 export const load: PageServerLoad = async ({ params, locals }) => {
 	const { supabase } = locals;
@@ -20,9 +25,22 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 		error(404, 'Estimate not found');
 	}
 
+	const settings = settingsResult.data ?? null;
+
+	// Shop settings use default_markup_parts for all part types.
+	// Labour/paint rates are not stored in shop_settings; use sensible defaults.
+	const markupParts = settings?.default_markup_parts ?? 25;
+
 	return {
 		estimate: estimateResult.data,
-		settings: settingsResult.data ?? null
+		settings,
+		labourRate: 450,
+		paintRate: 350,
+		oemMarkup: markupParts,
+		altMarkup: markupParts,
+		secondHandMarkup: markupParts,
+		outworkMarkup: markupParts,
+		vatRate: settings?.default_vat_rate ?? 15
 	};
 };
 
@@ -84,55 +102,40 @@ export const actions: Actions = {
 
 		const formData = await request.formData();
 		const lineItemsJson = formData.get('line_items') as string;
+		const vatRateStr = formData.get('vat_rate') as string | null;
 
-		let lineItems: ShopEstimateLineItem[];
+		let lineItems: EstimateLineItem[];
 		try {
 			lineItems = JSON.parse(lineItemsJson);
 		} catch {
 			return fail(400, { error: 'Invalid line items data' });
 		}
 
-		// Recalculate totals from line items
-		const totals = calculateTotals(lineItems);
+		const vatRate = vatRateStr ? parseFloat(vatRateStr) : 15;
+		const subtotal = calculateSubtotal(lineItems);
+		const vatAmount = calculateVAT(subtotal, vatRate);
+		const total = calculateTotal(subtotal, vatAmount);
 
-		const { error: err } = await estimateService.updateLineItems(params.id, lineItems, totals);
+		// Store EstimateLineItem[] directly in JSONB column
+		// Use updateEstimate to persist with recalculated totals
+		const { error: err } = await estimateService.updateEstimate(params.id, {
+			// eslint-disable-next-line @typescript-eslint/no-explicit-any
+			line_items: lineItems as any,
+			subtotal,
+			vat_rate: vatRate,
+			vat_amount: vatAmount,
+			total,
+			// Reset legacy breakdown fields
+			parts_total: 0,
+			labor_total: 0,
+			sublet_total: 0,
+			sundries_total: 0,
+			discount_amount: 0
+		});
+
 		if (err) {
 			return fail(400, { error: err.message });
 		}
 		return { success: true };
 	}
 };
-
-function calculateTotals(lineItems: ShopEstimateLineItem[]): ShopEstimateTotals {
-	let parts_total = 0;
-	let labor_total = 0;
-	let sublet_total = 0;
-	let sundries_total = 0;
-
-	for (const item of lineItems) {
-		const total = item.quantity * item.unit_price * (1 + item.markup_pct / 100);
-		item.total = Math.round(total * 100) / 100;
-
-		if (item.type === 'part') parts_total += item.total;
-		else if (item.type === 'labor') labor_total += item.total;
-		else if (item.type === 'sublet') sublet_total += item.total;
-		else sundries_total += item.total;
-	}
-
-	const subtotal = parts_total + labor_total + sublet_total + sundries_total;
-	const vat_rate = 15;
-	const vat_amount = Math.round(subtotal * (vat_rate / 100) * 100) / 100;
-	const total = Math.round((subtotal + vat_amount) * 100) / 100;
-
-	return {
-		parts_total: Math.round(parts_total * 100) / 100,
-		labor_total: Math.round(labor_total * 100) / 100,
-		sublet_total: Math.round(sublet_total * 100) / 100,
-		sundries_total: Math.round(sundries_total * 100) / 100,
-		subtotal: Math.round(subtotal * 100) / 100,
-		discount_amount: 0,
-		vat_rate,
-		vat_amount,
-		total
-	};
-}

@@ -2,6 +2,7 @@ import { redirect, fail } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
 import { createShopEstimateService } from '$lib/services/shop-estimate.service';
 import { createShopSettingsService } from '$lib/services/shop-settings.service';
+import { createShopCustomerService } from '$lib/services/shop-customer.service';
 
 export const load: PageServerLoad = async ({ locals }) => {
 	const { supabase } = locals;
@@ -32,6 +33,30 @@ export const load: PageServerLoad = async ({ locals }) => {
 };
 
 export const actions: Actions = {
+	createCustomer: async ({ request, locals }) => {
+		const { supabase } = locals;
+
+		const formData = await request.formData();
+		const customerService = createShopCustomerService(supabase);
+		const settingsService = createShopSettingsService(supabase);
+		const { data: settings } = await settingsService.getSettings();
+
+		if (!settings) return fail(400, { error: 'Shop settings not configured' });
+
+		const name = formData.get('customer_name') as string;
+		if (!name?.trim()) return fail(400, { error: 'Customer name is required' });
+
+		const { data: customer, error } = await customerService.createCustomer({
+			shop_id: settings.id,
+			name: name.trim(),
+			phone: (formData.get('customer_phone') as string) || undefined,
+			email: (formData.get('customer_email') as string) || undefined
+		});
+
+		if (error) return fail(400, { error: error.message });
+		return { newCustomer: customer };
+	},
+
 	default: async ({ request, locals }) => {
 		const { supabase, user } = locals;
 

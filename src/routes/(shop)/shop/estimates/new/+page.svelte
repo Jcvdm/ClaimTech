@@ -6,6 +6,7 @@
 	import * as Card from '$lib/components/ui/card';
 	import { Input } from '$lib/components/ui/input';
 	import { Separator } from '$lib/components/ui/separator';
+	import * as Dialog from '$lib/components/ui/dialog';
 	import VehicleInfoSection from '$lib/components/forms/VehicleInfoSection.svelte';
 	import type { Province } from '$lib/types/engineer';
 
@@ -20,6 +21,14 @@
 	let use_existing_customer = $state(false);
 	let selected_customer_id = $state('');
 	let submitting = $state(false);
+
+	// New customer dialog state
+	let showNewCustomerDialog = $state(false);
+	let newCustName = $state('');
+	let newCustPhone = $state('');
+	let newCustEmail = $state('');
+	let creatingCustomer = $state(false);
+	let createCustomerError = $state('');
 
 	// When a customer is selected from the dropdown, pre-fill the fields
 	const selectedCustomer = $derived(
@@ -124,10 +133,81 @@
 			</Card.Content>
 		</Card.Root>
 
+		<!-- New Customer Dialog -->
+		<Dialog.Root bind:open={showNewCustomerDialog}>
+			<Dialog.Content>
+				<Dialog.Header>
+					<Dialog.Title>Add New Customer</Dialog.Title>
+					<Dialog.Description>Create a customer to link to this estimate.</Dialog.Description>
+				</Dialog.Header>
+				<form
+					method="POST"
+					action="?/createCustomer"
+					use:enhance={() => {
+						creatingCustomer = true;
+						createCustomerError = '';
+						return async ({ result, update }) => {
+							creatingCustomer = false;
+							if (result.type === 'success' && result.data?.newCustomer) {
+								const nc = result.data.newCustomer as ShopCustomer;
+								selected_customer_id = nc.id;
+								customer_name = nc.name ?? '';
+								customer_phone = nc.phone ?? '';
+								customer_email = nc.email ?? '';
+								use_existing_customer = true;
+								showNewCustomerDialog = false;
+								newCustName = '';
+								newCustPhone = '';
+								newCustEmail = '';
+								await update();
+							} else if (result.type === 'failure') {
+								createCustomerError = (result.data?.error as string) ?? 'Failed to create customer';
+							}
+						};
+					}}
+				>
+					<div class="mt-4 space-y-4">
+						<div>
+							<label class="mb-1.5 block text-sm font-medium text-gray-700" for="new_cust_name">
+								Name <span class="text-red-500">*</span>
+							</label>
+							<Input id="new_cust_name" name="customer_name" required bind:value={newCustName} placeholder="Full name" />
+						</div>
+						<div>
+							<label class="mb-1.5 block text-sm font-medium text-gray-700" for="new_cust_phone">
+								Phone
+							</label>
+							<Input id="new_cust_phone" name="customer_phone" type="tel" bind:value={newCustPhone} placeholder="+27 82 123 4567" />
+						</div>
+						<div>
+							<label class="mb-1.5 block text-sm font-medium text-gray-700" for="new_cust_email">
+								Email
+							</label>
+							<Input id="new_cust_email" name="customer_email" type="email" bind:value={newCustEmail} placeholder="customer@example.com" />
+						</div>
+						{#if createCustomerError}
+							<p class="text-sm text-red-600">{createCustomerError}</p>
+						{/if}
+					</div>
+					<Dialog.Footer class="mt-6">
+						<Button variant="outline" type="button" onclick={() => (showNewCustomerDialog = false)}>
+							Cancel
+						</Button>
+						<Button type="submit" disabled={creatingCustomer}>
+							{creatingCustomer ? 'Creating...' : 'Create Customer'}
+						</Button>
+					</Dialog.Footer>
+				</form>
+			</Dialog.Content>
+		</Dialog.Root>
+
 		<!-- Customer Info -->
 		<Card.Root>
-			<Card.Header>
+			<Card.Header class="flex flex-row items-center justify-between">
 				<Card.Title>Customer Information</Card.Title>
+				<Button variant="outline" size="sm" type="button" onclick={() => { showNewCustomerDialog = true; createCustomerError = ''; }}>
+					+ New Customer
+				</Button>
 			</Card.Header>
 			<Card.Content class="space-y-4">
 				{#if customers.length > 0}
