@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
 	import { invalidateAll } from '$app/navigation';
+	import { toast } from 'svelte-sonner';
 	import type { PageData, ActionData } from './$types';
 	import type { ShopJobStatus } from '$lib/services/shop-job.service';
 	import { Button } from '$lib/components/ui/button';
@@ -9,7 +10,20 @@
 	import { Badge } from '$lib/components/ui/badge';
 	import { Separator } from '$lib/components/ui/separator';
 	import * as Tabs from '$lib/components/ui/tabs';
+	import * as Table from '$lib/components/ui/table';
 	import ShopPhotosPanel from '$lib/components/shop/ShopPhotosPanel.svelte';
+	import LineItemCard from '$lib/components/assessment/LineItemCard.svelte';
+	import QuickAddLineItem from '$lib/components/assessment/QuickAddLineItem.svelte';
+	import type { EstimateLineItem } from '$lib/types/assessment';
+	import {
+		calculateSubtotal,
+		calculateVAT,
+		calculateTotal,
+		recalculateLineItem
+	} from '$lib/utils/estimateCalculations';
+	import { formatCurrency } from '$lib/utils/formatters';
+	import { Trash2, ShieldCheck, Package, Recycle, Percent, CheckCircle } from 'lucide-svelte';
+	import { getProcessTypeBadgeColor, getProcessTypeConfig, getProcessTypeOptions } from '$lib/constants/processTypes';
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();
 
@@ -86,6 +100,55 @@
 		) ?? null
 	);
 
+	const STEP_TAB_MAP: Record<string, string> = {
+		'quoted': 'estimate',
+		'approved': 'estimate',
+		'checked_in': 'booking',
+		'in_progress': 'work',
+		'quality_check': 'work',
+		'ready_for_collection': 'overview',
+		'completed': 'invoice',
+	};
+
+	function getStepTimestamp(step: string): string | null {
+		const history = (job.status_history as Array<{ status: string; timestamp: string }>) || [];
+		const entry = history.find(h => h.status === step);
+		return entry?.timestamp ?? null;
+	}
+
+	function formatStepDate(timestamp: string | null): string {
+		if (!timestamp) return '';
+		const d = new Date(timestamp);
+		return d.toLocaleDateString('en-ZA', { day: 'numeric', month: 'short' }) + ', ' +
+			   d.toLocaleTimeString('en-ZA', { hour: '2-digit', minute: '2-digit' });
+	}
+
+	let transitioning = $state(false);
+
+	async function handleStepClick(step: ShopJobStatus) {
+		const nextStatuses = VALID_TRANSITIONS[job.status as ShopJobStatus] || [];
+		if (!nextStatuses.includes(step) || transitioning) return;
+
+		transitioning = true;
+		try {
+			const formData = new FormData();
+			formData.set('status', step);
+			const response = await fetch('?/updateStatus', { method: 'POST', body: formData });
+
+			if (response.ok) {
+				toast.success(`Moved to ${STATUS_LABELS[step]}`);
+				activeTab = STEP_TAB_MAP[step] || 'overview';
+				await invalidateAll();
+			} else {
+				toast.error('Failed to update status');
+			}
+		} catch {
+			toast.error('Failed to update status');
+		} finally {
+			transitioning = false;
+		}
+	}
+
 	// Tab visibility based on status
 	const statusIndex = $derived(STATUS_STEPS.indexOf(job.status as ShopJobStatus));
 	const showBooking = $derived(statusIndex >= STATUS_STEPS.indexOf('checked_in'));
@@ -153,6 +216,264 @@
 		}
 	}
 
+	// ── Estimate inline editor ────────────────────────────────────────────────
+
+	const estimate = $derived(data.estimate);
+	const canEditEstimate = $derived(
+		estimate != null &&
+		['draft', 'revised'].includes((estimate as { status?: string }).status ?? '')
+	);
+
+	const labourRate = $derived(data.labourRate ?? 450);
+	const paintRate = $derived(data.paintRate ?? 350);
+	const oemMarkup = $derived(data.oemMarkup ?? 25);
+	const altMarkup = $derived(data.altMarkup ?? 25);
+	const secondHandMarkup = $derived(data.secondHandMarkup ?? 25);
+	const outworkMarkup = $derived(data.outworkMarkup ?? 25);
+	const vatRate = $derived(data.vatRate ?? 15);
+
+	let lineItems = $state<EstimateLineItem[]>(
+		Array.isArray((data.estimate as { line_items?: EstimateLineItem[] } | null)?.line_items)
+			? [...((data.estimate as { line_items: EstimateLineItem[] }).line_items)]
+			: []
+	);
+	let estimateDirty = $state(false);
+	let savingLineItems = $state(false);
+
+	let saveTimer: ReturnType<typeof setTimeout>;
+
+	function scheduleEstimateAutoSave() {
+		clearTimeout(saveTimer);
+		saveTimer = setTimeout(() => saveEstimateLineItemsNow(), 1000);
+	}
+
+	async function saveEstimateLineItemsNow() {
+		const est = estimate as { id?: string } | null;
+		if (!estimateDirty || savingLineItems || !est?.id) return;
+		savingLineItems = true;
+		try {
+			const fd = new FormData();
+			fd.append('estimate_id', est.id);
+			fd.append('line_items', JSON.stringify(lineItems));
+			fd.append('vat_rate', String(vatRate));
+			await fetch('?/saveEstimateLineItems', { method: 'POST', body: fd });
+			estimateDirty = false;
+		} catch (err) {
+			console.error('Auto-save failed:', err);
+		} finally {
+			savingLineItems = false;
+		}
+	}
+
+	function addLineItem(item: EstimateLineItem) {
+		lineItems = [...lineItems, { ...item, id: item.id ?? crypto.randomUUID() }];
+		estimateDirty = true;
+		scheduleEstimateAutoSave();
+	}
+
+	function updateEstimateFieldById(id: string, updates: Record<string, unknown>) {
+		const index = lineItems.findIndex((item) => item.id === id);
+		if (index === -1) return;
+		let updated = { ...lineItems[index], ...updates };
+		updated = recalculateLineItem(updated, labourRate, paintRate);
+		lineItems = lineItems.map((item, i) => (i === index ? updated : item));
+		estimateDirty = true;
+		scheduleEstimateAutoSave();
+	}
+
+	function updateEstimateField(index: number, field: string, value: unknown) {
+		const updated = { ...lineItems[index], [field]: value };
+		const recalculated = recalculateLineItem(updated, labourRate, paintRate);
+		lineItems = lineItems.map((it, i) => (i === index ? recalculated : it));
+		estimateDirty = true;
+		scheduleEstimateAutoSave();
+	}
+
+	function deleteLineItem(id: string | undefined) {
+		lineItems = lineItems.filter((it) => it.id !== id);
+		estimateDirty = true;
+		scheduleEstimateAutoSave();
+	}
+
+	let descriptionTimeouts = new Map<string, ReturnType<typeof setTimeout>>();
+
+	function scheduleDescUpdate(id: string, value: string) {
+		clearTimeout(descriptionTimeouts.get(id));
+		descriptionTimeouts.set(
+			id,
+			setTimeout(() => {
+				updateEstimateFieldById(id, { description: value });
+			}, 500)
+		);
+	}
+
+	function flushDescUpdate(id: string, value: string) {
+		clearTimeout(descriptionTimeouts.get(id));
+		updateEstimateFieldById(id, { description: value });
+	}
+
+	const processTypeOptions = getProcessTypeOptions();
+
+	// Inline editing state
+	let editingPartPrice = $state<string | null>(null);
+	let tempPartPriceNett = $state<number | null>(null);
+	let editingSA = $state<string | null>(null);
+	let tempSAHours = $state<number | null>(null);
+	let editingLabour = $state<string | null>(null);
+	let tempLabourHours = $state<number | null>(null);
+	let editingPaint = $state<string | null>(null);
+	let tempPaintPanels = $state<number | null>(null);
+	let editingOutwork = $state<string | null>(null);
+	let tempOutworkNett = $state<number | null>(null);
+
+	function handlePartPriceClick(id: string, currentNett: number | null) {
+		editingPartPrice = id;
+		tempPartPriceNett = currentNett;
+	}
+
+	function handlePartPriceSave(id: string, item: EstimateLineItem) {
+		if (tempPartPriceNett !== null) {
+			let markupPercentage = 0;
+			if (item.part_type === 'OEM') markupPercentage = oemMarkup;
+			else if (item.part_type === 'ALT') markupPercentage = altMarkup;
+			else if (item.part_type === '2ND') markupPercentage = secondHandMarkup;
+			const sellingPrice = tempPartPriceNett * (1 + markupPercentage / 100);
+			updateEstimateFieldById(id, {
+				part_price_nett: tempPartPriceNett,
+				part_price: Number(sellingPrice.toFixed(2))
+			});
+		}
+		editingPartPrice = null;
+		tempPartPriceNett = null;
+	}
+
+	function handlePartPriceCancel() {
+		editingPartPrice = null;
+		tempPartPriceNett = null;
+	}
+
+	function handleSAClick(id: string, currentHours: number | null) {
+		editingSA = id;
+		tempSAHours = currentHours;
+	}
+
+	function handleSASave(id: string) {
+		if (tempSAHours !== null) {
+			updateEstimateFieldById(id, {
+				strip_assemble_hours: tempSAHours,
+				strip_assemble: tempSAHours * labourRate
+			});
+		}
+		editingSA = null;
+		tempSAHours = null;
+	}
+
+	function handleSACancel() {
+		editingSA = null;
+		tempSAHours = null;
+	}
+
+	function handleLabourClick(id: string, currentHours: number | null) {
+		editingLabour = id;
+		tempLabourHours = currentHours;
+	}
+
+	function handleLabourSave(id: string) {
+		if (tempLabourHours !== null) {
+			updateEstimateFieldById(id, {
+				labour_hours: tempLabourHours,
+				labour_cost: tempLabourHours * labourRate
+			});
+		}
+		editingLabour = null;
+		tempLabourHours = null;
+	}
+
+	function handleLabourCancel() {
+		editingLabour = null;
+		tempLabourHours = null;
+	}
+
+	function handlePaintClick(id: string, currentPanels: number | null) {
+		editingPaint = id;
+		tempPaintPanels = currentPanels;
+	}
+
+	function handlePaintSave(id: string) {
+		if (tempPaintPanels !== null) {
+			updateEstimateFieldById(id, {
+				paint_panels: tempPaintPanels,
+				paint_cost: tempPaintPanels * paintRate
+			});
+		}
+		editingPaint = null;
+		tempPaintPanels = null;
+	}
+
+	function handlePaintCancel() {
+		editingPaint = null;
+		tempPaintPanels = null;
+	}
+
+	function handleOutworkClick(id: string, currentNett: number | null) {
+		editingOutwork = id;
+		tempOutworkNett = currentNett;
+	}
+
+	function handleOutworkSave(id: string) {
+		if (tempOutworkNett !== null) {
+			const sellingPrice = tempOutworkNett * (1 + outworkMarkup / 100);
+			updateEstimateFieldById(id, {
+				outwork_charge_nett: tempOutworkNett,
+				outwork_charge: Number(sellingPrice.toFixed(2))
+			});
+		}
+		editingOutwork = null;
+		tempOutworkNett = null;
+	}
+
+	function handleOutworkCancel() {
+		editingOutwork = null;
+		tempOutworkNett = null;
+	}
+
+	const estimateSubtotal = $derived(calculateSubtotal(lineItems));
+	const estimateVatAmount = $derived(calculateVAT(estimateSubtotal, vatRate));
+	const estimateTotal = $derived(calculateTotal(estimateSubtotal, estimateVatAmount));
+
+	let estimateNotes = $state<string>(
+		(data.estimate as { notes?: string } | null)?.notes ?? ''
+	);
+	let savingEstimateNotes = $state(false);
+
+	type EstimateStatus = 'draft' | 'sent' | 'approved' | 'declined' | 'revised' | 'expired';
+
+	const estimateStatusVariant: Record<EstimateStatus, 'default' | 'secondary' | 'destructive' | 'outline'> = {
+		draft: 'secondary',
+		sent: 'default',
+		approved: 'default',
+		declined: 'destructive',
+		revised: 'secondary',
+		expired: 'outline'
+	};
+
+	const estimateStatusLabel: Record<EstimateStatus, string> = {
+		draft: 'Draft',
+		sent: 'Sent',
+		approved: 'Approved',
+		declined: 'Declined',
+		revised: 'Revised',
+		expired: 'Expired'
+	};
+
+	function getEstimateStatusVariant(s: string) {
+		return estimateStatusVariant[s as EstimateStatus] ?? 'secondary';
+	}
+
+	function getEstimateStatusLabel(s: string) {
+		return estimateStatusLabel[s as EstimateStatus] ?? s;
+	}
+
 </script>
 
 <div class="space-y-6 pt-4">
@@ -202,64 +523,76 @@
 				{#if job.status !== 'cancelled'}
 					<Card.Root>
 						<Card.Content class="pt-6">
-							<div class="flex items-center justify-between">
-								<h2 class="text-sm font-semibold text-gray-700">Workflow Status</h2>
-								{#if nextStatus}
-									<form
-										method="POST"
-										action="?/updateStatus"
-										use:enhance={() => {
-											statusUpdating = true;
-											return async ({ result, update }) => {
-												statusUpdating = false;
-												if (result.type === 'success') {
-													job = { ...job, status: nextStatus! };
-												}
-												await update();
-											};
-										}}
-									>
-										<input type="hidden" name="status" value={nextStatus} />
-										<Button type="submit" size="sm" disabled={statusUpdating}>
-											{statusUpdating ? 'Updating...' : `Advance to ${STATUS_LABELS[nextStatus]}`}
-										</Button>
-									</form>
-								{/if}
-							</div>
+							<h2 class="text-sm font-semibold text-gray-700">Workflow Status</h2>
 
-							<!-- Stepper -->
-							<div class="mt-4 overflow-x-auto">
-								<div class="flex min-w-max items-center gap-0">
+							<!-- Enhanced Stepper -->
+							<div class="mt-6 overflow-x-auto pb-2">
+								<div class="flex min-w-max items-start gap-0">
 									{#each STATUS_STEPS as step, i}
 										{@const isPast = i < currentStepIndex}
 										{@const isCurrent = i === currentStepIndex}
 										{@const isFuture = i > currentStepIndex}
-										<div class="flex items-center">
-											<div class="flex flex-col items-center">
+										{@const isNext = (VALID_TRANSITIONS[job.status as ShopJobStatus] || []).includes(step)}
+										{@const stepTime = getStepTimestamp(step)}
+
+										<div class="flex items-start">
+											<button
+												type="button"
+												class="flex flex-col items-center group relative"
+												disabled={!isNext || transitioning}
+												onclick={() => handleStepClick(step)}
+											>
+												<!-- Step circle -->
 												<div
-													class="flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold
-													{isPast ? 'bg-green-500 text-white' : ''}
-													{isCurrent ? 'bg-slate-900 text-white' : ''}
-													{isFuture ? 'bg-gray-200 text-gray-400' : ''}"
+													class="relative flex h-10 w-10 items-center justify-center rounded-full text-sm font-bold transition-all duration-300
+													{isPast ? 'bg-green-500 text-white shadow-sm' : ''}
+													{isCurrent ? 'bg-blue-600 text-white shadow-lg ring-4 ring-blue-100' : ''}
+													{isNext && !isCurrent ? 'bg-blue-50 text-blue-600 border-2 border-blue-300 cursor-pointer hover:bg-blue-100 hover:shadow-md hover:scale-110' : ''}
+													{isFuture && !isNext ? 'bg-gray-100 text-gray-400 border border-gray-200' : ''}"
 												>
 													{#if isPast}
-														&#10003;
+														<svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
+															<path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+														</svg>
 													{:else}
 														{i + 1}
 													{/if}
+
+													{#if isCurrent}
+														<span class="absolute inset-0 rounded-full animate-ping bg-blue-400 opacity-20"></span>
+													{/if}
 												</div>
+
+												<!-- Step label -->
 												<span
-													class="mt-1 max-w-[80px] text-center text-xs leading-tight
-													{isCurrent ? 'font-semibold text-gray-900' : ''}
-													{isPast ? 'text-green-600' : ''}
-													{isFuture ? 'text-gray-400' : ''}"
+													class="mt-2 max-w-[85px] text-center text-xs leading-tight transition-colors
+													{isCurrent ? 'font-bold text-blue-700' : ''}
+													{isPast ? 'font-medium text-green-700' : ''}
+													{isNext && !isCurrent ? 'font-medium text-blue-500' : ''}
+													{isFuture && !isNext ? 'text-gray-400' : ''}"
 												>
 													{STATUS_LABELS[step]}
 												</span>
-											</div>
+
+												<!-- Step timestamp -->
+												{#if stepTime}
+													<span class="mt-0.5 text-[10px] text-gray-400 max-w-[85px] text-center leading-tight">
+														{formatStepDate(stepTime)}
+													</span>
+												{:else if isNext && !isCurrent}
+													<span class="mt-0.5 text-[10px] text-blue-400 opacity-0 group-hover:opacity-100 transition-opacity">
+														Click to proceed
+													</span>
+												{/if}
+											</button>
+
 											{#if i < STATUS_STEPS.length - 1}
+												<!-- Connecting line -->
 												<div
-													class="mx-1 h-0.5 w-8 {isPast || isCurrent ? 'bg-slate-400' : 'bg-gray-200'}"
+													class="mt-5 mx-1 h-[3px] w-10 rounded-full transition-all duration-300
+													{isPast ? 'bg-green-400' : ''}
+													{isCurrent ? 'bg-gradient-to-r from-blue-400 to-gray-200' : ''}
+													{isFuture ? 'bg-gray-200' : ''}"
 												></div>
 											{/if}
 										</div>
@@ -371,8 +704,13 @@
 								action="?/update"
 								use:enhance={() => {
 									saving = true;
-									return async ({ update }) => {
+									return async ({ result, update }) => {
 										saving = false;
+										if (result.type === 'success') {
+											toast.success('Details saved');
+										} else if (result.type === 'failure') {
+											toast.error((result.data as { error?: string })?.error || 'Something went wrong');
+										}
 										await update({ reset: false });
 									};
 								}}
@@ -438,6 +776,14 @@
 						<Card.Content>
 							<div class="space-y-3 text-sm">
 								<div>
+									<span class="text-xs font-medium text-gray-400">Date Quoted</span>
+									<p class="mt-0.5 text-gray-800">{formatDate(job.date_quoted)}</p>
+								</div>
+								<div>
+									<span class="text-xs font-medium text-gray-400">Date Booked</span>
+									<p class="mt-0.5 text-gray-800">{formatDate(job.date_booked)}</p>
+								</div>
+								<div>
 									<span class="text-xs font-medium text-gray-400">Date In</span>
 									<p class="mt-0.5 text-gray-800">{formatDate(job.date_in)}</p>
 								</div>
@@ -450,7 +796,12 @@
 									method="POST"
 									action="?/update"
 									use:enhance={() => {
-										return async ({ update }) => {
+										return async ({ result, update }) => {
+											if (result.type === 'success') {
+												toast.success('Saved');
+											} else if (result.type === 'failure') {
+												toast.error((result.data as { error?: string })?.error || 'Something went wrong');
+											}
 											await update({ reset: false });
 										};
 									}}
@@ -484,8 +835,13 @@
 								action="?/update"
 								use:enhance={() => {
 									saving = true;
-									return async ({ update }) => {
+									return async ({ result, update }) => {
 										saving = false;
+										if (result.type === 'success') {
+											toast.success('Notes saved');
+										} else if (result.type === 'failure') {
+											toast.error((result.data as { error?: string })?.error || 'Something went wrong');
+										}
 										await update({ reset: false });
 									};
 								}}
@@ -589,46 +945,501 @@
 		<!-- ESTIMATE TAB -->
 		<Tabs.Content value="estimate">
 			<div class="mt-4 space-y-4">
-				{#if estimates.length > 0}
+				{#if estimate == null}
 					<Card.Root>
-						<Card.Header>
-							<Card.Title>Estimates</Card.Title>
-						</Card.Header>
-						<Card.Content>
-							<div class="divide-y divide-gray-100">
-								{#each estimates as estimate}
-									<div class="flex items-center justify-between py-2.5 text-sm">
-										<div>
-											<p class="font-medium text-gray-900">{estimate.estimate_number}</p>
-											<p class="text-xs text-gray-500 capitalize">{estimate.status}</p>
-										</div>
-										<div class="flex items-center gap-4">
-											{#if estimate.total != null}
-												<span class="font-medium text-gray-800">
-													R {Number(estimate.total).toLocaleString('en-ZA', {
-														minimumFractionDigits: 2,
-														maximumFractionDigits: 2
-													})}
-												</span>
-											{/if}
-											<Button
-												variant="link"
-												size="sm"
-												href="/shop/estimates/{estimate.id}"
-												class="h-auto p-0 text-xs"
-											>
-												View &rarr;
-											</Button>
-										</div>
-									</div>
-								{/each}
-							</div>
+						<Card.Content class="py-10 text-center text-sm text-gray-500">
+							No estimate for this job yet.
 						</Card.Content>
 					</Card.Root>
 				{:else}
+					{@const estimateStatus = (estimate as { status?: string }).status ?? 'draft'}
+					{@const estimateNumber = (estimate as { estimate_number?: string }).estimate_number ?? 'Estimate'}
+					{@const estimateId = (estimate as { id: string }).id}
+
+					<!-- Status bar -->
+					<div class="flex flex-wrap items-center justify-between gap-4">
+						<div class="flex items-center gap-3">
+							<span class="text-lg font-semibold text-gray-900">{estimateNumber}</span>
+							<Badge variant={getEstimateStatusVariant(estimateStatus)}>
+								{getEstimateStatusLabel(estimateStatus)}
+							</Badge>
+							{#if savingLineItems}
+								<Badge variant="outline" class="animate-pulse">Saving...</Badge>
+							{:else if estimateDirty && canEditEstimate}
+								<Button size="sm" variant="outline" onclick={saveEstimateLineItemsNow}>Save</Button>
+							{/if}
+						</div>
+						<div class="flex items-center gap-2">
+							{#if estimateStatus === 'draft'}
+								<form method="POST" action="?/sendEstimate" use:enhance={() => {
+									return async ({ result, update }) => {
+										if (result.type === 'success') {
+											toast.success('Estimate sent to customer');
+										} else if (result.type === 'failure') {
+											toast.error((result.data as { error?: string })?.error || 'Failed to send estimate');
+										}
+										await update({ reset: false });
+									};
+								}}>
+									<input type="hidden" name="estimate_id" value={estimateId} />
+									<Button type="submit" variant="default" size="sm">Send to Customer</Button>
+								</form>
+							{:else if estimateStatus === 'sent'}
+								<form method="POST" action="?/approveEstimate" use:enhance={() => {
+									return async ({ result, update }) => {
+										if (result.type === 'success') {
+											toast.success('Estimate approved');
+										} else if (result.type === 'failure') {
+											toast.error((result.data as { error?: string })?.error || 'Failed to approve estimate');
+										}
+										await update({ reset: false });
+									};
+								}} class="inline">
+									<input type="hidden" name="estimate_id" value={estimateId} />
+									<Button type="submit" variant="default" size="sm">Mark Approved</Button>
+								</form>
+								<form method="POST" action="?/declineEstimate" use:enhance={() => {
+									return async ({ result, update }) => {
+										if (result.type === 'success') {
+											toast.success('Estimate declined');
+										} else if (result.type === 'failure') {
+											toast.error((result.data as { error?: string })?.error || 'Failed to decline estimate');
+										}
+										await update({ reset: false });
+									};
+								}} class="inline">
+									<input type="hidden" name="estimate_id" value={estimateId} />
+									<Button type="submit" variant="destructive" size="sm">Mark Declined</Button>
+								</form>
+							{/if}
+						</div>
+					</div>
+
+					<!-- Approved Banner -->
+					{#if estimateStatus === 'approved'}
+						<div class="flex items-center gap-3 rounded-xl border border-green-200 bg-green-50 p-4">
+							<CheckCircle class="h-5 w-5 text-green-600" />
+							<div>
+								<p class="font-medium text-green-800">Estimate Approved</p>
+								{#if (estimate as { approved_at?: string }).approved_at}
+									<p class="text-sm text-green-700">
+										Approved on {new Date((estimate as { approved_at: string }).approved_at).toLocaleDateString('en-ZA', { day: '2-digit', month: 'short', year: 'numeric' })}
+									</p>
+								{/if}
+							</div>
+						</div>
+					{/if}
+
+					<!-- Declined Banner -->
+					{#if estimateStatus === 'declined'}
+						<div class="rounded-xl border border-red-200 bg-red-50 p-4">
+							<p class="font-medium text-red-800">Estimate Declined</p>
+						</div>
+					{/if}
+
+					<!-- Line Items Section -->
+					<div class="space-y-3">
+						<h2 class="text-base font-semibold text-gray-900">Line Items</h2>
+
+						{#if lineItems.length === 0 && !canEditEstimate}
+							<p class="py-6 text-center text-sm text-gray-400">No line items on this estimate.</p>
+						{/if}
+
+						<!-- Mobile: Card Layout -->
+						<div class="space-y-3 md:hidden">
+							{#each lineItems as item, index (item.id ?? index)}
+								<LineItemCard
+									{item}
+									labourRate={labourRate}
+									paintRate={paintRate}
+									onUpdateDescription={(value) => updateEstimateField(index, 'description', value)}
+									onUpdateProcessType={(value) => updateEstimateField(index, 'process_type', value)}
+									onUpdatePartType={(value) => updateEstimateField(index, 'part_type', value)}
+									onEditPartPrice={() => handlePartPriceClick(item.id!, item.part_price_nett || null)}
+									onEditSA={() => handleSAClick(item.id!, item.strip_assemble_hours || null)}
+									onEditLabour={() => handleLabourClick(item.id!, item.labour_hours || null)}
+									onEditPaint={() => handlePaintClick(item.id!, item.paint_panels || null)}
+									onEditOutwork={() => handleOutworkClick(item.id!, item.outwork_charge_nett || null)}
+									onEditBetterment={() => {/* Betterment not used in shop module */}}
+									onDelete={() => deleteLineItem(item.id)}
+								/>
+							{/each}
+						</div>
+
+						<!-- Desktop: Table Layout -->
+						<div class="hidden overflow-x-auto rounded-lg border md:block">
+							<Table.Root>
+								<Table.Header class="sticky top-0 z-10 bg-white">
+									<Table.Row class="border-b-2 hover:bg-transparent">
+										<Table.Head class="w-[50px] px-2">Type</Table.Head>
+										<Table.Head class="w-[60px] px-2">Part</Table.Head>
+										<Table.Head class="min-w-[180px] flex-1 px-3">Description</Table.Head>
+										<Table.Head class="w-[120px] px-2 text-right">Part Price</Table.Head>
+										<Table.Head class="w-[100px] px-2 text-right">S&amp;A</Table.Head>
+										<Table.Head class="w-[120px] px-2 text-right">Labour</Table.Head>
+										<Table.Head class="w-[100px] px-2 text-right">Paint</Table.Head>
+										<Table.Head class="w-[120px] px-2 text-right">Outwork</Table.Head>
+										<Table.Head class="w-[40px] px-2 text-center" title="Betterment">%</Table.Head>
+										<Table.Head class="w-[140px] px-2 text-right">Total</Table.Head>
+										<Table.Head class="w-[60px] px-2"></Table.Head>
+									</Table.Row>
+								</Table.Header>
+								<Table.Body>
+									{#if lineItems.length === 0}
+										<Table.Row class="hover:bg-transparent">
+											<Table.Cell colspan={11} class="h-24 text-center text-gray-500">
+												No line items added. Use "Quick Add" below to add items.
+											</Table.Cell>
+										</Table.Row>
+									{:else}
+										{#each lineItems as item (item.id)}
+											<Table.Row class="hover:bg-gray-50">
+												<!-- Process Type -->
+												<Table.Cell class="px-3 py-2">
+													<div class="group relative">
+														<select
+															value={item.process_type}
+															onchange={(e) =>
+																updateEstimateFieldById(item.id!, { process_type: e.currentTarget.value })}
+															class="absolute inset-0 z-10 h-full w-full cursor-pointer opacity-0"
+														>
+															{#each processTypeOptions as option}
+																<option value={option.value}>{option.value} - {option.label}</option>
+															{/each}
+														</select>
+														<div class="pointer-events-none flex items-center justify-center">
+															<span class="rounded px-2 py-1 text-xs font-semibold {getProcessTypeBadgeColor(item.process_type)}">
+																{item.process_type}
+															</span>
+														</div>
+														<div class="pointer-events-none absolute bottom-full left-1/2 z-20 mb-2 hidden -translate-x-1/2 transform whitespace-nowrap rounded bg-gray-900 px-2 py-1 text-xs text-white group-hover:block">
+															{getProcessTypeConfig(item.process_type).label}
+														</div>
+													</div>
+												</Table.Cell>
+
+												<!-- Part Type (N only) -->
+												<Table.Cell class="px-3 py-2">
+													{#if item.process_type === 'N'}
+														<div class="group relative">
+															<select
+																value={item.part_type || 'OEM'}
+																onchange={(e) =>
+																	updateEstimateFieldById(item.id!, { part_type: e.currentTarget.value })}
+																class="absolute inset-0 z-10 h-full w-full cursor-pointer opacity-0"
+															>
+																<option value="OEM">OEM</option>
+																<option value="ALT">ALT</option>
+																<option value="2ND">2ND</option>
+															</select>
+															<div class="pointer-events-none flex items-center justify-center">
+																{#if item.part_type === 'OEM'}
+																	<div class="flex items-center gap-1 rounded bg-blue-100 px-2 py-1 text-blue-800">
+																		<ShieldCheck class="h-3 w-3" />
+																		<span class="text-xs font-semibold">OEM</span>
+																	</div>
+																{:else if item.part_type === 'ALT'}
+																	<div class="flex items-center gap-1 rounded bg-green-100 px-2 py-1 text-green-800">
+																		<Package class="h-3 w-3" />
+																		<span class="text-xs font-semibold">ALT</span>
+																	</div>
+																{:else if item.part_type === '2ND'}
+																	<div class="flex items-center gap-1 rounded bg-amber-100 px-2 py-1 text-amber-800">
+																		<Recycle class="h-3 w-3" />
+																		<span class="text-xs font-semibold">2ND</span>
+																	</div>
+																{:else}
+																	<span class="text-xs text-gray-500">OEM</span>
+																{/if}
+															</div>
+														</div>
+													{:else}
+														<span class="text-sm text-gray-400">-</span>
+													{/if}
+												</Table.Cell>
+
+												<!-- Description -->
+												<Table.Cell class="px-3 py-2">
+													<Input
+														type="text"
+														placeholder="Description"
+														value={item.description}
+														oninput={(e) => scheduleDescUpdate(item.id!, e.currentTarget.value)}
+														onblur={(e) => flushDescUpdate(item.id!, e.currentTarget.value)}
+														class="border-0 focus-visible:ring-0 focus-visible:ring-offset-0"
+													/>
+												</Table.Cell>
+
+												<!-- Part Price (N only) -->
+												<Table.Cell class="px-3 py-2 text-right">
+													{#if item.process_type === 'N'}
+														{#if editingPartPrice === item.id}
+															<div class="space-y-1">
+																<Input
+																	type="number"
+																	min="0"
+																	step="0.01"
+																	bind:value={tempPartPriceNett}
+																	onkeydown={(e) => {
+																		if (e.key === 'Enter') handlePartPriceSave(item.id!, item);
+																		if (e.key === 'Escape') handlePartPriceCancel();
+																	}}
+																	onblur={() => handlePartPriceSave(item.id!, item)}
+																	class="border-0 text-right text-sm focus-visible:ring-0 focus-visible:ring-offset-0"
+																	autofocus
+																/>
+																<p class="text-xs italic text-gray-500">Only input nett price</p>
+															</div>
+														{:else}
+															<button
+																onclick={() => handlePartPriceClick(item.id!, item.part_price_nett || null)}
+																class="w-full cursor-pointer text-right text-sm font-medium text-blue-600 hover:text-blue-800"
+																title="Click to edit nett price (selling price includes markup)"
+															>
+																{formatCurrency(item.part_price_nett || 0)}
+															</button>
+														{/if}
+													{:else}
+														<span class="text-xs text-gray-400">-</span>
+													{/if}
+												</Table.Cell>
+
+												<!-- S&A (N,R,P,B) -->
+												<Table.Cell class="px-3 py-2 text-right">
+													{#if ['N', 'R', 'P', 'B'].includes(item.process_type)}
+														{#if editingSA === item.id}
+															<Input
+																type="number"
+																min="0"
+																step="0.25"
+																bind:value={tempSAHours}
+																onkeydown={(e) => {
+																	if (e.key === 'Enter') handleSASave(item.id!);
+																	if (e.key === 'Escape') handleSACancel();
+																}}
+																onblur={() => handleSASave(item.id!)}
+																class="border-0 text-right text-sm focus-visible:ring-0 focus-visible:ring-offset-0"
+																autofocus
+															/>
+														{:else}
+															<button
+																onclick={() => handleSAClick(item.id!, item.strip_assemble_hours || null)}
+																class="w-full cursor-pointer text-right text-sm font-medium text-blue-600 hover:text-blue-800"
+																title="Click to edit hours (S&A = hours x labour rate)"
+															>
+																{formatCurrency(item.strip_assemble || 0)}
+															</button>
+														{/if}
+													{:else}
+														<span class="text-xs text-gray-400">-</span>
+													{/if}
+												</Table.Cell>
+
+												<!-- Labour (N,R,A) -->
+												<Table.Cell class="px-3 py-2 text-right">
+													{#if ['N', 'R', 'A'].includes(item.process_type)}
+														{#if editingLabour === item.id}
+															<Input
+																type="number"
+																min="0"
+																step="0.5"
+																bind:value={tempLabourHours}
+																onkeydown={(e) => {
+																	if (e.key === 'Enter') handleLabourSave(item.id!);
+																	if (e.key === 'Escape') handleLabourCancel();
+																}}
+																onblur={() => handleLabourSave(item.id!)}
+																class="border-0 text-right text-sm focus-visible:ring-0 focus-visible:ring-offset-0"
+																autofocus
+															/>
+														{:else}
+															<button
+																onclick={() => handleLabourClick(item.id!, item.labour_hours || null)}
+																class="w-full cursor-pointer text-right text-sm font-medium text-blue-600 hover:text-blue-800"
+																title="Click to edit hours (Labour = hours x labour rate)"
+															>
+																{formatCurrency(item.labour_cost || 0)}
+															</button>
+														{/if}
+													{:else}
+														<span class="text-xs text-gray-400">-</span>
+													{/if}
+												</Table.Cell>
+
+												<!-- Paint (N,R,P,B) -->
+												<Table.Cell class="px-3 py-2 text-right">
+													{#if ['N', 'R', 'P', 'B'].includes(item.process_type)}
+														{#if editingPaint === item.id}
+															<Input
+																type="number"
+																min="0"
+																step="0.5"
+																bind:value={tempPaintPanels}
+																onkeydown={(e) => {
+																	if (e.key === 'Enter') handlePaintSave(item.id!);
+																	if (e.key === 'Escape') handlePaintCancel();
+																}}
+																onblur={() => handlePaintSave(item.id!)}
+																class="border-0 text-right text-sm focus-visible:ring-0 focus-visible:ring-offset-0"
+																autofocus
+															/>
+														{:else}
+															<button
+																onclick={() => handlePaintClick(item.id!, item.paint_panels || null)}
+																class="w-full cursor-pointer text-right text-sm font-medium text-blue-600 hover:text-blue-800"
+																title="Click to edit panels (Paint = panels x paint rate)"
+															>
+																{formatCurrency(item.paint_cost || 0)}
+															</button>
+														{/if}
+													{:else}
+														<span class="text-xs text-gray-400">-</span>
+													{/if}
+												</Table.Cell>
+
+												<!-- Outwork (O only) -->
+												<Table.Cell class="px-3 py-2 text-right">
+													{#if item.process_type === 'O'}
+														{#if editingOutwork === item.id}
+															<div class="space-y-1">
+																<Input
+																	type="number"
+																	min="0"
+																	step="0.01"
+																	bind:value={tempOutworkNett}
+																	onkeydown={(e) => {
+																		if (e.key === 'Enter') handleOutworkSave(item.id!);
+																		if (e.key === 'Escape') handleOutworkCancel();
+																	}}
+																	onblur={() => handleOutworkSave(item.id!)}
+																	class="border-0 text-right text-sm focus-visible:ring-0 focus-visible:ring-offset-0"
+																	autofocus
+																/>
+																<p class="text-xs italic text-gray-500">Only input nett price</p>
+															</div>
+														{:else}
+															<button
+																onclick={() => handleOutworkClick(item.id!, item.outwork_charge_nett || null)}
+																class="w-full cursor-pointer text-right text-sm font-medium text-blue-600 hover:text-blue-800"
+																title="Click to edit nett price (selling price includes markup)"
+															>
+																{formatCurrency(item.outwork_charge_nett || 0)}
+															</button>
+														{/if}
+													{:else}
+														<span class="text-xs text-gray-400">-</span>
+													{/if}
+												</Table.Cell>
+
+												<!-- Betterment (no-op in shop) -->
+												<Table.Cell class="px-2 py-2 text-center">
+													<div
+														class="inline-flex rounded-md border border-gray-200 bg-gray-50 p-1.5"
+														title="Betterment not applicable in shop module"
+													>
+														<Percent class="h-4 w-4 text-gray-300" />
+													</div>
+												</Table.Cell>
+
+												<!-- Total -->
+												<Table.Cell class="px-3 py-2 text-right font-bold">
+													{formatCurrency(item.total)}
+												</Table.Cell>
+
+												<!-- Actions -->
+												<Table.Cell class="px-2 py-2 text-center">
+													<Button
+														variant="ghost"
+														size="sm"
+														onclick={() => deleteLineItem(item.id)}
+														class="h-8 w-8 p-0 text-red-600 hover:bg-red-50 hover:text-red-700"
+													>
+														<Trash2 class="h-4 w-4" />
+													</Button>
+												</Table.Cell>
+											</Table.Row>
+										{/each}
+									{/if}
+								</Table.Body>
+							</Table.Root>
+						</div>
+
+						<!-- Quick Add (draft / revised only) -->
+						{#if canEditEstimate}
+							<QuickAddLineItem
+								labourRate={labourRate}
+								paintRate={paintRate}
+								oemMarkup={oemMarkup}
+								altMarkup={altMarkup}
+								secondHandMarkup={secondHandMarkup}
+								outworkMarkup={outworkMarkup}
+								onAddLineItem={addLineItem}
+								enablePhotos={false}
+							/>
+						{/if}
+					</div>
+
+					<!-- Totals Card -->
 					<Card.Root>
-						<Card.Content class="py-10 text-center text-sm text-gray-500">
-							No estimates yet for this job.
+						<Card.Header>
+							<Card.Title>Totals</Card.Title>
+						</Card.Header>
+						<Card.Content>
+							<div class="space-y-2 text-sm">
+								<Separator class="my-2" />
+								<div class="flex justify-between font-medium text-gray-900">
+									<span>Subtotal</span>
+									<span>{formatCurrency(estimateSubtotal)}</span>
+								</div>
+								<div class="flex justify-between text-gray-600">
+									<span>VAT ({vatRate}%)</span>
+									<span>{formatCurrency(estimateVatAmount)}</span>
+								</div>
+								<Separator class="my-2" />
+								<div class="flex justify-between text-base font-semibold text-gray-900">
+									<span>Total</span>
+									<span>{formatCurrency(estimateTotal)}</span>
+								</div>
+							</div>
+						</Card.Content>
+					</Card.Root>
+
+					<!-- Estimate Notes -->
+					<Card.Root>
+						<Card.Header>
+							<Card.Title>Estimate Notes</Card.Title>
+						</Card.Header>
+						<Card.Content>
+							<form
+								method="POST"
+								action="?/updateEstimateNotes"
+								use:enhance={() => {
+									savingEstimateNotes = true;
+									return async ({ result, update }) => {
+										savingEstimateNotes = false;
+										if (result.type === 'success') {
+											toast.success('Estimate notes saved');
+										} else if (result.type === 'failure') {
+											toast.error((result.data as { error?: string })?.error || 'Something went wrong');
+										}
+										await update({ reset: false });
+									};
+								}}
+							>
+								<input type="hidden" name="estimate_id" value={estimateId} />
+								<textarea
+									name="notes"
+									rows="4"
+									bind:value={estimateNotes}
+									placeholder="Add notes for the customer or internal reference..."
+									class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500"
+								></textarea>
+								<div class="mt-2 flex justify-end">
+									<Button type="submit" disabled={savingEstimateNotes}>
+										{savingEstimateNotes ? 'Saving...' : 'Save Notes'}
+									</Button>
+								</div>
+							</form>
 						</Card.Content>
 					</Card.Root>
 				{/if}
@@ -688,8 +1499,13 @@
 									action="?/createInvoice"
 									use:enhance={() => {
 										creatingInvoice = true;
-										return async ({ update }) => {
+										return async ({ result, update }) => {
 											creatingInvoice = false;
+											if (result.type === 'success') {
+												toast.success('Invoice created');
+											} else if (result.type === 'failure') {
+												toast.error((result.data as { error?: string })?.error || 'Failed to create invoice');
+											}
 											await update();
 										};
 									}}

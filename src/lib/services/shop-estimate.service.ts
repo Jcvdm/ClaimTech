@@ -185,7 +185,9 @@ export function createShopEstimateService(supabase: SupabaseClient) {
 					damage_description: data.damage_description ?? null,
 					complaint: data.complaint ?? null,
 					diagnosis: data.diagnosis ?? null,
-					created_by: createdBy
+					created_by: createdBy,
+					date_quoted: new Date().toISOString().split('T')[0],
+					status_history: [{ status: 'quote_requested', timestamp: new Date().toISOString() }]
 				})
 				.select()
 				.single();

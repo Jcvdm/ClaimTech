@@ -37,6 +37,8 @@ export interface ShopJob {
 	complaint: string | null;
 	diagnosis: string | null;
 	fault_codes: string | null;
+	date_quoted: string | null;
+	date_booked: string | null;
 	date_in: string | null;
 	date_promised: string | null;
 	date_completed: string | null;
@@ -45,6 +47,7 @@ export interface ShopJob {
 	notes: string | null;
 	created_at: string;
 	updated_at: string;
+	status_history: Array<{ status: string; timestamp: string }> | null;
 }
 
 // Valid status transitions for the shop job workflow
@@ -152,7 +155,7 @@ export function createShopJobService(supabase: SupabaseClient) {
 		async updateJobStatus(id: string, newStatus: ShopJobStatus) {
 			const { data: job, error: fetchError } = await supabase
 				.from('shop_jobs')
-				.select('status')
+				.select('status, status_history')
 				.eq('id', id)
 				.single();
 
@@ -174,12 +177,21 @@ export function createShopJobService(supabase: SupabaseClient) {
 				updated_at: new Date().toISOString()
 			};
 
+			if (newStatus === 'approved') {
+				updateData.date_booked = new Date().toISOString().split('T')[0]; // DATE only
+			}
 			if (newStatus === 'checked_in') {
 				updateData.date_in = new Date().toISOString().split('T')[0]; // DATE only
 			}
 			if (newStatus === 'completed') {
 				updateData.date_completed = new Date().toISOString().split('T')[0]; // DATE only
 			}
+
+			const currentHistory = Array.isArray(job.status_history) ? job.status_history : [];
+			updateData.status_history = [
+				...currentHistory,
+				{ status: newStatus, timestamp: new Date().toISOString() }
+			];
 
 			return supabase
 				.from('shop_jobs')
