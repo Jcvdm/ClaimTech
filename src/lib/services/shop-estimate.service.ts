@@ -24,6 +24,12 @@ export interface ShopEstimate {
 	total: number;
 	markup_parts_pct: number | null;
 	markup_labor_pct: number | null;
+	labour_rate: number | null;
+	paint_rate: number | null;
+	oem_markup_pct: number | null;
+	alt_markup_pct: number | null;
+	second_hand_markup_pct: number | null;
+	outwork_markup_pct: number | null;
 	valid_until: string | null;
 	notes: string | null;
 	internal_notes: string | null;
@@ -163,6 +169,33 @@ export function createShopEstimateService(supabase: SupabaseClient) {
 			const estimateNumber = await generateEstimateNumber();
 			const jobNumber = await generateJobNumber();
 
+			// Snapshot default rates/markups from settings and labor rates tables
+			const [settingsResult, laborRateResult] = await Promise.all([
+				supabase
+					.from('shop_settings')
+					.select('default_paint_rate, oem_markup_percentage, alt_markup_percentage, second_hand_markup_percentage, outwork_markup_percentage')
+					.limit(1)
+					.single(),
+				supabase
+					.from('shop_labor_rates')
+					.select('hourly_rate')
+					.eq('job_type', data.job_type)
+					.eq('is_default', true)
+					.eq('is_active', true)
+					.limit(1)
+					.single()
+			]);
+
+			const settings = settingsResult.data;
+			const laborRate = laborRateResult.data;
+
+			const snapshotLabourRate = laborRate?.hourly_rate ?? 450;
+			const snapshotPaintRate = settings?.default_paint_rate ?? 350;
+			const snapshotOemMarkup = settings?.oem_markup_percentage ?? 25;
+			const snapshotAltMarkup = settings?.alt_markup_percentage ?? 25;
+			const snapshotSecondHandMarkup = settings?.second_hand_markup_percentage ?? 25;
+			const snapshotOutworkMarkup = settings?.outwork_markup_percentage ?? 25;
+
 			// 1. Create the job record
 			const { data: job, error: jobError } = await supabase
 				.from('shop_jobs')
@@ -214,7 +247,13 @@ export function createShopEstimateService(supabase: SupabaseClient) {
 					discount_amount: 0,
 					vat_rate: 15.00,
 					vat_amount: 0,
-					total: 0
+					total: 0,
+					labour_rate: snapshotLabourRate,
+					paint_rate: snapshotPaintRate,
+					oem_markup_pct: snapshotOemMarkup,
+					alt_markup_pct: snapshotAltMarkup,
+					second_hand_markup_pct: snapshotSecondHandMarkup,
+					outwork_markup_pct: snapshotOutworkMarkup
 				})
 				.select()
 				.single();
@@ -325,7 +364,7 @@ export function createShopEstimateService(supabase: SupabaseClient) {
 					updated_at: new Date().toISOString()
 				})
 				.eq('id', id)
-				.eq('status', 'sent')
+				.in('status', ['sent', 'draft'])
 				.select()
 				.single();
 
@@ -360,7 +399,7 @@ export function createShopEstimateService(supabase: SupabaseClient) {
 					updated_at: new Date().toISOString()
 				})
 				.eq('id', id)
-				.eq('status', 'sent')
+				.in('status', ['sent', 'draft'])
 				.select()
 				.single();
 		},

@@ -4,12 +4,22 @@ import { createShopJobService } from '$lib/services/shop-job.service';
 import type { ShopJobStatus } from '$lib/services/shop-job.service';
 import { createShopInvoiceService } from '$lib/services/shop-invoice.service';
 import { createShopJobPhotosService } from '$lib/services/shop-job-photos.service';
+import { createShopEstimateService } from '$lib/services/shop-estimate.service';
+import { createShopSettingsService } from '$lib/services/shop-settings.service';
+import type { EstimateLineItem } from '$lib/types/assessment';
+import {
+	calculateSubtotal,
+	calculateVAT,
+	calculateTotal
+} from '$lib/utils/estimateCalculations';
 
 export const load: PageServerLoad = async ({ params, locals }) => {
 	const { supabase } = locals;
 	const jobService = createShopJobService(supabase);
 	const invoiceService = createShopInvoiceService(supabase);
 	const photosService = createShopJobPhotosService(supabase);
+	const estimateService = createShopEstimateService(supabase);
+	const settingsService = createShopSettingsService(supabase);
 
 	const { data: job, error: jobError } = await jobService.getJob(params.id);
 
@@ -23,7 +33,54 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 	// Fetch all photos for this job
 	const { data: photos } = await photosService.getPhotos(params.id);
 
-	return { job, existingInvoice: existingInvoice ?? null, photos: photos ?? [] };
+	// Load full estimate data (with line_items JSONB) if an estimate exists
+	const estimateId = (job.shop_estimates as Array<{ id: string }> | undefined)?.[0]?.id;
+	let estimate = null;
+	let settings = null;
+	let labourRate = 450;
+	let paintRate = 350;
+	let oemMarkup = 25;
+	let altMarkup = 25;
+	let secondHandMarkup = 25;
+	let outworkMarkup = 25;
+	let vatRate = 15;
+
+	if (estimateId) {
+		const [estimateResult, settingsResult] = await Promise.all([
+			estimateService.getEstimate(estimateId),
+			settingsService.getSettings()
+		]);
+
+		if (!estimateResult.error && estimateResult.data) {
+			estimate = estimateResult.data;
+		}
+
+		settings = settingsResult.data ?? null;
+
+		// Use per-estimate rates if set, fall back to settings, then hardcoded defaults
+		labourRate = (estimate as Record<string, unknown> | null)?.labour_rate as number ?? settings?.default_labour_rate ?? 450;
+		paintRate = (estimate as Record<string, unknown> | null)?.paint_rate as number ?? settings?.default_paint_rate ?? 350;
+		oemMarkup = (estimate as Record<string, unknown> | null)?.oem_markup_pct as number ?? settings?.oem_markup_percentage ?? settings?.default_markup_parts ?? 25;
+		altMarkup = (estimate as Record<string, unknown> | null)?.alt_markup_pct as number ?? settings?.alt_markup_percentage ?? settings?.default_markup_parts ?? 25;
+		secondHandMarkup = (estimate as Record<string, unknown> | null)?.second_hand_markup_pct as number ?? settings?.second_hand_markup_percentage ?? settings?.default_markup_parts ?? 25;
+		outworkMarkup = (estimate as Record<string, unknown> | null)?.outwork_markup_pct as number ?? settings?.outwork_markup_percentage ?? settings?.default_markup_parts ?? 25;
+		vatRate = (estimate as Record<string, unknown> | null)?.vat_rate as number ?? settings?.default_vat_rate ?? 15;
+	}
+
+	return {
+		job,
+		existingInvoice: existingInvoice ?? null,
+		photos: photos ?? [],
+		estimate,
+		settings,
+		labourRate,
+		paintRate,
+		oemMarkup,
+		altMarkup,
+		secondHandMarkup,
+		outworkMarkup,
+		vatRate
+	};
 };
 
 export const actions: Actions = {
@@ -135,6 +192,157 @@ export const actions: Actions = {
 			return fail(400, { error: updateError.message ?? 'Failed to update job' });
 		}
 
+		return { success: true };
+	},
+
+	sendEstimate: async ({ request, locals }) => {
+		const { supabase } = locals;
+		const estimateService = createShopEstimateService(supabase);
+
+		const formData = await request.formData();
+		const estimateId = formData.get('estimate_id') as string;
+
+		if (!estimateId) {
+			return fail(400, { error: 'Estimate ID is required' });
+		}
+
+		const { error: err } = await estimateService.sendEstimate(estimateId);
+		if (err) {
+			return fail(400, { error: err.message });
+		}
+		return { success: true };
+	},
+
+	approveEstimate: async ({ request, locals }) => {
+		const { supabase } = locals;
+		const estimateService = createShopEstimateService(supabase);
+
+		const formData = await request.formData();
+		const estimateId = formData.get('estimate_id') as string;
+
+		if (!estimateId) {
+			return fail(400, { error: 'Estimate ID is required' });
+		}
+
+		try {
+			await estimateService.approveEstimate(estimateId);
+			return { success: true };
+		} catch (err) {
+			return fail(400, { error: err instanceof Error ? err.message : 'Failed to approve estimate' });
+		}
+	},
+
+	declineEstimate: async ({ request, locals }) => {
+		const { supabase } = locals;
+		const estimateService = createShopEstimateService(supabase);
+
+		const formData = await request.formData();
+		const estimateId = formData.get('estimate_id') as string;
+
+		if (!estimateId) {
+			return fail(400, { error: 'Estimate ID is required' });
+		}
+
+		const { error: err } = await estimateService.declineEstimate(estimateId);
+		if (err) {
+			return fail(400, { error: err.message });
+		}
+		return { success: true };
+	},
+
+	updateEstimateNotes: async ({ request, locals }) => {
+		const { supabase } = locals;
+		const estimateService = createShopEstimateService(supabase);
+
+		const formData = await request.formData();
+		const estimateId = formData.get('estimate_id') as string;
+		const estimateNotes = formData.get('notes') as string | null;
+
+		if (!estimateId) {
+			return fail(400, { error: 'Estimate ID is required' });
+		}
+
+		const { error: err } = await estimateService.updateEstimate(estimateId, {
+			notes: estimateNotes ?? null
+		});
+
+		if (err) {
+			return fail(400, { error: err.message });
+		}
+		return { success: true };
+	},
+
+	updateEstimateRates: async ({ request, locals }) => {
+		const supabase = locals.supabase;
+		const estimateService = createShopEstimateService(supabase);
+
+		const formData = await request.formData();
+		const estimateId = formData.get('estimate_id') as string;
+
+		if (!estimateId) return fail(400, { error: 'Missing estimate ID' });
+
+		const rateFields: Record<string, number> = {};
+		const fields = ['labour_rate', 'paint_rate', 'oem_markup_pct', 'alt_markup_pct', 'second_hand_markup_pct', 'outwork_markup_pct'];
+
+		for (const field of fields) {
+			const val = formData.get(field);
+			if (val !== null && val !== '') {
+				const parsed = parseFloat(val as string);
+				if (!isNaN(parsed)) {
+					rateFields[field] = parsed;
+				}
+			}
+		}
+
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		const { error: err } = await estimateService.updateEstimate(estimateId, rateFields as any);
+		if (err) return fail(500, { error: err.message });
+
+		return { success: true };
+	},
+
+	saveEstimateLineItems: async ({ request, locals }) => {
+		const { supabase } = locals;
+		const estimateService = createShopEstimateService(supabase);
+
+		const formData = await request.formData();
+		const estimateId = formData.get('estimate_id') as string;
+		const lineItemsJson = formData.get('line_items') as string;
+		const vatRateStr = formData.get('vat_rate') as string | null;
+
+		if (!estimateId) {
+			return fail(400, { error: 'Estimate ID is required' });
+		}
+
+		let lineItems: EstimateLineItem[];
+		try {
+			lineItems = JSON.parse(lineItemsJson);
+		} catch {
+			return fail(400, { error: 'Invalid line items data' });
+		}
+
+		const parsedVatRate = vatRateStr ? parseFloat(vatRateStr) : 15;
+		const subtotal = calculateSubtotal(lineItems);
+		const vatAmount = calculateVAT(subtotal, parsedVatRate);
+		const total = calculateTotal(subtotal, vatAmount);
+
+		const { error: err } = await estimateService.updateEstimate(estimateId, {
+			// eslint-disable-next-line @typescript-eslint/no-explicit-any
+			line_items: lineItems as any,
+			subtotal,
+			vat_rate: parsedVatRate,
+			vat_amount: vatAmount,
+			total,
+			parts_total: 0,
+			labor_total: 0,
+			sublet_total: 0,
+			sundries_total: 0,
+			discount_amount: 0
+		});
+
+		if (err) {
+			return fail(400, { error: err.message });
+		}
 		return { success: true };
 	}
 };

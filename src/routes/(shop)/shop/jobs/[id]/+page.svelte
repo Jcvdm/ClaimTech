@@ -22,7 +22,7 @@
 		recalculateLineItem
 	} from '$lib/utils/estimateCalculations';
 	import { formatCurrency } from '$lib/utils/formatters';
-	import { Trash2, ShieldCheck, Package, Recycle, Percent, CheckCircle } from 'lucide-svelte';
+	import { Trash2, ShieldCheck, Package, Recycle, Percent, CheckCircle, ChevronDown } from 'lucide-svelte';
 	import { getProcessTypeBadgeColor, getProcessTypeConfig, getProcessTypeOptions } from '$lib/constants/processTypes';
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();
@@ -224,13 +224,27 @@
 		['draft', 'revised'].includes((estimate as { status?: string }).status ?? '')
 	);
 
-	const labourRate = $derived(data.labourRate ?? 450);
-	const paintRate = $derived(data.paintRate ?? 350);
-	const oemMarkup = $derived(data.oemMarkup ?? 25);
-	const altMarkup = $derived(data.altMarkup ?? 25);
-	const secondHandMarkup = $derived(data.secondHandMarkup ?? 25);
-	const outworkMarkup = $derived(data.outworkMarkup ?? 25);
+	let labourRate = $state(data.labourRate ?? 450);
+	let paintRate = $state(data.paintRate ?? 350);
+	let oemMarkup = $state(data.oemMarkup ?? 25);
+	let altMarkup = $state(data.altMarkup ?? 25);
+	let secondHandMarkup = $state(data.secondHandMarkup ?? 25);
+	let outworkMarkup = $state(data.outworkMarkup ?? 25);
 	const vatRate = $derived(data.vatRate ?? 15);
+
+	// Sync rates from server data when page data updates
+	$effect(() => {
+		labourRate = data.labourRate ?? 450;
+		paintRate = data.paintRate ?? 350;
+		oemMarkup = data.oemMarkup ?? 25;
+		altMarkup = data.altMarkup ?? 25;
+		secondHandMarkup = data.secondHandMarkup ?? 25;
+		outworkMarkup = data.outworkMarkup ?? 25;
+	});
+
+	let showRatesPanel = $state(false);
+	let savingRates = $state(false);
+	let ratesSaveTimer: ReturnType<typeof setTimeout>;
 
 	let lineItems = $state<EstimateLineItem[]>(
 		Array.isArray((data.estimate as { line_items?: EstimateLineItem[] } | null)?.line_items)
@@ -435,6 +449,37 @@
 	function handleOutworkCancel() {
 		editingOutwork = null;
 		tempOutworkNett = null;
+	}
+
+	function scheduleRatesSave() {
+		clearTimeout(ratesSaveTimer);
+		ratesSaveTimer = setTimeout(() => saveRatesNow(), 1000);
+	}
+
+	async function saveRatesNow() {
+		const est = estimate as { id?: string } | null;
+		if (!est?.id || savingRates) return;
+		savingRates = true;
+		try {
+			const fd = new FormData();
+			fd.append('estimate_id', est.id);
+			fd.append('labour_rate', String(labourRate));
+			fd.append('paint_rate', String(paintRate));
+			fd.append('oem_markup_pct', String(oemMarkup));
+			fd.append('alt_markup_pct', String(altMarkup));
+			fd.append('second_hand_markup_pct', String(secondHandMarkup));
+			fd.append('outwork_markup_pct', String(outworkMarkup));
+			const response = await fetch('?/updateEstimateRates', { method: 'POST', body: fd });
+			if (response.ok) {
+				toast.success('Rates updated');
+			} else {
+				toast.error('Failed to save rates');
+			}
+		} catch {
+			toast.error('Failed to save rates');
+		} finally {
+			savingRates = false;
+		}
 	}
 
 	const estimateSubtotal = $derived(calculateSubtotal(lineItems));
@@ -982,9 +1027,35 @@
 									};
 								}}>
 									<input type="hidden" name="estimate_id" value={estimateId} />
-									<Button type="submit" variant="default" size="sm">Send to Customer</Button>
+									<Button type="submit" variant="outline" size="sm">Send to Customer</Button>
 								</form>
-							{:else if estimateStatus === 'sent'}
+							<form method="POST" action="?/approveEstimate" use:enhance={() => {
+								return async ({ result, update }) => {
+									if (result.type === 'success') {
+										toast.success('Estimate accepted');
+									} else if (result.type === 'failure') {
+										toast.error((result.data as { error?: string })?.error || 'Failed to accept estimate');
+									}
+									await update({ reset: false });
+								};
+							}} class="inline">
+								<input type="hidden" name="estimate_id" value={estimateId} />
+								<Button type="submit" variant="default" size="sm">Accept</Button>
+							</form>
+							<form method="POST" action="?/declineEstimate" use:enhance={() => {
+								return async ({ result, update }) => {
+									if (result.type === 'success') {
+										toast.success('Estimate declined');
+									} else if (result.type === 'failure') {
+										toast.error((result.data as { error?: string })?.error || 'Failed to decline estimate');
+									}
+									await update({ reset: false });
+								};
+							}} class="inline">
+								<input type="hidden" name="estimate_id" value={estimateId} />
+								<Button type="submit" variant="destructive" size="sm">Decline</Button>
+							</form>
+						{:else if estimateStatus === 'sent'}
 								<form method="POST" action="?/approveEstimate" use:enhance={() => {
 									return async ({ result, update }) => {
 										if (result.type === 'success') {
@@ -1036,6 +1107,97 @@
 							<p class="font-medium text-red-800">Estimate Declined</p>
 						</div>
 					{/if}
+
+					<!-- Rates & Markups Panel (collapsible) -->
+					<div class="rounded-lg border bg-white">
+						<button
+							type="button"
+							class="flex w-full items-center justify-between px-4 py-3 text-sm font-medium text-gray-700 hover:bg-gray-50 rounded-lg"
+							onclick={() => showRatesPanel = !showRatesPanel}
+						>
+							<span>Rates &amp; Markups {#if savingRates}<span class="ml-2 text-xs font-normal text-gray-400 animate-pulse">Saving...</span>{/if}</span>
+							<ChevronDown class="h-4 w-4 transition-transform {showRatesPanel ? 'rotate-180' : ''}" />
+						</button>
+						{#if showRatesPanel}
+						<div class="border-t px-4 py-4">
+							<div class="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
+								<div>
+									<label for="rate-labour" class="block text-xs font-medium text-gray-500">Labour Rate (R/hr)</label>
+									<input
+										id="rate-labour"
+										type="number"
+										step="0.01"
+										min="0"
+										value={labourRate}
+										oninput={(e) => { labourRate = parseFloat((e.target as HTMLInputElement).value) || 0; scheduleRatesSave(); }}
+										class="mt-1 w-full rounded-md border border-gray-300 px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+									/>
+								</div>
+								<div>
+									<label for="rate-paint" class="block text-xs font-medium text-gray-500">Paint Rate (R/hr)</label>
+									<input
+										id="rate-paint"
+										type="number"
+										step="0.01"
+										min="0"
+										value={paintRate}
+										oninput={(e) => { paintRate = parseFloat((e.target as HTMLInputElement).value) || 0; scheduleRatesSave(); }}
+										class="mt-1 w-full rounded-md border border-gray-300 px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+									/>
+								</div>
+								<div>
+									<label for="rate-oem" class="block text-xs font-medium text-gray-500">OEM Markup (%)</label>
+									<input
+										id="rate-oem"
+										type="number"
+										step="0.01"
+										min="0"
+										value={oemMarkup}
+										oninput={(e) => { oemMarkup = parseFloat((e.target as HTMLInputElement).value) || 0; scheduleRatesSave(); }}
+										class="mt-1 w-full rounded-md border border-gray-300 px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+									/>
+								</div>
+								<div>
+									<label for="rate-alt" class="block text-xs font-medium text-gray-500">Alt Markup (%)</label>
+									<input
+										id="rate-alt"
+										type="number"
+										step="0.01"
+										min="0"
+										value={altMarkup}
+										oninput={(e) => { altMarkup = parseFloat((e.target as HTMLInputElement).value) || 0; scheduleRatesSave(); }}
+										class="mt-1 w-full rounded-md border border-gray-300 px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+									/>
+								</div>
+								<div>
+									<label for="rate-2nd" class="block text-xs font-medium text-gray-500">2nd Hand Markup (%)</label>
+									<input
+										id="rate-2nd"
+										type="number"
+										step="0.01"
+										min="0"
+										value={secondHandMarkup}
+										oninput={(e) => { secondHandMarkup = parseFloat((e.target as HTMLInputElement).value) || 0; scheduleRatesSave(); }}
+										class="mt-1 w-full rounded-md border border-gray-300 px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+									/>
+								</div>
+								<div>
+									<label for="rate-outwork" class="block text-xs font-medium text-gray-500">Outwork Markup (%)</label>
+									<input
+										id="rate-outwork"
+										type="number"
+										step="0.01"
+										min="0"
+										value={outworkMarkup}
+										oninput={(e) => { outworkMarkup = parseFloat((e.target as HTMLInputElement).value) || 0; scheduleRatesSave(); }}
+										class="mt-1 w-full rounded-md border border-gray-300 px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+									/>
+								</div>
+							</div>
+							<p class="mt-3 text-xs text-gray-400">Changes apply to new line items added after saving. Existing line items are not recalculated automatically.</p>
+						</div>
+						{/if}
+					</div>
 
 					<!-- Line Items Section -->
 					<div class="space-y-3">
