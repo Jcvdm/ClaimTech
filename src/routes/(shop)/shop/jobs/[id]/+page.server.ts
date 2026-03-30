@@ -8,7 +8,6 @@ import { createShopEstimateService } from '$lib/services/shop-estimate.service';
 import { createShopSettingsService } from '$lib/services/shop-settings.service';
 import type { EstimateLineItem } from '$lib/types/assessment';
 import {
-	calculateSubtotal,
 	calculateVAT,
 	calculateTotal
 } from '$lib/utils/estimateCalculations';
@@ -67,6 +66,16 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 		vatRate = (estimate as Record<string, unknown> | null)?.vat_rate as number ?? settings?.default_vat_rate ?? 15;
 	}
 
+	let checkedInByName: string | null = null;
+	if ((job as any).checked_in_by) {
+		const { data: profile } = await supabase
+			.from('user_profiles')
+			.select('full_name')
+			.eq('id', (job as any).checked_in_by)
+			.single();
+		checkedInByName = profile?.full_name ?? null;
+	}
+
 	return {
 		job,
 		existingInvoice: existingInvoice ?? null,
@@ -79,13 +88,14 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 		altMarkup,
 		secondHandMarkup,
 		outworkMarkup,
-		vatRate
+		vatRate,
+		checkedInByName
 	};
 };
 
 export const actions: Actions = {
 	updateStatus: async ({ params, request, locals }) => {
-		const { supabase } = locals;
+		const { supabase, user } = locals;
 		const jobService = createShopJobService(supabase);
 
 		const formData = await request.formData();
@@ -95,13 +105,17 @@ export const actions: Actions = {
 			return fail(400, { error: 'Status is required' });
 		}
 
-		const { error: updateError } = await jobService.updateJobStatus(params.id, newStatus);
+		try {
+			const { error: updateError } = await jobService.updateJobStatus(params.id, newStatus, user?.id);
 
-		if (updateError) {
-			return fail(400, { error: updateError.message ?? 'Failed to update status' });
+			if (updateError) {
+				return fail(400, { error: updateError.message ?? 'Failed to update status' });
+			}
+
+			return { success: true };
+		} catch (err) {
+			return fail(400, { error: err instanceof Error ? err.message : 'Failed to update status' });
 		}
-
-		return { success: true };
 	},
 
 	createInvoice: async ({ params, locals }) => {
@@ -243,11 +257,12 @@ export const actions: Actions = {
 			return fail(400, { error: 'Estimate ID is required' });
 		}
 
-		const { error: err } = await estimateService.declineEstimate(estimateId);
-		if (err) {
-			return fail(400, { error: err.message });
+		try {
+			await estimateService.declineEstimate(estimateId);
+			return { success: true };
+		} catch (err) {
+			return fail(400, { error: err instanceof Error ? err.message : 'Failed to decline estimate' });
 		}
-		return { success: true };
 	},
 
 	updateEstimateNotes: async ({ request, locals }) => {
@@ -321,8 +336,48 @@ export const actions: Actions = {
 			return fail(400, { error: 'Invalid line items data' });
 		}
 
+		// Read markup percentages from form (sent by client for consistent subtotal calculation)
+		const oemPct = parseFloat(formData.get('oem_markup_pct') as string) || 0;
+		const altPct = parseFloat(formData.get('alt_markup_pct') as string) || 0;
+		const shPct = parseFloat(formData.get('second_hand_markup_pct') as string) || 0;
+		const owPct = parseFloat(formData.get('outwork_markup_pct') as string) || 0;
+
+		// Calculate category totals (matching client-side assessment pattern)
+		let partsNettTotal = 0;
+		let saTot = 0;
+		let labTot = 0;
+		let paintTot = 0;
+		let outworkNettTotal = 0;
+		let partsTotal = 0;
+		let laborTotal = 0;
+		let subletTotal = 0;
+		for (const item of lineItems) {
+			if (item.process_type === 'N') partsNettTotal += item.part_price_nett || 0;
+			if (item.process_type === 'O') outworkNettTotal += item.outwork_charge_nett || 0;
+			saTot += item.strip_assemble || 0;
+			labTot += item.labour_cost || 0;
+			paintTot += item.paint_cost || 0;
+			partsTotal += (item.part_price ?? 0) + (item.strip_assemble ?? 0);
+			laborTotal += (item.labour_cost ?? 0) + (item.paint_cost ?? 0);
+			subletTotal += (item.outwork_charge ?? 0);
+		}
+
+		// Compute markup total (per part type + outwork)
+		let partsMarkup = 0;
+		for (const item of lineItems) {
+			if (item.process_type === 'N' && item.part_price_nett) {
+				let m = 0;
+				if (item.part_type === 'OEM') m = oemPct;
+				else if (item.part_type === 'ALT') m = altPct;
+				else if (item.part_type === '2ND') m = shPct;
+				partsMarkup += item.part_price_nett * (m / 100);
+			}
+		}
+		const owMarkup = outworkNettTotal * (owPct / 100);
+		const markupTot = partsMarkup + owMarkup;
+
 		const parsedVatRate = vatRateStr ? parseFloat(vatRateStr) : 15;
-		const subtotal = calculateSubtotal(lineItems);
+		const subtotal = Number((partsNettTotal + saTot + labTot + paintTot + outworkNettTotal + markupTot).toFixed(2));
 		const vatAmount = calculateVAT(subtotal, parsedVatRate);
 		const total = calculateTotal(subtotal, vatAmount);
 
@@ -333,9 +388,9 @@ export const actions: Actions = {
 			vat_rate: parsedVatRate,
 			vat_amount: vatAmount,
 			total,
-			parts_total: 0,
-			labor_total: 0,
-			sublet_total: 0,
+			parts_total: partsTotal,
+			labor_total: laborTotal,
+			sublet_total: subletTotal,
 			sundries_total: 0,
 			discount_amount: 0
 		});

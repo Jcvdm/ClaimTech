@@ -16,13 +16,12 @@
 	import QuickAddLineItem from '$lib/components/assessment/QuickAddLineItem.svelte';
 	import type { EstimateLineItem } from '$lib/types/assessment';
 	import {
-		calculateSubtotal,
 		calculateVAT,
 		calculateTotal,
 		recalculateLineItem
 	} from '$lib/utils/estimateCalculations';
 	import { formatCurrency } from '$lib/utils/formatters';
-	import { Trash2, ShieldCheck, Package, Recycle, Percent, CheckCircle, ChevronDown } from 'lucide-svelte';
+	import { Trash2, ShieldCheck, Package, Recycle, Percent, CheckCircle, ChevronDown, FileText, Download, Wrench, ClipboardList, Car, Receipt, DollarSign, ArrowRight } from 'lucide-svelte';
 	import { getProcessTypeBadgeColor, getProcessTypeConfig, getProcessTypeOptions } from '$lib/constants/processTypes';
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();
@@ -82,7 +81,7 @@
 		mechanical: 'secondary'
 	};
 
-	let job = $state(data.job);
+	let job = $derived(data.job);
 	let saving = $state(false);
 	let statusUpdating = $state(false);
 	let creatingInvoice = $state(false);
@@ -270,6 +269,10 @@
 			fd.append('estimate_id', est.id);
 			fd.append('line_items', JSON.stringify(lineItems));
 			fd.append('vat_rate', String(vatRate));
+			fd.append('oem_markup_pct', String(oemMarkup));
+			fd.append('alt_markup_pct', String(altMarkup));
+			fd.append('second_hand_markup_pct', String(secondHandMarkup));
+			fd.append('outwork_markup_pct', String(outworkMarkup));
 			await fetch('?/saveEstimateLineItems', { method: 'POST', body: fd });
 			estimateDirty = false;
 		} catch (err) {
@@ -482,7 +485,36 @@
 		}
 	}
 
-	const estimateSubtotal = $derived(calculateSubtotal(lineItems));
+	// Category totals breakdown (matching assessment EstimateTab pattern)
+	const partsNett = $derived(
+		lineItems.filter(i => i.process_type === 'N').reduce((sum, i) => sum + (i.part_price_nett || 0), 0)
+	);
+	const saTotal = $derived(lineItems.reduce((sum, i) => sum + (i.strip_assemble || 0), 0));
+	const labourTotalCalc = $derived(lineItems.reduce((sum, i) => sum + (i.labour_cost || 0), 0));
+	const paintTotalCalc = $derived(lineItems.reduce((sum, i) => sum + (i.paint_cost || 0), 0));
+	const outworkNett = $derived(
+		lineItems.filter(i => i.process_type === 'O').reduce((sum, i) => sum + (i.outwork_charge_nett || 0), 0)
+	);
+
+	// Aggregate markup (parts by type + outwork)
+	const markupTotal = $derived.by(() => {
+		let partsMarkup = 0;
+		for (const item of lineItems) {
+			if (item.process_type === 'N' && item.part_price_nett) {
+				let m = 0;
+				if (item.part_type === 'OEM') m = oemMarkup;
+				else if (item.part_type === 'ALT') m = altMarkup;
+				else if (item.part_type === '2ND') m = secondHandMarkup;
+				partsMarkup += item.part_price_nett * (m / 100);
+			}
+		}
+		const owMarkup = outworkNett * (outworkMarkup / 100);
+		return Number((partsMarkup + owMarkup).toFixed(2));
+	});
+
+	const estimateSubtotal = $derived(
+		Number((partsNett + saTotal + labourTotalCalc + paintTotalCalc + outworkNett + markupTotal).toFixed(2))
+	);
 	const estimateVatAmount = $derived(calculateVAT(estimateSubtotal, vatRate));
 	const estimateTotal = $derived(calculateTotal(estimateSubtotal, estimateVatAmount));
 
@@ -519,6 +551,103 @@
 		return estimateStatusLabel[s as EstimateStatus] ?? s;
 	}
 
+	// PDF generation state
+	let generatingPdf = $state(false);
+	let pdfProgress = $state(0);
+	let pdfMessage = $state('');
+	let currentPdfUrl = $state<string | null>(
+		(data.estimate as { pdf_url?: string | null } | null)?.pdf_url ?? null
+	);
+
+	// Sync pdf_url when estimate data updates
+	$effect(() => {
+		const est = data.estimate as { pdf_url?: string | null } | null;
+		if (est?.pdf_url !== undefined) {
+			currentPdfUrl = est.pdf_url ?? null;
+		}
+	});
+
+	async function handleGeneratePDF() {
+		const est = estimate as { id?: string } | null;
+		if (!est?.id || generatingPdf) return;
+
+		generatingPdf = true;
+		pdfProgress = 0;
+		pdfMessage = 'Starting...';
+
+		try {
+			const response = await fetch('/api/generate-shop-estimate', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ estimateId: est.id })
+			});
+
+			if (!response.ok || !response.body) {
+				toast.error('Failed to start PDF generation');
+				generatingPdf = false;
+				return;
+			}
+
+			const reader = response.body.getReader();
+			const decoder = new TextDecoder();
+			let buffer = '';
+
+			while (true) {
+				const { value, done } = await reader.read();
+				if (done) break;
+
+				buffer += decoder.decode(value, { stream: true });
+				const lines = buffer.split('\n');
+				buffer = lines.pop() ?? '';
+
+				for (const line of lines) {
+					if (!line.startsWith('data: ')) continue;
+					try {
+						const event = JSON.parse(line.slice(6));
+						if (event.status === 'processing' || event.status === 'progress') {
+							pdfProgress = event.progress ?? pdfProgress;
+							pdfMessage = event.message ?? pdfMessage;
+						} else if (event.status === 'complete') {
+							pdfProgress = 100;
+							pdfMessage = 'Complete';
+							currentPdfUrl = event.url;
+							toast.success('PDF generated successfully');
+							generatingPdf = false;
+						} else if (event.status === 'error') {
+							toast.error(event.error ?? 'PDF generation failed');
+							generatingPdf = false;
+						}
+					} catch {
+						// ignore malformed SSE lines
+					}
+				}
+			}
+		} catch (err) {
+			console.error('PDF generation error:', err);
+			toast.error('Failed to generate PDF');
+		} finally {
+			generatingPdf = false;
+		}
+	}
+
+	async function handleDownloadPDF() {
+		if (!currentPdfUrl) return;
+		try {
+			const res = await fetch(currentPdfUrl);
+			if (!res.ok) { toast.error('Failed to download PDF'); return; }
+			const blob = await res.blob();
+			const a = document.createElement('a');
+			a.href = URL.createObjectURL(blob);
+			a.download = `${job.job_number ?? 'estimate'}.pdf`;
+			document.body.appendChild(a);
+			a.click();
+			a.remove();
+			URL.revokeObjectURL(a.href);
+		} catch {
+			toast.error('Failed to download PDF');
+		}
+	}
+
 </script>
 
 <div class="space-y-6 pt-4">
@@ -536,6 +665,19 @@
 				<Badge variant={jobTypeBadgeVariant[job.job_type] ?? 'secondary'}>
 					{job.job_type === 'autobody' ? 'Autobody' : 'Mechanical'}
 				</Badge>
+				{#if nextStatus && !transitioning}
+					<Button
+						size="sm"
+						class="bg-blue-600 hover:bg-blue-700"
+						onclick={() => handleStepClick(nextStatus)}
+					>
+						{STATUS_LABELS[nextStatus]}
+						<ArrowRight class="ml-1.5 h-3.5 w-3.5" />
+					</Button>
+				{/if}
+				{#if transitioning}
+					<Badge variant="secondary">Updating...</Badge>
+				{/if}
 			</div>
 		</div>
 	</div>
@@ -547,107 +689,38 @@
 
 	<!-- Tabbed layout -->
 	<Tabs.Root bind:value={activeTab}>
-		<Tabs.List class="w-full">
-			<Tabs.Trigger value="overview">Overview</Tabs.Trigger>
+		<Tabs.List class="flex h-auto w-full snap-x snap-mandatory gap-1.5 overflow-x-auto bg-transparent p-0 pb-2 scrollbar-hide sm:flex sm:snap-none sm:gap-2 sm:overflow-visible sm:pb-0">
+			<Tabs.Trigger value="overview" class="relative flex h-8 min-w-[4.5rem] shrink-0 snap-start items-center justify-center gap-1.5 rounded-md border border-transparent px-2.5 py-1.5 text-xs font-medium text-muted-foreground ring-offset-background transition-all hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-rose-500 data-[state=active]:text-white data-[state=active]:shadow-sm sm:h-9 sm:px-3 sm:py-2 sm:text-sm">
+				<ClipboardList class="h-3.5 w-3.5" />
+				Overview
+			</Tabs.Trigger>
 			{#if showBooking}
-				<Tabs.Trigger value="booking">Booking</Tabs.Trigger>
+				<Tabs.Trigger value="booking" class="relative flex h-8 min-w-[4.5rem] shrink-0 snap-start items-center justify-center gap-1.5 rounded-md border border-transparent px-2.5 py-1.5 text-xs font-medium text-muted-foreground ring-offset-background transition-all hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-rose-500 data-[state=active]:text-white data-[state=active]:shadow-sm sm:h-9 sm:px-3 sm:py-2 sm:text-sm">
+					<Car class="h-3.5 w-3.5" />
+					Booking
+				</Tabs.Trigger>
 			{/if}
-			<Tabs.Trigger value="estimate">Estimate</Tabs.Trigger>
+			<Tabs.Trigger value="estimate" class="relative flex h-8 min-w-[4.5rem] shrink-0 snap-start items-center justify-center gap-1.5 rounded-md border border-transparent px-2.5 py-1.5 text-xs font-medium text-muted-foreground ring-offset-background transition-all hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-rose-500 data-[state=active]:text-white data-[state=active]:shadow-sm sm:h-9 sm:px-3 sm:py-2 sm:text-sm">
+				<DollarSign class="h-3.5 w-3.5" />
+				Estimate
+			</Tabs.Trigger>
 			{#if showWork}
-				<Tabs.Trigger value="work">Work</Tabs.Trigger>
+				<Tabs.Trigger value="work" class="relative flex h-8 min-w-[4.5rem] shrink-0 snap-start items-center justify-center gap-1.5 rounded-md border border-transparent px-2.5 py-1.5 text-xs font-medium text-muted-foreground ring-offset-background transition-all hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-rose-500 data-[state=active]:text-white data-[state=active]:shadow-sm sm:h-9 sm:px-3 sm:py-2 sm:text-sm">
+					<Wrench class="h-3.5 w-3.5" />
+					Work
+				</Tabs.Trigger>
 			{/if}
 			{#if showInvoice}
-				<Tabs.Trigger value="invoice">Invoice</Tabs.Trigger>
+				<Tabs.Trigger value="invoice" class="relative flex h-8 min-w-[4.5rem] shrink-0 snap-start items-center justify-center gap-1.5 rounded-md border border-transparent px-2.5 py-1.5 text-xs font-medium text-muted-foreground ring-offset-background transition-all hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-rose-500 data-[state=active]:text-white data-[state=active]:shadow-sm sm:h-9 sm:px-3 sm:py-2 sm:text-sm">
+					<Receipt class="h-3.5 w-3.5" />
+					Invoice
+				</Tabs.Trigger>
 			{/if}
 		</Tabs.List>
 
 		<!-- OVERVIEW TAB -->
 		<Tabs.Content value="overview">
 			<div class="mt-4 space-y-6">
-				<!-- Status Progression -->
-				{#if job.status !== 'cancelled'}
-					<Card.Root>
-						<Card.Content class="pt-6">
-							<h2 class="text-sm font-semibold text-gray-700">Workflow Status</h2>
-
-							<!-- Enhanced Stepper -->
-							<div class="mt-6 overflow-x-auto pb-2">
-								<div class="flex min-w-max items-start gap-0">
-									{#each STATUS_STEPS as step, i}
-										{@const isPast = i < currentStepIndex}
-										{@const isCurrent = i === currentStepIndex}
-										{@const isFuture = i > currentStepIndex}
-										{@const isNext = (VALID_TRANSITIONS[job.status as ShopJobStatus] || []).includes(step)}
-										{@const stepTime = getStepTimestamp(step)}
-
-										<div class="flex items-start">
-											<button
-												type="button"
-												class="flex flex-col items-center group relative"
-												disabled={!isNext || transitioning}
-												onclick={() => handleStepClick(step)}
-											>
-												<!-- Step circle -->
-												<div
-													class="relative flex h-10 w-10 items-center justify-center rounded-full text-sm font-bold transition-all duration-300
-													{isPast ? 'bg-green-500 text-white shadow-sm' : ''}
-													{isCurrent ? 'bg-blue-600 text-white shadow-lg ring-4 ring-blue-100' : ''}
-													{isNext && !isCurrent ? 'bg-blue-50 text-blue-600 border-2 border-blue-300 cursor-pointer hover:bg-blue-100 hover:shadow-md hover:scale-110' : ''}
-													{isFuture && !isNext ? 'bg-gray-100 text-gray-400 border border-gray-200' : ''}"
-												>
-													{#if isPast}
-														<svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
-															<path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
-														</svg>
-													{:else}
-														{i + 1}
-													{/if}
-
-													{#if isCurrent}
-														<span class="absolute inset-0 rounded-full animate-ping bg-blue-400 opacity-20"></span>
-													{/if}
-												</div>
-
-												<!-- Step label -->
-												<span
-													class="mt-2 max-w-[85px] text-center text-xs leading-tight transition-colors
-													{isCurrent ? 'font-bold text-blue-700' : ''}
-													{isPast ? 'font-medium text-green-700' : ''}
-													{isNext && !isCurrent ? 'font-medium text-blue-500' : ''}
-													{isFuture && !isNext ? 'text-gray-400' : ''}"
-												>
-													{STATUS_LABELS[step]}
-												</span>
-
-												<!-- Step timestamp -->
-												{#if stepTime}
-													<span class="mt-0.5 text-[10px] text-gray-400 max-w-[85px] text-center leading-tight">
-														{formatStepDate(stepTime)}
-													</span>
-												{:else if isNext && !isCurrent}
-													<span class="mt-0.5 text-[10px] text-blue-400 opacity-0 group-hover:opacity-100 transition-opacity">
-														Click to proceed
-													</span>
-												{/if}
-											</button>
-
-											{#if i < STATUS_STEPS.length - 1}
-												<!-- Connecting line -->
-												<div
-													class="mt-5 mx-1 h-[3px] w-10 rounded-full transition-all duration-300
-													{isPast ? 'bg-green-400' : ''}
-													{isCurrent ? 'bg-gradient-to-r from-blue-400 to-gray-200' : ''}
-													{isFuture ? 'bg-gray-200' : ''}"
-												></div>
-											{/if}
-										</div>
-									{/each}
-								</div>
-							</div>
-						</Card.Content>
-					</Card.Root>
-				{/if}
-
 				<div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
 					<!-- Customer Card -->
 					<Card.Root>
@@ -913,6 +986,27 @@
 		{#if showBooking}
 			<Tabs.Content value="booking">
 				<div class="mt-4 space-y-6">
+					<!-- Check-In Info -->
+					{#if (data.job as any).checked_in_at}
+						<Card.Root>
+							<Card.Content class="py-4">
+								<div class="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
+									<div class="flex items-center gap-2">
+										<CheckCircle class="h-4 w-4 text-green-500" />
+										<span class="font-medium text-gray-700">Checked in</span>
+									</div>
+									<span class="text-gray-500">
+										{new Date((data.job as any).checked_in_at).toLocaleDateString('en-ZA', { day: 'numeric', month: 'short', year: 'numeric' })}
+										at {new Date((data.job as any).checked_in_at).toLocaleTimeString('en-ZA', { hour: '2-digit', minute: '2-digit' })}
+									</span>
+									{#if data.checkedInByName}
+										<span class="text-gray-500">by <span class="font-medium text-gray-700">{data.checkedInByName}</span></span>
+									{/if}
+								</div>
+							</Card.Content>
+						</Card.Root>
+					{/if}
+
 					<!-- Vehicle Check-In Details Card -->
 					<Card.Root>
 						<Card.Header>
@@ -1548,9 +1642,45 @@
 						</Card.Header>
 						<Card.Content>
 							<div class="space-y-2 text-sm">
+								{#if partsNett > 0}
+									<div class="flex justify-between text-gray-600">
+										<span>Parts Total (nett)</span>
+										<span>{formatCurrency(partsNett)}</span>
+									</div>
+								{/if}
+								{#if markupTotal > 0}
+									<div class="flex justify-between text-green-600">
+										<span>Markup Total</span>
+										<span>{formatCurrency(markupTotal)}</span>
+									</div>
+								{/if}
+								{#if saTotal > 0}
+									<div class="flex justify-between text-gray-600">
+										<span>S&amp;A Total</span>
+										<span>{formatCurrency(saTotal)}</span>
+									</div>
+								{/if}
+								{#if labourTotalCalc > 0}
+									<div class="flex justify-between text-gray-600">
+										<span>Labour Total</span>
+										<span>{formatCurrency(labourTotalCalc)}</span>
+									</div>
+								{/if}
+								{#if paintTotalCalc > 0}
+									<div class="flex justify-between text-gray-600">
+										<span>Paint Total</span>
+										<span>{formatCurrency(paintTotalCalc)}</span>
+									</div>
+								{/if}
+								{#if outworkNett > 0}
+									<div class="flex justify-between text-gray-600">
+										<span>Outwork Total (nett)</span>
+										<span>{formatCurrency(outworkNett)}</span>
+									</div>
+								{/if}
 								<Separator class="my-2" />
 								<div class="flex justify-between font-medium text-gray-900">
-									<span>Subtotal</span>
+									<span>Subtotal (Ex VAT)</span>
 									<span>{formatCurrency(estimateSubtotal)}</span>
 								</div>
 								<div class="flex justify-between text-gray-600">
@@ -1558,8 +1688,8 @@
 									<span>{formatCurrency(estimateVatAmount)}</span>
 								</div>
 								<Separator class="my-2" />
-								<div class="flex justify-between text-base font-semibold text-gray-900">
-									<span>Total</span>
+								<div class="flex justify-between text-base font-bold text-gray-900">
+									<span>Grand Total</span>
 									<span>{formatCurrency(estimateTotal)}</span>
 								</div>
 							</div>
@@ -1602,6 +1732,46 @@
 									</Button>
 								</div>
 							</form>
+						</Card.Content>
+					</Card.Root>
+
+					<!-- PDF Generation -->
+					<Card.Root>
+						<Card.Content class="py-3">
+							{#if generatingPdf}
+								<div class="w-full">
+									<div class="mb-1 flex items-center justify-between text-xs text-gray-500">
+										<span>{pdfMessage}</span>
+										<span>{pdfProgress}%</span>
+									</div>
+									<div class="h-2 overflow-hidden rounded-full bg-gray-200">
+										<div
+											class="h-full rounded-full bg-blue-600 transition-all duration-300"
+											style="width: {pdfProgress}%"
+										></div>
+									</div>
+								</div>
+							{:else}
+								<div class="flex items-center gap-3">
+									<Button onclick={handleGeneratePDF} variant="outline" size="sm">
+										<FileText class="mr-2 h-4 w-4" />
+										{currentPdfUrl ? 'Regenerate PDF' : 'Generate PDF'}
+									</Button>
+									{#if currentPdfUrl}
+										<a
+											href={currentPdfUrl}
+											target="_blank"
+											class="text-sm font-medium text-blue-600 hover:underline"
+										>
+											View PDF
+										</a>
+										<Button onclick={handleDownloadPDF} variant="outline" size="sm">
+											<Download class="mr-2 h-4 w-4" />
+											Download PDF
+										</Button>
+									{/if}
+								</div>
+							{/if}
 						</Card.Content>
 					</Card.Root>
 				{/if}

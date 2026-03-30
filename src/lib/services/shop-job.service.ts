@@ -47,7 +47,7 @@ export interface ShopJob {
 	notes: string | null;
 	created_at: string;
 	updated_at: string;
-	status_history: Array<{ status: string; timestamp: string }> | null;
+	status_history: Array<{ status: string; timestamp: string; user_id?: string | null }> | null;
 }
 
 // Valid status transitions for the shop job workflow
@@ -152,7 +152,7 @@ export function createShopJobService(supabase: SupabaseClient) {
 		 *
 		 * @throws Error if the transition is not valid from the current status.
 		 */
-		async updateJobStatus(id: string, newStatus: ShopJobStatus) {
+		async updateJobStatus(id: string, newStatus: ShopJobStatus, userId?: string) {
 			const { data: job, error: fetchError } = await supabase
 				.from('shop_jobs')
 				.select('status, status_history')
@@ -182,6 +182,8 @@ export function createShopJobService(supabase: SupabaseClient) {
 			}
 			if (newStatus === 'checked_in') {
 				updateData.date_in = new Date().toISOString().split('T')[0]; // DATE only
+				updateData.checked_in_at = new Date().toISOString();
+				if (userId) updateData.checked_in_by = userId;
 			}
 			if (newStatus === 'completed') {
 				updateData.date_completed = new Date().toISOString().split('T')[0]; // DATE only
@@ -190,7 +192,7 @@ export function createShopJobService(supabase: SupabaseClient) {
 			const currentHistory = Array.isArray(job.status_history) ? job.status_history : [];
 			updateData.status_history = [
 				...currentHistory,
-				{ status: newStatus, timestamp: new Date().toISOString() }
+				{ status: newStatus, timestamp: new Date().toISOString(), user_id: userId ?? null }
 			];
 
 			return supabase
