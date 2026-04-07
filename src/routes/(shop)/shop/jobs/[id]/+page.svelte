@@ -1802,6 +1802,75 @@
 						</Card.Content>
 					</Card.Root>
 				{/if}
+
+			<!-- Parts Tracking (visible from approved status) -->
+			{#if statusIndex >= STATUS_STEPS.indexOf('approved')}
+				<Card.Root>
+					<Card.Header class="pb-2">
+						<Card.Title class="text-base">Parts Tracking</Card.Title>
+					</Card.Header>
+					<Card.Content>
+						<!-- Parts Ordered -->
+						<div class="flex items-center justify-between py-2.5 border-b last:border-0">
+							<div class="flex items-center gap-3">
+								{#if (job as any).parts_ordered_at}
+									<CheckCircle class="h-4 w-4 text-green-500" />
+								{:else}
+									<div class="h-4 w-4 rounded-full border-2 border-gray-300"></div>
+								{/if}
+								<div>
+									<span class="text-sm font-medium text-gray-700">Parts Ordered</span>
+									{#if (job as any).parts_ordered_at}
+										<p class="text-xs text-gray-500">
+											{new Date((job as any).parts_ordered_at).toLocaleDateString('en-ZA', { day: 'numeric', month: 'short', year: 'numeric' })}
+											at {new Date((job as any).parts_ordered_at).toLocaleTimeString('en-ZA', { hour: '2-digit', minute: '2-digit' })}
+											{#if data.milestoneUserNames?.[(job as any).parts_ordered_by]}
+												&middot; {data.milestoneUserNames[(job as any).parts_ordered_by]}
+											{/if}
+										</p>
+									{/if}
+								</div>
+							</div>
+							<form method="POST" action="?/setMilestone" use:enhance={() => { return async ({ update }) => { await update(); await invalidateAll(); }; }}>
+								<input type="hidden" name="milestone" value="parts_ordered" />
+								<input type="hidden" name="action" value={(job as any).parts_ordered_at ? 'clear' : 'set'} />
+								<Button type="submit" variant={(job as any).parts_ordered_at ? 'outline' : 'default'} size="sm">
+									{(job as any).parts_ordered_at ? 'Undo' : 'Mark Done'}
+								</Button>
+							</form>
+						</div>
+						<!-- Parts Arrived -->
+						<div class="flex items-center justify-between py-2.5 last:border-0">
+							<div class="flex items-center gap-3">
+								{#if (job as any).parts_arrived_at}
+									<CheckCircle class="h-4 w-4 text-green-500" />
+								{:else}
+									<div class="h-4 w-4 rounded-full border-2 border-gray-300"></div>
+								{/if}
+								<div>
+									<span class="text-sm font-medium text-gray-700">Parts Arrived</span>
+									{#if (job as any).parts_arrived_at}
+										<p class="text-xs text-gray-500">
+											{new Date((job as any).parts_arrived_at).toLocaleDateString('en-ZA', { day: 'numeric', month: 'short', year: 'numeric' })}
+											at {new Date((job as any).parts_arrived_at).toLocaleTimeString('en-ZA', { hour: '2-digit', minute: '2-digit' })}
+											{#if data.milestoneUserNames?.[(job as any).parts_arrived_by]}
+												&middot; {data.milestoneUserNames[(job as any).parts_arrived_by]}
+											{/if}
+										</p>
+									{/if}
+								</div>
+							</div>
+							<form method="POST" action="?/setMilestone" use:enhance={() => { return async ({ update }) => { await update(); await invalidateAll(); }; }}>
+								<input type="hidden" name="milestone" value="parts_arrived" />
+								<input type="hidden" name="action" value={(job as any).parts_arrived_at ? 'clear' : 'set'} />
+								<Button type="submit" variant={(job as any).parts_arrived_at ? 'outline' : 'default'} size="sm">
+									{(job as any).parts_arrived_at ? 'Undo' : 'Mark Done'}
+								</Button>
+							</form>
+						</div>
+					</Card.Content>
+				</Card.Root>
+			{/if}
 			</div>
 		</Tabs.Content>
 
@@ -1861,6 +1930,103 @@
 							</Card.Content>
 						</Card.Root>
 					{/if}
+
+					<!-- Work Milestones -->
+					<Card.Root>
+						<Card.Header class="pb-2">
+							<Card.Title class="text-base">Work Milestones</Card.Title>
+						</Card.Header>
+						<Card.Content>
+							<!-- Parts Ordered -->
+							<div class="flex items-center justify-between py-2.5 border-b last:border-0">
+								<div class="flex items-center gap-3">
+									{#if (job as any).parts_ordered_at}
+										<CheckCircle class="h-4 w-4 text-green-500" />
+									{:else}
+										<div class="h-4 w-4 rounded-full border-2 border-gray-300"></div>
+									{/if}
+									<div>
+										<span class="text-sm font-medium text-gray-700">Parts Ordered</span>
+										{#if (job as any).parts_ordered_at}
+											<p class="text-xs text-gray-500">
+												{new Date((job as any).parts_ordered_at).toLocaleDateString('en-ZA', { day: 'numeric', month: 'short', year: 'numeric' })}
+												at {new Date((job as any).parts_ordered_at).toLocaleTimeString('en-ZA', { hour: '2-digit', minute: '2-digit' })}
+												{#if data.milestoneUserNames?.[(job as any).parts_ordered_by]}
+													&middot; {data.milestoneUserNames[(job as any).parts_ordered_by]}
+												{/if}
+											</p>
+										{/if}
+									</div>
+								</div>
+								<form method="POST" action="?/setMilestone" use:enhance={() => { return async ({ update }) => { await update(); await invalidateAll(); }; }}>
+									<input type="hidden" name="milestone" value="parts_ordered" />
+									<input type="hidden" name="action" value={(job as any).parts_ordered_at ? 'clear' : 'set'} />
+									<Button type="submit" variant={(job as any).parts_ordered_at ? 'outline' : 'default'} size="sm">
+										{(job as any).parts_ordered_at ? 'Undo' : 'Mark Done'}
+									</Button>
+								</form>
+							</div>
+							<!-- Parts Arrived -->
+							<div class="flex items-center justify-between py-2.5 border-b last:border-0">
+								<div class="flex items-center gap-3">
+									{#if (job as any).parts_arrived_at}
+										<CheckCircle class="h-4 w-4 text-green-500" />
+									{:else}
+										<div class="h-4 w-4 rounded-full border-2 border-gray-300"></div>
+									{/if}
+									<div>
+										<span class="text-sm font-medium text-gray-700">Parts Arrived</span>
+										{#if (job as any).parts_arrived_at}
+											<p class="text-xs text-gray-500">
+												{new Date((job as any).parts_arrived_at).toLocaleDateString('en-ZA', { day: 'numeric', month: 'short', year: 'numeric' })}
+												at {new Date((job as any).parts_arrived_at).toLocaleTimeString('en-ZA', { hour: '2-digit', minute: '2-digit' })}
+												{#if data.milestoneUserNames?.[(job as any).parts_arrived_by]}
+													&middot; {data.milestoneUserNames[(job as any).parts_arrived_by]}
+												{/if}
+											</p>
+										{/if}
+									</div>
+								</div>
+								<form method="POST" action="?/setMilestone" use:enhance={() => { return async ({ update }) => { await update(); await invalidateAll(); }; }}>
+									<input type="hidden" name="milestone" value="parts_arrived" />
+									<input type="hidden" name="action" value={(job as any).parts_arrived_at ? 'clear' : 'set'} />
+									<Button type="submit" variant={(job as any).parts_arrived_at ? 'outline' : 'default'} size="sm">
+										{(job as any).parts_arrived_at ? 'Undo' : 'Mark Done'}
+									</Button>
+								</form>
+							</div>
+							<!-- Strip Started -->
+							<div class="flex items-center justify-between py-2.5 last:border-0">
+								<div class="flex items-center gap-3">
+									{#if (job as any).strip_started_at}
+										<CheckCircle class="h-4 w-4 text-green-500" />
+									{:else}
+										<div class="h-4 w-4 rounded-full border-2 border-gray-300"></div>
+									{/if}
+									<div>
+										<span class="text-sm font-medium text-gray-700">Strip Started</span>
+										{#if (job as any).strip_started_at}
+											<p class="text-xs text-gray-500">
+												{new Date((job as any).strip_started_at).toLocaleDateString('en-ZA', { day: 'numeric', month: 'short', year: 'numeric' })}
+												at {new Date((job as any).strip_started_at).toLocaleTimeString('en-ZA', { hour: '2-digit', minute: '2-digit' })}
+												{#if data.milestoneUserNames?.[(job as any).strip_started_by]}
+													&middot; {data.milestoneUserNames[(job as any).strip_started_by]}
+												{/if}
+											</p>
+										{/if}
+									</div>
+								</div>
+								<form method="POST" action="?/setMilestone" use:enhance={() => { return async ({ update }) => { await update(); await invalidateAll(); }; }}>
+									<input type="hidden" name="milestone" value="strip_started" />
+									<input type="hidden" name="action" value={(job as any).strip_started_at ? 'clear' : 'set'} />
+									<Button type="submit" variant={(job as any).strip_started_at ? 'outline' : 'default'} size="sm">
+										{(job as any).strip_started_at ? 'Undo' : 'Mark Done'}
+									</Button>
+								</form>
+							</div>
+						</Card.Content>
+					</Card.Root>
+
 					<ShopPhotosPanel
 						jobId={job.id}
 						category="during"

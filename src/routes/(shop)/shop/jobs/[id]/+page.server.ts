@@ -76,6 +76,24 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 		checkedInByName = profile?.full_name ?? null;
 	}
 
+	// Resolve milestone user names
+	const milestoneUserIds = [
+		(job as any).parts_ordered_by,
+		(job as any).parts_arrived_by,
+		(job as any).strip_started_by
+	].filter(Boolean);
+
+	let milestoneUserNames: Record<string, string> = {};
+	if (milestoneUserIds.length > 0) {
+		const { data: profiles } = await supabase
+			.from('user_profiles')
+			.select('id, full_name')
+			.in('id', [...new Set(milestoneUserIds)]);
+		for (const p of profiles ?? []) {
+			if (p.full_name) milestoneUserNames[p.id] = p.full_name;
+		}
+	}
+
 	return {
 		job,
 		existingInvoice: existingInvoice ?? null,
@@ -89,7 +107,8 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 		secondHandMarkup,
 		outworkMarkup,
 		vatRate,
-		checkedInByName
+		checkedInByName,
+		milestoneUserNames
 	};
 };
 
@@ -399,5 +418,31 @@ export const actions: Actions = {
 			return fail(400, { error: err.message });
 		}
 		return { success: true };
+	},
+
+	setMilestone: async ({ params, request, locals }) => {
+		const { supabase, user } = locals;
+		const jobService = createShopJobService(supabase);
+		const formData = await request.formData();
+		const milestone = formData.get('milestone') as string;
+		const action = formData.get('action') as string;
+
+		if (!milestone || !['parts_ordered', 'parts_arrived', 'strip_started'].includes(milestone)) {
+			return fail(400, { error: 'Invalid milestone' });
+		}
+
+		try {
+			if (action === 'clear') {
+				const { error: err } = await jobService.clearMilestone(params.id, milestone as any);
+				if (err) return fail(400, { error: err.message });
+			} else {
+				if (!user?.id) return fail(401, { error: 'Not authenticated' });
+				const { error: err } = await jobService.setMilestone(params.id, milestone as any, user.id);
+				if (err) return fail(400, { error: err.message });
+			}
+			return { success: true };
+		} catch (err) {
+			return fail(400, { error: err instanceof Error ? err.message : 'Failed to update milestone' });
+		}
 	}
 };

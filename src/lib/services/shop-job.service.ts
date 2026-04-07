@@ -225,6 +225,42 @@ export function createShopJobService(supabase: SupabaseClient) {
 				.eq('id', id)
 				.select()
 				.single();
+		},
+
+		/**
+		 * Record a work milestone (parts_ordered, parts_arrived, strip_started) with timestamp and user.
+		 */
+		async setMilestone(id: string, milestone: 'parts_ordered' | 'parts_arrived' | 'strip_started', userId: string) {
+			const atField = `${milestone}_at`;
+			const byField = `${milestone}_by`;
+			return supabase
+				.from('shop_jobs')
+				.update({
+					[atField]: new Date().toISOString(),
+					[byField]: userId,
+					updated_at: new Date().toISOString()
+				})
+				.eq('id', id)
+				.select()
+				.single();
+		},
+
+		/**
+		 * Clear a previously recorded work milestone.
+		 */
+		async clearMilestone(id: string, milestone: 'parts_ordered' | 'parts_arrived' | 'strip_started') {
+			const atField = `${milestone}_at`;
+			const byField = `${milestone}_by`;
+			return supabase
+				.from('shop_jobs')
+				.update({
+					[atField]: null,
+					[byField]: null,
+					updated_at: new Date().toISOString()
+				})
+				.eq('id', id)
+				.select()
+				.single();
 		}
 	};
 }
