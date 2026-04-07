@@ -5,36 +5,36 @@
 	import GradientBadge from '$lib/components/data/GradientBadge.svelte';
 	import TableCell from '$lib/components/data/TableCell.svelte';
 	import EmptyState from '$lib/components/data/EmptyState.svelte';
-	import { Briefcase, Hash, User, Car, Activity, Calendar } from 'lucide-svelte';
+	import { Briefcase, Hash, User, Car, Calendar, Activity } from 'lucide-svelte';
 	import type { PageData } from './$types';
-	import type { ShopJobStatus } from '$lib/services/shop-job.service';
 
 	let { data }: { data: PageData } = $props();
 	const { loadingId, startNavigation } = useNavigationLoading();
 
-	const statusVariantMap: Record<ShopJobStatus, 'gray' | 'blue' | 'green' | 'yellow' | 'red' | 'purple'> = {
-		quote_requested: 'gray',
-		quoted: 'blue',
+	type EstimateStatus = 'draft' | 'sent' | 'approved' | 'declined' | 'revised' | 'expired';
+
+	const estimateStatusVariantMap: Record<EstimateStatus, 'gray' | 'blue' | 'green' | 'red' | 'yellow' | 'purple'> = {
+		draft: 'gray',
+		sent: 'blue',
 		approved: 'green',
-		checked_in: 'yellow',
-		in_progress: 'yellow',
-		quality_check: 'purple',
-		ready_for_collection: 'green',
-		completed: 'green',
-		cancelled: 'red'
+		declined: 'red',
+		revised: 'yellow',
+		expired: 'gray'
 	};
 
-	const statusLabelMap: Record<ShopJobStatus, string> = {
-		quote_requested: 'Quote Requested',
-		quoted: 'Quoted',
+	const estimateStatusLabelMap: Record<EstimateStatus, string> = {
+		draft: 'Draft',
+		sent: 'Sent',
 		approved: 'Approved',
-		checked_in: 'Checked In',
-		in_progress: 'In Progress',
-		quality_check: 'Quality Check',
-		ready_for_collection: 'Ready for Collection',
-		completed: 'Completed',
-		cancelled: 'Cancelled'
+		declined: 'Declined',
+		revised: 'Revised',
+		expired: 'Expired'
 	};
+
+	function formatCurrency(amount: number | null | undefined) {
+		if (amount == null) return '—';
+		return new Intl.NumberFormat('en-ZA', { style: 'currency', currency: 'ZAR' }).format(amount);
+	}
 
 	function formatDate(dateStr: string | null) {
 		if (!dateStr) return '-';
@@ -47,7 +47,7 @@
 
 	const jobsWithDetails = $derived(
 		// eslint-disable-next-line @typescript-eslint/no-explicit-any
-		(data.jobs as any[]).map((job) => {
+		(data.jobs as any[]).map((job: any) => {
 			const vehicleParts = [
 				job.vehicle_year ? String(job.vehicle_year) : null,
 				job.vehicle_make,
@@ -57,14 +57,19 @@
 				vehicleParts.length > 0
 					? vehicleParts.join(' ') + (job.vehicle_reg ? ` (${job.vehicle_reg})` : '')
 					: '—';
+
+			const firstEstimate = Array.isArray(job.shop_estimates) ? job.shop_estimates[0] : null;
+			const estimateStatus: EstimateStatus | null = firstEstimate?.status ?? null;
+
 			return {
 				id: job.id,
 				job_number: job.job_number,
 				customer_name: job.customer_name,
 				vehicle_display: vehicleDisplay,
+				estimate_status: estimateStatus,
+				total_display: formatCurrency(firstEstimate?.total),
 				job_type: job.job_type,
-				status: job.status as ShopJobStatus,
-				date_booked: formatDate(job.date_booked)
+				date: formatDate(job.created_at)
 			};
 		})
 	);
@@ -73,9 +78,10 @@
 		{ key: 'job_number' as const, label: 'Job #', sortable: true, icon: Hash },
 		{ key: 'customer_name' as const, label: 'Customer', sortable: true, icon: User },
 		{ key: 'vehicle_display' as const, label: 'Vehicle', sortable: false, icon: Car },
+		{ key: 'estimate_status' as const, label: 'Est. Status', sortable: true, icon: Activity },
+		{ key: 'total_display' as const, label: 'Total', sortable: false },
 		{ key: 'job_type' as const, label: 'Type', sortable: true },
-		{ key: 'status' as const, label: 'Status', sortable: true, icon: Activity },
-		{ key: 'date_booked' as const, label: 'Date Booked', sortable: true, icon: Calendar }
+		{ key: 'date' as const, label: 'Date', sortable: true, icon: Calendar }
 	];
 
 	function handleRowClick(row: (typeof jobsWithDetails)[0]) {
@@ -84,13 +90,13 @@
 </script>
 
 <div class="flex-1 space-y-4 p-4 md:space-y-6 md:p-8">
-	<PageHeader title="Active Jobs" description="Jobs currently in progress." />
+	<PageHeader title="Cancelled" description="Cancelled estimates and jobs." />
 
-	{#if jobsWithDetails.length === 0}
+	{#if data.jobs.length === 0}
 		<EmptyState
 			icon={Briefcase}
-			title="No active jobs"
-			description="No jobs are currently in progress."
+			title="No cancelled jobs"
+			description="Cancelled jobs and estimates will appear here."
 		/>
 	{:else}
 		<ModernDataTable
@@ -100,13 +106,21 @@
 			loadingRowId={loadingId}
 			rowIdKey="id"
 			striped
-			emptyMessage="No active jobs found"
+			emptyMessage="No cancelled jobs found"
 		>
 			{#snippet cellContent(column, row)}
 				{#if column.key === 'job_number'}
 					<TableCell variant="primary" bold>
 						{row.job_number}
 					</TableCell>
+				{:else if column.key === 'estimate_status'}
+					{#if row.estimate_status}
+						{@const variant = estimateStatusVariantMap[row.estimate_status] ?? 'gray'}
+						{@const label = estimateStatusLabelMap[row.estimate_status] ?? row.estimate_status}
+						<GradientBadge {variant} {label} />
+					{:else}
+						<span class="text-gray-400">—</span>
+					{/if}
 				{:else if column.key === 'job_type'}
 					{#if row.job_type}
 						<GradientBadge
@@ -116,10 +130,6 @@
 					{:else}
 						<span class="text-gray-400">—</span>
 					{/if}
-				{:else if column.key === 'status'}
-					{@const variant = statusVariantMap[row.status] ?? 'gray'}
-					{@const label = statusLabelMap[row.status] ?? row.status}
-					<GradientBadge {variant} {label} />
 				{:else}
 					{row[column.key]}
 				{/if}

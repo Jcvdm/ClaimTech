@@ -1,0 +1,3 @@
+ALTER TABLE shop_jobs
+  ADD COLUMN IF NOT EXISTS date_quoted DATE,
+  ADD COLUMN IF NOT EXISTS date_booked DATE;

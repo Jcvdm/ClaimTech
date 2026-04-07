@@ -102,7 +102,7 @@
 	const STEP_TAB_MAP: Record<string, string> = {
 		'quoted': 'estimate',
 		'approved': 'estimate',
-		'checked_in': 'booking',
+		'checked_in': 'work',
 		'in_progress': 'work',
 		'quality_check': 'work',
 		'ready_for_collection': 'overview',
@@ -150,8 +150,8 @@
 
 	// Tab visibility based on status
 	const statusIndex = $derived(STATUS_STEPS.indexOf(job.status as ShopJobStatus));
-	const showBooking = $derived(statusIndex >= STATUS_STEPS.indexOf('checked_in'));
-	const showWork = $derived(statusIndex >= STATUS_STEPS.indexOf('in_progress'));
+	const showBooking = $derived(statusIndex >= STATUS_STEPS.indexOf('approved'));
+	const showWork = $derived(statusIndex >= STATUS_STEPS.indexOf('checked_in'));
 	const showInvoice = $derived(statusIndex >= STATUS_STEPS.indexOf('ready_for_collection'));
 
 	let activeTab = $state('overview');
@@ -665,19 +665,7 @@
 				<Badge variant={jobTypeBadgeVariant[job.job_type] ?? 'secondary'}>
 					{job.job_type === 'autobody' ? 'Autobody' : 'Mechanical'}
 				</Badge>
-				{#if nextStatus && !transitioning}
-					<Button
-						size="sm"
-						class="bg-blue-600 hover:bg-blue-700"
-						onclick={() => handleStepClick(nextStatus)}
-					>
-						{STATUS_LABELS[nextStatus]}
-						<ArrowRight class="ml-1.5 h-3.5 w-3.5" />
-					</Button>
-				{/if}
-				{#if transitioning}
-					<Badge variant="secondary">Updating...</Badge>
-				{/if}
+
 			</div>
 		</div>
 	</div>
@@ -986,6 +974,26 @@
 		{#if showBooking}
 			<Tabs.Content value="booking">
 				<div class="mt-4 space-y-6">
+					{#if job.status === 'approved'}
+						<Card.Root class="border-blue-200 bg-blue-50">
+							<Card.Content class="py-4">
+								<div class="flex items-center justify-between">
+									<div>
+										<p class="font-medium text-blue-900">Vehicle ready for check-in</p>
+										<p class="text-sm text-blue-700">Fill in details below, then book in the vehicle.</p>
+									</div>
+									<Button
+										class="bg-blue-600 hover:bg-blue-700"
+										disabled={transitioning}
+										onclick={() => handleStepClick('checked_in' as ShopJobStatus)}
+									>
+										{transitioning ? 'Booking in...' : 'Book In Vehicle'}
+										<ArrowRight class="ml-1.5 h-4 w-4" />
+									</Button>
+								</div>
+							</Card.Content>
+						</Card.Root>
+					{/if}
 					<!-- Check-In Info -->
 					{#if (data.job as any).checked_in_at}
 						<Card.Root>
@@ -1084,6 +1092,25 @@
 		<!-- ESTIMATE TAB -->
 		<Tabs.Content value="estimate">
 			<div class="mt-4 space-y-4">
+				{#if job.status === 'quote_requested'}
+					<Card.Root class="border-amber-200 bg-amber-50">
+						<Card.Content class="py-4">
+							<div class="flex items-center justify-between">
+								<div>
+									<p class="font-medium text-amber-900">Quote pending</p>
+									<p class="text-sm text-amber-700">Create the estimate, then mark as quoted.</p>
+								</div>
+								<Button
+									variant="outline"
+									disabled={transitioning}
+									onclick={() => handleStepClick('quoted' as ShopJobStatus)}
+								>
+									{transitioning ? 'Updating...' : 'Mark as Quoted'}
+								</Button>
+							</div>
+						</Card.Content>
+					</Card.Root>
+				{/if}
 				{#if estimate == null}
 					<Card.Root>
 						<Card.Content class="py-10 text-center text-sm text-gray-500">
@@ -1782,6 +1809,58 @@
 		{#if showWork}
 			<Tabs.Content value="work">
 				<div class="mt-4 space-y-6">
+					{#if job.status === 'checked_in'}
+						<Card.Root class="border-green-200 bg-green-50">
+							<Card.Content class="py-4">
+								<div class="flex items-center justify-between">
+									<div>
+										<p class="font-medium text-green-900">Vehicle checked in</p>
+										<p class="text-sm text-green-700">Start working on this job.</p>
+									</div>
+									<Button class="bg-green-600 hover:bg-green-700" disabled={transitioning}
+										onclick={() => handleStepClick('in_progress' as ShopJobStatus)}>
+										{transitioning ? 'Updating...' : 'Start Work'}
+									</Button>
+								</div>
+							</Card.Content>
+						</Card.Root>
+					{:else if job.status === 'in_progress'}
+						<Card.Root class="border-purple-200 bg-purple-50">
+							<Card.Content class="py-4">
+								<div class="flex items-center justify-between">
+									<div>
+										<p class="font-medium text-purple-900">Work in progress</p>
+										<p class="text-sm text-purple-700">Send for quality check when work is done.</p>
+									</div>
+									<Button class="bg-purple-600 hover:bg-purple-700" disabled={transitioning}
+										onclick={() => handleStepClick('quality_check' as ShopJobStatus)}>
+										{transitioning ? 'Updating...' : 'Quality Check'}
+									</Button>
+								</div>
+							</Card.Content>
+						</Card.Root>
+					{:else if job.status === 'quality_check'}
+						<Card.Root class="border-green-200 bg-green-50">
+							<Card.Content class="py-4">
+								<div class="flex items-center justify-between gap-3">
+									<div>
+										<p class="font-medium text-green-900">Quality check</p>
+										<p class="text-sm text-green-700">Mark as ready or send back to work.</p>
+									</div>
+									<div class="flex gap-2">
+										<Button variant="outline" disabled={transitioning}
+											onclick={() => handleStepClick('in_progress' as ShopJobStatus)}>
+											Back to Work
+										</Button>
+										<Button class="bg-green-600 hover:bg-green-700" disabled={transitioning}
+											onclick={() => handleStepClick('ready_for_collection' as ShopJobStatus)}>
+											{transitioning ? 'Updating...' : 'Ready for Collection'}
+										</Button>
+									</div>
+								</div>
+							</Card.Content>
+						</Card.Root>
+					{/if}
 					<ShopPhotosPanel
 						jobId={job.id}
 						category="during"
@@ -1798,6 +1877,22 @@
 		{#if showInvoice}
 			<Tabs.Content value="invoice">
 				<div class="mt-4 space-y-4">
+					{#if job.status === 'ready_for_collection'}
+						<Card.Root class="border-green-200 bg-green-50">
+							<Card.Content class="py-4">
+								<div class="flex items-center justify-between">
+									<div>
+										<p class="font-medium text-green-900">Ready for collection</p>
+										<p class="text-sm text-green-700">Mark as complete when customer collects.</p>
+									</div>
+									<Button class="bg-green-600 hover:bg-green-700" disabled={transitioning}
+										onclick={() => handleStepClick('completed' as ShopJobStatus)}>
+										{transitioning ? 'Updating...' : 'Mark as Complete'}
+									</Button>
+								</div>
+							</Card.Content>
+						</Card.Root>
+					{/if}
 					{#if existingInvoice}
 						<Card.Root>
 							<Card.Header>

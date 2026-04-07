@@ -105,9 +105,9 @@ export const actions: Actions = {
 
 		const estimateService = createShopEstimateService(supabase);
 
-		let estimateId: string;
+		let jobId: string;
 		try {
-			const { estimate } = await estimateService.createEstimate(
+			const { jobId: createdJobId } = await estimateService.createEstimate(
 				{
 					job_type,
 					customer_name: customer_name.trim(),
@@ -128,7 +128,7 @@ export const actions: Actions = {
 				},
 				user.id
 			);
-			estimateId = estimate.id;
+			jobId = createdJobId;
 		} catch (err) {
 			console.error('Error creating estimate:', err);
 			return fail(500, {
@@ -136,6 +136,6 @@ export const actions: Actions = {
 			});
 		}
 
-		redirect(303, `/shop/estimates/${estimateId}`);
+		redirect(303, `/shop/jobs/${jobId}`);
 	}
 };

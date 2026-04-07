@@ -11,6 +11,7 @@
 	import { page } from '$app/stores';
 	import { invalidateAll, invalidate, goto } from '$app/navigation';
 	import type { LayoutData } from './$types';
+	import { Toaster } from '$lib/components/ui/sonner';
 
 	let { data, children }: { data: LayoutData; children: any } = $props();
 
@@ -129,3 +130,5 @@
 		</div>
 	</SidebarInset>
 </SidebarProvider>
+
+<Toaster />

@@ -34,6 +34,7 @@ export interface ShopEstimate {
 	notes: string | null;
 	internal_notes: string | null;
 	pdf_url: string | null;
+	pdf_path: string | null;
 	sent_at: string | null;
 	approved_at: string | null;
 	created_at: string;
@@ -392,7 +393,7 @@ export function createShopEstimateService(supabase: SupabaseClient) {
 		 * Transition estimate from 'sent' → 'declined'.
 		 */
 		async declineEstimate(id: string) {
-			return supabase
+			const { data: estimate, error } = await supabase
 				.from('shop_estimates')
 				.update({
 					status: 'declined',
@@ -402,6 +403,25 @@ export function createShopEstimateService(supabase: SupabaseClient) {
 				.in('status', ['sent', 'draft'])
 				.select()
 				.single();
+
+			if (error) {
+				console.error('Error declining estimate:', error);
+				throw new Error(`Failed to decline estimate: ${error.message}`);
+			}
+
+			if (estimate) {
+				const { error: jobError } = await supabase
+					.from('shop_jobs')
+					.update({ status: 'cancelled', updated_at: new Date().toISOString() })
+					.eq('id', estimate.job_id);
+
+				if (jobError) {
+					console.error('Error updating job status after estimate decline:', jobError);
+					// Non-fatal - estimate is declined, job status update is best-effort
+				}
+			}
+
+			return { data: estimate as unknown as ShopEstimate, error: null };
 		},
 
 		/**

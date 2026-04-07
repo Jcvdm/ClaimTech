@@ -196,7 +196,7 @@
 						<li>
 							<button
 								type="button"
-								onclick={() => goto(`/shop/estimates/${estimate.id}`)}
+								onclick={() => goto(`/shop/jobs/${job?.id ?? estimate.job_id}`)}
 								class="w-full px-5 py-3 text-left transition-colors hover:bg-gray-50 focus:outline-none focus-visible:bg-gray-50"
 							>
 								<div class="flex items-center justify-between gap-2">
