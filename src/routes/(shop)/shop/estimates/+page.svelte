@@ -7,6 +7,7 @@
 	import GradientBadge from '$lib/components/data/GradientBadge.svelte';
 	import TableCell from '$lib/components/data/TableCell.svelte';
 	import EmptyState from '$lib/components/data/EmptyState.svelte';
+	import FilterTabs from '$lib/components/ui/tabs/FilterTabs.svelte';
 	import { Button } from '$lib/components/ui/button';
 	import { FileText, Hash, User, Car, Activity, Calendar, Plus } from 'lucide-svelte';
 	import { toast } from 'svelte-sonner';
@@ -90,6 +91,40 @@
 		{ key: 'actions' as const, label: 'Actions', sortable: false }
 	];
 
+	type EstimateFilter = 'all' | 'awaiting' | 'approved' | 'declined';
+	let selectedFilter = $state<EstimateFilter>('all');
+
+	const filteredEstimates = $derived.by(() => {
+		switch (selectedFilter) {
+			case 'awaiting':
+				return jobsWithDetails.filter(e =>
+					e.estimate_status === null || e.estimate_status === 'draft' || e.estimate_status === 'sent'
+				);
+			case 'approved':
+				return jobsWithDetails.filter(e => e.estimate_status === 'approved');
+			case 'declined':
+				return jobsWithDetails.filter(e => e.estimate_status === 'declined');
+			default:
+				return jobsWithDetails;
+		}
+	});
+
+	const estimateFilterCounts = $derived({
+		all: jobsWithDetails.length,
+		awaiting: jobsWithDetails.filter(e =>
+			e.estimate_status === null || e.estimate_status === 'draft' || e.estimate_status === 'sent'
+		).length,
+		approved: jobsWithDetails.filter(e => e.estimate_status === 'approved').length,
+		declined: jobsWithDetails.filter(e => e.estimate_status === 'declined').length,
+	});
+
+	const estimateFilterItems = [
+		{ value: 'all' as const, label: 'All' },
+		{ value: 'awaiting' as const, label: 'Awaiting Response' },
+		{ value: 'approved' as const, label: 'Approved' },
+		{ value: 'declined' as const, label: 'Declined' },
+	];
+
 	function handleRowClick(row: (typeof jobsWithDetails)[0]) {
 		startNavigation(row.id, `/shop/jobs/${row.id}`);
 	}
@@ -114,106 +149,116 @@
 			onAction={() => goto('/shop/estimates/new')}
 		/>
 	{:else}
-		<ModernDataTable
-			data={jobsWithDetails}
-			{columns}
-			onRowClick={handleRowClick}
-			loadingRowId={loadingId}
-			rowIdKey="id"
-			striped
-			emptyMessage="No pending quotes found"
-		>
-			{#snippet cellContent(column, row)}
-				{#if column.key === 'job_number'}
-					<TableCell variant="primary" bold>
-						{row.job_number}
-					</TableCell>
-				{:else if column.key === 'estimate_status'}
-					{#if row.estimate_status}
-						{@const variant = estimateStatusVariantMap[row.estimate_status] ?? 'gray'}
-						{@const label = estimateStatusLabelMap[row.estimate_status] ?? row.estimate_status}
-						<GradientBadge {variant} {label} />
+		<FilterTabs items={estimateFilterItems} bind:value={selectedFilter} counts={estimateFilterCounts} />
+
+		{#if filteredEstimates.length === 0}
+			<EmptyState
+				icon={FileText}
+				title="No estimates found"
+				description="No estimates match the selected filter."
+			/>
+		{:else}
+			<ModernDataTable
+				data={filteredEstimates}
+				{columns}
+				onRowClick={handleRowClick}
+				loadingRowId={loadingId}
+				rowIdKey="id"
+				striped
+				emptyMessage="No pending quotes found"
+			>
+				{#snippet cellContent(column, row)}
+					{#if column.key === 'job_number'}
+						<TableCell variant="primary" bold>
+							{row.job_number}
+						</TableCell>
+					{:else if column.key === 'estimate_status'}
+						{#if row.estimate_status}
+							{@const variant = estimateStatusVariantMap[row.estimate_status] ?? 'gray'}
+							{@const label = estimateStatusLabelMap[row.estimate_status] ?? row.estimate_status}
+							<GradientBadge {variant} {label} />
+						{:else}
+							<span class="text-gray-400">—</span>
+						{/if}
+					{:else if column.key === 'actions'}
+						{#if row.estimate_id}
+							<!-- svelte-ignore event_directive_deprecated -->
+							<div class="flex items-center gap-1" onclick={(e) => e.stopPropagation()}>
+								{#if row.estimate_status === 'draft'}
+									<form
+										method="POST"
+										action="?/send"
+										use:enhance={() => {
+											return async ({ result, update }) => {
+												if (result.type === 'success') {
+													toast.success('Estimate sent');
+												} else if (result.type === 'failure') {
+													toast.error((result.data as any)?.error || 'Failed to send');
+												}
+												await update({ reset: false });
+											};
+										}}
+									>
+										<input type="hidden" name="estimate_id" value={row.estimate_id} />
+										<Button type="submit" variant="outline" size="sm" class="h-7 text-xs">Send</Button>
+									</form>
+								{/if}
+								{#if row.estimate_status === 'draft' || row.estimate_status === 'sent'}
+									<form
+										method="POST"
+										action="?/accept"
+										use:enhance={() => {
+											return async ({ result, update }) => {
+												if (result.type === 'success') {
+													toast.success('Estimate accepted');
+												} else if (result.type === 'failure') {
+													toast.error((result.data as any)?.error || 'Failed to accept');
+												}
+												await update({ reset: false });
+											};
+										}}
+									>
+										<input type="hidden" name="estimate_id" value={row.estimate_id} />
+										<Button
+											type="submit"
+											variant="default"
+											size="sm"
+											class="h-7 text-xs bg-green-600 hover:bg-green-700"
+										>Accept</Button>
+									</form>
+									<form
+										method="POST"
+										action="?/decline"
+										use:enhance={() => {
+											return async ({ result, update }) => {
+												if (result.type === 'success') {
+													toast.success('Estimate declined');
+												} else if (result.type === 'failure') {
+													toast.error((result.data as any)?.error || 'Failed to decline');
+												}
+												await update({ reset: false });
+											};
+										}}
+									>
+										<input type="hidden" name="estimate_id" value={row.estimate_id} />
+										<Button type="submit" variant="destructive" size="sm" class="h-7 text-xs">Decline</Button>
+									</form>
+								{/if}
+							</div>
+						{:else}
+							<span class="text-gray-400">—</span>
+						{/if}
 					{:else}
-						<span class="text-gray-400">—</span>
+						{row[column.key]}
 					{/if}
-				{:else if column.key === 'actions'}
-					{#if row.estimate_id}
-						<!-- svelte-ignore event_directive_deprecated -->
-						<div class="flex items-center gap-1" onclick={(e) => e.stopPropagation()}>
-							{#if row.estimate_status === 'draft'}
-								<form
-									method="POST"
-									action="?/send"
-									use:enhance={() => {
-										return async ({ result, update }) => {
-											if (result.type === 'success') {
-												toast.success('Estimate sent');
-											} else if (result.type === 'failure') {
-												toast.error((result.data as any)?.error || 'Failed to send');
-											}
-											await update({ reset: false });
-										};
-									}}
-								>
-									<input type="hidden" name="estimate_id" value={row.estimate_id} />
-									<Button type="submit" variant="outline" size="sm" class="h-7 text-xs">Send</Button>
-								</form>
-							{/if}
-							{#if row.estimate_status === 'draft' || row.estimate_status === 'sent'}
-								<form
-									method="POST"
-									action="?/accept"
-									use:enhance={() => {
-										return async ({ result, update }) => {
-											if (result.type === 'success') {
-												toast.success('Estimate accepted');
-											} else if (result.type === 'failure') {
-												toast.error((result.data as any)?.error || 'Failed to accept');
-											}
-											await update({ reset: false });
-										};
-									}}
-								>
-									<input type="hidden" name="estimate_id" value={row.estimate_id} />
-									<Button
-										type="submit"
-										variant="default"
-										size="sm"
-										class="h-7 text-xs bg-green-600 hover:bg-green-700"
-									>Accept</Button>
-								</form>
-								<form
-									method="POST"
-									action="?/decline"
-									use:enhance={() => {
-										return async ({ result, update }) => {
-											if (result.type === 'success') {
-												toast.success('Estimate declined');
-											} else if (result.type === 'failure') {
-												toast.error((result.data as any)?.error || 'Failed to decline');
-											}
-											await update({ reset: false });
-										};
-									}}
-								>
-									<input type="hidden" name="estimate_id" value={row.estimate_id} />
-									<Button type="submit" variant="destructive" size="sm" class="h-7 text-xs">Decline</Button>
-								</form>
-							{/if}
-						</div>
-					{:else}
-						<span class="text-gray-400">—</span>
-					{/if}
-				{:else}
-					{row[column.key]}
-				{/if}
-			{/snippet}
-		</ModernDataTable>
+				{/snippet}
+			</ModernDataTable>
+		{/if}
 
 		<div class="flex items-center justify-between text-sm text-gray-500">
 			<p>
-				Showing <span class="font-medium text-gray-900">{jobsWithDetails.length}</span>
-				{jobsWithDetails.length === 1 ? 'job' : 'jobs'}
+				Showing <span class="font-medium text-gray-900">{filteredEstimates.length}</span>
+				{filteredEstimates.length === 1 ? 'job' : 'jobs'}
 			</p>
 		</div>
 	{/if}

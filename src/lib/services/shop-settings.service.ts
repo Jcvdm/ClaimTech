@@ -30,6 +30,10 @@ export interface ShopSettings {
 	estimate_terms: string | null;
 	invoice_terms: string | null;
 	invoice_payment_days: number;
+	bank_name: string | null;
+	bank_account_number: string | null;
+	bank_branch_code: string | null;
+	bank_account_holder: string | null;
 	created_at: string;
 	updated_at: string;
 }

@@ -1,19 +1,19 @@
 import type { RequestHandler } from './$types';
 import { generatePDF } from '$lib/utils/pdf-generator';
-import { generateShopEstimateHTML } from '$lib/templates/shop-estimate-template';
+import { generateShopInvoiceHTML } from '$lib/templates/shop-invoice-template';
 
 export const POST: RequestHandler = async ({ request, locals }) => {
 	const body = await request.json();
-	const { estimateId } = body;
+	const { invoiceId } = body;
 	const requestId = Math.random().toString(36).substring(7);
 
 	console.log(`\n${'='.repeat(80)}`);
-	console.log(`[${new Date().toISOString()}] [Request ${requestId}] NEW SHOP ESTIMATE PDF GENERATION REQUEST`);
-	console.log(`[${new Date().toISOString()}] [Request ${requestId}] Estimate ID: ${estimateId}`);
+	console.log(`[${new Date().toISOString()}] [Request ${requestId}] NEW SHOP INVOICE PDF GENERATION REQUEST`);
+	console.log(`[${new Date().toISOString()}] [Request ${requestId}] Invoice ID: ${invoiceId}`);
 	console.log(`${'='.repeat(80)}\n`);
 
-	if (!estimateId) {
-		return new Response(JSON.stringify({ error: 'Missing estimateId' }), {
+	if (!invoiceId) {
+		return new Response(JSON.stringify({ error: 'Missing invoiceId' }), {
 			status: 400,
 			headers: { 'Content-Type': 'application/json' }
 		});
@@ -30,32 +30,34 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 			};
 
 			try {
-				// Step 1: Fetch estimate with job
-				send({ status: 'processing', progress: 5, message: 'Fetching estimate data...' });
-				console.log(`[${new Date().toISOString()}] [Request ${requestId}] Fetching estimate from database...`);
+				// Step 1: Fetch invoice with job
+				send({ status: 'processing', progress: 5, message: 'Fetching invoice data...' });
+				console.log(`[${new Date().toISOString()}] [Request ${requestId}] Fetching invoice from database...`);
 
-				const { data: estimate, error: estError } = await supabase
-					.from('shop_estimates')
+				const { data: invoice, error: invError } = await supabase
+					.from('shop_invoices')
 					.select('*, shop_jobs(*)')
-					.eq('id', estimateId)
+					.eq('id', invoiceId)
 					.single();
 
-				if (estError || !estimate) {
-					console.error(`[${new Date().toISOString()}] [Request ${requestId}] Estimate not found:`, estError);
-					send({ status: 'error', progress: 0, error: 'Estimate not found' });
+				if (invError || !invoice) {
+					console.error(`[${new Date().toISOString()}] [Request ${requestId}] Invoice not found:`, invError);
+					send({ status: 'error', progress: 0, error: 'Invoice not found' });
 					controller.close();
 					return;
 				}
 
-				const job = estimate.shop_jobs as Record<string, unknown>;
-				console.log(`[${new Date().toISOString()}] [Request ${requestId}] Estimate found: ${estimate.estimate_number}`);
+				const job = invoice.shop_jobs as Record<string, unknown>;
+				console.log(`[${new Date().toISOString()}] [Request ${requestId}] Invoice found: ${invoice.invoice_number}`);
 
 				send({ status: 'processing', progress: 20, message: 'Loading company settings...' });
 
-				// Step 2: Fetch shop settings for company info
+				// Step 2: Fetch shop settings for company info and banking details
 				const { data: settings } = await supabase
 					.from('shop_settings')
-					.select('shop_name, phone, email, address')
+					.select(
+						'shop_name, phone, email, address, bank_name, bank_account_number, bank_branch_code, bank_account_holder'
+					)
 					.limit(1)
 					.maybeSingle();
 
@@ -86,11 +88,13 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 				send({ status: 'processing', progress: 50, message: 'Generating document...' });
 				console.log(`[${new Date().toISOString()}] [Request ${requestId}] Generating HTML template...`);
 
-				const html = generateShopEstimateHTML({
-					estimate: {
-						...estimate,
-						line_items: estimate.line_items || []
-					} as Parameters<typeof generateShopEstimateHTML>[0]['estimate'],
+				const settingsRecord = settings as Record<string, string> | null;
+
+				const html = generateShopInvoiceHTML({
+					invoice: {
+						...invoice,
+						line_items: invoice.line_items || []
+					},
 					job: {
 						job_number: job.job_number as string,
 						job_type: job.job_type as string,
@@ -101,17 +105,17 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 						vehicle_model: job.vehicle_model as string,
 						vehicle_year: (job.vehicle_year as number) ?? null,
 						vehicle_reg: (job.vehicle_reg as string) ?? null,
-						vehicle_vin: (job.vehicle_vin as string) ?? null,
-						vehicle_color: (job.vehicle_color as string) ?? null,
-						vehicle_mileage: (job.vehicle_mileage as number) ?? null,
-						damage_description: (job.damage_description as string) ?? null,
-						complaint: (job.complaint as string) ?? null
+						vehicle_color: (job.vehicle_color as string) ?? null
 					},
-					companyName: (settings as Record<string, string> | null)?.shop_name ?? 'Workshop',
-					companyPhone: (settings as Record<string, string> | null)?.phone ?? null,
-					companyEmail: (settings as Record<string, string> | null)?.email ?? null,
-					companyAddress: (settings as Record<string, string> | null)?.address ?? null,
-					logoBase64
+					companyName: settingsRecord?.shop_name ?? 'Workshop',
+					companyPhone: settingsRecord?.phone ?? null,
+					companyEmail: settingsRecord?.email ?? null,
+					companyAddress: settingsRecord?.address ?? null,
+					logoBase64,
+					bankName: settingsRecord?.bank_name ?? null,
+					bankAccountNumber: settingsRecord?.bank_account_number ?? null,
+					bankBranchCode: settingsRecord?.bank_branch_code ?? null,
+					bankAccountHolder: settingsRecord?.bank_account_holder ?? null
 				});
 
 				// Step 5: Generate PDF with Puppeteer
@@ -165,16 +169,16 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 				console.log(`[${new Date().toISOString()}] [Request ${requestId}] Uploading PDF to Supabase storage...`);
 
 				const timestamp = Date.now();
-				const safeNumber = (estimate.estimate_number as string).replace(/[^a-zA-Z0-9-]/g, '_');
+				const safeNumber = (invoice.invoice_number as string).replace(/[^a-zA-Z0-9-]/g, '_');
 				const fileName = `${safeNumber}_${timestamp}.pdf`;
-				const jobId = estimate.job_id as string;
-				const filePath = `shop-jobs/${jobId}/estimates/${fileName}`;
+				const jobId = invoice.job_id as string;
+				const filePath = `shop-jobs/${jobId}/invoices/${fileName}`;
 
 				// Delete previous PDF if exists
-				if (estimate.pdf_path) {
+				if (invoice.pdf_path) {
 					const { error: removeError } = await supabase.storage
 						.from('documents')
-						.remove([estimate.pdf_path]);
+						.remove([invoice.pdf_path]);
 					if (removeError) {
 						console.warn(`[${new Date().toISOString()}] [Request ${requestId}] Could not remove previous PDF:`, removeError);
 					}
@@ -208,28 +212,28 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 				const proxyUrl = `/api/document/${filePath}`;
 
 				const { error: updateError } = await supabase
-					.from('shop_estimates')
+					.from('shop_invoices')
 					.update({
 						pdf_url: proxyUrl,
 						pdf_path: filePath,
 						updated_at: new Date().toISOString()
 					})
-					.eq('id', estimateId);
+					.eq('id', invoiceId);
 
 				if (updateError) {
 					console.error(`[${new Date().toISOString()}] [Request ${requestId}] Update error:`, updateError);
-					send({ status: 'error', progress: 0, error: 'Failed to update estimate record' });
+					send({ status: 'error', progress: 0, error: 'Failed to update invoice record' });
 					controller.close();
 					return;
 				}
 
-				console.log(`[${new Date().toISOString()}] [Request ${requestId}] Estimate record updated with PDF URL.`);
+				console.log(`[${new Date().toISOString()}] [Request ${requestId}] Invoice record updated with PDF URL.`);
 				console.log(`[${new Date().toISOString()}] [Request ${requestId}] Yielding FINAL complete status`);
 
 				send({
 					status: 'complete',
 					progress: 100,
-					message: 'Estimate PDF generated successfully!',
+					message: 'Invoice PDF generated successfully!',
 					url: proxyUrl
 				});
 			} catch (err) {
@@ -253,7 +257,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		headers: {
 			'Content-Type': 'text/event-stream',
 			'Cache-Control': 'no-cache',
-			'Connection': 'keep-alive'
+			Connection: 'keep-alive'
 		}
 	});
 };

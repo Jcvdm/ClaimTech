@@ -1,19 +1,15 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
 	import type { PageData } from './$types';
-	import type { ShopLaborRate } from '$lib/services/shop-settings.service';
 	import { Button } from '$lib/components/ui/button';
 	import * as Card from '$lib/components/ui/card';
 	import { Input } from '$lib/components/ui/input';
-	import { Badge } from '$lib/components/ui/badge';
-	import { Separator } from '$lib/components/ui/separator';
-	import { Settings, Plus, Pencil, Trash2 } from 'lucide-svelte';
+	import { Settings } from 'lucide-svelte';
 
 	let { data }: { data: PageData } = $props();
 
 	// ── Settings state ─────────────────────────────────────────────────────────
 	let settings = $state(data.settings);
-	let laborRates = $state(data.laborRates ?? []);
 
 	// ── Shop info form ──────────────────────────────────────────────────────────
 	let savingShopInfo = $state(false);
@@ -34,60 +30,11 @@
 	let savingSetup = $state(false);
 	let setupError = $state('');
 
-	// ── Labor rates state ───────────────────────────────────────────────────────
-	let showAddRateForm = $state(false);
-	let savingAddRate = $state(false);
-	let addRateError = $state('');
+	// ── Banking details form ────────────────────────────────────────────────────
+	let savingBank = $state(false);
+	let bankSuccess = $state(false);
+	let bankError = $state('');
 
-	// For inline editing
-	let editingRateId = $state<string | null>(null);
-	let savingEditRate = $state(false);
-	let editRateError = $state('');
-
-	// Delete confirmation
-	let deletingRateId = $state<string | null>(null);
-	let savingDeleteRate = $state(false);
-
-	// New rate form fields
-	let newRateJobType = $state<'autobody' | 'mechanical'>('autobody');
-	let newRateName = $state('');
-	let newRateHourly = $state('');
-	let newRateDescription = $state('');
-	let newRateIsDefault = $state(false);
-
-	function resetAddRateForm() {
-		newRateJobType = 'autobody';
-		newRateName = '';
-		newRateHourly = '';
-		newRateDescription = '';
-		newRateIsDefault = false;
-		addRateError = '';
-		showAddRateForm = false;
-	}
-
-	// Edit rate fields (populated when editing starts)
-	let editRateName = $state('');
-	let editRateHourly = $state('');
-	let editRateDescription = $state('');
-	let editRateIsDefault = $state(false);
-
-	function startEditRate(rate: ShopLaborRate) {
-		editingRateId = rate.id;
-		editRateName = rate.rate_name;
-		editRateHourly = String(rate.hourly_rate);
-		editRateDescription = rate.description ?? '';
-		editRateIsDefault = rate.is_default;
-		editRateError = '';
-	}
-
-	function cancelEditRate() {
-		editingRateId = null;
-		editRateError = '';
-	}
-
-	function formatCurrency(value: number) {
-		return `R ${value.toFixed(2)}`;
-	}
 </script>
 
 <div class="space-y-6 p-4 md:p-8">
@@ -471,342 +418,7 @@
 			</Card.Content>
 		</Card.Root>
 
-		<!-- ── Section 3: Labor Rates ──────────────────────────────────────────── -->
-		<Card.Root>
-			<Card.Header class="flex flex-row items-center justify-between">
-				<div>
-					<Card.Title>Labor Rates</Card.Title>
-					<Card.Description>Hourly rates used when adding labor lines to estimates and jobs.</Card.Description>
-				</div>
-				{#if !showAddRateForm}
-					<Button
-						variant="outline"
-						size="sm"
-						onclick={() => { showAddRateForm = true; addRateError = ''; }}
-					>
-						<Plus class="mr-1.5 h-4 w-4" />
-						Add Rate
-					</Button>
-				{/if}
-			</Card.Header>
-			<Card.Content>
-				<!-- Add Rate inline form -->
-				{#if showAddRateForm}
-					<form
-						method="POST"
-						action="?/addLaborRate"
-						use:enhance={() => {
-							savingAddRate = true;
-							addRateError = '';
-							return async ({ result, update }) => {
-								savingAddRate = false;
-								if (result.type === 'success') {
-									resetAddRateForm();
-								} else if (result.type === 'failure') {
-									addRateError = (result.data?.error as string) ?? 'Failed to add rate';
-								}
-								await update({ reset: false });
-							};
-						}}
-						class="mb-6 rounded-lg border border-dashed border-gray-300 p-4"
-					>
-						<input type="hidden" name="shop_id" value={settings.id} />
-						<p class="mb-3 text-sm font-medium text-gray-700">New Labor Rate</p>
-						<div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-							<div>
-								<label for="new_job_type" class="block text-xs font-medium text-gray-500">
-									Job Type *
-								</label>
-								<select
-									id="new_job_type"
-									name="job_type"
-									bind:value={newRateJobType}
-									class="mt-1 w-full rounded-md border border-gray-200 px-3 py-2 text-sm focus:border-slate-400 focus:outline-none"
-								>
-									<option value="autobody">Autobody</option>
-									<option value="mechanical">Mechanical</option>
-								</select>
-							</div>
-							<div>
-								<label for="new_rate_name" class="block text-xs font-medium text-gray-500">
-									Rate Name *
-								</label>
-								<Input
-									id="new_rate_name"
-									name="rate_name"
-									type="text"
-									placeholder="e.g. Standard Rate"
-									bind:value={newRateName}
-									class="mt-1"
-								/>
-							</div>
-							<div>
-								<label for="new_hourly_rate" class="block text-xs font-medium text-gray-500">
-									Hourly Rate (R) *
-								</label>
-								<Input
-									id="new_hourly_rate"
-									name="hourly_rate"
-									type="number"
-									step="0.01"
-									min="0"
-									placeholder="0.00"
-									bind:value={newRateHourly}
-									class="mt-1"
-								/>
-							</div>
-							<div>
-								<label for="new_description" class="block text-xs font-medium text-gray-500">
-									Description
-								</label>
-								<Input
-									id="new_description"
-									name="description"
-									type="text"
-									placeholder="Optional"
-									bind:value={newRateDescription}
-									class="mt-1"
-								/>
-							</div>
-						</div>
-						<div class="mt-3 flex items-center gap-4">
-							<label class="flex cursor-pointer items-center gap-2 text-sm text-gray-600">
-								<input
-									type="checkbox"
-									name="is_default"
-									value="true"
-									checked={newRateIsDefault}
-									onchange={(e) => {
-										newRateIsDefault = (e.target as HTMLInputElement).checked;
-									}}
-									class="rounded"
-								/>
-								Set as default for job type
-							</label>
-						</div>
-						{#if addRateError}
-							<p class="mt-2 text-sm text-red-600">{addRateError}</p>
-						{/if}
-						<div class="mt-3 flex gap-2">
-							<Button type="submit" size="sm" disabled={savingAddRate}>
-								{savingAddRate ? 'Saving...' : 'Save Rate'}
-							</Button>
-							<Button
-								type="button"
-								size="sm"
-								variant="ghost"
-								onclick={resetAddRateForm}
-							>
-								Cancel
-							</Button>
-						</div>
-					</form>
-				{/if}
-
-				<!-- Labor Rates Table -->
-				{#if laborRates.length === 0 && !showAddRateForm}
-					<p class="py-4 text-center text-sm text-gray-400">
-						No labor rates configured yet. Click "Add Rate" to create your first rate.
-					</p>
-				{:else if laborRates.length > 0}
-					<div class="overflow-x-auto">
-						<table class="w-full text-sm">
-							<thead>
-								<tr class="border-b border-gray-100 text-left">
-									<th class="pb-2 text-xs font-medium text-gray-500">Job Type</th>
-									<th class="pb-2 text-xs font-medium text-gray-500">Rate Name</th>
-									<th class="pb-2 text-xs font-medium text-gray-500">Hourly Rate</th>
-									<th class="pb-2 text-xs font-medium text-gray-500">Default?</th>
-									<th class="pb-2 text-xs font-medium text-gray-500">Actions</th>
-								</tr>
-							</thead>
-							<tbody class="divide-y divide-gray-50">
-								{#each laborRates as rate (rate.id)}
-									{#if editingRateId === rate.id}
-										<!-- Inline edit row -->
-										<tr class="bg-slate-50">
-											<td class="py-2 pr-4">
-												<Badge variant={rate.job_type === 'autobody' ? 'default' : 'secondary'}>
-													{rate.job_type}
-												</Badge>
-											</td>
-											<td colspan="4" class="py-2">
-												<form
-													method="POST"
-													action="?/updateLaborRate"
-													use:enhance={() => {
-														savingEditRate = true;
-														editRateError = '';
-														return async ({ result, update }) => {
-															savingEditRate = false;
-															if (result.type === 'success') {
-																editingRateId = null;
-															} else if (result.type === 'failure') {
-																editRateError = (result.data?.error as string) ?? 'Failed to update';
-															}
-															await update({ reset: false });
-														};
-													}}
-												>
-													<input type="hidden" name="rate_id" value={rate.id} />
-													<div class="grid grid-cols-1 gap-2 sm:grid-cols-3">
-														<div>
-															<label for="edit_rate_name" class="block text-xs font-medium text-gray-500">Rate Name *</label>
-															<Input
-																id="edit_rate_name"
-																name="rate_name"
-																type="text"
-																bind:value={editRateName}
-																class="mt-0.5"
-															/>
-														</div>
-														<div>
-															<label for="edit_hourly_rate" class="block text-xs font-medium text-gray-500">Hourly Rate (R) *</label>
-															<Input
-																id="edit_hourly_rate"
-																name="hourly_rate"
-																type="number"
-																step="0.01"
-																min="0"
-																bind:value={editRateHourly}
-																class="mt-0.5"
-															/>
-														</div>
-														<div>
-															<label for="edit_description" class="block text-xs font-medium text-gray-500">Description</label>
-															<Input
-																id="edit_description"
-																name="description"
-																type="text"
-																bind:value={editRateDescription}
-																class="mt-0.5"
-															/>
-														</div>
-													</div>
-													<div class="mt-2 flex items-center gap-4">
-														<label class="flex cursor-pointer items-center gap-2 text-xs text-gray-600">
-															<input
-																type="checkbox"
-																name="is_default"
-																value="true"
-																checked={editRateIsDefault}
-																onchange={(e) => {
-																	editRateIsDefault = (e.target as HTMLInputElement).checked;
-																}}
-																class="rounded"
-															/>
-															Set as default
-														</label>
-													</div>
-													{#if editRateError}
-														<p class="mt-1 text-xs text-red-600">{editRateError}</p>
-													{/if}
-													<div class="mt-2 flex gap-2">
-														<Button type="submit" size="sm" disabled={savingEditRate}>
-															{savingEditRate ? 'Saving...' : 'Save'}
-														</Button>
-														<Button
-															type="button"
-															size="sm"
-															variant="ghost"
-															onclick={cancelEditRate}
-														>
-															Cancel
-														</Button>
-													</div>
-												</form>
-											</td>
-										</tr>
-									{:else}
-										<!-- Normal display row -->
-										<tr class="hover:bg-gray-50">
-											<td class="py-2.5 pr-4">
-												<Badge
-													variant={rate.job_type === 'autobody' ? 'default' : 'secondary'}
-												>
-													{rate.job_type}
-												</Badge>
-											</td>
-											<td class="py-2.5 pr-4 font-medium text-gray-900">
-												{rate.rate_name}
-												{#if rate.description}
-													<p class="text-xs font-normal text-gray-400">{rate.description}</p>
-												{/if}
-											</td>
-											<td class="py-2.5 pr-4 text-gray-700">{formatCurrency(rate.hourly_rate)}</td>
-											<td class="py-2.5 pr-4">
-												{#if rate.is_default}
-													<Badge variant="outline">Default</Badge>
-												{/if}
-											</td>
-											<td class="py-2.5">
-												<div class="flex items-center gap-1">
-													<Button
-														variant="ghost"
-														size="sm"
-														onclick={() => startEditRate(rate)}
-														class="h-7 w-7 p-0"
-													>
-														<Pencil class="h-3.5 w-3.5" />
-													</Button>
-													{#if deletingRateId === rate.id}
-														<form
-															method="POST"
-															action="?/deleteLaborRate"
-															use:enhance={() => {
-																savingDeleteRate = true;
-																return async ({ result, update }) => {
-																	savingDeleteRate = false;
-																	deletingRateId = null;
-																	await update();
-																};
-															}}
-															class="inline-flex items-center gap-1"
-														>
-															<input type="hidden" name="rate_id" value={rate.id} />
-															<span class="text-xs text-red-600">Delete?</span>
-															<Button
-																type="submit"
-																variant="destructive"
-																size="sm"
-																class="h-6 px-2 text-xs"
-																disabled={savingDeleteRate}
-															>
-																Yes
-															</Button>
-															<Button
-																type="button"
-																variant="ghost"
-																size="sm"
-																class="h-6 px-2 text-xs"
-																onclick={() => (deletingRateId = null)}
-															>
-																No
-															</Button>
-														</form>
-													{:else}
-														<Button
-															variant="ghost"
-															size="sm"
-															onclick={() => (deletingRateId = rate.id)}
-															class="h-7 w-7 p-0 text-red-400 hover:text-red-600"
-														>
-															<Trash2 class="h-3.5 w-3.5" />
-														</Button>
-													{/if}
-												</div>
-											</td>
-										</tr>
-									{/if}
-								{/each}
-							</tbody>
-						</table>
-					</div>
-				{/if}
-			</Card.Content>
-		</Card.Root>
-
-		<!-- ── Section 4: Terms & Conditions ──────────────────────────────────── -->
+		<!-- ── Section 3: Terms & Conditions ────────────────────────────────────── -->
 		<Card.Root>
 			<Card.Header>
 				<Card.Title>Terms &amp; Conditions</Card.Title>
@@ -887,6 +499,66 @@
 						{/if}
 						{#if termsError}
 							<span class="text-sm text-red-600">{termsError}</span>
+						{/if}
+					</div>
+				</form>
+			</Card.Content>
+		</Card.Root>
+
+		<!-- ── Section 5: Banking Details ─────────────────────────────────────── -->
+		<Card.Root>
+			<Card.Header>
+				<Card.Title>Banking Details</Card.Title>
+				<Card.Description>Bank details displayed on invoices for customer payments.</Card.Description>
+			</Card.Header>
+			<Card.Content>
+				<form
+					method="POST"
+					action="?/updateBankDetails"
+					use:enhance={() => {
+						savingBank = true;
+						bankSuccess = false;
+						bankError = '';
+						return async ({ result, update }) => {
+							savingBank = false;
+							if (result.type === 'success') {
+								bankSuccess = true;
+								setTimeout(() => (bankSuccess = false), 3000);
+							} else if (result.type === 'failure') {
+								bankError = (result.data as { error?: string })?.error || 'Failed to save';
+							}
+							await update({ reset: false });
+						};
+					}}
+				>
+					<input type="hidden" name="id" value={settings.id} />
+					<div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+						<div class="space-y-1">
+							<label for="bank_name" class="block text-xs font-medium text-gray-500">Bank Name</label>
+							<Input id="bank_name" name="bank_name" placeholder="e.g. FNB, ABSA, Standard Bank" value={settings.bank_name ?? ''} />
+						</div>
+						<div class="space-y-1">
+							<label for="bank_account_number" class="block text-xs font-medium text-gray-500">Account Number</label>
+							<Input id="bank_account_number" name="bank_account_number" placeholder="Account number" value={settings.bank_account_number ?? ''} />
+						</div>
+						<div class="space-y-1">
+							<label for="bank_branch_code" class="block text-xs font-medium text-gray-500">Branch Code</label>
+							<Input id="bank_branch_code" name="bank_branch_code" placeholder="e.g. 250655" value={settings.bank_branch_code ?? ''} />
+						</div>
+						<div class="space-y-1">
+							<label for="bank_account_holder" class="block text-xs font-medium text-gray-500">Account Holder</label>
+							<Input id="bank_account_holder" name="bank_account_holder" placeholder="Account holder name" value={settings.bank_account_holder ?? ''} />
+						</div>
+					</div>
+					<div class="mt-4 flex items-center gap-3">
+						<Button type="submit" size="sm" disabled={savingBank}>
+							{savingBank ? 'Saving...' : 'Save Banking Details'}
+						</Button>
+						{#if bankSuccess}
+							<span class="text-sm text-green-600">Saved successfully.</span>
+						{/if}
+						{#if bankError}
+							<span class="text-sm text-red-600">{bankError}</span>
 						{/if}
 					</div>
 				</form>

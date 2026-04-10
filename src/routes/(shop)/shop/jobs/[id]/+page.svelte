@@ -21,8 +21,14 @@
 		recalculateLineItem
 	} from '$lib/utils/estimateCalculations';
 	import { formatCurrency } from '$lib/utils/formatters';
-	import { Trash2, ShieldCheck, Package, Recycle, Percent, CheckCircle, ChevronDown, FileText, Download, Wrench, ClipboardList, Car, Receipt, DollarSign, ArrowRight } from 'lucide-svelte';
+	import { generatePartsListText } from '$lib/utils/csv-generator';
+	import { Trash2, ShieldCheck, Package, Recycle, Percent, CheckCircle, ChevronDown, FileText, Download, Wrench, ClipboardList, Car, Receipt, DollarSign, ArrowRight, Printer } from 'lucide-svelte';
 	import { getProcessTypeBadgeColor, getProcessTypeConfig, getProcessTypeOptions } from '$lib/constants/processTypes';
+	import ShopJobCard from '$lib/components/shop/ShopJobCard.svelte';
+	import ShopAdditionalsTab from '$lib/components/shop/ShopAdditionalsTab.svelte';
+	import ShopJobNotes from '$lib/components/shop/ShopJobNotes.svelte';
+	import * as Dialog from '$lib/components/ui/dialog';
+	import { Textarea } from '$lib/components/ui/textarea';
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();
 
@@ -123,6 +129,8 @@
 	}
 
 	let transitioning = $state(false);
+	let showRejectDialog = $state(false);
+	let rejectReason = $state('');
 
 	async function handleStepClick(step: ShopJobStatus) {
 		const nextStatuses = VALID_TRANSITIONS[job.status as ShopJobStatus] || [];
@@ -146,6 +154,50 @@
 		} finally {
 			transitioning = false;
 		}
+	}
+
+	function handleBackToWork() {
+		showRejectDialog = true;
+		rejectReason = '';
+	}
+
+	async function confirmBackToWork() {
+		if (!rejectReason.trim()) { toast.error('Please enter a reason'); return; }
+		transitioning = true;
+		try {
+			const formData = new FormData();
+			formData.set('status', 'in_progress');
+			formData.set('reason', rejectReason);
+			const response = await fetch('?/updateStatus', { method: 'POST', body: formData });
+			if (response.ok) {
+				toast.success('Sent back to work');
+				showRejectDialog = false;
+				rejectReason = '';
+				activeTab = 'work';
+				await invalidateAll();
+			} else {
+				toast.error('Failed to update status');
+			}
+		} catch { toast.error('Failed to update status'); }
+		finally { transitioning = false; }
+	}
+
+	async function handleAddNote(noteText: string) {
+		const formData = new FormData();
+		formData.set('note_text', noteText);
+		const response = await fetch('?/addNote', { method: 'POST', body: formData });
+		if (response.ok) {
+			await invalidateAll();
+		} else {
+			toast.error('Failed to add note');
+		}
+	}
+
+	async function handleDeleteNote(noteId: string) {
+		const formData = new FormData();
+		formData.set('note_id', noteId);
+		await fetch('?/deleteNote', { method: 'POST', body: formData });
+		await invalidateAll();
 	}
 
 	// Tab visibility based on status
@@ -474,6 +526,10 @@
 			fd.append('outwork_markup_pct', String(outworkMarkup));
 			const response = await fetch('?/updateEstimateRates', { method: 'POST', body: fd });
 			if (response.ok) {
+				// Recalculate all line items with new rates (matches assessment pattern)
+				lineItems = lineItems.map(item => recalculateLineItem(item, labourRate, paintRate));
+				estimateDirty = true;
+				scheduleEstimateAutoSave();
 				toast.success('Rates updated');
 			} else {
 				toast.error('Failed to save rates');
@@ -648,6 +704,38 @@
 		}
 	}
 
+	// Parts list
+	let showPartsListModal = $state(false);
+	let partsListText = $state('');
+
+	function handleShowPartsList() {
+		const partsOnly = lineItems.filter(item => item.process_type === 'N');
+		if (partsOnly.length === 0) {
+			toast.error('No parts in this estimate');
+			return;
+		}
+		partsListText = generatePartsListText(partsOnly, {
+			vin_number: job.vehicle_vin,
+			vehicle_year: job.vehicle_year,
+			vehicle_make: job.vehicle_make,
+			vehicle_model: job.vehicle_model
+		}, {
+			referenceNumber: job.job_number,
+			referenceLabel: 'Job',
+			companyName: 'CT Auto'
+		});
+		showPartsListModal = true;
+	}
+
+	async function handleCopyPartsList() {
+		try {
+			await navigator.clipboard.writeText(partsListText);
+			toast.success('Parts list copied to clipboard');
+		} catch {
+			toast.error('Failed to copy to clipboard');
+		}
+	}
+
 </script>
 
 <div class="space-y-6 pt-4">
@@ -696,6 +784,10 @@
 				<Tabs.Trigger value="work" class="relative flex h-8 min-w-[4.5rem] shrink-0 snap-start items-center justify-center gap-1.5 rounded-md border border-transparent px-2.5 py-1.5 text-xs font-medium text-muted-foreground ring-offset-background transition-all hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-rose-500 data-[state=active]:text-white data-[state=active]:shadow-sm sm:h-9 sm:px-3 sm:py-2 sm:text-sm">
 					<Wrench class="h-3.5 w-3.5" />
 					Work
+				</Tabs.Trigger>
+				<Tabs.Trigger value="jobcard" class="relative flex h-8 min-w-[4.5rem] shrink-0 snap-start items-center justify-center gap-1.5 rounded-md border border-transparent px-2.5 py-1.5 text-xs font-medium text-muted-foreground ring-offset-background transition-all hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-rose-500 data-[state=active]:text-white data-[state=active]:shadow-sm sm:h-9 sm:px-3 sm:py-2 sm:text-sm">
+					<FileText class="h-3.5 w-3.5" />
+					Job Card
 				</Tabs.Trigger>
 			{/if}
 			{#if showInvoice}
@@ -967,6 +1059,16 @@
 						</Card.Content>
 					</Card.Root>
 				</div>
+
+				<!-- Notes & Activity -->
+				<ShopJobNotes
+					statusHistory={(job as any).status_history ?? []}
+					notes={data.jobNotes ?? []}
+					userNames={data.noteUserNames ?? data.milestoneUserNames ?? {}}
+					statusLabels={STATUS_LABELS}
+					onAddNote={handleAddNote}
+					onDeleteNote={handleDeleteNote}
+				/>
 			</div>
 		</Tabs.Content>
 
@@ -1136,6 +1238,9 @@
 							{/if}
 						</div>
 						<div class="flex items-center gap-2">
+							<Button onclick={handleShowPartsList} size="sm" variant="outline" title="Parts List (for ordering)">
+								<Package class="h-4 w-4" />
+							</Button>
 							{#if estimateStatus === 'draft'}
 								<form method="POST" action="?/sendEstimate" use:enhance={() => {
 									return async ({ result, update }) => {
@@ -1255,7 +1360,7 @@
 									/>
 								</div>
 								<div>
-									<label for="rate-paint" class="block text-xs font-medium text-gray-500">Paint Rate (R/hr)</label>
+									<label for="rate-paint" class="block text-xs font-medium text-gray-500">Paint Rate (R/panel)</label>
 									<input
 										id="rate-paint"
 										type="number"
@@ -1719,6 +1824,30 @@
 									<span>Grand Total</span>
 									<span>{formatCurrency(estimateTotal)}</span>
 								</div>
+								{#if data.shopAdditionals && data.shopAdditionals.total_approved !== 0}
+									<Separator class="my-2" />
+									<div class="flex items-center justify-between text-sm">
+										<span class="text-gray-600">Additional Work (Approved)</span>
+										<span class="font-medium text-green-600">{formatCurrency(data.shopAdditionals.total_approved)}</span>
+									</div>
+									<div class="flex items-center justify-between text-sm font-bold">
+										<span>Combined Total</span>
+										<span>{formatCurrency(estimateTotal + data.shopAdditionals.total_approved)}</span>
+									</div>
+								{/if}
+								{#if data.shopAdditionals?.original_total != null}
+									<Separator class="my-2" />
+									<div class="flex justify-between text-xs text-gray-500">
+										<span>Original Estimate (at work start)</span>
+										<span>{formatCurrency(data.shopAdditionals.original_total)}</span>
+									</div>
+									{@const currentCombined = estimateTotal + (data.shopAdditionals?.total_approved || 0)}
+									{@const delta = currentCombined - (data.shopAdditionals.original_total || 0)}
+									<div class="flex justify-between text-xs font-medium {delta > 0 ? 'text-red-500' : delta < 0 ? 'text-green-500' : 'text-gray-500'}">
+										<span>Change from Original</span>
+										<span>{delta > 0 ? '+' : ''}{formatCurrency(delta)}</span>
+									</div>
+								{/if}
 							</div>
 						</Card.Content>
 					</Card.Root>
@@ -1918,7 +2047,7 @@
 									</div>
 									<div class="flex gap-2">
 										<Button variant="outline" disabled={transitioning}
-											onclick={() => handleStepClick('in_progress' as ShopJobStatus)}>
+											onclick={handleBackToWork}>
 											Back to Work
 										</Button>
 										<Button class="bg-green-600 hover:bg-green-700" disabled={transitioning}
@@ -1926,6 +2055,20 @@
 											{transitioning ? 'Updating...' : 'Ready for Collection'}
 										</Button>
 									</div>
+								</div>
+							</Card.Content>
+						</Card.Root>
+					{/if}
+
+					{#if (job as any).qc_passed_at}
+						<Card.Root class="border-green-200 bg-green-50">
+							<Card.Content class="py-3">
+								<div class="flex items-center gap-2 text-sm text-green-700">
+									<CheckCircle class="h-4 w-4" />
+									<span>QC Passed {formatStepDate((job as any).qc_passed_at)}</span>
+									{#if data.qcPassedByName}
+										<span>by <span class="font-medium">{data.qcPassedByName}</span></span>
+									{/if}
 								</div>
 							</Card.Content>
 						</Card.Root>
@@ -2027,6 +2170,27 @@
 						</Card.Content>
 					</Card.Root>
 
+					<!-- Shop Additionals Tab (estimate lines + additionals + combined totals) -->
+					{#if statusIndex >= STATUS_STEPS.indexOf('in_progress') && estimate}
+						<ShopAdditionalsTab
+							jobId={job.id}
+							additionals={data.shopAdditionals}
+							estimateLineItems={lineItems}
+							{labourRate}
+							{paintRate}
+							{oemMarkup}
+							{altMarkup}
+							{secondHandMarkup}
+							{outworkMarkup}
+							vatRate={vatRate}
+							{estimateSubtotal}
+							{estimateVatAmount}
+							{estimateTotal}
+							canEdit={['in_progress', 'quality_check'].includes(job.status)}
+							onUpdate={async () => { await invalidateAll(); }}
+						/>
+					{/if}
+
 					<ShopPhotosPanel
 						jobId={job.id}
 						category="during"
@@ -2034,6 +2198,26 @@
 						title="Work Progress Photos"
 						description="Document work as it progresses"
 						onUpdate={refreshPhotos}
+					/>
+				</div>
+			</Tabs.Content>
+		{/if}
+
+		<!-- JOB CARD TAB -->
+		{#if showWork}
+			<Tabs.Content value="jobcard">
+				<div class="mt-4 space-y-4">
+					<div class="flex items-center justify-between print:hidden">
+						<h2 class="text-lg font-semibold">Job Card</h2>
+						<Button variant="outline" size="sm" onclick={() => window.print()}>
+							<Printer class="mr-2 h-4 w-4" />
+							Print
+						</Button>
+					</div>
+					<ShopJobCard
+						{job}
+						{lineItems}
+						additionalLineItems={[]}
 					/>
 				</div>
 			</Tabs.Content>
@@ -2121,3 +2305,39 @@
 		{/if}
 	</Tabs.Root>
 </div>
+
+<!-- Back to Work — Reason Dialog -->
+<Dialog.Root bind:open={showRejectDialog}>
+	<Dialog.Content class="sm:max-w-md">
+		<Dialog.Header>
+			<Dialog.Title>Back to Work — Reason Required</Dialog.Title>
+			<Dialog.Description>Please explain why this job is being sent back to work.</Dialog.Description>
+		</Dialog.Header>
+		<div class="space-y-3 py-3">
+			<Textarea bind:value={rejectReason} placeholder="Describe the quality issues..." rows={3} />
+		</div>
+		<Dialog.Footer>
+			<Button variant="outline" onclick={() => { showRejectDialog = false; }}>Cancel</Button>
+			<Button onclick={confirmBackToWork} disabled={transitioning || !rejectReason.trim()}>
+				{transitioning ? 'Updating...' : 'Confirm'}
+			</Button>
+		</Dialog.Footer>
+	</Dialog.Content>
+</Dialog.Root>
+
+<!-- Parts List Modal -->
+<Dialog.Root bind:open={showPartsListModal}>
+	<Dialog.Content class="max-w-2xl">
+		<Dialog.Header>
+			<Dialog.Title>Parts Order Request</Dialog.Title>
+			<Dialog.Description>Copy the text below and paste it into your email to suppliers.</Dialog.Description>
+		</Dialog.Header>
+		<div class="space-y-4">
+			<pre class="max-h-96 overflow-y-auto overflow-x-auto whitespace-pre-wrap rounded-lg border border-gray-200 bg-gray-50 p-4 text-sm font-mono">{partsListText}</pre>
+			<div class="flex justify-end gap-2">
+				<Button variant="outline" onclick={() => showPartsListModal = false}>Close</Button>
+				<Button onclick={handleCopyPartsList}>Copy to Clipboard</Button>
+			</div>
+		</div>
+	</Dialog.Content>
+</Dialog.Root>

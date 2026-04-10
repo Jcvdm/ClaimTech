@@ -6,6 +6,7 @@
 	import GradientBadge from '$lib/components/data/GradientBadge.svelte';
 	import TableCell from '$lib/components/data/TableCell.svelte';
 	import EmptyState from '$lib/components/data/EmptyState.svelte';
+	import FilterTabs from '$lib/components/ui/tabs/FilterTabs.svelte';
 	import { Button } from '$lib/components/ui/button';
 	import { FileText, Hash, User, Activity, DollarSign, Calendar } from 'lucide-svelte';
 	import type { PageData } from './$types';
@@ -55,8 +56,10 @@
 				job_number: job?.job_number ?? '—',
 				status: invoice.status as ShopInvoiceStatus,
 				total_display: formatCurrency(invoice.total ?? 0),
+				amount_due: invoice.amount_due ?? 0,
 				amount_due_display: formatCurrency(invoice.amount_due ?? 0),
-				due_date_display: formatDate(invoice.due_date)
+				due_date_display: formatDate(invoice.due_date),
+				issue_date: invoice.issue_date ?? null
 			};
 		})
 	);
@@ -69,6 +72,63 @@
 		{ key: 'total_display' as const, label: 'Total', sortable: false, icon: DollarSign },
 		{ key: 'amount_due_display' as const, label: 'Amount Due', sortable: false, icon: DollarSign },
 		{ key: 'due_date_display' as const, label: 'Due Date', sortable: true, icon: Calendar }
+	];
+
+	type InvoiceFilter = 'outstanding' | '30' | '60' | '90' | '120' | 'paid';
+	let selectedFilter = $state<InvoiceFilter>('outstanding');
+
+	function daysSinceIssue(issueDateStr: string | null): number {
+		if (!issueDateStr) return 0;
+		const issued = new Date(issueDateStr);
+		const now = new Date();
+		return Math.floor((now.getTime() - issued.getTime()) / (1000 * 60 * 60 * 24));
+	}
+
+	const outstandingInvoices = $derived(
+		invoicesWithDetails.filter(inv => !['paid', 'void'].includes(inv.status))
+	);
+
+	const filteredInvoices = $derived.by(() => {
+		if (selectedFilter === 'paid') {
+			return invoicesWithDetails.filter(inv => inv.status === 'paid');
+		}
+		if (selectedFilter === 'outstanding') return outstandingInvoices;
+
+		const range = parseInt(selectedFilter);
+		if (range === 120) {
+			return outstandingInvoices.filter(inv => daysSinceIssue(inv.issue_date) >= 120);
+		}
+		const min = range - 30;
+		return outstandingInvoices.filter(inv => {
+			const days = daysSinceIssue(inv.issue_date);
+			return days > min && days <= range;
+		});
+	});
+
+	const filterCounts = $derived({
+		outstanding: outstandingInvoices.length,
+		'30': outstandingInvoices.filter(inv => daysSinceIssue(inv.issue_date) <= 30).length,
+		'60': outstandingInvoices.filter(inv => { const d = daysSinceIssue(inv.issue_date); return d > 30 && d <= 60; }).length,
+		'90': outstandingInvoices.filter(inv => { const d = daysSinceIssue(inv.issue_date); return d > 60 && d <= 90; }).length,
+		'120': outstandingInvoices.filter(inv => daysSinceIssue(inv.issue_date) >= 120).length,
+		paid: invoicesWithDetails.filter(inv => inv.status === 'paid').length,
+	});
+
+	const bandAmounts = $derived({
+		outstanding: outstandingInvoices.reduce((sum, inv) => sum + (inv.amount_due || 0), 0),
+		'30': outstandingInvoices.filter(inv => daysSinceIssue(inv.issue_date) <= 30).reduce((sum, inv) => sum + (inv.amount_due || 0), 0),
+		'60': outstandingInvoices.filter(inv => { const d = daysSinceIssue(inv.issue_date); return d > 30 && d <= 60; }).reduce((sum, inv) => sum + (inv.amount_due || 0), 0),
+		'90': outstandingInvoices.filter(inv => { const d = daysSinceIssue(inv.issue_date); return d > 60 && d <= 90; }).reduce((sum, inv) => sum + (inv.amount_due || 0), 0),
+		'120': outstandingInvoices.filter(inv => daysSinceIssue(inv.issue_date) >= 120).reduce((sum, inv) => sum + (inv.amount_due || 0), 0),
+	});
+
+	const filterTabItems = [
+		{ value: 'outstanding' as const, label: 'Outstanding' },
+		{ value: '30' as const, label: '0-30 Days' },
+		{ value: '60' as const, label: '31-60 Days' },
+		{ value: '90' as const, label: '61-90 Days' },
+		{ value: '120' as const, label: '120+ Days' },
+		{ value: 'paid' as const, label: 'Paid' },
 	];
 
 	function handleRowClick(row: (typeof invoicesWithDetails)[0]) {
@@ -94,35 +154,71 @@
 			onAction={() => goto('/shop/jobs')}
 		/>
 	{:else}
-		<ModernDataTable
-			data={invoicesWithDetails}
-			{columns}
-			onRowClick={handleRowClick}
-			loadingRowId={loadingId}
-			rowIdKey="id"
-			striped
-			emptyMessage="No invoices found"
-		>
-			{#snippet cellContent(column, row)}
-				{#if column.key === 'invoice_number'}
-					<TableCell variant="primary" bold>
-						{row.invoice_number}
-					</TableCell>
-				{:else if column.key === 'status'}
-					{@const variant = statusVariantMap[row.status] ?? 'gray'}
-					{@const label = statusLabelMap[row.status] ?? row.status}
-					<GradientBadge {variant} {label} />
-				{:else}
-					{row[column.key]}
-				{/if}
-			{/snippet}
-		</ModernDataTable>
-
-		<div class="flex items-center justify-between text-sm text-gray-500">
-			<p>
-				Showing <span class="font-medium text-gray-900">{invoicesWithDetails.length}</span>
-				{invoicesWithDetails.length === 1 ? 'invoice' : 'invoices'}
-			</p>
+		<!-- Aged Debtor Summary -->
+		<div class="grid grid-cols-2 gap-3 sm:grid-cols-5">
+			<div class="rounded-lg border bg-white p-3 text-center">
+				<p class="text-xs text-gray-500">Total Outstanding</p>
+				<p class="text-lg font-bold text-gray-900">{formatCurrency(bandAmounts.outstanding)}</p>
+			</div>
+			<div class="rounded-lg border border-green-200 bg-green-50 p-3 text-center">
+				<p class="text-xs text-green-700">0-30 Days</p>
+				<p class="text-lg font-bold text-green-700">{formatCurrency(bandAmounts['30'])}</p>
+			</div>
+			<div class="rounded-lg border border-yellow-200 bg-yellow-50 p-3 text-center">
+				<p class="text-xs text-yellow-700">31-60 Days</p>
+				<p class="text-lg font-bold text-yellow-700">{formatCurrency(bandAmounts['60'])}</p>
+			</div>
+			<div class="rounded-lg border border-orange-200 bg-orange-50 p-3 text-center">
+				<p class="text-xs text-orange-700">61-90 Days</p>
+				<p class="text-lg font-bold text-orange-700">{formatCurrency(bandAmounts['90'])}</p>
+			</div>
+			<div class="rounded-lg border border-red-200 bg-red-50 p-3 text-center">
+				<p class="text-xs text-red-700">120+ Days</p>
+				<p class="text-lg font-bold text-red-700">{formatCurrency(bandAmounts['120'])}</p>
+			</div>
 		</div>
+
+		<FilterTabs
+			items={filterTabItems}
+			bind:value={selectedFilter}
+			counts={filterCounts}
+		/>
+
+		{#if filteredInvoices.length === 0}
+			<div class="py-12 text-center text-sm text-gray-500">
+				No invoices match this filter.
+			</div>
+		{:else}
+			<ModernDataTable
+				data={filteredInvoices}
+				{columns}
+				onRowClick={handleRowClick}
+				loadingRowId={loadingId}
+				rowIdKey="id"
+				striped
+				emptyMessage="No invoices found"
+			>
+				{#snippet cellContent(column, row)}
+					{#if column.key === 'invoice_number'}
+						<TableCell variant="primary" bold>
+							{row.invoice_number}
+						</TableCell>
+					{:else if column.key === 'status'}
+						{@const variant = statusVariantMap[row.status] ?? 'gray'}
+						{@const label = statusLabelMap[row.status] ?? row.status}
+						<GradientBadge {variant} {label} />
+					{:else}
+						{row[column.key]}
+					{/if}
+				{/snippet}
+			</ModernDataTable>
+
+			<div class="flex items-center justify-between text-sm text-gray-500">
+				<p>
+					Showing <span class="font-medium text-gray-900">{filteredInvoices.length}</span>
+					{filteredInvoices.length === 1 ? 'invoice' : 'invoices'}
+				</p>
+			</div>
+		{/if}
 	{/if}
 </div>

@@ -152,7 +152,7 @@ export function createShopJobService(supabase: SupabaseClient) {
 		 *
 		 * @throws Error if the transition is not valid from the current status.
 		 */
-		async updateJobStatus(id: string, newStatus: ShopJobStatus, userId?: string) {
+		async updateJobStatus(id: string, newStatus: ShopJobStatus, userId?: string, reason?: string) {
 			const { data: job, error: fetchError } = await supabase
 				.from('shop_jobs')
 				.select('status, status_history')
@@ -188,12 +188,19 @@ export function createShopJobService(supabase: SupabaseClient) {
 			if (newStatus === 'completed') {
 				updateData.date_completed = new Date().toISOString().split('T')[0]; // DATE only
 			}
+			if (newStatus === 'ready_for_collection') {
+				updateData.qc_passed_by = userId ?? null;
+				updateData.qc_passed_at = new Date().toISOString();
+			}
 
 			const currentHistory = Array.isArray(job.status_history) ? job.status_history : [];
-			updateData.status_history = [
-				...currentHistory,
-				{ status: newStatus, timestamp: new Date().toISOString(), user_id: userId ?? null }
-			];
+			const historyEntry: Record<string, unknown> = {
+				status: newStatus,
+				timestamp: new Date().toISOString(),
+				user_id: userId ?? null
+			};
+			if (reason) historyEntry.reason = reason;
+			updateData.status_history = [...currentHistory, historyEntry];
 
 			return supabase
 				.from('shop_jobs')

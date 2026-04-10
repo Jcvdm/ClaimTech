@@ -10,15 +10,10 @@ export const load: PageServerLoad = async ({ locals }) => {
 
 	// If no settings record yet, return null so the page can show setup form
 	if (!settings) {
-		return { settings: null, laborRates: [] };
+		return { settings: null };
 	}
 
-	const { data: laborRates } = await settingsService.getLaborRates(settings.id);
-
-	return {
-		settings,
-		laborRates: laborRates ?? []
-	};
+	return { settings };
 };
 
 export const actions: Actions = {
@@ -154,109 +149,30 @@ export const actions: Actions = {
 	},
 
 	/**
-	 * Add a new labor rate.
+	 * Update banking details.
 	 */
-	addLaborRate: async ({ request, locals }) => {
+	updateBankDetails: async ({ request, locals }) => {
 		const { supabase } = locals;
 		const settingsService = createShopSettingsService(supabase);
 
 		const formData = await request.formData();
-		const shopId = formData.get('shop_id') as string;
-		const jobType = formData.get('job_type') as 'autobody' | 'mechanical';
-		const rateName = formData.get('rate_name') as string;
-		const hourlyRateRaw = formData.get('hourly_rate') as string;
-		const description = (formData.get('description') as string) || undefined;
-		const isDefault = formData.get('is_default') === 'true';
+		const id = formData.get('id') as string;
 
-		if (!shopId) {
-			return fail(400, { error: 'Shop ID is required', action: 'addLaborRate' });
-		}
-		if (!jobType || !['autobody', 'mechanical'].includes(jobType)) {
-			return fail(400, { error: 'Valid job type is required', action: 'addLaborRate' });
-		}
-		if (!rateName?.trim()) {
-			return fail(400, { error: 'Rate name is required', action: 'addLaborRate' });
-		}
-		const hourlyRate = parseFloat(hourlyRateRaw);
-		if (isNaN(hourlyRate) || hourlyRate < 0) {
-			return fail(400, { error: 'Valid hourly rate is required', action: 'addLaborRate' });
+		if (!id) {
+			return fail(400, { error: 'Settings ID is required', action: 'updateBankDetails' });
 		}
 
-		const { error } = await settingsService.createLaborRate({
-			shop_id: shopId,
-			job_type: jobType,
-			rate_name: rateName.trim(),
-			hourly_rate: hourlyRate,
-			description,
-			is_default: isDefault
+		const { error } = await settingsService.updateSettings(id, {
+			bank_name: (formData.get('bank_name') as string) || null,
+			bank_account_number: (formData.get('bank_account_number') as string) || null,
+			bank_branch_code: (formData.get('bank_branch_code') as string) || null,
+			bank_account_holder: (formData.get('bank_account_holder') as string) || null
 		});
 
 		if (error) {
-			return fail(400, { error: error.message ?? 'Failed to add labor rate', action: 'addLaborRate' });
+			return fail(400, { error: error.message ?? 'Failed to update banking details', action: 'updateBankDetails' });
 		}
 
-		return { success: true, action: 'addLaborRate' };
-	},
-
-	/**
-	 * Update an existing labor rate.
-	 */
-	updateLaborRate: async ({ request, locals }) => {
-		const { supabase } = locals;
-		const settingsService = createShopSettingsService(supabase);
-
-		const formData = await request.formData();
-		const id = formData.get('rate_id') as string;
-		const rateName = formData.get('rate_name') as string;
-		const hourlyRateRaw = formData.get('hourly_rate') as string;
-		const description = (formData.get('description') as string) || null;
-		const isDefault = formData.get('is_default') === 'true';
-
-		if (!id) {
-			return fail(400, { error: 'Rate ID is required', action: 'updateLaborRate' });
-		}
-		if (!rateName?.trim()) {
-			return fail(400, { error: 'Rate name is required', action: 'updateLaborRate' });
-		}
-		const hourlyRate = parseFloat(hourlyRateRaw);
-		if (isNaN(hourlyRate) || hourlyRate < 0) {
-			return fail(400, { error: 'Valid hourly rate is required', action: 'updateLaborRate' });
-		}
-
-		const { error } = await settingsService.updateLaborRate(id, {
-			rate_name: rateName.trim(),
-			hourly_rate: hourlyRate,
-			description,
-			is_default: isDefault
-		});
-
-		if (error) {
-			return fail(400, { error: error.message ?? 'Failed to update labor rate', action: 'updateLaborRate' });
-		}
-
-		return { success: true, action: 'updateLaborRate' };
-	},
-
-	/**
-	 * Soft-delete a labor rate (sets is_active = false).
-	 */
-	deleteLaborRate: async ({ request, locals }) => {
-		const { supabase } = locals;
-		const settingsService = createShopSettingsService(supabase);
-
-		const formData = await request.formData();
-		const id = formData.get('rate_id') as string;
-
-		if (!id) {
-			return fail(400, { error: 'Rate ID is required', action: 'deleteLaborRate' });
-		}
-
-		const { error } = await settingsService.deleteLaborRate(id);
-
-		if (error) {
-			return fail(400, { error: error.message ?? 'Failed to delete labor rate', action: 'deleteLaborRate' });
-		}
-
-		return { success: true, action: 'deleteLaborRate' };
+		return { success: true, action: 'updateBankDetails' };
 	}
 };

@@ -8,7 +8,9 @@ export interface VehicleDetails {
 }
 
 export interface PartsListOptions {
-	assessmentNumber: string;
+	assessmentNumber?: string;
+	referenceNumber?: string;
+	referenceLabel?: string;
 	companyName?: string;
 	companyEmail?: string;
 }
@@ -84,9 +86,11 @@ export function generatePartsListText(
 	lines.push('═══════════════════════════════════════════════════════════');
 	lines.push('');
 
-	// Assessment info
-	if (options?.assessmentNumber) {
-		lines.push(`Assessment: ${options.assessmentNumber}`);
+	// Reference info
+	const refNum = options?.referenceNumber || options?.assessmentNumber;
+	const refLabel = options?.referenceLabel || 'Assessment';
+	if (refNum) {
+		lines.push(`${refLabel}: ${refNum}`);
 	}
 	const today = new Date().toLocaleDateString('en-ZA', {
 		year: 'numeric',

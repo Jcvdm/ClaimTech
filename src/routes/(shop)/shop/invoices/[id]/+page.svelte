@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
-	import { ArrowLeft, CheckCircle } from 'lucide-svelte';
+	import { ArrowLeft, CheckCircle, Trash2 } from 'lucide-svelte';
+	import { toast } from 'svelte-sonner';
 	import type { PageData, ActionData } from './$types';
 	import type { ShopInvoiceStatus, ShopInvoiceLineItem } from '$lib/services/shop-invoice.service';
 	import { Button } from '$lib/components/ui/button';
@@ -65,9 +66,97 @@
 	let paymentMethod = $state('eft');
 	let paymentReference = $state('');
 	let paymentDate = $state(new Date().toISOString().split('T')[0]);
+	let paymentNotes = $state('');
 	let submittingSend = $state(false);
 	let submittingPayment = $state(false);
 	let submittingVoid = $state(false);
+
+	// PDF generation state
+	let generatingPdf = $state(false);
+	let pdfProgress = $state(0);
+	let pdfMessage = $state('');
+	let currentPdfUrl = $state<string | null>(
+		(invoice as { pdf_url?: string | null }).pdf_url ?? null
+	);
+
+	async function handleGeneratePDF() {
+		if (generatingPdf) return;
+		generatingPdf = true;
+		pdfProgress = 0;
+		pdfMessage = 'Starting...';
+
+		try {
+			const response = await fetch('/api/generate-shop-invoice', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ invoiceId: (invoice as { id?: string }).id })
+			});
+
+			if (!response.ok || !response.body) {
+				toast.error('Failed to start PDF generation');
+				generatingPdf = false;
+				return;
+			}
+
+			const reader = response.body.getReader();
+			const decoder = new TextDecoder();
+			let buffer = '';
+
+			while (true) {
+				const { value, done } = await reader.read();
+				if (done) break;
+				buffer += decoder.decode(value, { stream: true });
+				const lines = buffer.split('\n');
+				buffer = lines.pop() ?? '';
+				for (const line of lines) {
+					if (!line.startsWith('data: ')) continue;
+					try {
+						const event = JSON.parse(line.slice(6));
+						if (event.status === 'processing' || event.status === 'progress') {
+							pdfProgress = event.progress ?? pdfProgress;
+							pdfMessage = event.message ?? pdfMessage;
+						} else if (event.status === 'complete') {
+							pdfProgress = 100;
+							pdfMessage = 'Complete';
+							currentPdfUrl = event.url;
+							toast.success('Invoice PDF generated');
+							generatingPdf = false;
+						} else if (event.status === 'error') {
+							toast.error(event.error ?? 'PDF generation failed');
+							generatingPdf = false;
+						}
+					} catch {
+						// ignore malformed SSE lines
+					}
+				}
+			}
+		} catch {
+			toast.error('Failed to generate PDF');
+		} finally {
+			generatingPdf = false;
+		}
+	}
+
+	async function handleDownloadPDF() {
+		if (!currentPdfUrl) return;
+		try {
+			const res = await fetch(currentPdfUrl);
+			if (!res.ok) {
+				toast.error('Failed to download');
+				return;
+			}
+			const blob = await res.blob();
+			const a = document.createElement('a');
+			a.href = URL.createObjectURL(blob);
+			a.download = `${(invoice as { invoice_number?: string }).invoice_number ?? 'invoice'}.pdf`;
+			document.body.appendChild(a);
+			a.click();
+			a.remove();
+			URL.revokeObjectURL(a.href);
+		} catch {
+			toast.error('Failed to download');
+		}
+	}
 </script>
 
 <div class="space-y-6 pt-4">
@@ -287,8 +376,98 @@
 		</Card.Content>
 	</Card.Root>
 
-	<!-- Payment Section -->
-	{#if status === 'sent' || status === 'partially_paid'}
+	<!-- Invoice PDF Card -->
+	<Card.Root>
+		<Card.Header>
+			<Card.Title>Invoice PDF</Card.Title>
+		</Card.Header>
+		<Card.Content>
+			{#if generatingPdf}
+				<div class="w-full">
+					<div class="mb-1 flex items-center justify-between text-xs text-gray-500">
+						<span>{pdfMessage}</span>
+						<span>{pdfProgress}%</span>
+					</div>
+					<div class="h-2 overflow-hidden rounded-full bg-gray-200">
+						<div
+							class="h-full rounded-full bg-blue-600 transition-all duration-300"
+							style="width: {pdfProgress}%"
+						></div>
+					</div>
+				</div>
+			{:else}
+				<div class="flex items-center gap-3">
+					<Button onclick={handleGeneratePDF} variant="outline" size="sm">
+						{currentPdfUrl ? 'Regenerate PDF' : 'Generate PDF'}
+					</Button>
+					{#if currentPdfUrl}
+						<a href={currentPdfUrl} target="_blank" class="text-sm font-medium text-blue-600 hover:underline">
+							View PDF
+						</a>
+						<Button onclick={handleDownloadPDF} variant="outline" size="sm">Download PDF</Button>
+					{/if}
+				</div>
+			{/if}
+		</Card.Content>
+	</Card.Root>
+
+	<!-- Payment History Card -->
+	{#if data.payments && data.payments.length > 0}
+		<Card.Root>
+			<Card.Header>
+				<Card.Title>Payment History</Card.Title>
+			</Card.Header>
+			<Card.Content>
+				<table class="w-full text-sm">
+					<thead>
+						<tr class="border-b text-left text-xs font-semibold uppercase text-gray-500">
+							<th class="pb-2">Date</th>
+							<th class="pb-2">Amount</th>
+							<th class="pb-2">Method</th>
+							<th class="pb-2">Reference</th>
+							<th class="pb-2">Notes</th>
+							<th class="pb-2"></th>
+						</tr>
+					</thead>
+					<tbody>
+						{#each data.payments as payment (payment.id)}
+							<tr class="border-b border-gray-100">
+								<td class="py-2">{new Date(payment.payment_date).toLocaleDateString('en-ZA')}</td>
+								<td class="py-2 font-medium text-green-600">{formatCurrency(payment.amount)}</td>
+								<td class="py-2 capitalize">{payment.payment_method}</td>
+								<td class="py-2 text-gray-600">{payment.payment_reference || '-'}</td>
+								<td class="py-2 text-gray-600">{payment.notes || '-'}</td>
+								<td class="py-2">
+									<form
+										method="POST"
+										action="?/deletePayment"
+										use:enhance={() => {
+											return async ({ update }) => {
+												await update();
+											};
+										}}
+									>
+										<input type="hidden" name="payment_id" value={payment.id} />
+										<Button
+											type="submit"
+											variant="ghost"
+											size="sm"
+											class="h-7 w-7 p-0 text-red-400 hover:text-red-600"
+										>
+											<Trash2 class="h-3.5 w-3.5" />
+										</Button>
+									</form>
+								</td>
+							</tr>
+						{/each}
+					</tbody>
+				</table>
+			</Card.Content>
+		</Card.Root>
+	{/if}
+
+	<!-- Record Payment Form -->
+	{#if status !== 'paid' && status !== 'void'}
 		<Card.Root>
 			<Card.Header>
 				<Card.Title>Record Payment</Card.Title>
@@ -327,7 +506,7 @@
 							</label>
 							<select
 								id="payment_method"
-								name="method"
+								name="payment_method"
 								bind:value={paymentMethod}
 								required
 								class="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500"
@@ -344,7 +523,7 @@
 							</label>
 							<Input
 								id="payment_reference"
-								name="reference"
+								name="payment_reference"
 								type="text"
 								bind:value={paymentReference}
 								placeholder="e.g., bank reference number"
@@ -356,9 +535,21 @@
 							</label>
 							<Input
 								id="payment_date"
-								name="date"
+								name="payment_date"
 								type="date"
 								bind:value={paymentDate}
+							/>
+						</div>
+						<div class="md:col-span-2">
+							<label for="payment_notes" class="mb-1 block text-xs font-medium text-gray-600">
+								Notes
+							</label>
+							<Input
+								id="payment_notes"
+								name="notes"
+								type="text"
+								bind:value={paymentNotes}
+								placeholder="Optional notes"
 							/>
 						</div>
 					</div>
@@ -372,25 +563,14 @@
 		</Card.Root>
 	{/if}
 
-	<!-- Payment Details (if paid) -->
-	{#if status === 'paid' && (invoice as { payment_method?: string }).payment_method}
+	<!-- Notes Card -->
+	{#if (invoice as { notes?: string | null }).notes}
 		<Card.Root>
 			<Card.Header>
-				<Card.Title>Payment Details</Card.Title>
+				<Card.Title>Notes</Card.Title>
 			</Card.Header>
 			<Card.Content>
-				<div class="space-y-2 text-sm text-gray-700">
-					<p>
-						<span class="text-gray-500">Method:</span>
-						<span class="ml-1 capitalize">{(invoice as { payment_method: string }).payment_method}</span>
-					</p>
-					{#if (invoice as { payment_reference?: string }).payment_reference}
-						<p>
-							<span class="text-gray-500">Reference:</span>
-							<span class="ml-1">{(invoice as { payment_reference: string }).payment_reference}</span>
-						</p>
-					{/if}
-				</div>
+				<p class="text-sm text-gray-700">{(invoice as { notes: string }).notes}</p>
 			</Card.Content>
 		</Card.Root>
 	{/if}

@@ -88,7 +88,7 @@ export function createShopInvoiceService(supabase: SupabaseClient) {
 
 		/**
 		 * Create a new invoice from an existing estimate.
-		 * Copies line items and totals from the estimate.
+		 * Copies line items and totals from the estimate, and includes approved additionals.
 		 */
 		async createFromEstimate(estimateId: string, jobId: string): Promise<ShopInvoice> {
 			// 1. Fetch the estimate to copy line_items and totals
@@ -102,6 +102,59 @@ export function createShopInvoiceService(supabase: SupabaseClient) {
 				throw new Error(`Failed to fetch estimate: ${estimateError?.message ?? 'not found'}`);
 			}
 
+			// After fetching estimate, fetch additionals for this job
+			const { data: additionals } = await (supabase as any)
+				.from('shop_additionals')
+				.select('*')
+				.eq('job_id', jobId)
+				.maybeSingle();
+
+			// If additionals exist, extract effective approved items
+			let additionalLineItems: ShopInvoiceLineItem[] = [];
+			let additionalsSubtotal = 0;
+			let additionalsVat = 0;
+			let additionalsTotal = 0;
+
+			if (additionals && Array.isArray(additionals.line_items)) {
+				// Build set of reversed item IDs
+				const reversedIds = new Set(
+					additionals.line_items
+						.filter((li: any) => li.action === 'reversal' && li.reverses_line_id)
+						.map((li: any) => li.reverses_line_id)
+				);
+
+				// Get effective approved items (approved, not reversed, not reversals themselves)
+				const effectiveItems = additionals.line_items.filter(
+					(li: any) =>
+						li.status === 'approved' && li.action !== 'reversal' && !reversedIds.has(li.id)
+				);
+
+				// Map to invoice line items
+				additionalLineItems = effectiveItems.map((li: any) => ({
+					id: li.id || crypto.randomUUID(),
+					type:
+						li.action === 'removed'
+							? ('other' as const)
+							: li.process_type === 'N'
+								? ('part' as const)
+								: li.process_type === 'O'
+									? ('sublet' as const)
+									: ('labor' as const),
+					description:
+						li.action === 'removed'
+							? `[REMOVED] ${li.description || 'Item'}`
+							: `[ADDITIONAL] ${li.description || 'Item'}`,
+					quantity: 1,
+					unit_price: li.total || 0,
+					total: li.total || 0
+				}));
+
+				// Use pre-calculated totals from additionals record
+				additionalsSubtotal = additionals.subtotal_approved || 0;
+				additionalsVat = additionals.vat_amount_approved || 0;
+				additionalsTotal = additionals.total_approved || 0;
+			}
+
 			// 2. Generate invoice number
 			const invoiceNumber = await generateInvoiceNumber();
 
@@ -113,7 +166,7 @@ export function createShopInvoiceService(supabase: SupabaseClient) {
 				.split('T')[0];
 
 			// Map estimate line items to invoice line items (strip markup fields)
-			const lineItems: ShopInvoiceLineItem[] = Array.isArray(estimate.line_items)
+			const estimateLineItems: ShopInvoiceLineItem[] = Array.isArray(estimate.line_items)
 				? (estimate.line_items as Array<Record<string, unknown>>).map((item) => ({
 						id: (item.id as string) ?? crypto.randomUUID(),
 						type: (item.type as ShopInvoiceLineItem['type']) ?? 'other',
@@ -124,6 +177,12 @@ export function createShopInvoiceService(supabase: SupabaseClient) {
 					}))
 				: [];
 
+			// Combine line items and totals
+			const allLineItems = [...estimateLineItems, ...additionalLineItems];
+			const combinedSubtotal = (estimate.subtotal ?? 0) + additionalsSubtotal;
+			const combinedVat = (estimate.vat_amount ?? 0) + additionalsVat;
+			const combinedTotal = (estimate.total ?? 0) + additionalsTotal;
+
 			// 4. Create shop_invoices record
 			const { data: invoice, error: insertError } = await supabase
 				.from('shop_invoices')
@@ -132,14 +191,14 @@ export function createShopInvoiceService(supabase: SupabaseClient) {
 					estimate_id: estimateId,
 					invoice_number: invoiceNumber,
 					status: 'draft',
-					line_items: lineItems,
-					subtotal: estimate.subtotal ?? 0,
+					line_items: allLineItems,
+					subtotal: combinedSubtotal,
 					discount_amount: estimate.discount_amount ?? 0,
 					vat_rate: estimate.vat_rate ?? 15,
-					vat_amount: estimate.vat_amount ?? 0,
-					total: estimate.total ?? 0,
+					vat_amount: combinedVat,
+					total: combinedTotal,
 					amount_paid: 0,
-					amount_due: estimate.total ?? 0,
+					amount_due: combinedTotal,
 					issue_date: issueDate,
 					due_date: dueDate
 				})
@@ -295,6 +354,146 @@ export function createShopInvoiceService(supabase: SupabaseClient) {
 				.eq('job_id', jobId)
 				.neq('status', 'void')
 				.maybeSingle();
+		},
+
+		/**
+		 * Record a payment against an invoice.
+		 * Inserts into shop_payments, updates invoice totals, and auto-completes job on full payment.
+		 */
+		async addPayment(
+			invoiceId: string,
+			payment: {
+				amount: number;
+				payment_method: string;
+				payment_reference?: string;
+				payment_date?: string;
+				notes?: string;
+			},
+			recordedBy?: string
+		) {
+			// 1. Fetch current invoice
+			const { data: invoice, error: fetchErr } = await (supabase as any)
+				.from('shop_invoices')
+				.select('*, shop_jobs(id, status, status_history)')
+				.eq('id', invoiceId)
+				.single();
+			if (fetchErr || !invoice) throw new Error('Invoice not found');
+
+			// 2. Insert payment record
+			const { error: payErr } = await (supabase as any).from('shop_payments').insert({
+				invoice_id: invoiceId,
+				amount: payment.amount,
+				payment_method: payment.payment_method,
+				payment_reference: payment.payment_reference || null,
+				payment_date: payment.payment_date || new Date().toISOString().split('T')[0],
+				notes: payment.notes || null,
+				recorded_by: recordedBy || null
+			});
+			if (payErr) throw new Error(`Failed to record payment: ${payErr.message}`);
+
+			// 3. Recalculate invoice totals
+			const newAmountPaid = (invoice.amount_paid || 0) + payment.amount;
+			const newAmountDue = (invoice.total || 0) - newAmountPaid;
+			const newStatus = newAmountDue <= 0 ? 'paid' : 'partially_paid';
+			const isPaid = newStatus === 'paid';
+
+			const { error: updateErr } = await supabase
+				.from('shop_invoices')
+				.update({
+					amount_paid: newAmountPaid,
+					amount_due: Math.max(0, newAmountDue),
+					status: newStatus,
+					payment_method: payment.payment_method,
+					payment_reference: payment.payment_reference || null,
+					paid_at: isPaid ? new Date().toISOString() : invoice.paid_at,
+					updated_at: new Date().toISOString()
+				})
+				.eq('id', invoiceId);
+			if (updateErr) throw new Error(`Failed to update invoice: ${updateErr.message}`);
+
+			// 4. Auto-complete job if fully paid and in ready_for_collection status
+			if (isPaid && invoice.shop_jobs?.status === 'ready_for_collection') {
+				const currentHistory = Array.isArray(invoice.shop_jobs.status_history)
+					? invoice.shop_jobs.status_history
+					: [];
+				await (supabase as any)
+					.from('shop_jobs')
+					.update({
+						status: 'completed',
+						date_completed: new Date().toISOString().split('T')[0],
+						status_history: [
+							...currentHistory,
+							{
+								status: 'completed',
+								timestamp: new Date().toISOString(),
+								note: 'Auto-completed on full payment'
+							}
+						],
+						updated_at: new Date().toISOString()
+					})
+					.eq('id', invoice.job_id);
+			}
+
+			return { data: null, error: null };
+		},
+
+		/**
+		 * List all payments for a given invoice, newest first.
+		 */
+		async getPayments(invoiceId: string) {
+			return (supabase as any)
+				.from('shop_payments')
+				.select('*')
+				.eq('invoice_id', invoiceId)
+				.order('payment_date', { ascending: false });
+		},
+
+		/**
+		 * Delete a payment and recalculate invoice totals from remaining payments.
+		 */
+		async deletePayment(paymentId: string) {
+			// 1. Fetch payment to get invoice_id and amount
+			const { data: payment, error: fetchErr } = await (supabase as any)
+				.from('shop_payments')
+				.select('*, shop_invoices(id, total)')
+				.eq('id', paymentId)
+				.single();
+			if (fetchErr || !payment) throw new Error('Payment not found');
+
+			// 2. Delete payment
+			const { error: delErr } = await (supabase as any)
+				.from('shop_payments')
+				.delete()
+				.eq('id', paymentId);
+			if (delErr) throw new Error(`Failed to delete payment: ${delErr.message}`);
+
+			// 3. Recalculate from remaining payments
+			const { data: remaining } = await (supabase as any)
+				.from('shop_payments')
+				.select('amount')
+				.eq('invoice_id', payment.invoice_id);
+
+			const totalPaid = (remaining || []).reduce(
+				(sum: number, p: any) => sum + (p.amount || 0),
+				0
+			);
+			const invoiceTotal = payment.shop_invoices?.total || 0;
+			const amountDue = invoiceTotal - totalPaid;
+			const newStatus =
+				totalPaid <= 0 ? 'sent' : amountDue <= 0 ? 'paid' : 'partially_paid';
+
+			await supabase
+				.from('shop_invoices')
+				.update({
+					amount_paid: totalPaid,
+					amount_due: Math.max(0, amountDue),
+					status: newStatus,
+					paid_at: newStatus === 'paid' ? new Date().toISOString() : null,
+					updated_at: new Date().toISOString()
+				})
+				.eq('id', payment.invoice_id);
+
+			return { data: null, error: null };
 		}
 	};
 }

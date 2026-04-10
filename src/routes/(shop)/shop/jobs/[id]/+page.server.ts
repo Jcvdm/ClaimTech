@@ -6,6 +6,8 @@ import { createShopInvoiceService } from '$lib/services/shop-invoice.service';
 import { createShopJobPhotosService } from '$lib/services/shop-job-photos.service';
 import { createShopEstimateService } from '$lib/services/shop-estimate.service';
 import { createShopSettingsService } from '$lib/services/shop-settings.service';
+import { createShopAdditionalsService } from '$lib/services/shop-additionals.service';
+import { createShopJobNotesService } from '$lib/services/shop-job-notes.service';
 import type { EstimateLineItem } from '$lib/types/assessment';
 import {
 	calculateVAT,
@@ -83,15 +85,62 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 		(job as any).strip_started_by
 	].filter(Boolean);
 
+	// Also collect user IDs from status_history
+	const statusHistoryUserIds = ((job as any).status_history as Array<{ user_id?: string }> | null ?? [])
+		.map((h) => h.user_id)
+		.filter(Boolean) as string[];
+
+	const allMilestoneUserIds = [...new Set([...milestoneUserIds, ...statusHistoryUserIds])];
+
 	let milestoneUserNames: Record<string, string> = {};
-	if (milestoneUserIds.length > 0) {
+	if (allMilestoneUserIds.length > 0) {
 		const { data: profiles } = await supabase
 			.from('user_profiles')
 			.select('id, full_name')
-			.in('id', [...new Set(milestoneUserIds)]);
+			.in('id', allMilestoneUserIds);
 		for (const p of profiles ?? []) {
 			if (p.full_name) milestoneUserNames[p.id] = p.full_name;
 		}
+	}
+
+	// Load job notes
+	const notesService = createShopJobNotesService(supabase);
+	const { data: jobNotes } = await notesService.getNotes(params.id);
+
+	// Resolve note author names (may not already be in milestoneUserNames)
+	const noteUserIds = (jobNotes ?? []).map((n: any) => n.created_by).filter(Boolean) as string[];
+	let noteUserNames: Record<string, string> = { ...milestoneUserNames };
+	const newNoteUserIds = noteUserIds.filter((id: string) => !noteUserNames[id]);
+	if (newNoteUserIds.length > 0) {
+		const { data: profiles } = await supabase
+			.from('user_profiles')
+			.select('id, full_name')
+			.in('id', [...new Set(newNoteUserIds)]);
+		for (const p of profiles ?? []) {
+			if (p.full_name) noteUserNames[p.id] = p.full_name;
+		}
+	}
+
+	// QC passed by name
+	let qcPassedByName: string | null = null;
+	if ((job as any).qc_passed_by) {
+		qcPassedByName = noteUserNames[(job as any).qc_passed_by] ?? null;
+		if (!qcPassedByName) {
+			const { data: profile } = await supabase
+				.from('user_profiles')
+				.select('full_name')
+				.eq('id', (job as any).qc_passed_by)
+				.single();
+			qcPassedByName = profile?.full_name ?? null;
+		}
+	}
+
+	const additionalsService = createShopAdditionalsService(supabase);
+	let shopAdditionals = null;
+	try {
+		shopAdditionals = await additionalsService.getByJobId(params.id);
+	} catch {
+		// No additionals yet - that's fine
 	}
 
 	return {
@@ -108,7 +157,11 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 		outworkMarkup,
 		vatRate,
 		checkedInByName,
-		milestoneUserNames
+		milestoneUserNames,
+		shopAdditionals,
+		jobNotes: jobNotes ?? [],
+		noteUserNames,
+		qcPassedByName
 	};
 };
 
@@ -119,16 +172,29 @@ export const actions: Actions = {
 
 		const formData = await request.formData();
 		const newStatus = formData.get('status') as ShopJobStatus;
+		const reason = formData.get('reason') as string | null;
 
 		if (!newStatus) {
 			return fail(400, { error: 'Status is required' });
 		}
 
 		try {
-			const { error: updateError } = await jobService.updateJobStatus(params.id, newStatus, user?.id);
+			const { error: updateError } = await jobService.updateJobStatus(params.id, newStatus, user?.id, reason || undefined);
 
 			if (updateError) {
 				return fail(400, { error: updateError.message ?? 'Failed to update status' });
+			}
+
+			// Auto-create QC rejection note when sending back to work with a reason
+			if (reason && newStatus === 'in_progress') {
+				const notesService = createShopJobNotesService(supabase);
+				await notesService.addNote(params.id, {
+					note_text: reason,
+					note_type: 'qc_rejection',
+					note_title: 'QC Rejection — Back to Work',
+					context: 'quality_check',
+					created_by: user?.id
+				});
 			}
 
 			return { success: true };
@@ -443,6 +509,233 @@ export const actions: Actions = {
 			return { success: true };
 		} catch (err) {
 			return fail(400, { error: err instanceof Error ? err.message : 'Failed to update milestone' });
+		}
+	},
+
+	createAdditionals: async ({ params, locals }) => {
+		const { supabase } = locals;
+		const additionalsService = createShopAdditionalsService(supabase);
+
+		// Find the approved estimate for this job
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		const { data: estimates } = await (supabase as any)
+			.from('shop_estimates')
+			.select('id')
+			.eq('job_id', params.id)
+			.in('status', ['approved', 'sent', 'draft'])
+			.order('created_at', { ascending: false })
+			.limit(1);
+
+		const estimateId = estimates?.[0]?.id;
+		if (!estimateId) {
+			return fail(400, { error: 'No estimate found for this job' });
+		}
+
+		try {
+			await additionalsService.createDefault(params.id, estimateId);
+			return { success: true };
+		} catch (err) {
+			return fail(400, { error: err instanceof Error ? err.message : 'Failed to create additionals' });
+		}
+	},
+
+	addAdditionalLineItem: async ({ params, request, locals }) => {
+		const { supabase } = locals;
+		const additionalsService = createShopAdditionalsService(supabase);
+		const formData = await request.formData();
+		const lineItemJson = formData.get('line_item') as string;
+
+		if (!lineItemJson) return fail(400, { error: 'Line item data required' });
+
+		try {
+			const lineItem = JSON.parse(lineItemJson);
+			await additionalsService.addLineItem(params.id, lineItem);
+			return { success: true };
+		} catch (err) {
+			return fail(400, { error: err instanceof Error ? err.message : 'Failed to add line item' });
+		}
+	},
+
+	removeEstimateLineItem: async ({ params, request, locals }) => {
+		const { supabase } = locals;
+		const additionalsService = createShopAdditionalsService(supabase);
+		const formData = await request.formData();
+		const lineItemJson = formData.get('line_item') as string;
+
+		if (!lineItemJson) return fail(400, { error: 'Line item data required' });
+
+		try {
+			const lineItem = JSON.parse(lineItemJson);
+			await additionalsService.addRemovedLineItem(params.id, lineItem);
+			return { success: true };
+		} catch (err) {
+			return fail(400, { error: err instanceof Error ? err.message : 'Failed to remove line item' });
+		}
+	},
+
+	approveAdditionalLineItem: async ({ params, request, locals }) => {
+		const { supabase } = locals;
+		const additionalsService = createShopAdditionalsService(supabase);
+		const formData = await request.formData();
+		const lineItemId = formData.get('line_item_id') as string;
+
+		if (!lineItemId) return fail(400, { error: 'Line item ID required' });
+
+		try {
+			await additionalsService.approveLineItem(params.id, lineItemId);
+			return { success: true };
+		} catch (err) {
+			return fail(400, { error: err instanceof Error ? err.message : 'Failed to approve line item' });
+		}
+	},
+
+	declineAdditionalLineItem: async ({ params, request, locals }) => {
+		const { supabase } = locals;
+		const additionalsService = createShopAdditionalsService(supabase);
+		const formData = await request.formData();
+		const lineItemId = formData.get('line_item_id') as string;
+		const reason = formData.get('reason') as string || 'No reason provided';
+
+		if (!lineItemId) return fail(400, { error: 'Line item ID required' });
+
+		try {
+			await additionalsService.declineLineItem(params.id, lineItemId, reason);
+			return { success: true };
+		} catch (err) {
+			return fail(400, { error: err instanceof Error ? err.message : 'Failed to decline line item' });
+		}
+	},
+
+	deleteAdditionalLineItem: async ({ params, request, locals }) => {
+		const { supabase } = locals;
+		const additionalsService = createShopAdditionalsService(supabase);
+		const formData = await request.formData();
+		const lineItemId = formData.get('line_item_id') as string;
+
+		if (!lineItemId) return fail(400, { error: 'Line item ID required' });
+
+		try {
+			await additionalsService.deleteLineItem(params.id, lineItemId);
+			return { success: true };
+		} catch (err) {
+			return fail(400, { error: err instanceof Error ? err.message : 'Failed to delete line item' });
+		}
+	},
+
+	sendAdditionals: async ({ params, request, locals }) => {
+		const { supabase } = locals;
+		const additionalsService = createShopAdditionalsService(supabase);
+		const formData = await request.formData();
+		const sentTo = formData.get('sent_to') as string || '';
+
+		try {
+			await additionalsService.markSent(params.id, sentTo);
+			return { success: true };
+		} catch (err) {
+			return fail(400, { error: err instanceof Error ? err.message : 'Failed to send additionals' });
+		}
+	},
+
+	updateAdditionalLineItem: async ({ params, request, locals }) => {
+		const { supabase } = locals;
+		const additionalsService = createShopAdditionalsService(supabase);
+		const formData = await request.formData();
+		const lineItemId = formData.get('line_item_id') as string;
+		const patchJson = formData.get('patch') as string;
+
+		if (!lineItemId || !patchJson) return fail(400, { error: 'Line item ID and patch required' });
+
+		try {
+			const patch = JSON.parse(patchJson);
+			await additionalsService.updatePendingLineItem(params.id, lineItemId, patch);
+			return { success: true };
+		} catch (err) {
+			return fail(400, { error: err instanceof Error ? err.message : 'Failed to update line item' });
+		}
+	},
+
+	reverseAdditionalLineItem: async ({ params, request, locals }) => {
+		const { supabase } = locals;
+		const additionalsService = createShopAdditionalsService(supabase);
+		const formData = await request.formData();
+		const lineItemId = formData.get('line_item_id') as string;
+		const reason = formData.get('reason') as string || 'No reason provided';
+
+		if (!lineItemId) return fail(400, { error: 'Line item ID required' });
+
+		try {
+			await additionalsService.reverseApprovedLineItem(params.id, lineItemId, reason);
+			return { success: true };
+		} catch (err) {
+			return fail(400, { error: err instanceof Error ? err.message : 'Failed to reverse line item' });
+		}
+	},
+
+	reinstateAdditionalLineItem: async ({ params, request, locals }) => {
+		const { supabase } = locals;
+		const additionalsService = createShopAdditionalsService(supabase);
+		const formData = await request.formData();
+		const lineItemId = formData.get('line_item_id') as string;
+		const reason = formData.get('reason') as string || 'No reason provided';
+
+		if (!lineItemId) return fail(400, { error: 'Line item ID required' });
+
+		try {
+			await additionalsService.reinstateDeclinedLineItem(params.id, lineItemId, reason);
+			return { success: true };
+		} catch (err) {
+			return fail(400, { error: err instanceof Error ? err.message : 'Failed to reinstate' });
+		}
+	},
+
+	reinstateOriginalLineItem: async ({ params, request, locals }) => {
+		const { supabase } = locals;
+		const additionalsService = createShopAdditionalsService(supabase);
+		const formData = await request.formData();
+		const lineItemId = formData.get('line_item_id') as string;
+		const reason = formData.get('reason') as string || 'No reason provided';
+
+		if (!lineItemId) return fail(400, { error: 'Line item ID required' });
+
+		try {
+			await additionalsService.reinstateRemovedOriginal(params.id, lineItemId, reason);
+			return { success: true };
+		} catch (err) {
+			return fail(400, { error: err instanceof Error ? err.message : 'Failed to reinstate' });
+		}
+	},
+
+	addNote: async ({ params, request, locals }) => {
+		const { supabase, user } = locals;
+		const notesService = createShopJobNotesService(supabase);
+		const formData = await request.formData();
+		const noteText = formData.get('note_text') as string;
+		if (!noteText?.trim()) return fail(400, { error: 'Note text required' });
+
+		try {
+			await notesService.addNote(params.id, {
+				note_text: noteText.trim(),
+				note_type: 'manual',
+				created_by: user?.id
+			});
+			return { success: true };
+		} catch (err) {
+			return fail(400, { error: err instanceof Error ? err.message : 'Failed to add note' });
+		}
+	},
+
+	deleteNote: async ({ request, locals }) => {
+		const { supabase } = locals;
+		const notesService = createShopJobNotesService(supabase);
+		const formData = await request.formData();
+		const noteId = formData.get('note_id') as string;
+		if (!noteId) return fail(400, { error: 'Note ID required' });
+
+		try {
+			await notesService.deleteNote(noteId);
+			return { success: true };
+		} catch (err) {
+			return fail(400, { error: err instanceof Error ? err.message : 'Failed to delete note' });
 		}
 	}
 };

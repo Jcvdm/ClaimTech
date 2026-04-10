@@ -1,4 +1,4 @@
-import { error, fail, redirect } from '@sveltejs/kit';
+import { error, fail } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
 import { createShopInvoiceService } from '$lib/services/shop-invoice.service';
 
@@ -6,13 +6,26 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 	const { supabase } = locals;
 	const invoiceService = createShopInvoiceService(supabase);
 
-	const { data: invoice, error: invoiceError } = await invoiceService.getInvoice(params.id);
+	let { data: invoice, error: invoiceError } = await invoiceService.getInvoice(params.id);
 
 	if (invoiceError || !invoice) {
 		error(404, 'Invoice not found');
 	}
 
-	return { invoice };
+	// Auto-detect overdue invoices
+	if (invoice && (invoice.status === 'sent' || invoice.status === 'partially_paid')) {
+		const dueDate = (invoice as unknown as { due_date?: string }).due_date;
+		if (dueDate && new Date(dueDate) < new Date()) {
+			await invoiceService.updateInvoice(params.id, { status: 'overdue' });
+			const { data: updated } = await invoiceService.getInvoice(params.id);
+			if (updated) invoice = updated;
+		}
+	}
+
+	// Load payment history
+	const { data: payments } = await invoiceService.getPayments(params.id);
+
+	return { invoice, payments: payments ?? [] };
 };
 
 export const actions: Actions = {
@@ -30,38 +43,51 @@ export const actions: Actions = {
 	},
 
 	recordPayment: async ({ params, request, locals }) => {
-		const { supabase } = locals;
+		const { supabase, user } = locals;
 		const invoiceService = createShopInvoiceService(supabase);
-
 		const formData = await request.formData();
-		const amountStr = formData.get('amount') as string;
-		const method = formData.get('method') as string;
-		const reference = formData.get('reference') as string | null;
-		const date = formData.get('date') as string | null;
 
-		const amount = parseFloat(amountStr);
+		const amount = parseFloat(formData.get('amount') as string);
+		const payment_method = formData.get('payment_method') as string;
+		const payment_reference = (formData.get('payment_reference') as string) || undefined;
+		const payment_date = (formData.get('payment_date') as string) || undefined;
+		const notes = (formData.get('notes') as string) || undefined;
 
 		if (!amount || isNaN(amount) || amount <= 0) {
-			return fail(400, { error: 'A valid payment amount is required' });
+			return fail(400, { error: 'Valid amount required' });
 		}
-
-		if (!method) {
-			return fail(400, { error: 'Payment method is required' });
+		if (!payment_method) {
+			return fail(400, { error: 'Payment method required' });
 		}
 
 		try {
-			await invoiceService.recordPayment(params.id, {
-				amount,
-				method,
-				reference: reference ?? undefined,
-				date: date ?? undefined
-			});
+			await invoiceService.addPayment(
+				params.id,
+				{ amount, payment_method, payment_reference, payment_date, notes },
+				user?.id
+			);
+			return { success: true };
 		} catch (err) {
-			const message = err instanceof Error ? err.message : 'Failed to record payment';
-			return fail(400, { error: message });
+			return fail(400, { error: err instanceof Error ? err.message : 'Failed to record payment' });
+		}
+	},
+
+	deletePayment: async ({ request, locals }) => {
+		const { supabase } = locals;
+		const invoiceService = createShopInvoiceService(supabase);
+		const formData = await request.formData();
+		const paymentId = formData.get('payment_id') as string;
+
+		if (!paymentId) {
+			return fail(400, { error: 'Payment ID required' });
 		}
 
-		return { success: true };
+		try {
+			await invoiceService.deletePayment(paymentId);
+			return { success: true };
+		} catch (err) {
+			return fail(400, { error: err instanceof Error ? err.message : 'Failed to delete payment' });
+		}
 	},
 
 	void: async ({ params, locals }) => {

@@ -54,7 +54,7 @@
 			items: [
 				{ label: 'Estimates', href: '/shop/estimates', icon: FileText },
 				{ label: 'Jobs', href: '/shop/jobs', icon: Wrench },
-				{ label: 'Invoiced', href: '/shop/invoiced', icon: Receipt },
+				{ label: 'Invoices', href: '/shop/invoices', icon: Receipt },
 				{ label: 'Completed', href: '/shop/completed', icon: CheckCircle },
 				{ label: 'Cancelled', href: '/shop/cancelled', icon: XCircle }
 			]
@@ -77,6 +77,8 @@
 	let estimatesCount = $state(0);
 	let jobsCount = $state(0);
 	let invoicedCount = $state(0);
+	let pollingActive = $state(true);
+	let consecutiveErrors = $state(0);
 
 	async function loadEstimatesCount() {
 		try {
@@ -85,14 +87,14 @@
 				.select('*', { count: 'exact', head: true })
 				.in('status', ['quote_requested', 'quoted']);
 			if (error) {
+				if (error.code === 'PGRST303' || error.message?.includes('JWT')) throw error;
 				console.error('Error loading estimates count:', error);
 				estimatesCount = 0;
 			} else {
 				estimatesCount = count || 0;
 			}
 		} catch (error) {
-			console.error('Error loading estimates count:', error);
-			estimatesCount = 0;
+			throw error;
 		}
 	}
 
@@ -103,45 +105,71 @@
 				.select('*', { count: 'exact', head: true })
 				.in('status', ['approved', 'checked_in', 'in_progress', 'quality_check', 'ready_for_collection']);
 			if (error) {
+				if (error.code === 'PGRST303' || error.message?.includes('JWT')) throw error;
 				console.error('Error loading jobs count:', error);
 				jobsCount = 0;
 			} else {
 				jobsCount = count || 0;
 			}
 		} catch (error) {
-			console.error('Error loading jobs count:', error);
-			jobsCount = 0;
+			throw error;
 		}
+	}
+
+	let invoiceAgeBands = $state<{ color: string; count: number }[]>([]);
+
+	function daysSince(dateStr: string | null): number {
+		if (!dateStr) return 0;
+		return Math.floor((Date.now() - new Date(dateStr).getTime()) / 86400000);
 	}
 
 	async function loadInvoicedCount() {
 		try {
 			const { data, error } = await $page.data.supabase
-				.from('shop_jobs')
-				.select('id, shop_invoices(id, status)')
-				.eq('status', 'completed');
+				.from('shop_invoices')
+				.select('issue_date, status')
+				.in('status', ['draft', 'sent', 'partially_paid', 'overdue']);
 			if (error) {
-				console.error('Error loading invoiced count:', error);
+				if (error.code === 'PGRST303' || error.message?.includes('JWT')) throw error;
+				console.error('Error loading invoices count:', error);
 				invoicedCount = 0;
+				invoiceAgeBands = [];
 			} else {
-				// Jobs with no invoices or with at least one unpaid invoice
-				invoicedCount = (data || []).filter((job: { id: string; shop_invoices: { id: string; status: string }[] }) => {
-					const invoices = job.shop_invoices || [];
-					return invoices.length === 0 || invoices.some((inv) => inv.status !== 'paid');
-				}).length;
+				const invoices = data || [];
+				invoicedCount = invoices.length;
+
+				let c30 = 0, c60 = 0, c90 = 0, c120 = 0;
+				for (const inv of invoices) {
+					const days = daysSince(inv.issue_date);
+					if (days >= 120) c120++;
+					else if (days > 60) c90++;
+					else if (days > 30) c60++;
+					else c30++;
+				}
+
+				invoiceAgeBands = [
+					{ color: 'bg-green-600', count: c30 },
+					{ color: 'bg-yellow-500', count: c60 },
+					{ color: 'bg-orange-500', count: c90 },
+					{ color: 'bg-red-600', count: c120 },
+				].filter(b => b.count > 0);
 			}
 		} catch (error) {
-			console.error('Error loading invoiced count:', error);
-			invoicedCount = 0;
+			throw error;
 		}
 	}
 
 	async function loadAllCounts() {
-		await Promise.all([
-			loadEstimatesCount(),
-			loadJobsCount(),
-			loadInvoicedCount()
-		]);
+		if (!pollingActive) return;
+		try {
+			await Promise.all([loadEstimatesCount(), loadJobsCount(), loadInvoicedCount()]);
+			consecutiveErrors = 0;
+		} catch {
+			consecutiveErrors++;
+			if (consecutiveErrors >= 3) {
+				pollingActive = false;
+			}
+		}
 	}
 
 	// Badge info helper
@@ -151,7 +179,7 @@
 				return { count: estimatesCount, colorClass: 'bg-blue-600' };
 			case '/shop/jobs':
 				return { count: jobsCount, colorClass: 'bg-yellow-600' };
-			case '/shop/invoiced':
+			case '/shop/invoices':
 				return { count: invoicedCount, colorClass: 'bg-orange-600' };
 			default:
 				return null;
@@ -194,7 +222,15 @@
 												<item.icon />
 											{/if}
 											<span>{item.label}</span>
-											{#if badge && badge.count > 0}
+											{#if item.href === '/shop/invoices' && invoiceAgeBands.length > 0}
+												<span class="ml-auto flex items-center gap-0.5">
+													{#each invoiceAgeBands as band}
+														<span class="flex h-5 min-w-5 items-center justify-center rounded-full {band.color} px-1 text-[10px] font-medium text-white">
+															{band.count}
+														</span>
+													{/each}
+												</span>
+											{:else if badge && badge.count > 0}
 												<span class="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full {badge.colorClass} px-1 text-xs font-medium text-white">
 													{badge.count}
 												</span>

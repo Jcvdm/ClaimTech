@@ -3,6 +3,14 @@ import type { PageServerLoad } from './$types';
 export const load: PageServerLoad = async ({ locals }) => {
 	const { supabase } = locals;
 
+	// Mark overdue invoices (sent or partially_paid past due_date)
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	await (supabase as any)
+		.from('shop_invoices')
+		.update({ status: 'overdue', updated_at: new Date().toISOString() })
+		.in('status', ['sent', 'partially_paid'])
+		.lt('due_date', new Date().toISOString().split('T')[0]);
+
 	// Get completed jobs - those awaiting payment or needing invoicing
 	// NOTE: shop tables not in database.types.ts
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
