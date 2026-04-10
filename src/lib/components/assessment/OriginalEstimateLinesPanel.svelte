@@ -4,21 +4,28 @@
 	import * as Table from '$lib/components/ui/table';
 	import * as Dialog from '$lib/components/ui/dialog';
 	import { Trash2 } from 'lucide-svelte';
-	import type { Estimate, EstimateLineItem } from '$lib/types/assessment';
+	import type { Estimate, EstimateLineItem, AssessmentAdditionals } from '$lib/types/assessment';
 	import { formatCurrency } from '$lib/utils/formatters';
 
 	interface Props {
 		estimate: Estimate;
+		additionals?: AssessmentAdditionals | null;
 		removedOriginalLineIds: string[];
 		onRemoveOriginal: (item: EstimateLineItem) => void;
 	}
 
-	let { estimate, removedOriginalLineIds, onRemoveOriginal }: Props = $props();
+	let { estimate, additionals, removedOriginalLineIds, onRemoveOriginal }: Props = $props();
 
 	let isOpen = $state(false);
 
-	// Calculate removed total
+	// Calculate removed total — use additionals as authoritative source (what was actually deducted)
 	const removedTotal = $derived(() => {
+		if (additionals?.line_items) {
+			return additionals.line_items
+				.filter((li) => li.action === 'removed' && li.status === 'approved')
+				.reduce((sum, li) => sum + Math.abs(li.total || 0), 0);
+		}
+		// Fallback to estimate if no additionals
 		return estimate.line_items
 			.filter((item) => removedOriginalLineIds.includes(item.id!))
 			.reduce((sum, item) => sum + (item.total || 0), 0);

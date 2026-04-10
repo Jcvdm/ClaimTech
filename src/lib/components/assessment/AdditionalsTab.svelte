@@ -732,12 +732,10 @@
 			</Card>
 		{/if}
 
-		<!-- Combined Totals Summary with Risk Indicator -->
-		<CombinedTotalsSummary {estimate} {additionals} {vehicleValues} {excessAmount} />
-
 		<!-- Original Estimate Lines Management -->
 		<OriginalEstimateLinesPanel
 			{estimate}
+			{additionals}
 			removedOriginalLineIds={removedOriginalLineIds()}
 			onRemoveOriginal={handleRemoveOriginal}
 		/>
@@ -1237,24 +1235,8 @@
 			{/if}
 		</Card>
 
-		<!-- Totals (Approved Only) -->
-		<Card class="border-green-200 bg-green-50 p-6">
-			<h3 class="mb-4 text-lg font-semibold">Approved Additionals Total</h3>
-			<div class="space-y-2">
-				<div class="flex justify-between">
-					<span>Subtotal (Approved):</span>
-					<span class="font-medium">R {additionals.subtotal_approved.toFixed(2)}</span>
-				</div>
-				<div class="flex justify-between">
-					<span>VAT ({additionals.vat_percentage}%):</span>
-					<span class="font-medium">R {additionals.vat_amount_approved.toFixed(2)}</span>
-				</div>
-				<div class="flex justify-between border-t pt-2 text-lg font-bold">
-					<span>Total (Approved):</span>
-					<span>R {additionals.total_approved.toFixed(2)}</span>
-				</div>
-			</div>
-		</Card>
+		<!-- Combined Totals Summary (Delta vs Baseline) -->
+		<CombinedTotalsSummary {estimate} {additionals} {vehicleValues} {excessAmount} />
 
 		<!-- Document Generation -->
 		<div class="grid gap-4 md:grid-cols-1">

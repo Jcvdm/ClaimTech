@@ -789,46 +789,51 @@ class AdditionalsService {
 	} {
 		const approvedItems = lineItems.filter((item) => item.status === 'approved');
 
-		// Sum components (nett where applicable)
-		let partsSellingTotal = 0;
+		// Step 1: Sum NETT values (matches EstimateTab aggregate pattern)
+		let partsNett = 0;
+		let saTotal = 0;
 		let labourTotal = 0;
 		let paintTotal = 0;
-		let outworkSellingTotal = 0;
+		let outworkNett = 0;
+		let bettermentTotal = 0;
 
 		for (const item of approvedItems) {
-			// Parts
-			if (item.process_type === 'N') {
-				const nett = item.part_price_nett || 0;
-				let markup = 0;
-				if (item.part_type === 'OEM') markup = oemMarkup;
-				else if (item.part_type === 'ALT') markup = altMarkup;
-				else if (item.part_type === '2ND') markup = secondHandMarkup;
-				partsSellingTotal += nett * (1 + markup / 100);
-			}
-
-			// S&A and Labour
-			labourTotal += (item.strip_assemble || 0) + (item.labour_cost || 0);
-
-			// Paint
+			if (item.process_type === 'N') partsNett += item.part_price_nett || 0;
+			if (item.process_type === 'O') outworkNett += item.outwork_charge_nett || 0;
+			saTotal += item.strip_assemble || 0;
+			labourTotal += item.labour_cost || 0;
 			paintTotal += item.paint_cost || 0;
-
-			// Outwork
-			if (item.process_type === 'O') {
-				const oNett = item.outwork_charge_nett || 0;
-				outworkSellingTotal += oNett * (1 + outworkMarkup / 100);
-			}
+			bettermentTotal += item.betterment_total || 0;
 		}
 
-		const subtotal = partsSellingTotal + labourTotal + paintTotal + outworkSellingTotal;
-		const vatAmount = subtotal * (vatPercentage / 100);
-		const total = subtotal + vatAmount;
+		// Step 2: Calculate aggregate markup (matches EstimateTab pattern)
+		let partsMarkup = 0;
+		for (const item of approvedItems) {
+			if (item.process_type === 'N' && item.part_price_nett) {
+				let m = 0;
+				if (item.part_type === 'OEM') m = oemMarkup;
+				else if (item.part_type === 'ALT') m = altMarkup;
+				else if (item.part_type === '2ND') m = secondHandMarkup;
+				partsMarkup += (item.part_price_nett || 0) * (m / 100);
+			}
+		}
+		const outworkMarkupTotal = outworkNett * (outworkMarkup / 100);
+		const markupTotal = partsMarkup + outworkMarkupTotal;
+
+		// Step 3: Subtotal with betterment deduction (matches EstimateTab)
+		const subtotalExVat =
+			partsNett + saTotal + labourTotal + paintTotal + outworkNett + markupTotal - bettermentTotal;
+
+		// Step 4: VAT (sundries omitted — no sundries_percentage snapshotted on additionals)
+		const vatAmount = subtotalExVat * (vatPercentage / 100);
+		const total = subtotalExVat + vatAmount;
 
 		return {
-			subtotal_approved: Math.round(subtotal * 100) / 100,
+			subtotal_approved: Math.round(subtotalExVat * 100) / 100,
 			vat_amount_approved: Math.round(vatAmount * 100) / 100,
 			total_approved: Math.round(total * 100) / 100
 		};
-  }
+	}
 
   /**
    * Update a pending line item values

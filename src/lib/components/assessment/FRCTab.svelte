@@ -951,29 +951,23 @@ import { calculateDeltas } from '$lib/utils/frcCalculations';
                     </div>
                 </div>
 
-                <!-- Settlement to Repairer -->
-                <div class="pt-4 border-t">
+                <!-- Settlement Calculation -->
+                <div class="pt-4 border-t space-y-3">
+                    <div class="flex items-center justify-between py-2 px-4">
+                        <span class="text-base font-semibold text-gray-700">Total Agreed Work (incl. VAT)</span>
+                        <span class="text-lg font-bold text-gray-900">{formatCurrency(newTotals()!.total)}</span>
+                    </div>
+                    {#if excessAmount > 0}
+                        <div class="flex items-center justify-between py-2 px-4">
+                            <span class="text-base font-semibold text-orange-700">Less: Excess</span>
+                            <span class="text-lg font-semibold text-orange-600">-{formatCurrency(excessAmount)}</span>
+                        </div>
+                    {/if}
                     <div class="flex items-center justify-between py-3 px-4 rounded-lg bg-green-100 border border-green-200">
                         <span class="text-base font-bold text-green-900">Settlement to Repairer</span>
-                        <span class="text-2xl font-extrabold text-green-900">{formatCurrency(newTotals()!.total)}</span>
+                        <span class="text-2xl font-extrabold text-green-900">{formatCurrency(newTotals()!.total - (excessAmount ?? 0))}</span>
                     </div>
-                    <p class="mt-2 text-xs text-gray-500 text-center">Includes VAT at {frc.vat_percentage}% and all agreed/adjusted items, net of removals.</p>
                 </div>
-
-				<!-- Excess Amount (if applicable) -->
-				{#if excessAmount > 0}
-					<div class="pt-4 border-t">
-						<div class="flex items-center justify-between py-2 px-4">
-							<span class="text-base font-semibold text-orange-700">Less: Excess</span>
-							<span class="text-lg font-semibold text-orange-600">-{formatCurrency(excessAmount)}</span>
-						</div>
-						<div class="flex items-center justify-between py-3 px-4 rounded-lg bg-blue-100 border border-blue-200 mt-2">
-							<span class="text-base font-bold text-blue-900">Net Amount Payable (after excess)</span>
-							<span class="text-2xl font-extrabold text-blue-900">{formatCurrency(newTotals()!.total - excessAmount)}</span>
-						</div>
-						<p class="mt-2 text-xs text-gray-500 text-center">Settlement minus excess of {formatCurrency(excessAmount)}</p>
-					</div>
-				{/if}
 
 				<!-- Legend -->
 				<div class="pt-4 border-t">

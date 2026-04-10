@@ -357,7 +357,11 @@ export function calculateAdditionalsBreakdown(
 	markup: number;
 	subtotal: number;
 } {
-	const additionalLines = lineItems.filter((line) => line.source === 'additional');
+	// Exclude removal lines — removals are already reflected in baseline (actual = R0 for removed items)
+	// Only include genuinely NEW additional items
+	const additionalLines = lineItems.filter(
+		(line) => line.source === 'additional' && !line.is_removal_additional
+	);
 	const nettBreakdown = calculateBreakdownTotals(additionalLines, useActual);
 
 	// Calculate markup amounts

@@ -32,16 +32,25 @@
 		return additionals.line_items.filter((li) => li.action === 'removed').length;
 	});
 
+	// Calculate added items total (approved added lines only)
+	const addedItemsTotal = $derived(() => {
+		if (!additionals?.line_items) return 0;
+		return additionals.line_items
+			.filter((li) => li.action === 'added' && li.status === 'approved')
+			.reduce((sum, li) => sum + (li.total || 0), 0);
+	});
+
+	// Count added lines
+	const addedLineCount = $derived(() => {
+		if (!additionals?.line_items) return 0;
+		return additionals.line_items.filter((li) => li.action === 'added' && li.status === 'approved').length;
+	});
+
 	// Calculate combined total (additionals already includes negative removals)
 	const combinedTotal = $derived(() => {
 		const original = estimate?.total || 0;
 		const additionalsApproved = additionals?.total_approved || 0;
 		return original + additionalsApproved;
-	});
-
-	// Net payable after excess
-	const netPayable = $derived(() => {
-		return combinedTotal() - (excessAmount ?? 0);
 	});
 
 	// Calculate threshold for risk indicator
@@ -72,7 +81,7 @@
 
 		<!-- Totals Breakdown -->
 		<div class="grid grid-cols-1 gap-4 md:grid-cols-3">
-			<!-- Original Total -->
+			<!-- Card 1: Baseline (Original) -->
 			<div class="rounded-lg border bg-white p-4">
 				<div class="mb-2 flex items-center justify-between">
 					<p class="text-xs font-medium text-gray-600 uppercase">Baseline (Original)</p>
@@ -82,34 +91,45 @@
 				<p class="mt-1 text-xs text-gray-500">From finalized estimate</p>
 			</div>
 
-			<!-- Removed Total -->
+			<!-- Card 2: Net Change (Delta) -->
 			<div class="rounded-lg border bg-white p-4">
 				<div class="mb-2 flex items-center justify-between">
-					<p class="text-xs font-medium text-red-600 uppercase">Removed (Original)</p>
-					<TrendingDown class="h-4 w-4 text-red-600" />
+					<p class="text-xs font-medium uppercase {(additionals?.total_approved || 0) >= 0 ? 'text-red-600' : 'text-green-600'}">Net Change (Delta)</p>
+					{#if (additionals?.total_approved || 0) >= 0}
+						<TrendingUp class="h-4 w-4 text-red-600" />
+					{:else}
+						<TrendingDown class="h-4 w-4 text-green-600" />
+					{/if}
 				</div>
-				<p class="text-xl font-bold text-red-900">
-					-{formatCurrency(removedOriginalTotal())}
+				<p class="text-xl font-bold {(additionals?.total_approved || 0) >= 0 ? 'text-red-900' : 'text-green-900'}">
+					{(additionals?.total_approved || 0) > 0 ? '+' : ''}{formatCurrency(additionals?.total_approved || 0)}
 				</p>
-				<p class="mt-1 text-xs text-red-600">
-					{removedLineCount()} line{removedLineCount() !== 1 ? 's' : ''}
-				</p>
+				<p class="mt-1 text-xs text-gray-500">Net of removals + additions</p>
 			</div>
 
-			<!-- Additionals Approved Total -->
+			<!-- Card 3: Combined Total -->
 			<div class="rounded-lg border bg-white p-4">
 				<div class="mb-2 flex items-center justify-between">
-					<p class="text-xs font-medium text-blue-600 uppercase">Delta (Net Change)</p>
+					<p class="text-xs font-medium text-blue-600 uppercase">Combined Total</p>
 					<TrendingUp class="h-4 w-4 text-blue-600" />
 				</div>
 				<p class="text-xl font-bold text-blue-900">
-					{additionals?.total_approved && additionals.total_approved > 0 ? '+' : ''}{formatCurrency(
-						additionals?.total_approved || 0
-					)}
+					{formatCurrency(combinedTotal())}
 				</p>
-				<p class="mt-1 text-xs text-blue-600">
-					{additionals?.line_items.filter((li) => li.status === 'approved').length || 0} approved
-				</p>
+				<p class="mt-1 text-xs text-blue-600">Baseline + Net Change</p>
+			</div>
+		</div>
+
+		<!-- Delta Breakdown -->
+		<div class="rounded-md border border-gray-200 bg-gray-50 p-3 text-xs text-gray-600 space-y-1">
+			<p class="font-semibold text-gray-700">Change breakdown:</p>
+			<div class="flex justify-between">
+				<span>Items removed from original ({removedLineCount()} line{removedLineCount() !== 1 ? 's' : ''}):</span>
+				<span class="text-red-600">-{formatCurrency(removedOriginalTotal())}</span>
+			</div>
+			<div class="flex justify-between">
+				<span>New items approved ({addedLineCount()} line{addedLineCount() !== 1 ? 's' : ''}):</span>
+				<span class="text-green-600">+{formatCurrency(addedItemsTotal())}</span>
 			</div>
 		</div>
 
@@ -143,29 +163,5 @@
 			</div>
 		{/if}
 
-		<!-- Calculation Formula -->
-		<div class="rounded-md border border-blue-200 bg-blue-50 p-3">
-			<p class="font-mono text-xs text-blue-900">
-				Delta = {formatCurrency(additionals?.total_approved || 0)}
-			</p>
-			<p class="mt-1 text-xs text-blue-700">
-				Note: Delta includes negative values for removed original lines
-			</p>
-		</div>
-
-		<!-- Excess Amount (if applicable) -->
-		{#if excessAmount && excessAmount > 0}
-			<div class="pt-4 border-t">
-				<div class="flex items-center justify-between py-2 px-4">
-					<span class="text-base font-semibold text-orange-700">Less: Excess</span>
-					<span class="text-lg font-semibold text-orange-600">-{formatCurrency(excessAmount)}</span>
-				</div>
-				<div class="flex items-center justify-between py-3 px-4 rounded-lg bg-green-100 border border-green-200 mt-2">
-					<span class="text-base font-bold text-green-900">Net Amount Payable</span>
-					<span class="text-2xl font-extrabold text-green-900">{formatCurrency(netPayable())}</span>
-				</div>
-				<p class="mt-2 text-xs text-gray-500 text-center">Combined total minus excess of {formatCurrency(excessAmount)}</p>
-			</div>
-		{/if}
 	</div>
 </Card>

@@ -115,25 +115,29 @@ class FRCService {
 			throw new Error('FRC not found for this assessment');
 		}
 		const additionals = await additionalsService.getByAssessment(assessmentId, db);
-		const { data: assessment } = await db
-			.from('assessments')
-			.select('finalized_labour_rate, finalized_paint_rate')
-			.eq('id', assessmentId)
-			.maybeSingle();
-		if (!assessment) {
-			throw new Error('Assessment not found');
-		}
 		const estimate = await estimateService.getByAssessment(assessmentId, db);
 		if (!estimate) {
 			throw new Error('Estimate not found');
 		}
+
+		// Refresh finalized rates from current estimate (so FRC uses latest rates)
+		await db
+			.from('assessments')
+			.update({
+				finalized_labour_rate: estimate.labour_rate,
+				finalized_paint_rate: estimate.paint_rate,
+				finalized_oem_markup: estimate.oem_markup_percentage,
+				finalized_outwork_markup: estimate.outwork_markup_percentage
+			})
+			.eq('id', assessmentId);
+
 		const updated = await this.mergeAdditionals(
 			frc.id,
 			estimate,
 			additionals,
 			{
-				labour_rate: assessment.finalized_labour_rate || 0,
-				paint_rate: assessment.finalized_paint_rate || 0
+				labour_rate: estimate.labour_rate,
+				paint_rate: estimate.paint_rate
 			},
 			db
 		);
@@ -193,15 +197,9 @@ class FRCService {
 			return ln;
 		});
 
-		// Fetch assessment to get frozen markups
-		const { data: assessment } = await db
-			.from('assessments')
-			.select('finalized_oem_markup, finalized_outwork_markup')
-			.eq('id', frc.assessment_id)
-			.maybeSingle();
-
-		const partsMarkup = assessment?.finalized_oem_markup ?? estimate.oem_markup_percentage;
-		const outworkMarkup = assessment?.finalized_outwork_markup ?? estimate.outwork_markup_percentage;
+		// Use current estimate markup rates (refreshFRC updates finalized rates before calling this)
+		const partsMarkup = estimate.oem_markup_percentage;
+		const outworkMarkup = estimate.outwork_markup_percentage;
 
 		// Recalculate totals with merged lines
 		const quotedTotals = calculateFRCAggregateTotals(
