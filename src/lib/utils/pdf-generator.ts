@@ -1,4 +1,5 @@
-import puppeteer from 'puppeteer';
+import chromium from '@sparticuz/chromium';
+import puppeteerCore, { type Browser } from 'puppeteer-core';
 import fs from 'fs';
 import path from 'path';
 
@@ -19,10 +20,36 @@ export interface PDFGeneratorOptions {
 }
 
 // Configuration
-// Optimized for Vercel Hobby 10s limit - aim for 8-9s total
-const DEFAULT_TIMEOUT = 8000; // 8 seconds total for Hobby plan
+// Optimized for Vercel Pro maxDuration: 300s — Sparticuz cold-start decompression is ~2-5s
+const DEFAULT_TIMEOUT = 60000; // 60 seconds total
 const DEFAULT_RETRIES = 1; // Reduce retries to fail fast
-const BROWSER_LAUNCH_TIMEOUT = 3000; // 3 seconds to launch browser
+const BROWSER_LAUNCH_TIMEOUT = 10000; // 10 seconds to launch browser
+
+const isVercel = !!process.env.VERCEL_ENV;
+
+async function launchBrowser(timeoutMs: number): Promise<Browser> {
+	if (isVercel) {
+		return puppeteerCore.launch({
+			args: chromium.args,
+			executablePath: await chromium.executablePath(),
+			headless: true,
+			timeout: timeoutMs
+		});
+	}
+	const puppeteer = await import('puppeteer');
+	return puppeteer.default.launch({
+		headless: true,
+		timeout: timeoutMs,
+		args: [
+			'--no-sandbox',
+			'--disable-setuid-sandbox',
+			'--disable-dev-shm-usage',
+			'--disable-gpu',
+			'--disable-software-rasterizer',
+			'--disable-extensions'
+		]
+	}) as unknown as Browser;
+}
 
 /**
  * Generate a PDF from HTML content using Puppeteer with retry logic
@@ -82,18 +109,7 @@ async function generatePDFInternal(
 		});
 
 		// Launch browser with timeout
-		const launchPromise = puppeteer.launch({
-			headless: true,
-			timeout: BROWSER_LAUNCH_TIMEOUT,
-			args: [
-				'--no-sandbox',
-				'--disable-setuid-sandbox',
-				'--disable-dev-shm-usage',
-				'--disable-gpu',
-				'--disable-software-rasterizer',
-				'--disable-extensions'
-			]
-		});
+		const launchPromise = launchBrowser(BROWSER_LAUNCH_TIMEOUT);
 
 		browser = await Promise.race([launchPromise, timeoutPromise]);
 
@@ -191,7 +207,7 @@ async function generatePDFInternal(
 				throw new Error(`PDF generation timed out: ${error.message}`);
 			} else if (error.message.includes('Failed to launch')) {
 				throw new Error(
-					'Failed to launch Chrome browser. Ensure Puppeteer is installed correctly: npm install puppeteer'
+					'Failed to launch Chrome browser. Verify @sparticuz/chromium is installed and compatible with puppeteer-core.'
 				);
 			} else if (error.message.includes('Protocol error')) {
 				throw new Error('Browser crashed during PDF generation. Try again.');
@@ -240,21 +256,7 @@ export async function generatePDFWithCustomSize(
 			}, timeout);
 		});
 
-		browser = await Promise.race([
-			puppeteer.launch({
-				headless: true,
-				timeout: BROWSER_LAUNCH_TIMEOUT,
-				args: [
-					'--no-sandbox',
-					'--disable-setuid-sandbox',
-					'--disable-dev-shm-usage',
-					'--disable-gpu',
-					'--disable-software-rasterizer',
-					'--disable-extensions'
-				]
-			}),
-			timeoutPromise
-		]);
+		browser = await Promise.race([launchBrowser(BROWSER_LAUNCH_TIMEOUT), timeoutPromise]);
 
 		const page = await browser.newPage();
 		await page.setViewport({ width: 1200, height: 800 });
@@ -313,4 +315,3 @@ export async function generatePDFWithCustomSize(
 		}
 	}
 }
-
