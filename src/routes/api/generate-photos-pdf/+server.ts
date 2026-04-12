@@ -459,10 +459,13 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
 			yield { status: 'processing', progress: 60, message: 'Rendering PDF with photos (this may take 1-2 minutes)...' };
 
-			// Generate PDF - wrap in try-catch to handle Puppeteer errors
+			// Generate PDF with keep-alive pings to prevent client-side timeouts.
+			// Photos PDFs are the largest documents (8-20 pages) and most at risk
+			// during Sparticuz/puppeteer-core cold-starts (~2-5s additional latency).
 			let pdfBuffer: Buffer;
 			try {
-				pdfBuffer = await generatePDF(html, {
+				// Start PDF generation
+				const pdfPromise = generatePDF(html, {
 					format: 'A4',
 					margin: {
 						top: '15mm',
@@ -471,6 +474,34 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 						left: '15mm'
 					}
 				});
+
+				// Send keep-alive pings every 2 seconds while PDF generates (60-80% band)
+				let currentProgress = 62;
+				const startTime = Date.now();
+
+				// Poll until PDF is complete, sending keep-alive pings
+				while (true) {
+					const timeoutPromise = new Promise(resolve => setTimeout(resolve, 2000));
+					const result = await Promise.race([pdfPromise, timeoutPromise]);
+
+					// If result is a Buffer, PDF is complete
+					if (result instanceof Buffer) {
+						pdfBuffer = result;
+						break;
+					}
+
+					// Otherwise it was a timeout — send keep-alive ping
+					currentProgress = Math.min(currentProgress + 2, 80);
+					const elapsed = Math.round((Date.now() - startTime) / 1000);
+					console.log(`Keep-alive ping: ${currentProgress}% (${elapsed}s elapsed)`);
+					yield {
+						status: 'processing',
+						progress: currentProgress,
+						message: `Rendering PDF with photos... (${elapsed}s)`
+					};
+				}
+
+				console.log(`Photos PDF generation completed. Size: ${pdfBuffer.length} bytes`);
 			} catch (pdfError) {
 				console.error('PDF generation error:', pdfError);
 				yield {

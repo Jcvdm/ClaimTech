@@ -1,3 +1,22 @@
+// TIMING NOTE — Sparticuz/puppeteer-core cold-start budget
+//
+// Each of the four sequential documents below can incur a ~2-5s Sparticuz
+// cold-start on the first PDF of a warm Lambda instance. Worst-case totals:
+//
+//   report       : ~30-60s generation + up to 5s cold-start
+//   estimate     : ~20-40s generation + up to 5s cold-start
+//   photos-pdf   : ~60-120s generation + up to 5s cold-start  (largest doc)
+//   photos-zip   : ~30-60s generation (no Puppeteer, no cold-start)
+//   ─────────────────────────────────────────────────────────
+//   WORST CASE   : ~3 min total
+//
+// The Vercel function is configured with maxDuration=300s, so worst-case still
+// fits, but the headroom is narrower than it was with the previous chrome-aws-lambda
+// approach. Parallelising the three PDF steps would reduce wall-clock time
+// significantly; that is tracked as a separate future task.
+//
+// See also: .agent/Tasks/active/PDF_VERCEL_D_ENDPOINT_AUDIT.md
+
 import { error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { createStreamingResponse } from '$lib/utils/streaming-response';
