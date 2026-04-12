@@ -1,0 +1,21 @@
+# Test / dev artefacts — not needed in Lambda bundle
+e2e/
+playwright.config.ts
+playwright-report/
+test-results/
+tests/
+
+# Docs & task tracking
+.agent/
+*.md
+!README.md
+
+# Local scripts not needed at runtime
+scripts/
+
+# IDE / editor
+.vscode/
+.idea/
+
+# Misc
+.env.example
