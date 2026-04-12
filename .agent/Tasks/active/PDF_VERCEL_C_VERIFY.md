@@ -99,3 +99,43 @@ depends on the `launchBrowser` helper existing.
   rather than fixing in-place here.
 - Commit with message:
   `test(pdf): extend test-puppeteer diagnostic endpoint with browser info`
+
+## Results
+
+**Status**: Local verification complete — Vercel preview steps pending user deploy.
+
+### npm run check
+
+`svelte-check found 134 errors and 29 warnings in 127 files`
+
+Matches the pre-existing baseline of 134 errors (all from `lucide-svelte` type
+declarations and unrelated env-var issues). The one extra error that existed
+before this stream was introduced by `chromium.defaultViewport` not existing in
+`@sparticuz/chromium@143` types — that was fixed by aligning with the pattern in
+`pdf-generator.ts` (omit `defaultViewport`). Error count is now exactly 134.
+
+### Static puppeteer import check
+
+```
+grep -rn "from 'puppeteer'" src/
+(no output)
+```
+
+No static `from 'puppeteer'` imports remain in any runtime source file under
+`src/`. The only puppeteer reference is the dynamic `await import('puppeteer')`
+inside the local-dev branch of `test-puppeteer/+server.ts`, which is correct and
+intentional (dev-dependency, not bundled for Vercel).
+
+### Local dev server test
+
+Not run (dev server cannot start in CI/agent environment). Endpoint correctness
+was verified by code review: the branching logic, try/finally close, and JSON
+response shape all match the task specification.
+
+### Pending — requires user's Vercel deploy
+
+- [ ] Hit `GET /api/test-puppeteer` on Vercel preview URL — expect 200 with
+      `ok: true`, `executablePath: /tmp/...`, non-empty `browserVersion`.
+- [ ] Exercise all 8 PDF endpoints on preview deployment.
+- [ ] Confirm zero "Could not find Chrome" errors in Vercel function logs.
+- [ ] Confirm Vercel function bundle size < 250 MB.
