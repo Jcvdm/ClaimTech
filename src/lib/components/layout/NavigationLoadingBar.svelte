@@ -9,7 +9,7 @@
 
 {#if isNavigating}
 	<div
-		class="fixed top-0 left-0 right-0 h-1 z-50 overflow-hidden bg-transparent animate-in fade-in duration-200"
+		class="fixed top-0 left-0 right-0 h-1 z-[var(--z-header)] overflow-hidden bg-transparent animate-in fade-in duration-200"
 	>
 		<!-- Animated progress bar with shimmer effect -->
 		<div

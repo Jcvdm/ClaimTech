@@ -207,88 +207,111 @@
 		};
 		return shortLabels[label] || label;
 	}
+
+	// Medium labels for tablet screens (more readable than short, fits better than full)
+	function getMediumLabel(label: string): string {
+		const mediumLabels: Record<string, string> = {
+			Summary: 'Summary',
+			'Vehicle ID': 'Vehicle ID',
+			'360° Exterior': '360° Ext',
+			'Interior & Mechanical': 'Interior',
+			Tyres: 'Tyres',
+			'Damage ID': 'Damage',
+			Values: 'Values',
+			'Pre-Incident': 'Pre-Inc',
+			Estimate: 'Estimate',
+			Finalize: 'Finalize',
+			Additionals: 'Additionals',
+			'Audit Trail': 'Audit'
+		};
+		return mediumLabels[label] || label;
+	}
 </script>
 
 <div class="flex h-full flex-col bg-gray-50">
 	<!-- Sticky Header Container -->
-	<div class="relative z-30 flex flex-col bg-gray-50 shadow-sm">
+	<div class="relative z-[var(--z-sticky)] flex flex-col bg-gray-50 shadow-sm">
 		<!-- Header -->
-		<div class="border-b bg-white px-3 py-2 sm:px-6 sm:py-4 lg:px-8">
-			<div class="flex items-center justify-between gap-2 sm:gap-3">
+		<div class="border-b bg-white px-3 py-2 sm:px-4 sm:py-3 md:px-6 md:py-4 lg:px-8">
+			<div class="flex items-center justify-between gap-2 sm:gap-2.5 md:gap-3 lg:gap-4">
 				<!-- Title Section -->
 				<div class="min-w-0 flex-1">
-					<h1 class="truncate text-base font-bold text-gray-900 sm:text-xl lg:text-2xl">
+					<h1 class="truncate text-base font-bold text-gray-900 sm:text-lg md:text-xl lg:text-2xl">
 						{assessment.assessment_number}
 					</h1>
-					<p class="mt-0.5 hidden text-xs text-gray-500 sm:block sm:text-sm">
+					<p class="mt-0.5 hidden text-xs text-gray-500 sm:block md:text-sm">
 						Complete the vehicle assessment
 					</p>
 				</div>
 
 				<!-- Actions Section -->
-				<div class="flex items-center gap-1.5 sm:gap-2">
-					<!-- Last saved indicator -->
+				<div class="flex shrink-0 items-center gap-1.5 sm:gap-2 md:gap-3">
+					<!-- Last saved indicator - only show with text, hidden on mobile -->
 					{#if lastSaved}
-						<div class="hidden items-center gap-1 text-xs text-gray-500 sm:flex sm:text-sm" title="Last saved: {new Date(lastSaved).toLocaleTimeString()}">
+						<div class="hidden items-center gap-1.5 text-xs text-gray-500 md:flex" title="Last saved: {new Date(lastSaved).toLocaleTimeString()}">
 							<Clock class="h-3.5 w-3.5" />
-							<span class="hidden md:inline">Saved {new Date(lastSaved).toLocaleTimeString()}</span>
+							<span>Saved {new Date(lastSaved).toLocaleTimeString()}</span>
 						</div>
 					{/if}
 
-					<!-- Buttons - icon only on xs, with text on sm+ -->
+					<!-- Buttons - icon only on mobile, with text on tablet+ -->
 					<LoadingButton
 						variant="outline"
 						onclick={onSave}
 						loading={saving}
 						size="sm"
-						class="h-8 px-2 sm:h-9 sm:px-3"
+						class="h-8 px-2 sm:h-9 sm:px-3 md:h-10 md:px-4"
 					>
 						{#if !saving}
-							<Save class="h-4 w-4 sm:mr-1.5" />
+							<Save class="h-4 w-4 md:mr-1.5" />
 						{/if}
-						<span class="hidden sm:inline">{saving ? 'Saving...' : 'Save'}</span>
+						<span class="hidden md:inline">{saving ? 'Saving...' : 'Save'}</span>
 					</LoadingButton>
 
 					{#if onCancel && ['assessment_in_progress', 'estimate_review', 'estimate_sent'].includes(assessment.stage)}
-						<Button variant="destructive" onclick={onCancel} size="sm" class="h-8 px-2 sm:h-9 sm:px-3">
-							<Trash2 class="h-4 w-4 sm:mr-1.5" />
-							<span class="hidden sm:inline">Cancel</span>
+						<Button variant="destructive" onclick={onCancel} size="sm" class="h-8 px-2 sm:h-9 sm:px-3 md:h-10 md:px-4">
+							<Trash2 class="h-4 w-4 md:mr-1.5" />
+							<span class="hidden md:inline">Cancel</span>
 						</Button>
 					{/if}
 
-					<Button variant="outline" onclick={onExit} size="sm" class="h-8 px-2 sm:h-9 sm:px-3">
-						<X class="h-4 w-4 sm:mr-1.5" />
-						<span class="hidden sm:inline">Exit</span>
+					<Button variant="outline" onclick={onExit} size="sm" class="h-8 px-2 sm:h-9 sm:px-3 md:h-10 md:px-4">
+						<X class="h-4 w-4 md:mr-1.5" />
+						<span class="hidden md:inline">Exit</span>
 					</Button>
 				</div>
 			</div>
 		</div>
 
 		<!-- Tabs -->
-		<div class="border-b bg-white px-2 py-2 sm:px-6 lg:px-8">
+		<div class="border-b bg-white px-2 py-2 sm:px-4 md:px-6 lg:px-8">
 			<Tabs
 				bind:value={currentTab}
 				class="w-full"
 				onValueChange={(value: string) => onTabChange(value)}
 			>
 				<TabsList
-					class="flex h-auto w-full snap-x snap-mandatory gap-1.5 overflow-x-auto bg-transparent p-0 pb-2 scrollbar-hide sm:grid sm:snap-none sm:grid-cols-4 sm:gap-2 sm:overflow-visible sm:pb-0 md:grid-cols-6 lg:grid-cols-6"
+					class="flex h-auto w-full snap-x snap-mandatory gap-1.5 overflow-x-auto bg-transparent p-0 pb-2 scrollbar-hide sm:grid sm:snap-none sm:grid-cols-3 sm:gap-1.5 sm:overflow-visible sm:pb-0 md:grid-cols-4 md:gap-2 lg:grid-cols-6 lg:gap-2 xl:grid-cols-11 xl:gap-1.5"
 				>
 					{#each tabs() as tab}
 						{@const missingCount = getMissingFieldsCount(tab.id)}
 						<TabsTrigger
 							value={tab.id}
 							disabled={tabLoading}
-							class="relative flex h-8 min-w-[4.5rem] shrink-0 snap-start items-center justify-center gap-1 rounded-md border border-transparent px-2 py-1.5 text-xs font-medium text-muted-foreground ring-offset-background transition-all hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-rose-500 data-[state=active]:text-white data-[state=active]:shadow-sm sm:h-9 sm:min-w-0 sm:shrink sm:gap-2 sm:px-3 sm:py-2 sm:text-sm"
+							class="relative flex h-8 min-w-[4.5rem] shrink-0 snap-start items-center justify-center gap-1 overflow-hidden rounded-md border border-transparent px-2 py-1.5 text-xs font-medium text-muted-foreground ring-offset-background transition-all hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-rose-500 data-[state=active]:text-white data-[state=active]:shadow-sm sm:h-9 sm:min-w-0 sm:shrink sm:gap-1 sm:px-2 sm:py-2 sm:text-xs md:h-10 md:gap-1.5 md:px-2.5 md:text-sm lg:px-3 xl:gap-2"
 						>
 							<TabLoadingIndicator
 								isLoading={tabLoading && currentTab === tab.id}
 								icon={tab.icon}
 							/>
-							<span class="hidden sm:inline">{tab.label}</span>
+							<!-- Short labels on mobile -->
 							<span class="sm:hidden">{getShortLabel(tab.label)}</span>
+							<!-- Medium labels on tablet (sm-lg) -->
+							<span class="hidden truncate sm:inline xl:hidden">{getMediumLabel(tab.label)}</span>
+							<!-- Full labels on desktop (xl+) -->
+							<span class="hidden truncate xl:inline">{tab.label}</span>
 							{#if missingCount > 0}
-								<Badge variant="destructive" class="ml-1 h-5 min-w-5 px-1.5 text-[10px] font-bold">
+								<Badge variant="destructive" class="ml-0.5 h-5 min-w-5 shrink-0 px-1 text-[10px] font-bold sm:ml-1 sm:px-1.5">
 									{missingCount}
 								</Badge>
 							{/if}
