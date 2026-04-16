@@ -1,6 +1,4 @@
-import puppeteer from 'puppeteer';
-import fs from 'fs';
-import path from 'path';
+import type { Browser } from 'puppeteer-core';
 
 export interface PDFGeneratorOptions {
 	format?: 'A4' | 'Letter';
@@ -24,6 +22,42 @@ const DEFAULT_TIMEOUT = 8000; // 8 seconds total for Hobby plan
 const DEFAULT_RETRIES = 1; // Reduce retries to fail fast
 const BROWSER_LAUNCH_TIMEOUT = 3000; // 3 seconds to launch browser
 
+const CHROME_ARGS = [
+	'--no-sandbox',
+	'--disable-setuid-sandbox',
+	'--disable-dev-shm-usage',
+	'--disable-gpu',
+	'--disable-software-rasterizer',
+	'--disable-extensions'
+];
+
+/**
+ * Launch a browser appropriate for the current environment.
+ * - Vercel/serverless: uses @sparticuz/chromium + puppeteer-core
+ * - Local dev: uses puppeteer (bundles its own Chromium)
+ */
+async function launchBrowser(launchTimeout: number): Promise<Browser> {
+	const isServerless = !!process.env.VERCEL || !!process.env.AWS_LAMBDA_FUNCTION_NAME;
+
+	if (isServerless) {
+		const chromium = (await import('@sparticuz/chromium')).default;
+		const { default: puppeteer } = await import('puppeteer-core');
+		return puppeteer.launch({
+			args: chromium.args,
+			executablePath: await chromium.executablePath(),
+			headless: true
+		});
+	} else {
+		// Local development — puppeteer bundles its own Chromium
+		const { default: puppeteer } = await import('puppeteer-core');
+		return puppeteer.launch({
+			headless: true,
+			timeout: launchTimeout,
+			args: CHROME_ARGS
+		});
+	}
+}
+
 /**
  * Generate a PDF from HTML content using Puppeteer with retry logic
  */
@@ -40,7 +74,6 @@ export async function generatePDF(
 		try {
 			if (attempt > 0) {
 				console.log(`PDF generation retry attempt ${attempt}/${retries}`);
-				// Wait a bit before retrying
 				await new Promise((resolve) => setTimeout(resolve, 1000 * attempt));
 			}
 
@@ -49,14 +82,12 @@ export async function generatePDF(
 			lastError = error as Error;
 			console.error(`PDF generation attempt ${attempt + 1} failed:`, error);
 
-			// Don't retry if it's a timeout or if we're out of retries
 			if (attempt >= retries) {
 				break;
 			}
 		}
 	}
 
-	// All retries failed
 	throw new Error(
 		`Failed to generate PDF after ${retries + 1} attempts: ${lastError?.message || 'Unknown error'}`
 	);
@@ -70,84 +101,53 @@ async function generatePDFInternal(
 	options: PDFGeneratorOptions,
 	timeout: number
 ): Promise<Buffer> {
-	let browser;
-	let timeoutId: NodeJS.Timeout | null = null;
+	let browser: Browser | undefined;
+	let timeoutId: ReturnType<typeof setTimeout> | null = null;
 
 	try {
-		// Create timeout promise
 		const timeoutPromise = new Promise<never>((_, reject) => {
 			timeoutId = setTimeout(() => {
 				reject(new Error(`PDF generation timed out after ${timeout}ms`));
 			}, timeout);
 		});
 
-		// Launch browser with timeout
-		const launchPromise = puppeteer.launch({
-			headless: true,
-			timeout: BROWSER_LAUNCH_TIMEOUT,
-			args: [
-				'--no-sandbox',
-				'--disable-setuid-sandbox',
-				'--disable-dev-shm-usage',
-				'--disable-gpu',
-				'--disable-software-rasterizer',
-				'--disable-extensions'
-			]
-		});
-
-		browser = await Promise.race([launchPromise, timeoutPromise]);
-
-		if (!browser) {
-			throw new Error('Failed to launch browser: browser is null');
-		}
+		browser = await Promise.race([launchBrowser(BROWSER_LAUNCH_TIMEOUT), timeoutPromise]);
 
 		console.log('Browser launched successfully');
 
-		// Create new page
 		const page = await browser.newPage();
 
-		// Set viewport for consistent rendering
 		await page.setViewport({ width: 1200, height: 800 });
-
-		// Emulate print media type to ensure print styles are applied
 		await page.emulateMediaType('print');
 
-		// Enable console logging from the page
 		page.on('console', (msg) => console.log('PAGE LOG:', msg.text()));
 		page.on('pageerror', (error) => console.error('PAGE ERROR:', error));
 
-		// Set content with faster readiness check for Hobby plan optimization
 		await Promise.race([
 			page.setContent(html, {
-				waitUntil: 'domcontentloaded', // Faster than networkidle0
+				waitUntil: 'domcontentloaded',
 				timeout: timeout / 2
 			}),
 			timeoutPromise
 		]);
 
-		// Minimal wait for CSS to apply (optimized for speed)
 		console.log('Waiting for styles to apply...');
 		await new Promise((resolve) => setTimeout(resolve, 200));
 
-		// Quick check for table elements (reduced timeout)
 		try {
 			await page.waitForSelector('table', { timeout: 1000 });
 			console.log('Table elements found');
-		} catch (e) {
+		} catch {
 			console.warn('Table elements not found within 1s, continuing anyway');
 		}
 
 		console.log('HTML content loaded successfully');
 
-		// Force browser to compute all styles before PDF generation
 		await page.evaluate(() => {
-			// Force reflow by accessing offsetHeight
 			document.body.offsetHeight;
-			// Force style recalculation
 			window.getComputedStyle(document.body).getPropertyValue('color');
 		});
 
-		// Generate PDF with timeout
 		const pdfBuffer = await Promise.race([
 			page.pdf({
 				format: options.format || 'A4',
@@ -163,9 +163,7 @@ async function generatePDFInternal(
 				headerTemplate: options.headerTemplate || '',
 				footerTemplate: options.footerTemplate || '',
 				timeout: timeout / 2,
-				// Force tagged PDF for better rendering
 				tagged: false,
-				// Ensure outline is included
 				outline: false
 			}),
 			timeoutPromise
@@ -173,25 +171,22 @@ async function generatePDFInternal(
 
 		console.log('PDF generated successfully, size:', pdfBuffer.length, 'bytes');
 
-		// Clear timeout
 		if (timeoutId) {
 			clearTimeout(timeoutId);
 		}
 
 		return Buffer.from(pdfBuffer);
 	} catch (error) {
-		// Clear timeout on error
 		if (timeoutId) {
 			clearTimeout(timeoutId);
 		}
 
-		// Provide more specific error messages
 		if (error instanceof Error) {
 			if (error.message.includes('timeout')) {
 				throw new Error(`PDF generation timed out: ${error.message}`);
 			} else if (error.message.includes('Failed to launch')) {
 				throw new Error(
-					'Failed to launch Chrome browser. Ensure Puppeteer is installed correctly: npm install puppeteer'
+					'Failed to launch Chrome browser. Ensure puppeteer-core and @sparticuz/chromium are installed.'
 				);
 			} else if (error.message.includes('Protocol error')) {
 				throw new Error('Browser crashed during PDF generation. Try again.');
@@ -222,15 +217,8 @@ export async function generatePDFWithCustomSize(
 	height: string,
 	options: Omit<PDFGeneratorOptions, 'format'> = {}
 ): Promise<Buffer> {
-	// Use the main generatePDF function with custom size
-	// by temporarily modifying the options
-	const fullOptions: PDFGeneratorOptions = {
-		...options,
-		format: undefined // Remove format to use custom size
-	};
-
-	let browser;
-	let timeoutId: NodeJS.Timeout | null = null;
+	let browser: Browser | undefined;
+	let timeoutId: ReturnType<typeof setTimeout> | null = null;
 	const timeout = options.timeout || DEFAULT_TIMEOUT;
 
 	try {
@@ -240,34 +228,19 @@ export async function generatePDFWithCustomSize(
 			}, timeout);
 		});
 
-		browser = await Promise.race([
-			puppeteer.launch({
-				headless: true,
-				timeout: BROWSER_LAUNCH_TIMEOUT,
-				args: [
-					'--no-sandbox',
-					'--disable-setuid-sandbox',
-					'--disable-dev-shm-usage',
-					'--disable-gpu',
-					'--disable-software-rasterizer',
-					'--disable-extensions'
-				]
-			}),
-			timeoutPromise
-		]);
+		browser = await Promise.race([launchBrowser(BROWSER_LAUNCH_TIMEOUT), timeoutPromise]);
 
 		const page = await browser.newPage();
 		await page.setViewport({ width: 1200, height: 800 });
 
 		await Promise.race([
 			page.setContent(html, {
-				waitUntil: 'domcontentloaded', // Faster than networkidle0
+				waitUntil: 'domcontentloaded',
 				timeout: timeout / 2
 			}),
 			timeoutPromise
 		]);
 
-		// Minimal wait for CSS (optimized for speed)
 		await new Promise((resolve) => setTimeout(resolve, 200));
 
 		const pdfBuffer = await Promise.race([
@@ -313,4 +286,3 @@ export async function generatePDFWithCustomSize(
 		}
 	}
 }
-
