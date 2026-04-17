@@ -1,11 +1,5 @@
 <script lang="ts">
-	import {
-		Dialog,
-		DialogContent,
-		DialogHeader,
-		DialogTitle,
-		DialogFooter
-	} from '$lib/components/ui/dialog';
+	import * as ResponsiveDialog from '$lib/components/ui/responsive-dialog';
 	import { Button } from '$lib/components/ui/button';
 	import { Textarea } from '$lib/components/ui/textarea';
 	import { Label } from '$lib/components/ui/label';
@@ -29,11 +23,11 @@
 	}
 </script>
 
-<Dialog open={true} onOpenChange={(open) => !open && onCancel()}>
-	<DialogContent>
-		<DialogHeader>
-			<DialogTitle>Decline Additional Line Item</DialogTitle>
-		</DialogHeader>
+<ResponsiveDialog.Root open={true} onOpenChange={(open) => !open && onCancel()}>
+	<ResponsiveDialog.Content>
+		<ResponsiveDialog.Header>
+			<ResponsiveDialog.Title>Decline Additional Line Item</ResponsiveDialog.Title>
+		</ResponsiveDialog.Header>
 
 		<div class="space-y-4 py-4">
 			<div class="space-y-2">
@@ -56,10 +50,10 @@
 			</p>
 		</div>
 
-		<DialogFooter>
+		<ResponsiveDialog.Footer>
 			<Button variant="outline" onclick={onCancel}>Cancel</Button>
 			<Button onclick={handleConfirm} class="bg-red-600 hover:bg-red-700"> Decline Item </Button>
-		</DialogFooter>
-	</DialogContent>
-</Dialog>
+		</ResponsiveDialog.Footer>
+	</ResponsiveDialog.Content>
+</ResponsiveDialog.Root>
 

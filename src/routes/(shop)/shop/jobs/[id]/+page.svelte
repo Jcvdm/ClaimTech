@@ -28,6 +28,7 @@
 	import ShopAdditionalsTab from '$lib/components/shop/ShopAdditionalsTab.svelte';
 	import ShopJobNotes from '$lib/components/shop/ShopJobNotes.svelte';
 	import * as Dialog from '$lib/components/ui/dialog';
+	import * as ResponsiveDialog from '$lib/components/ui/responsive-dialog';
 	import { Textarea } from '$lib/components/ui/textarea';
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();
@@ -2307,23 +2308,23 @@
 </div>
 
 <!-- Back to Work — Reason Dialog -->
-<Dialog.Root bind:open={showRejectDialog}>
-	<Dialog.Content class="sm:max-w-md">
-		<Dialog.Header>
-			<Dialog.Title>Back to Work — Reason Required</Dialog.Title>
-			<Dialog.Description>Please explain why this job is being sent back to work.</Dialog.Description>
-		</Dialog.Header>
+<ResponsiveDialog.Root bind:open={showRejectDialog}>
+	<ResponsiveDialog.Content class="sm:max-w-md">
+		<ResponsiveDialog.Header>
+			<ResponsiveDialog.Title>Back to Work — Reason Required</ResponsiveDialog.Title>
+			<ResponsiveDialog.Description>Please explain why this job is being sent back to work.</ResponsiveDialog.Description>
+		</ResponsiveDialog.Header>
 		<div class="space-y-3 py-3">
 			<Textarea bind:value={rejectReason} placeholder="Describe the quality issues..." rows={3} />
 		</div>
-		<Dialog.Footer>
+		<ResponsiveDialog.Footer>
 			<Button variant="outline" onclick={() => { showRejectDialog = false; }}>Cancel</Button>
 			<Button onclick={confirmBackToWork} disabled={transitioning || !rejectReason.trim()}>
 				{transitioning ? 'Updating...' : 'Confirm'}
 			</Button>
-		</Dialog.Footer>
-	</Dialog.Content>
-</Dialog.Root>
+		</ResponsiveDialog.Footer>
+	</ResponsiveDialog.Content>
+</ResponsiveDialog.Root>
 
 <!-- Parts List Modal -->
 <Dialog.Root bind:open={showPartsListModal}>

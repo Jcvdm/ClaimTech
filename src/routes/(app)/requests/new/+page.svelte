@@ -10,7 +10,7 @@
 	import { Button } from '$lib/components/ui/button';
 	import LoadingButton from '$lib/components/ui/button/LoadingButton.svelte';
 	import { Alert, AlertDescription, AlertTitle } from '$lib/components/ui/alert';
-	import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '$lib/components/ui/dialog';
+	import * as ResponsiveDialog from '$lib/components/ui/responsive-dialog';
 	import { requestService } from '$lib/services/request.service';
 	import { clientService } from '$lib/services/client.service';
 	import { Plus } from 'lucide-svelte';
@@ -313,12 +313,12 @@ const clientOptions = $derived.by(() =>
 </div>
 
 <!-- Quick Add Client Dialog -->
-<Dialog bind:open={showClientModal}>
-	<DialogContent class="sm:max-w-md">
-		<DialogHeader>
-			<DialogTitle>Quick Add Client</DialogTitle>
-			<DialogDescription>Add a new client without leaving the request form.</DialogDescription>
-		</DialogHeader>
+<ResponsiveDialog.Root bind:open={showClientModal}>
+	<ResponsiveDialog.Content class="sm:max-w-md">
+		<ResponsiveDialog.Header>
+			<ResponsiveDialog.Title>Quick Add Client</ResponsiveDialog.Title>
+			<ResponsiveDialog.Description>Add a new client without leaving the request form.</ResponsiveDialog.Description>
+		</ResponsiveDialog.Header>
 
 		<div class="space-y-4">
 			<FormField
@@ -359,7 +359,7 @@ const clientOptions = $derived.by(() =>
 			/>
 		</div>
 
-		<DialogFooter class="pt-4">
+		<ResponsiveDialog.Footer class="pt-4">
 			<Button
 				type="button"
 				variant="outline"
@@ -374,8 +374,8 @@ const clientOptions = $derived.by(() =>
 			<LoadingButton type="button" onclick={handleQuickAddClient} loading={loading}>
 				Add Client
 			</LoadingButton>
-		</DialogFooter>
-	</DialogContent>
-</Dialog>
+		</ResponsiveDialog.Footer>
+	</ResponsiveDialog.Content>
+</ResponsiveDialog.Root>
 
 

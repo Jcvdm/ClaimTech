@@ -1,5 +1,5 @@
 <script lang="ts">
-	import * as Dialog from '$lib/components/ui/dialog';
+	import * as ResponsiveDialog from '$lib/components/ui/responsive-dialog';
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
 	import { Label } from '$lib/components/ui/label';
@@ -83,11 +83,11 @@
 	}
 </script>
 
-<Dialog.Root {open} onOpenChange={onClose}>
-	<Dialog.Content class="max-w-md">
-		<Dialog.Header>
-			<Dialog.Title>Set Betterment Percentages</Dialog.Title>
-		</Dialog.Header>
+<ResponsiveDialog.Root {open} onOpenChange={onClose}>
+	<ResponsiveDialog.Content class="max-w-md">
+		<ResponsiveDialog.Header>
+			<ResponsiveDialog.Title>Set Betterment Percentages</ResponsiveDialog.Title>
+		</ResponsiveDialog.Header>
 
 		{#if item}
 			<div class="space-y-4">
@@ -230,6 +230,6 @@
 				</div>
 			</div>
 		{/if}
-	</Dialog.Content>
-</Dialog.Root>
+	</ResponsiveDialog.Content>
+</ResponsiveDialog.Root>
 

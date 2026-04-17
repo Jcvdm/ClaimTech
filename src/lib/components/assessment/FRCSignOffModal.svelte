@@ -1,11 +1,5 @@
 <script lang="ts">
-	import {
-		Dialog,
-		DialogContent,
-		DialogHeader,
-		DialogTitle,
-		DialogFooter
-	} from '$lib/components/ui/dialog';
+	import * as ResponsiveDialog from '$lib/components/ui/responsive-dialog';
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
 	import { Textarea } from '$lib/components/ui/textarea';
@@ -59,14 +53,14 @@
 	}
 </script>
 
-<Dialog open={true} onOpenChange={(open) => !open && onCancel()}>
-	<DialogContent class="max-w-md">
-		<DialogHeader>
+<ResponsiveDialog.Root open={true} onOpenChange={(open) => !open && onCancel()}>
+	<ResponsiveDialog.Content class="max-w-md">
+		<ResponsiveDialog.Header>
 			<div class="flex items-center gap-2">
 				<CheckCircle class="h-6 w-6 text-green-600" />
-				<DialogTitle>Sign Off FRC</DialogTitle>
+				<ResponsiveDialog.Title>Sign Off FRC</ResponsiveDialog.Title>
 			</div>
-		</DialogHeader>
+		</ResponsiveDialog.Header>
 
 		<div class="space-y-4 py-4">
 			<p class="text-sm text-gray-600">
@@ -135,12 +129,12 @@
 			</div>
 		</div>
 
-		<DialogFooter>
+		<ResponsiveDialog.Footer>
 			<Button variant="outline" onclick={onCancel}>Cancel</Button>
 			<Button onclick={handleConfirm} class="bg-green-600 hover:bg-green-700">
 				Agree & Sign Off
 			</Button>
-		</DialogFooter>
-	</DialogContent>
-</Dialog>
+		</ResponsiveDialog.Footer>
+	</ResponsiveDialog.Content>
+</ResponsiveDialog.Root>
 
