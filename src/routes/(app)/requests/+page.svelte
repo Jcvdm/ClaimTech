@@ -13,6 +13,7 @@ import { FilterTabs } from '$lib/components/ui/tabs';
 	import { FileText, Plus, Hash, User, Car, Calendar } from 'lucide-svelte';
 	import type { Request, RequestStatus } from '$lib/types/request';
 	import type { PageData } from './$types';
+	import PageContainer from '$lib/components/layout/PageContainer.svelte';
 
 	let { data }: { data: PageData } = $props();
 	const { loadingId, startNavigation } = useNavigationLoading();
@@ -103,7 +104,7 @@ import { FilterTabs } from '$lib/components/ui/tabs';
 	}
 </script>
 
-<div class="flex-1 space-y-4 p-4 md:space-y-6 md:p-8">
+<PageContainer class="flex-1 space-y-4 md:space-y-6">
 	<PageHeader title="Requests" description="Review and accept new vehicle damage assessment requests">
 		{#snippet actions()}
 			<Button href="/requests/new">
@@ -193,5 +194,4 @@ import { FilterTabs } from '$lib/components/ui/tabs';
 			</p>
 		</div>
 	{/if}
-</div>
-
+</PageContainer>

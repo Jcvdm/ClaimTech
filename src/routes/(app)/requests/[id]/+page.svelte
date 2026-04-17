@@ -2,11 +2,14 @@
 	import { goto } from '$app/navigation';
 	import { page } from '$app/stores';
 	import PageHeader from '$lib/components/layout/PageHeader.svelte';
+	import PageContainer from '$lib/components/layout/PageContainer.svelte';
 	import StatusBadge from '$lib/components/data/StatusBadge.svelte';
 	import ActivityTimeline from '$lib/components/data/ActivityTimeline.svelte';
 	import { Card } from '$lib/components/ui/card';
 	import { Button } from '$lib/components/ui/button';
 	import LoadingButton from '$lib/components/ui/button/LoadingButton.svelte';
+	import { ActionBar } from '$lib/components/ui/action-bar';
+	import type { Action } from '$lib/components/ui/action-bar';
 	import { Separator } from '$lib/components/ui/separator';
 	import { Badge } from '$lib/components/ui/badge';
 	import {
@@ -151,53 +154,36 @@
 			loading = false;
 		}
 	}
+
+	const headerActions = $derived<Action[]>(
+		[
+			...(data.request.status === 'draft' || data.request.status === 'submitted'
+				? [{ label: 'Accept Request', icon: Check, onclick: handleAccept, variant: 'default' as const, disabled: loading }]
+				: []),
+			...(data.request.status === 'cancelled'
+				? [{ label: 'Reactivate', icon: RotateCcw, onclick: handleReactivate, variant: 'default' as const, disabled: loading }]
+				: []),
+			{ label: 'Edit', icon: Edit, onclick: handleEdit, variant: 'outline' as const },
+			...(data.request.status !== 'cancelled'
+				? [{ label: 'Cancel', icon: Trash2, onclick: handleDelete, variant: 'destructive' as const, disabled: loading }]
+				: [])
+		]
+	);
 </script>
 
-<div class="flex-1 space-y-6 p-8">
+<PageContainer class="flex-1 space-y-6">
 	<PageHeader
 		title={`Request ${data.request.request_number}`}
 		description={data.client?.name || 'Unknown Client'}
 	>
 		{#snippet actions()}
-			<Button variant="outline" onclick={handleBack}>
-				<ArrowLeft class="mr-2 h-4 w-4" />
-				Back
-			</Button>
-
-			<!-- Show Accept button only for draft/submitted requests -->
-			{#if data.request.status === 'draft' || data.request.status === 'submitted'}
-				<LoadingButton onclick={handleAccept} {loading}>
-					{#if !loading}
-						<Check class="mr-2 h-4 w-4" />
-					{/if}
-					Accept Request
-				</LoadingButton>
-			{/if}
-
-			<!-- Show Reactivate button only for cancelled requests -->
-			{#if data.request.status === 'cancelled'}
-				<LoadingButton variant="default" onclick={handleReactivate} {loading}>
-					{#if !loading}
-						<RotateCcw class="mr-2 h-4 w-4" />
-					{/if}
-					Reactivate Request
-				</LoadingButton>
-			{/if}
-
-			<Button variant="outline" onclick={handleEdit}>
-				<Edit class="mr-2 h-4 w-4" />
-				Edit
-			</Button>
-
-			<!-- Show Cancel/Delete button only for non-cancelled requests -->
-			{#if data.request.status !== 'cancelled'}
-				<LoadingButton variant="destructive" onclick={handleDelete} {loading}>
-					{#if !loading}
-						<Trash2 class="mr-2 h-4 w-4" />
-					{/if}
-					Cancel
-				</LoadingButton>
-			{/if}
+			<div class="flex items-center gap-2">
+				<Button variant="ghost" onclick={handleBack}>
+					<ArrowLeft class="size-4" />
+					<span class="hidden sm:inline">Back</span>
+				</Button>
+				<ActionBar actions={headerActions} inlineCount={2} />
+			</div>
 		{/snippet}
 	</PageHeader>
 
@@ -566,4 +552,4 @@
 			</Card>
 		</div>
 	</div>
-</div>
+</PageContainer>

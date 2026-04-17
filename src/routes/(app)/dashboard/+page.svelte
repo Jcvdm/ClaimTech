@@ -15,6 +15,7 @@
     CheckCircle2
   } from 'lucide-svelte';
   import type { PageData } from './$types';
+  import PageContainer from '$lib/components/layout/PageContainer.svelte';
 
   let { data }: { data: PageData } = $props();
 
@@ -99,7 +100,7 @@
   };
 </script>
 
-<div class="space-y-6">
+<PageContainer class="space-y-6">
   <PageHeader
     title="Dashboard"
     description="Overview of outstanding work and recent activity"
@@ -261,5 +262,4 @@
       {/if}
     </Card>
   </div>
-</div>
-
+</PageContainer>

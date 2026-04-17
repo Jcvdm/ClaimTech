@@ -14,6 +14,7 @@
 		ArrowRight
 	} from 'lucide-svelte';
 	import type { PageData } from './$types';
+	import PageContainer from '$lib/components/layout/PageContainer.svelte';
 
 	let { data }: { data: PageData } = $props();
 
@@ -87,7 +88,7 @@
 	};
 </script>
 
-<div class="flex-1 space-y-6 p-8">
+<PageContainer class="flex-1 space-y-6">
 	<PageHeader
 		title="Work Overview"
 		description="Manage all phases of vehicle damage assessments and inspections"
@@ -188,5 +189,4 @@
 			</div>
 		</div>
 	</Card>
-</div>
-
+</PageContainer>
