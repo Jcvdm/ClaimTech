@@ -1,3 +1,10 @@
+<!--
+/**
+ * @deprecated Use `ModernDataTable` from `$lib/components/data/ModernDataTable.svelte` instead.
+ * `ModernDataTable` has a responsive mobile-card fallback via the `mobileCardConfig` prop.
+ * This legacy table has no mobile layout and will be removed after Phase 3 migration.
+ */
+-->
 <script lang="ts" generics="T extends Record<string, any>">
 	import { Button } from '$lib/components/ui/button';
 	import * as Table from '$lib/components/ui/table';
