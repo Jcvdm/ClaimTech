@@ -32,6 +32,7 @@
 		onDelete: () => void;
 		selected?: boolean;
 		onToggleSelect?: () => void;
+		showBetterment?: boolean;
 	}
 
 	let {
@@ -49,7 +50,8 @@
 		onEditBetterment,
 		onDelete,
 		selected = false,
-		onToggleSelect
+		onToggleSelect,
+		showBetterment = true
 	}: Props = $props();
 
 	let isExpanded = $state(false);
@@ -269,16 +271,18 @@
 			{/if}
 
 			<!-- Betterment -->
-			<button
-				type="button"
-				onclick={onEditBetterment}
-				class="flex items-center justify-between rounded border bg-white p-2 text-left hover:border-blue-300 {item.betterment_total ? 'border-orange-200 bg-orange-50' : ''}"
-			>
-				<span class="text-gray-600">Betterment</span>
-				<span class="font-medium {item.betterment_total ? 'text-orange-600' : 'text-gray-400'}">
-					{item.betterment_total ? `-${formatCurrency(item.betterment_total)}` : '-'}
-				</span>
-			</button>
+			{#if showBetterment}
+				<button
+					type="button"
+					onclick={onEditBetterment}
+					class="flex items-center justify-between rounded border bg-white p-2 text-left hover:border-blue-300 {item.betterment_total ? 'border-orange-200 bg-orange-50' : ''}"
+				>
+					<span class="text-gray-600">Betterment</span>
+					<span class="font-medium {item.betterment_total ? 'text-orange-600' : 'text-gray-400'}">
+						{item.betterment_total ? `-${formatCurrency(item.betterment_total)}` : '-'}
+					</span>
+				</button>
+			{/if}
 		</div>
 	{/if}
 

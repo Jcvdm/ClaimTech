@@ -4,7 +4,8 @@
 	import * as Table from '$lib/components/ui/table';
 	import * as Dialog from '$lib/components/ui/dialog';
 	import { Check, Clock, AlertCircle } from 'lucide-svelte';
-import type { FinalRepairCosting, FRCLineItem, FRCDocument } from '$lib/types/assessment';
+	import type { FinalRepairCosting, FRCLineItem, FRCDocument } from '$lib/types/assessment';
+	import FRCLineCard from './FRCLineCard.svelte';
 	import { formatCurrency } from '$lib/utils/formatters';
 	import { getProcessTypeBadgeColor } from '$lib/constants/processTypes';
 
@@ -76,7 +77,29 @@ import type { FinalRepairCosting, FRCLineItem, FRCDocument } from '$lib/types/as
 
 </script>
 
-<div class="rounded-lg border">
+<!-- Mobile: Card Layout -->
+<div class="md:hidden space-y-3">
+	{#if lines.length === 0}
+		<div class="flex flex-col items-center justify-center py-12 text-center">
+			<p class="text-gray-500">No line items in FRC.</p>
+		</div>
+	{:else}
+		{#each lines as line (line.id)}
+			{#if !line.is_removal_additional}
+				<FRCLineCard
+					{line}
+					{frc}
+					{lines}
+					{documents}
+					onOpenActions={openRowActions}
+				/>
+			{/if}
+		{/each}
+	{/if}
+</div>
+
+<!-- Desktop: Table Layout -->
+<div class="hidden md:block rounded-lg border">
 	<Table.Root>
 		<Table.Header>
 			<Table.Row class="hover:bg-transparent">

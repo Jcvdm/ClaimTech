@@ -13,6 +13,7 @@
 		EstimateLineItem,
 		PreIncidentEstimatePhoto
 	} from '$lib/types/assessment';
+	import LineItemCard from './LineItemCard.svelte';
 	import { getProcessTypeOptions } from '$lib/constants/processTypes';
 	import { createEmptyLineItem, calculateLineItemTotal } from '$lib/utils/estimateCalculations';
 	import { formatCurrency } from '$lib/utils/formatters';
@@ -486,7 +487,39 @@
 				</div>
 			</div>
 
-			<div class="rounded-lg border overflow-x-auto">
+			<!-- Mobile: Card Layout -->
+			<div class="md:hidden space-y-3">
+				{#if localLineItems().length === 0}
+					<div class="flex flex-col items-center justify-center py-12 text-center">
+						<p class="text-gray-500">No line items added.</p>
+						<p class="text-sm text-gray-400">Use "Quick Add" above or tap "Add Empty Row".</p>
+					</div>
+				{:else}
+					{#each localLineItems() as item (item.id)}
+						<LineItemCard
+							{item}
+							labourRate={localEstimate?.labour_rate ?? 0}
+							paintRate={localEstimate?.paint_rate ?? 0}
+							selected={selectedItems.has(item.id!)}
+							onToggleSelect={() => handleToggleSelect(item.id!)}
+							onUpdateDescription={(value) => handleUpdateLineItem(item.id!, 'description', value)}
+							onUpdateProcessType={(value) => handleUpdateLineItem(item.id!, 'process_type', value)}
+							onUpdatePartType={(value) => handleUpdateLineItem(item.id!, 'part_type', value)}
+							onEditPartPrice={() => handlePartPriceClick(item.id!, item.part_price_nett || null)}
+							onEditSA={() => handleSAClick(item.id!, item.strip_assemble_hours || null)}
+							onEditLabour={() => handleLabourClick(item.id!, item.labour_hours || null)}
+							onEditPaint={() => handlePaintClick(item.id!, item.paint_panels || null)}
+							onEditOutwork={() => handleOutworkClick(item.id!, item.outwork_charge_nett || null)}
+							onEditBetterment={() => {}}
+							onDelete={() => handleDeleteLineItem(item.id!)}
+							showBetterment={false}
+						/>
+					{/each}
+				{/if}
+			</div>
+
+			<!-- Desktop: Table Layout -->
+			<div class="hidden md:block rounded-lg border overflow-x-auto">
 				<Table.Root>
 					<Table.Header>
 						<Table.Row class="hover:bg-transparent">
