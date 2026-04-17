@@ -1,0 +1,29 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "dev",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev", "--", "--host", "127.0.0.1", "--port", "5100"],
+      "port": 5100
+    },
+    {
+      "name": "dev:mem",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev:mem", "--", "--host", "127.0.0.1", "--port", "5101"],
+      "port": 5101
+    },
+    {
+      "name": "dev:development",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev:development", "--", "--host", "127.0.0.1", "--port", "5102"],
+      "port": 5102
+    },
+    {
+      "name": "preview",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "preview", "--", "--host", "127.0.0.1", "--port", "4173"],
+      "port": 4173
+    }
+  ]
+}

@@ -127,7 +127,7 @@ import { SidebarProvider, SidebarTrigger, SidebarInset } from '$lib/components/u
 		</header>
 
 		<!-- Main content -->
-		<div class="flex flex-1 flex-col gap-4 p-4 pt-0">
+		<div class="flex min-w-0 flex-1 flex-col gap-4 p-4 pt-0">
 			{@render children()}
 		</div>
 	</SidebarInset>

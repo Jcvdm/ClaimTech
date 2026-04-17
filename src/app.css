@@ -8,6 +8,10 @@
 
 :root {
   --radius: 0.75rem;
+  --touch-target-min: 2.75rem;
+  --page-px: 1rem;
+  --page-px-sm: 1.5rem;
+  --page-px-lg: 2rem;
   --background: #f8fafc;
   --foreground: #0f172a;
   --card: #ffffff;
@@ -120,5 +124,17 @@
 
   body {
     @apply bg-background text-foreground;
+  }
+
+  html, body {
+    overflow-x: clip;
+  }
+
+  input, select, textarea {
+    font-size: max(16px, 1rem);
+  }
+
+  .overflow-y-auto, .overflow-auto, .overflow-y-scroll {
+    overscroll-behavior: contain;
   }
 }

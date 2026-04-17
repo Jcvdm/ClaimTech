@@ -10,7 +10,7 @@
 	let showPassword = $state(false);
 </script>
 
-<div class="grid min-h-screen bg-gray-50 text-gray-900 lg:grid-cols-[1.05fr_0.95fr]">
+<div class="grid min-h-dvh bg-gray-50 text-gray-900 lg:grid-cols-[1.05fr_0.95fr]">
 	<section class="relative hidden overflow-hidden bg-slate-900 lg:flex">
 		<div class="absolute -top-10 -right-10 h-64 w-64 rounded-full bg-slate-700/20 blur-3xl"></div>
 		<div
