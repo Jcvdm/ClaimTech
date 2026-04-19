@@ -43,6 +43,25 @@
 	let saveError = $state<string | null>(null);
 	let hasUnsavedChanges = $state(false);
 
+	// visualViewport offset — keeps overlay above keyboard on mobile
+	let vvBottomOffset = $state(0);
+
+	$effect(() => {
+		if (typeof window === 'undefined' || !window.visualViewport) return;
+		const vv = window.visualViewport;
+		const update = () => {
+			// window.innerHeight - vv.height - vv.offsetTop gives keyboard-occluded space at bottom
+			vvBottomOffset = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
+		};
+		vv.addEventListener('resize', update);
+		vv.addEventListener('scroll', update);
+		update();
+		return () => {
+			vv.removeEventListener('resize', update);
+			vv.removeEventListener('scroll', update);
+		};
+	});
+
 	// Validation warning (non-blocking)
 	const validationWarning = $derived.by(() => {
 		if (!props.field.validation) return null;
@@ -229,7 +248,7 @@
 
 <!-- Field input overlay -->
 {#if isOpen}
-	<div class="field-viewer-overlay">
+	<div class="field-viewer-overlay" style="bottom: {vvBottomOffset}px;">
 		<!-- Field Label -->
 		<div class="field-label">
 			{props.field.label}
@@ -516,6 +535,28 @@
 			width: 100%;
 			justify-content: center;
 			padding: 12px 20px;
+		}
+	}
+
+	/* Landscape phone fix — collapses vertical bar to horizontal row */
+	@media (orientation: landscape) and (max-height: 500px) {
+		.field-viewer-overlay {
+			flex-direction: row;
+			flex-wrap: wrap;
+			padding: 8px 12px;
+			gap: 8px;
+			align-items: center;
+		}
+		.field-label {
+			flex: 0 0 auto;
+		}
+		.field-input-container {
+			flex: 1 1 200px;
+			min-width: 0;
+		}
+		.close-button {
+			width: auto;
+			flex: 0 0 auto;
 		}
 	}
 

@@ -45,6 +45,14 @@
   --sidebar-ring: #94a3b8;
 }
 
+/* Z-Index hierarchy (documentary — values set at usage sites, not as tokens)
+   40      - sticky headers, toasts (svelte-sonner)
+   50      - shadcn Dialog / Sheet / DropdownMenu (bits-ui default)
+   999     - bigger-picture gallery (.bp-wrap) — library default
+   1000    - PhotoViewer / FormFieldPhotoViewer bottom bar (above .bp-wrap intentionally)
+   10000   - Critical error overlays (.viewer-error)
+*/
+
 .dark {
   --background: #020617;
   --foreground: #e2e8f0;

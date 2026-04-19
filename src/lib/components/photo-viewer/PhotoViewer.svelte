@@ -33,6 +33,25 @@
 	let savingLabel = $state(false);
 	let labelError = $state<string | null>(null);
 
+	// visualViewport offset — keeps overlay above keyboard on mobile
+	let vvBottomOffset = $state(0);
+
+	$effect(() => {
+		if (typeof window === 'undefined' || !window.visualViewport) return;
+		const vv = window.visualViewport;
+		const update = () => {
+			// window.innerHeight - vv.height - vv.offsetTop gives keyboard-occluded space at bottom
+			vvBottomOffset = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
+		};
+		vv.addEventListener('resize', update);
+		vv.addEventListener('scroll', update);
+		update();
+		return () => {
+			vv.removeEventListener('resize', update);
+			vv.removeEventListener('scroll', update);
+		};
+	});
+
 	// Computed values
 	const currentPhoto = $derived(props.photos[currentIndex]);
 	// Fix Svelte 5 reactivity: separate derived for label
@@ -302,7 +321,7 @@
 
 <!-- Photo info overlay -->
 {#if isOpen && currentPhoto}
-	<div class="photo-viewer-info">
+	<div class="photo-viewer-info" style="bottom: {vvBottomOffset}px;">
 		<!-- Label Editor Section -->
 		{#if isEditingLabel}
 			<!-- Edit Mode -->
