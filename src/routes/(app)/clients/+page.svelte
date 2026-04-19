@@ -6,6 +6,7 @@
 	import { Button } from '$lib/components/ui/button';
 	import { Badge } from '$lib/components/ui/badge';
 	import { Users, Plus } from 'lucide-svelte';
+	import { getTypeLabel } from '$lib/utils/table-helpers';
 	import type { Client } from '$lib/types/client';
 	import type { PageData } from './$types';
 
@@ -21,10 +22,7 @@
 			key: 'type' as keyof Client,
 			label: 'Type',
 			sortable: true,
-			render: (value: string) => {
-				const type = value as 'insurance' | 'private';
-				return type === 'insurance' ? 'Insurance' : 'Private';
-			}
+			render: (value: string) => getTypeLabel(value as 'insurance' | 'private')
 		},
 		{
 			key: 'contact_name' as keyof Client,

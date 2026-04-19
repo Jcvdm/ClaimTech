@@ -35,6 +35,7 @@
 	import type { PageData } from './$types';
 	import type { RequestStep } from '$lib/types/request';
 	import { formatCurrency, formatDateLong as formatDate } from '$lib/utils/formatters';
+	import { getTypeLabel } from '$lib/utils/table-helpers';
 
 	let { data }: { data: PageData } = $props();
 
@@ -212,7 +213,7 @@
 						<div>
 							<p class="text-sm font-medium text-gray-500">Type</p>
 							<p class="mt-1 text-sm text-gray-900">
-								{data.request.type === 'insurance' ? 'Insurance' : 'Private'}
+								{getTypeLabel(data.request.type)}
 							</p>
 						</div>
 					</div>

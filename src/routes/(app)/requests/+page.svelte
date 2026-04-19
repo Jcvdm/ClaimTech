@@ -11,6 +11,7 @@ import type { CardConfig } from '$lib/components/data/ListItemCard.svelte';
 import { Alert, AlertDescription, AlertTitle } from '$lib/components/ui/alert';
 import { FilterTabs } from '$lib/components/ui/tabs';
 	import { FileText, Plus, Hash, User, Car, Calendar } from 'lucide-svelte';
+	import { getTypeVariant, getTypeLabel, formatVehicleDisplay, formatDateDisplay } from '$lib/utils/table-helpers';
 	import type { Request, RequestStatus } from '$lib/types/request';
 	import type { PageData } from './$types';
 	import PageContainer from '$lib/components/layout/PageContainer.svelte';
@@ -37,11 +38,7 @@ import { FilterTabs } from '$lib/components/ui/tabs';
 		.map((req) => ({
 			...req,
 			client_name: (data.clientMap as Record<string, string>)[req.client_id] || 'Unknown Client',
-			formatted_date: new Date(req.created_at).toLocaleDateString('en-ZA', {
-				year: 'numeric',
-				month: 'short',
-				day: 'numeric'
-			})
+			formatted_date: formatDateDisplay(req.created_at)
 		}));
 
 	// Filter requests based on selected status
@@ -151,15 +148,11 @@ import { FilterTabs } from '$lib/components/ui/tabs';
 						{row.request_number}
 					</TableCell>
 				{:else if column.key === 'vehicle_make'}
-					{@const vehicle = row.vehicle_make
-						? `${row.vehicle_make} ${row.vehicle_model || ''}`.trim()
-						: '-'}
-					{vehicle}
+					{formatVehicleDisplay(row.vehicle_make, row.vehicle_model)}
 				{:else if column.key === 'type'}
-					{@const isInsurance = row.type === 'insurance'}
 					<GradientBadge
-						variant={isInsurance ? 'blue' : 'purple'}
-						label={isInsurance ? 'Insurance' : 'Private'}
+						variant={getTypeVariant(row.type as 'insurance' | 'private')}
+						label={getTypeLabel(row.type as 'insurance' | 'private')}
 					/>
 				{:else}
 					{row[column.key]}
@@ -169,18 +162,14 @@ import { FilterTabs } from '$lib/components/ui/tabs';
 				{#if field === 'request_number'}
 					<span class="font-semibold text-gray-900">{row.request_number}</span>
 				{:else if field === 'type'}
-					{@const isInsurance = row.type === 'insurance'}
 					<GradientBadge
-						variant={isInsurance ? 'blue' : 'purple'}
-						label={isInsurance ? 'Insurance' : 'Private'}
+						variant={getTypeVariant(row.type as 'insurance' | 'private')}
+						label={getTypeLabel(row.type as 'insurance' | 'private')}
 					/>
 				{:else if field === 'client_name'}
 					<span class="text-gray-600"><User class="inline h-3.5 w-3.5 mr-1 text-gray-400" />{row.client_name}</span>
 				{:else if field === 'vehicle_make'}
-					{@const vehicle = row.vehicle_make
-						? `${row.vehicle_make} ${row.vehicle_model || ''}`.trim()
-						: '-'}
-					<span class="text-gray-600"><Car class="inline h-3.5 w-3.5 mr-1 text-gray-400" />{vehicle}</span>
+					<span class="text-gray-600"><Car class="inline h-3.5 w-3.5 mr-1 text-gray-400" />{formatVehicleDisplay(row.vehicle_make, row.vehicle_model)}</span>
 				{:else}
 					{row[field]}
 				{/if}

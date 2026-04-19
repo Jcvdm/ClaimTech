@@ -10,6 +10,7 @@ import type { CardConfig } from '$lib/components/data/ListItemCard.svelte';
 	import TableCell from '$lib/components/data/TableCell.svelte';
 	import EmptyState from '$lib/components/data/EmptyState.svelte';
 	import { formatDate, formatVehicle } from '$lib/utils/formatters';
+	import { getTypeVariant, getTypeLabel } from '$lib/utils/table-helpers';
 	import {
 		ClipboardCheck,
 		Hash,
@@ -138,10 +139,9 @@ import type { CardConfig } from '$lib/components/data/ListItemCard.svelte';
 						{row.assessment_number}
 					</TableCell>
 				{:else if column.key === 'type'}
-					{@const isInsurance = row.type === 'insurance'}
 					<GradientBadge
-						variant={isInsurance ? 'blue' : 'purple'}
-						label={isInsurance ? 'Insurance' : 'Private'}
+						variant={getTypeVariant(row.type as 'insurance' | 'private')}
+						label={getTypeLabel(row.type as 'insurance' | 'private')}
 					/>
 				{:else if column.key === 'stage'}
 					<GradientBadge variant="yellow" label="Inspection Scheduled" />
@@ -153,10 +153,9 @@ import type { CardConfig } from '$lib/components/data/ListItemCard.svelte';
 				{#if field === 'assessment_number'}
 					<span class="font-semibold text-gray-900">{row.assessment_number}</span>
 				{:else if field === 'type'}
-					{@const isInsurance = row.type === 'insurance'}
 					<GradientBadge
-						variant={isInsurance ? 'blue' : 'purple'}
-						label={isInsurance ? 'Insurance' : 'Private'}
+						variant={getTypeVariant(row.type as 'insurance' | 'private')}
+						label={getTypeLabel(row.type as 'insurance' | 'private')}
 					/>
 				{:else if field === 'client_name'}
 					<span class="text-gray-600"><User class="inline h-3.5 w-3.5 mr-1 text-gray-400" />{row.client_name}</span>

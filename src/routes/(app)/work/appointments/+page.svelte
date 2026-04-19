@@ -29,7 +29,7 @@
 	import type { StructuredAddress } from '$lib/types/address';
 	import AddressInput from '$lib/components/forms/AddressInput.svelte';
 	import { formatDateWithWeekday } from '$lib/utils/formatters';
-	import { formatTimeDisplay, isAppointmentOverdue } from '$lib/utils/table-helpers';
+	import { formatTimeDisplay, isAppointmentOverdue, formatVehicleDisplay } from '$lib/utils/table-helpers';
 	import { appointmentService } from '$lib/services/appointment.service';
 
 	let { data }: { data: PageData } = $props();
@@ -92,9 +92,10 @@
 					// Derived display fields
 					client_name: assessment.request?.client?.name || 'Unknown Client',
 					engineer_name: appointment.engineer?.name || 'Unknown Engineer',
-					vehicle_display:
-						`${assessment.request?.vehicle_make || ''} ${assessment.request?.vehicle_model || ''}`.trim() ||
-						'-',
+					vehicle_display: formatVehicleDisplay(
+						assessment.request?.vehicle_make,
+						assessment.request?.vehicle_model
+					),
 					type_display: appointment.appointment_type === 'in_person' ? 'In-Person' : 'Digital',
 					location_display:
 						appointment.appointment_type === 'in_person'

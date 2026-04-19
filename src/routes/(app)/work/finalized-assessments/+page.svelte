@@ -30,6 +30,7 @@ import type { CardConfig } from '$lib/components/data/ListItemCard.svelte';
 		ExternalLink
 	} from 'lucide-svelte';
 	import { formatDate, formatDateTime, formatVehicle } from '$lib/utils/formatters';
+	import { getTypeVariant, getTypeLabel } from '$lib/utils/table-helpers';
 
 	let { data }: { data: PageData } = $props();
 	const { loadingId, startNavigation } = useNavigationLoading();
@@ -248,8 +249,8 @@ import type { CardConfig } from '$lib/components/data/ListItemCard.svelte';
 						<div class="flex flex-col">
 							<span class="font-medium text-gray-900">{row.clientName}</span>
 							<GradientBadge
-								variant={row.clientType === 'insurance' ? 'blue' : 'purple'}
-								label={row.clientType === 'insurance' ? 'Insurance' : 'Private'}
+								variant={getTypeVariant(row.clientType as 'insurance' | 'private')}
+								label={getTypeLabel(row.clientType as 'insurance' | 'private')}
 								class="mt-1"
 							/>
 						</div>
@@ -279,8 +280,8 @@ import type { CardConfig } from '$lib/components/data/ListItemCard.svelte';
 					<span class="font-semibold text-gray-900">{row.assessmentNumber}</span>
 				{:else if field === 'clientType'}
 					<GradientBadge
-						variant={row.clientType === 'insurance' ? 'blue' : 'purple'}
-						label={row.clientType === 'insurance' ? 'Insurance' : 'Private'}
+						variant={getTypeVariant(row.clientType as 'insurance' | 'private')}
+						label={getTypeLabel(row.clientType as 'insurance' | 'private')}
 					/>
 				{:else if field === 'clientName'}
 					<span class="text-gray-600"><User class="inline h-3.5 w-3.5 mr-1 text-gray-400" />{row.clientName}</span>

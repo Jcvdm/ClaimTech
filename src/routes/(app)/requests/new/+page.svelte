@@ -14,6 +14,7 @@
 	import { requestService } from '$lib/services/request.service';
 	import { clientService } from '$lib/services/client.service';
 	import { Plus } from 'lucide-svelte';
+	import { getTypeLabel } from '$lib/utils/table-helpers';
 	import type { CreateRequestInput, RequestType } from '$lib/types/request';
 	import type { Province } from '$lib/types/engineer';
 	import type { StructuredAddress } from '$lib/types/address';
@@ -185,7 +186,7 @@ let clients = $state(data.clients ?? []);
 const clientOptions = $derived.by(() =>
 	clients.map((c) => ({
 		value: c.id,
-		label: `${c.name} (${c.type === 'insurance' ? 'Insurance' : 'Private'})`
+		label: `${c.name} (${getTypeLabel(c.type)})`
 	}))
 );
 
