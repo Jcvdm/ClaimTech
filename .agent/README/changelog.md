@@ -1,7 +1,49 @@
 # Changelog - Recent Updates
 
-**Last Updated**: March 24, 2026 (Shop Module Complete - Full Database, Services, UI, Workflow ✅)
+**Last Updated**: April 19, 2026 (Service + Component Consolidation Refactor ✅)
 
+
+---
+
+## April 18–19, 2026
+
+### ✅ Service & Component Consolidation Refactor
+
+**Status**: ✅ Complete - Six-PR refactor shipped on `claude/confident-mendel`
+
+#### Summary
+
+Consolidated duplicated service and component patterns into three factories and one composable. Net **~1,156 lines removed** with zero callsite changes and zero behavior regressions (except documented null-display fallbacks on 8 shop pages).
+
+#### Deliverables
+
+**Service Factories**:
+- `assessment-subtable-factory.ts` — backs vehicle-identification, interior-mechanical, exterior-360 services
+- `photo-service-factory.ts` — backs 6 photo services (estimate, interior, exterior-360, pre-incident-estimate, additionals, damage)
+- `entity-service-factory.ts` — backs client, engineer, repairer services
+
+**Component Composable**:
+- `use-photo-upload.svelte.ts` — unified drag/drop + file-input handler for 6 assessment photo panels
+
+**Helper Adoption**:
+- `table-helpers.ts` adopted at 20 bypass sites across 7 files
+- `formatters.ts` adopted at 56 bypass sites across 21 files
+
+#### Behavioral Deltas (Approved)
+
+- Shop pages null-cell display: local `'—'` / `'-'` → `formatters.ts` `'N/A'` (dates), `'R0.00'` (currency)
+  - Affects: /shop/dashboard, /shop/jobs, /shop/invoices, /shop/invoiced, /shop/estimates, /shop/completed, /shop/cancelled, /shop/customers/[id]
+- Photo service reorder normalized to sequential (consistency)
+- Estimate-photos `updatePhotoLabel` now returns updated row (no callsite impact)
+
+#### Branch & Commits
+
+- Branch: `claude/confident-mendel`
+- Commits: `e5bb64b` → `02d81bd` (6 PRs)
+
+#### Full Details
+
+→ [REFACTOR_CONSOLIDATION_SUMMARY.md](./../Tasks/completed/REFACTOR_CONSOLIDATION_SUMMARY.md)
 
 ---
 

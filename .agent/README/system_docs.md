@@ -87,6 +87,22 @@ Comprehensive system documentation covering architecture, database design, secur
 
 ---
 
+### 6. Shop Module Overview ⭐ SUBSYSTEM
+- **File**: [shop_module_overview.md](../System/shop_module_overview.md)
+- **Size**: ~200 lines | **Last Updated**: Apr 19, 2026
+- **Read When**: Working in the `(shop)` route group, adding shop services/routes, understanding shop-vs-assessment architectural split
+
+**Contains**:
+- Shop route inventory (`/shop/dashboard`, `/shop/jobs`, `/shop/invoices`, `/shop/customers`, etc.)
+- Shop service catalogue (all factory-function pattern — `createShopJobService`, `createShopCustomerService`, etc.)
+- Architectural divergence from the `(app)` module (factory vs singleton, shop-photo schema, shop-job state machine)
+- What NOT to cross-pollinate between `(app)` and `(shop)`
+
+**Related**: [Working with Services](../SOP/working_with_services.md) - Pattern B (factory functions)
+**Related**: [Adding Page Route](../SOP/adding_page_route.md) - `(shop)` route examples
+
+---
+
 ## 🔐 Security & Authentication
 
 ### 1. Session Management & Security ⭐ CRITICAL

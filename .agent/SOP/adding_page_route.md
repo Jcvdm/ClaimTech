@@ -22,7 +22,8 @@ SvelteKit uses **file-based routing**: the file structure in `src/routes/` deter
 ### Route Groups
 
 Routes can be grouped using parentheses:
-- `(app)` - Protected routes requiring authentication
+- `(app)` - Assessment-centric protected routes (clients, engineers, assessments, requests, /work/*)
+- `(shop)` - Body-shop protected routes (jobs, estimates, invoices, customers)
 - `(public)` - Public routes
 
 ---
@@ -695,6 +696,206 @@ export const actions: Actions = {
 
 ---
 
+---
+
+## Adding a (shop) Route
+
+The shop routes use a **factory function service pattern** where services are instantiated per-request, unlike (app) routes which often use singletons.
+
+### Step 1: Determine Route Structure
+
+Routes in `(shop)` are for body-shop operations:
+
+**Examples:**
+- Dashboard: `/shop/dashboard` → `src/routes/(shop)/shop/dashboard/+page.svelte`
+- Job list: `/shop/jobs` → `src/routes/(shop)/shop/jobs/+page.svelte`
+- Job detail: `/shop/jobs/[id]` → `src/routes/(shop)/shop/jobs/[id]/+page.svelte`
+- Estimate detail: `/shop/estimates/[id]` → `src/routes/(shop)/shop/estimates/[id]/+page.svelte`
+- Customer detail: `/shop/customers/[id]` → `src/routes/(shop)/shop/customers/[id]/+page.svelte`
+
+### Step 2: Create Route Directory
+
+```bash
+# Example: Adding a new shop jobs detail page
+mkdir -p src/routes/\(shop\)/shop/jobs/\[id\]
+```
+
+### Step 3: Create Server Load Function Using Factory Pattern
+
+Shop services are **factory functions** that return an object of methods. Instantiate per-request:
+
+**+page.server.ts:**
+
+```typescript
+import type { PageServerLoad, Actions } from './$types';
+import { error, fail } from '@sveltejs/kit';
+import { createShopJobService } from '$lib/services/shop-job.service';
+import { createShopJobPhotosService } from '$lib/services/shop-job-photos.service';
+
+export const load: PageServerLoad = async ({ params, locals }) => {
+	const { supabase } = locals;
+
+	// Factory pattern: instantiate service with supabase client
+	const jobService = createShopJobService(supabase);
+	const photosService = createShopJobPhotosService(supabase);
+
+	const { data: job, error: jobError } = await jobService.getJob(params.id);
+
+	if (jobError || !job) {
+		error(404, 'Job not found');
+	}
+
+	// Load photos for this job
+	const { data: photos, error: photosError } = await photosService.getPhotos(params.id);
+
+	return {
+		job,
+		photos: photos ?? [],
+		jobId: params.id
+	};
+};
+
+export const actions: Actions = {
+	updateStatus: async ({ params, request, locals }) => {
+		const { supabase } = locals;
+		const jobService = createShopJobService(supabase);
+		const formData = await request.formData();
+		const newStatus = formData.get('status') as string;
+
+		if (!newStatus) {
+			return fail(400, { error: 'Status is required' });
+		}
+
+		try {
+			const { error: updateError } = await jobService.updateJobStatus(
+				params.id,
+				newStatus as any, // Cast to ShopJobStatus
+				locals.user?.id
+			);
+
+			if (updateError) {
+				return fail(400, { error: updateError.message });
+			}
+
+			return { success: true };
+		} catch (err) {
+			return fail(400, { error: err instanceof Error ? err.message : 'Failed to update status' });
+		}
+	}
+};
+```
+
+**Compare to (app) service pattern** (singleton, client passed per-call):
+
+```typescript
+// (app) pattern: Singleton service, pass client to each method
+import { estimatePhotosService } from '$lib/services/estimate-photos.service';
+
+const photos = await estimatePhotosService.getPhotosByEstimate(estimateId, locals.supabase);
+```
+
+### Step 4: Create Page Component
+
+**+page.svelte:**
+
+```svelte
+<script lang="ts">
+	import { enhance } from '$app/forms';
+	import type { PageData } from './$types';
+	import { Button } from '$lib/components/ui/button';
+	import * as Card from '$lib/components/ui/card';
+	import { Badge } from '$lib/components/ui/badge';
+
+	let { data }: { data: PageData } = $props();
+
+	let job = $state(data.job);
+	let statusUpdating = $state(false);
+</script>
+
+<div class="container mx-auto p-6">
+	<div class="flex items-center justify-between mb-6">
+		<h1 class="text-3xl font-bold">{job.job_number}</h1>
+		<Badge>{job.status}</Badge>
+	</div>
+
+	<Card.Root class="mb-6">
+		<Card.Header>
+			<Card.Title>Vehicle Details</Card.Title>
+		</Card.Header>
+		<Card.Content>
+			<p>{job.vehicle_year} {job.vehicle_make} {job.vehicle_model}</p>
+			<p class="text-sm text-gray-600">{job.vehicle_reg}</p>
+		</Card.Content>
+	</Card.Root>
+
+	<Card.Root class="mb-6">
+		<Card.Header>
+			<Card.Title>Update Status</Card.Title>
+		</Card.Header>
+		<Card.Content>
+			<form method="POST" action="?/updateStatus" use:enhance>
+				<select name="status" class="mb-4 p-2 border rounded">
+					<option value="">Select new status...</option>
+					<option value="checked_in">Checked In</option>
+					<option value="in_progress">In Progress</option>
+					<option value="quality_check">Quality Check</option>
+				</select>
+				<Button type="submit" disabled={statusUpdating}>Update</Button>
+			</form>
+		</Card.Content>
+	</Card.Root>
+
+	{#if data.photos.length > 0}
+		<Card.Root>
+			<Card.Header>
+				<Card.Title>Photos ({data.photos.length})</Card.Title>
+			</Card.Header>
+			<Card.Content>
+				<div class="grid grid-cols-3 gap-4">
+					{#each data.photos as photo}
+						<div class="border rounded overflow-hidden">
+							<img src={photo.storage_path} alt={photo.label} class="w-full h-48 object-cover" />
+							<p class="p-2 text-sm">{photo.label}</p>
+						</div>
+					{/each}
+				</div>
+			</Card.Content>
+		</Card.Root>
+	{/if}
+</div>
+```
+
+### Step 5: Photo Column Differences
+
+Shop photos use different columns than assessment photos:
+
+| Aspect | Assessment Photos | Shop Photos |
+|--------|------------------|------------|
+| **Ordering column** | `display_order` | `sort_order` |
+| **Labeling column** | `label` | `label` |
+| **Storage path column** | `photo_path` | `storage_path` |
+| **Category column** | None | `category` (e.g., "damage", "work_in_progress") |
+| **Service** | Singleton (`estimatePhotosService`) | Factory (`createShopJobPhotosService()`) |
+
+Use the correct service for your route:
+- For assessment photos: `import { estimatePhotosService } from '$lib/services/estimate-photos.service'`
+- For shop photos: `import { createShopJobPhotosService } from '$lib/services/shop-job-photos.service'`
+
+---
+
+## Service Patterns at a Glance
+
+| Aspect | (app) Pattern | (shop) Pattern |
+|--------|--------------|----------------|
+| **Export** | Singleton class instance | Factory function |
+| **Import** | `import { serviceInstance }` | `import { createServiceName }` |
+| **Instantiation** | Already instantiated | `const svc = createServiceName(supabase)` |
+| **Method calls** | `serviceInstance.method(arg, supabase)` | `svc.method(arg)` |
+| **Per-request state** | Managed externally | Encapsulated in closure |
+| **Example** | `estimatePhotosService.getPhotosByEstimate(id, locals.supabase)` | `photosService.getPhotos(jobId)` |
+
+---
+
 ## Examples from ClaimTech
 
 ### Example 1: Assessment Detail Page
@@ -737,6 +938,75 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 
 ---
 
+---
+
+## Common Pitfalls: (app) vs (shop)
+
+### Service Pattern Mismatches
+
+**❌ WRONG: Using singleton pattern with shop service**
+```typescript
+// Incorrect - shop services are factories, not singletons
+import { shopJobService } from '$lib/services/shop-job.service';
+const job = await shopJobService.getJob(id); // Error: shopJobService is a function
+```
+
+**✅ CORRECT: Instantiate shop service factory**
+```typescript
+// Correct - instantiate factory with supabase client
+import { createShopJobService } from '$lib/services/shop-job.service';
+const jobService = createShopJobService(locals.supabase);
+const { data: job } = await jobService.getJob(id);
+```
+
+### Importing from Wrong Route Group
+
+**❌ WRONG: Import shop components in (app) routes**
+```typescript
+// This couples route groups and breaks modularity
+import JobCard from '$lib/components/shop/JobCard.svelte';
+// Use this in (app)/dashboard instead
+```
+
+**✅ CORRECT: Keep components domain-specific**
+```typescript
+// (app) routes use: $lib/components/assessment/, $lib/components/request/
+// (shop) routes use: $lib/components/shop/
+import JobCard from '$lib/components/shop/JobCard.svelte'; // Only in (shop) routes
+```
+
+### Photo Service Confusion
+
+**❌ WRONG: Using assessment photo service for shop**
+```typescript
+// Wrong - assessment photos have different schema
+const photos = await estimatePhotosService.getPhotosByEstimate(jobId, locals.supabase);
+// This uses estimate_photos table, not shop_job_photos
+```
+
+**✅ CORRECT: Use shop-specific photo service**
+```typescript
+// Right - shop photos have sort_order and category columns
+const photosService = createShopJobPhotosService(locals.supabase);
+const { data: photos } = await photosService.getPhotos(jobId, 'damage');
+```
+
+### Untyped Queries
+
+Shop tables (shop_jobs, shop_estimates, etc.) are not yet in `database.types.ts`, so you may see untyped queries:
+
+```typescript
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const { data: jobs } = await (supabase as any)
+	.from('shop_jobs')
+	.select('*');
+```
+
+This is temporary. When shop tables are added to the database schema and types generated, remove the type assertion.
+
+---
+
 ## Related Documentation
 - Project Architecture: `../System/project_architecture.md`
 - Service Layer Pattern: See services in `src/lib/services/`
+- Shop Module Overview: `../System/shop_module_overview.md` (for comprehensive shop architecture)

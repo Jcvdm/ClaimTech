@@ -1,859 +1,309 @@
 # SOP: Working with Services
 
+**Last updated**: 2026-04-19 — refreshed for post-refactor service architecture (see [Refactor Consolidation Summary](../Tasks/completed/REFACTOR_CONSOLIDATION_SUMMARY.md)).
+
 ## Overview
 
-ClaimTech uses a **Service Layer Pattern** to abstract all database operations. Services provide a clean, testable, and reusable interface for data access across the application.
+ClaimTech's service layer is where all database I/O lives. Services sit between routes/components and Supabase, and follow one of five patterns depending on the domain. Every pattern shares one invariant: methods accept an optional `client?: ServiceClient` so routes can pass their authenticated `locals.supabase` instance.
 
----
+## Anatomy of a service method (universal)
 
-## Service Architecture
+Every service method — regardless of pattern — takes `client?: ServiceClient` as its final parameter and resolves to a concrete Supabase client internally:
 
-### Location
-All services are in `src/lib/services/*.service.ts`
-
-### Naming Convention
-- File: `{entity}.service.ts` (e.g., `client.service.ts`)
-- Class: `{Entity}Service` (e.g., `ClientService`)
-- Methods: `get()`, `create()`, `update()`, `delete()`, `list()`
-
-### Core Principles
-1. **Accept optional ServiceClient parameter**: All methods that interact with the database MUST accept `client?: ServiceClient` as the last parameter
-2. **Use authenticated client pattern**: `const db = client ?? supabase;` to support both server-side (authenticated) and client-side operations
-3. **RLS Authentication**: Always pass `locals.supabase` from server routes to ensure RLS policies can authenticate the user
-4. **Return typed data**: Use TypeScript types from database schema
-5. **Single responsibility**: Each service handles one entity or domain
-6. **Error handling**: Throw descriptive errors with context
-
----
-
-## Basic Service Structure
-
-### Modern Class-Based Template (RECOMMENDED)
-
-```typescript
-// src/lib/services/entity.service.ts
+```ts
 import { supabase } from '$lib/supabase';
-import type { Entity, CreateEntityInput, UpdateEntityInput } from '$lib/types/assessment';
 import type { ServiceClient } from '$lib/types/service';
-import { auditService } from './audit.service';
 
-export class EntityService {
-  /**
-   * Get all entities with optional filtering
-   */
-  async list(filters?: { is_active?: boolean }, client?: ServiceClient): Promise<Entity[]> {
-    const db = client ?? supabase;
-    let query = db
-      .from('entities')
-      .select('*')
-      .order('created_at', { ascending: false });
-
-    if (filters?.is_active !== undefined) {
-      query = query.eq('is_active', filters.is_active);
-    }
-
-    const { data, error } = await query;
-
-    if (error) {
-      console.error('Error listing entities:', error);
-      return [];
-    }
-
-    return data || [];
-  }
-
-  /**
-   * Get single entity by ID
-   */
-  async get(id: string, client?: ServiceClient): Promise<Entity | null> {
-    const db = client ?? supabase;
-    const { data, error } = await db
-      .from('entities')
-      .select('*')
-      .eq('id', id)
-      .maybeSingle();
-
-    if (error) {
-      console.error('Error fetching entity:', error);
-      return null;
-    }
-
-    return data;
-  }
-
-  /**
-   * Create new entity
-   */
-  async create(input: CreateEntityInput, client?: ServiceClient): Promise<Entity> {
-    const db = client ?? supabase;
-    const { data, error } = await db
-      .from('entities')
-      .insert(input)
-      .select()
-      .single();
-
-    if (error) {
-      console.error('Error creating entity:', error);
-      throw new Error(`Failed to create entity: ${error.message}`);
-    }
-
-    // Log audit trail
-    try {
-      await auditService.logChange({
-        entity_type: 'entity',
-        entity_id: data.id,
-        action: 'created',
-        metadata: { name: input.name }
-      });
-    } catch (auditError) {
-      console.error('Error logging audit change:', auditError);
-    }
-
-    return data;
-  }
-
-  /**
-   * Update entity
-   */
-  async update(id: string, input: UpdateEntityInput, client?: ServiceClient): Promise<Entity> {
-    const db = client ?? supabase;
-    const { data, error } = await db
-      .from('entities')
-      .update(input)
-      .eq('id', id)
-      .select()
-      .single();
-
-    if (error) {
-      console.error('Error updating entity:', error);
-      throw new Error(`Failed to update entity: ${error.message}`);
-    }
-
-    // Log audit trail
-    try {
-      await auditService.logChange({
-        entity_type: 'entity',
-        entity_id: id,
-        action: 'updated'
-      });
-    } catch (auditError) {
-      console.error('Error logging audit change:', auditError);
-    }
-
-    return data;
-  }
-
-  /**
-   * Delete entity (soft delete by setting is_active = false)
-   */
-  async delete(id: string, client?: ServiceClient): Promise<void> {
-    const db = client ?? supabase;
-    const { error } = await db
-      .from('entities')
-      .update({ is_active: false })
-      .eq('id', id);
-
-    if (error) {
-      console.error('Error deleting entity:', error);
-      throw new Error(`Failed to delete entity: ${error.message}`);
-    }
-
-    // Log audit trail
-    try {
-      await auditService.logChange({
-        entity_type: 'entity',
-        entity_id: id,
-        action: 'cancelled'
-      });
-    } catch (auditError) {
-      console.error('Error logging audit change:', auditError);
-    }
-  }
-}
-
-export const entityService = new EntityService();
-```
-
-### Key Points
-
-1. **ServiceClient Parameter**: Always add `client?: ServiceClient` as the last parameter
-2. **Authenticated Client Pattern**: Use `const db = client ?? supabase;` at the start of each method
-3. **Error Handling**: Log errors and throw descriptive messages
-4. **Audit Logging**: Log all create/update/delete operations
-5. **Return Types**: Always specify return types for type safety
-
----
-
-## Why ServiceClient Parameter is Critical
-
-### The Problem
-Without the `client` parameter, services always use the global `supabase` client which has no authentication context. This causes RLS policies to fail with error 42501:
-
-```
-Error: new row violates row-level security policy for table "..."
-```
-
-### The Solution
-By accepting `client?: ServiceClient` and using `const db = client ?? supabase;`, services can:
-- Use `locals.supabase` (authenticated) when called from server routes
-- Use the global `supabase` client when called from browser code
-- Properly authenticate with RLS policies
-
-### Example: Before vs After
-
-**❌ Before (BROKEN):**
-```typescript
-async create(input: CreateInput): Promise<Entity> {
-  const { data, error } = await supabase  // ❌ Always unauthenticated
-    .from('entities')
-    .insert(input)
-    .select()
-    .single();
-
-  if (error) throw new Error(error.message);
-  return data;
-}
-```
-
-**✅ After (CORRECT):**
-```typescript
-async create(input: CreateInput, client?: ServiceClient): Promise<Entity> {
-  const db = client ?? supabase;  // ✅ Use authenticated client if provided
+async function getFoo(id: string, client?: ServiceClient): Promise<Foo | null> {
+  const db = client ?? supabase;
   const { data, error } = await db
-    .from('entities')
-    .insert(input)
-    .select()
-    .single();
+    .from('foos')
+    .select('*')
+    .eq('id', id)
+    .maybeSingle();
 
-  if (error) throw new Error(error.message);
+  if (error) {
+    console.error('Error fetching foo:', error);
+    return null;
+  }
   return data;
 }
 ```
 
+Why this matters:
+
+- **Server-side**: routes call `service.method(args, locals.supabase)` — the caller's authenticated client flows through, so Row-Level Security (RLS) policies authenticate the user correctly.
+- **Client-side**: components call `service.method(args)` with no client — falls through to the shared browser `supabase` singleton.
+
+**If you forget `client?: ServiceClient`**: RLS-protected inserts will fail with PostgreSQL error 42501 ("new row violates row-level security policy"). Every service in the codebase has been audited to include it; follow the same convention for any new service.
+
+`ServiceClient` is defined in [`src/lib/types/service.ts`](../../src/lib/types/service.ts) as `SupabaseClient<Database>`.
+
 ---
 
-## Using Services in Routes
+## Pattern A — Class + singleton
 
-### In `+page.server.ts` (ALWAYS pass locals.supabase)
+**Use when**: a service is stateful, represents a canonical instance, or is expected to be directly instantiable elsewhere (e.g. a route-level `new EngineerService()` pattern that exists in one callsite).
 
-```typescript
-import type { PageServerLoad } from './$types'
-import { entityService } from '$lib/services/entity.service'
-import { error } from '@sveltejs/kit'
+**Shape**:
+```ts
+export class FooService {
+  async list(client?: ServiceClient): Promise<Foo[]> { ... }
+  async getById(id: string, client?: ServiceClient): Promise<Foo | null> { ... }
+  async create(input: CreateFooInput, client?: ServiceClient): Promise<Foo> { ... }
+  async update(id: string, input: UpdateFooInput, client?: ServiceClient): Promise<Foo | null> { ... }
+  async delete(id: string, client?: ServiceClient): Promise<void> { ... }
+}
+
+export const fooService = new FooService();
+```
+
+**Live examples**:
+- [`src/lib/services/assessment.service.ts`](../../src/lib/services/assessment.service.ts) — 950 lines of assessment workflow + stage transitions
+- [`src/lib/services/engineer.service.ts`](../../src/lib/services/engineer.service.ts) — exports both class and singleton (one callsite still does `new EngineerService()`)
+- [`src/lib/services/frc.service.ts`](../../src/lib/services/frc.service.ts) — FRC workflow, optimistic locking via `version` column
+- [`src/lib/services/request.service.ts`](../../src/lib/services/request.service.ts) — request lifecycle
+
+Use this for workflow-heavy, state-machine, or calculation-heavy domains. Keep CRUD-only entities on Pattern E instead.
+
+---
+
+## Pattern B — Factory function (shop module)
+
+**Use when**: each consumer should construct its own instance at request time (no shared singleton), and the Supabase client is passed at construction instead of at each method call.
+
+**Shape**:
+```ts
+export function createFooService(supabase: SupabaseClient) {
+  return {
+    async getById(id: string) { ... },
+    async create(input: CreateFooInput) { ... },
+    async update(id: string, input: UpdateFooInput) { ... },
+    // methods do NOT need `client?` param — supabase is already captured
+  };
+}
+```
+
+**Live examples** (the entire shop module uses this pattern):
+- [`src/lib/services/shop-customer.service.ts`](../../src/lib/services/shop-customer.service.ts)
+- [`src/lib/services/shop-job.service.ts`](../../src/lib/services/shop-job.service.ts) — also contains a `VALID_TRANSITIONS` state machine
+- [`src/lib/services/shop-estimate.service.ts`](../../src/lib/services/shop-estimate.service.ts)
+- [`src/lib/services/shop-invoice.service.ts`](../../src/lib/services/shop-invoice.service.ts)
+- [`src/lib/services/shop-job-photos.service.ts`](../../src/lib/services/shop-job-photos.service.ts)
+- [`src/lib/services/shop-additionals.service.ts`](../../src/lib/services/shop-additionals.service.ts)
+
+**Why the shop module uses this**: shop services need a supabase handle at construction to avoid threading `client?` through every method call. Each request's `+page.server.ts` does `const svc = createShopJobService(locals.supabase); const job = await svc.getById(params.id);` — simpler than the multi-argument Pattern A. Also see [`shop_module_overview.md`](../System/shop_module_overview.md).
+
+---
+
+## Pattern C — Consolidation factories (CRUD deduplication)
+
+**Added as of 2026-04 refactor.** Three factories eliminate ~1,000 lines of byte-identical CRUD duplication across similarly-shaped services, while preserving every existing export name so callsites never changed.
+
+### C.1 — Assessment sub-table factory
+
+For 1:1 assessment-child records (one record per assessment_id).
+
+[`src/lib/services/assessment-subtable-factory.ts`](../../src/lib/services/assessment-subtable-factory.ts) — `createAssessmentSubtableService({ table, entityType })`
+
+Methods: `create`, `getByAssessment`, `update`, `upsert`. Includes automatic `auditService.logChange()` calls on create/update.
+
+**Backed services**:
+```ts
+// vehicle-identification.service.ts — ~10 lines
+export const vehicleIdentificationService = createAssessmentSubtableService<...>({
+  table: 'assessment_vehicle_identification',
+  entityType: 'vehicle_identification',
+});
+```
+
+Same pattern for `interiorMechanicalService` and `exterior360Service`.
+
+### C.2 — Photo service factory
+
+For the 6 vanilla photo services with shared structure (estimate / interior / exterior-360 / pre-incident / additionals / damage).
+
+[`src/lib/services/photo-service-factory.ts`](../../src/lib/services/photo-service-factory.ts) — `createPhotoService({ table, parentIdField, extraUpdateFields?, label })`
+
+Methods: `getPhotos`, `createPhoto`, `updatePhoto`, `updatePhotoLabel`, `deletePhoto`, `reorderPhotos`, `getNextDisplayOrder`. `extraUpdateFields` lets damage allowlist its `panel` column without leaking the Insert/Update types.
+
+**Backed services**:
+```ts
+// estimate-photos.service.ts
+const base = createPhotoService<...>({
+  table: 'estimate_photos',
+  parentIdField: 'estimate_id',
+  label: 'estimate photos',
+});
+export const estimatePhotosService = {
+  ...base,
+  getPhotosByEstimate: base.getPhotos,   // historical alias for backward compat
+};
+```
+
+Callsites still do `estimatePhotosService.getPhotosByEstimate(id)` exactly as before.
+
+**NOT backed** (intentionally separate — don't try to consolidate):
+- `tyre-photos.service.ts` — dual parent keys + custom audit logging.
+- `shop-job-photos.service.ts` — different schema (`sort_order`/`category`, not `display_order`/`label`) and different storage API.
+
+### C.3 — Entity service factory
+
+For plain CRUD entities with `is_active` soft-delete and a single sort column.
+
+[`src/lib/services/entity-service-factory.ts`](../../src/lib/services/entity-service-factory.ts) — `createEntityService({ table, label, orderField })`
+
+Methods: `list`, `getById`, `create`, `update`, `softDelete`.
+
+**Backed services**:
+- [`client.service.ts`](../../src/lib/services/client.service.ts) — wraps create/update with `validateTermsAndConditions` (client-specific concern). Extensions: `searchClients`, `getClientsByType`, `getClientTermsAndConditions`.
+- [`engineer.service.ts`](../../src/lib/services/engineer.service.ts) — extensions: `getEngineerByEmail`, `listEngineersByProvince`. Also exports `EngineerService` class (one callsite uses it).
+- [`repairer.service.ts`](../../src/lib/services/repairer.service.ts) — extension: `searchRepairers`.
+
+### When to use a consolidation factory
+
+Ask yourself: is the new service's shape **structurally identical** to an existing entity's — same methods, same signatures, only table/type differ?
+
+- Yes, and it's an assessment child record (1:1) → extend `createAssessmentSubtableService`.
+- Yes, and it's a photo-like record (display_order + parent FK) → extend `createPhotoService`.
+- Yes, and it's a soft-delete CRUD entity → extend `createEntityService`.
+- No, the new service has unique business logic (state transitions, calculations, workflows) → use Pattern A.
+
+**Don't force fit**. If the fit requires a conditional branch inside the factory, that's a smell — create a separate service.
+
+---
+
+## Pattern D — Legacy function exports
+
+**Historical**. Some older services still export plain functions instead of a class or factory. They still accept `client?: ServiceClient`, so they're not broken — but new services should NOT follow this pattern.
+
+Example:
+```ts
+export async function getFoo(id: string, client?: ServiceClient): Promise<Foo | null> { ... }
+```
+
+Prefer Pattern A (class + singleton) for new work; Pattern D is kept around only because legacy callsites haven't been migrated.
+
+---
+
+## Pattern E — Utility/compute services
+
+**Use when**: the service is pure computation or library-like (no Supabase access, no audit trail).
+
+Examples:
+- [`src/lib/services/audit.service.ts`](../../src/lib/services/audit.service.ts) — actually does Supabase writes; mentioned here for context but follows Pattern A.
+- [`src/lib/utils/estimateCalculations.ts`](../../src/lib/utils/estimateCalculations.ts) — pure math on estimate line items.
+- [`src/lib/services/document-generation.service.ts`](../../src/lib/services/document-generation.service.ts) — PDF generation.
+- [`src/lib/services/storage.service.ts`](../../src/lib/services/storage.service.ts) — Supabase Storage wrapper.
+
+Shape is whatever makes sense — no `client?` parameter if the service doesn't hit the DB.
+
+---
+
+## Audit logging convention
+
+For mutations on assessment-child records (and anywhere domain-events need an audit trail), services call:
+
+```ts
+import { auditService } from './audit.service';
+import type { EntityType } from '$lib/types/audit';
+
+await auditService.logChange({
+  entity_type: 'vehicle_identification',  // must be a valid EntityType literal
+  entity_id: record.id,
+  action: 'create' | 'update' | 'delete',
+  metadata: { /* arbitrary JSON payload */ }
+});
+```
+
+`EntityType` is a union literal in [`src/lib/types/audit.ts`](../../src/lib/types/audit.ts) — misspelled entity types fail at compile time.
+
+The consolidation factories (assessment-subtable, photo-service) include audit logging automatically. Services that DON'T use a factory must call `auditService.logChange` themselves for state-changing operations.
+
+---
+
+## Using services in routes
+
+### In `+page.server.ts` — always pass `locals.supabase`
+
+**Class/singleton service (Pattern A)**:
+```ts
+import type { PageServerLoad } from './$types';
+import { clientService } from '$lib/services/client.service';
 
 export const load: PageServerLoad = async ({ locals }) => {
-  try {
-    // ✅ CRITICAL: Always pass locals.supabase for RLS authentication
-    const entities = await entityService.list({ is_active: true }, locals.supabase);
-
-    return {
-      entities
-    }
-  } catch (err) {
-    console.error('Error loading entities:', err);
-    throw error(500, 'Failed to load entities');
-  }
-}
+  const clients = await clientService.listClients(true, locals.supabase);
+  return { clients };
+};
 ```
 
-### In Form Actions (ALWAYS pass locals.supabase)
+**Factory function (Pattern B — shop module)**:
+```ts
+import type { PageServerLoad } from './$types';
+import { createShopJobService } from '$lib/services/shop-job.service';
 
-```typescript
-import type { Actions } from './$types'
-import { entityService } from '$lib/services/entity.service'
-import { fail, redirect } from '@sveltejs/kit'
+export const load: PageServerLoad = async ({ locals, params }) => {
+  const jobService = createShopJobService(locals.supabase);
+  const job = await jobService.getById(params.id);
+  return { job };
+};
+```
 
+### In form actions — same rule, pass `locals.supabase`
+
+```ts
 export const actions: Actions = {
   create: async ({ request, locals }) => {
-    const formData = await request.formData()
-
-    const entity = {
-      name: formData.get('name')?.toString(),
-      description: formData.get('description')?.toString()
-    }
-
-    if (!entity.name) {
-      return fail(400, { error: 'Name is required' })
-    }
-
-    try {
-      // ✅ CRITICAL: Always pass locals.supabase for RLS authentication
-      await entityService.create(entity, locals.supabase);
-      throw redirect(303, '/entities');
-    } catch (err) {
-      console.error('Error creating entity:', err);
-      return fail(500, { error: 'Failed to create entity' });
-    }
-  },
-
-  update: async ({ request, locals }) => {
     const formData = await request.formData();
-    const id = formData.get('id')?.toString();
-
-    if (!id) {
-      return fail(400, { error: 'ID is required' });
-    }
-
-    const updates = {
-      name: formData.get('name')?.toString(),
-      description: formData.get('description')?.toString()
-    };
-
-    try {
-      // ✅ CRITICAL: Always pass locals.supabase for RLS authentication
-      await entityService.update(id, updates, locals.supabase);
-      throw redirect(303, '/entities');
-    } catch (err) {
-      console.error('Error updating entity:', err);
-      return fail(500, { error: 'Failed to update entity' });
-    }
-  }
-}
-
-    const { error: createError } = await createEntity(
-      locals.supabase,
-      entity
-    )
-
-    if (createError) {
-      return fail(500, { error: 'Failed to create entity' })
-    }
-
-    throw redirect(303, '/entities')
-  }
-}
+    const input = parseInput(formData);
+    await clientService.createClient(input, locals.supabase);
+    throw redirect(303, '/clients');
+  },
+};
 ```
 
-### In API Routes
+**If you skip `locals.supabase`**: the service falls back to the anonymous browser `supabase` client, and RLS policies reject the insert.
 
-```typescript
-import type { RequestHandler } from './$types'
-import { getEntity } from '$lib/services/entity.service'
-import { json, error } from '@sveltejs/kit'
+### In components (client-side)
 
-export const GET: RequestHandler = async ({ params, locals }) => {
-  const { data: entity, error: fetchError } = await getEntity(
-    locals.supabase,
-    params.id
-  )
-
-  if (fetchError || !entity) {
-    throw error(404, 'Entity not found')
-  }
-
-  return json(entity)
-}
+```ts
+// Component code — no server context, just the singleton
+await clientService.updateClient(id, updates);  // uses the shared supabase client
 ```
+
+This works because the browser `supabase` instance is already authenticated via the Supabase client-side auth flow.
 
 ---
 
-## Advanced Service Patterns
+## Decision table — which pattern for a new service?
 
-### 1. Fetching Related Data (Joins)
-
-```typescript
-/**
- * Get assessment with all related data
- */
-export async function getAssessmentWithRelations(
-  supabase: SupabaseClient<Database>,
-  id: string
-) {
-  return await supabase
-    .from('assessments')
-    .select(`
-      *,
-      appointment:appointments(*),
-      inspection:inspections(*),
-      request:requests(*, client:clients(*)),
-      vehicle_identification:assessment_vehicle_identification(*),
-      exterior:assessment_360_exterior(*),
-      damage:assessment_damage(*)
-    `)
-    .eq('id', id)
-    .single()
-}
-```
-
-### 2. Complex Filters
-
-```typescript
-/**
- * Get requests with complex filtering
- */
-export async function getRequestsFiltered(
-  supabase: SupabaseClient<Database>,
-  filters: {
-    status?: string[]
-    clientId?: string
-    engineerId?: string
-    dateFrom?: string
-    dateTo?: string
-  }
-) {
-  let query = supabase
-    .from('requests')
-    .select('*, client:clients(*), engineer:engineers(*)')
-
-  if (filters.status && filters.status.length > 0) {
-    query = query.in('status', filters.status)
-  }
-
-  if (filters.clientId) {
-    query = query.eq('client_id', filters.clientId)
-  }
-
-  if (filters.engineerId) {
-    query = query.eq('assigned_engineer_id', filters.engineerId)
-  }
-
-  if (filters.dateFrom) {
-    query = query.gte('created_at', filters.dateFrom)
-  }
-
-  if (filters.dateTo) {
-    query = query.lte('created_at', filters.dateTo)
-  }
-
-  return await query.order('created_at', { ascending: false })
-}
-```
-
-### 3. Batch Operations
-
-```typescript
-/**
- * Create multiple estimate line items
- */
-export async function createEstimateLines(
-  supabase: SupabaseClient<Database>,
-  lines: Database['public']['Tables']['assessment_estimates']['Insert'][]
-) {
-  return await supabase
-    .from('assessment_estimates')
-    .insert(lines)
-    .select()
-}
-```
-
-### 4. Transactional Operations
-
-```typescript
-/**
- * Create assessment with initial data
- */
-export async function createAssessmentWithInitialData(
-  supabase: SupabaseClient<Database>,
-  assessment: Database['public']['Tables']['assessments']['Insert']
-) {
-  // Create assessment
-  const { data: newAssessment, error: assessmentError } = await supabase
-    .from('assessments')
-    .insert(assessment)
-    .select()
-    .single()
-
-  if (assessmentError || !newAssessment) {
-    return { data: null, error: assessmentError }
-  }
-
-  // Create related records
-  const { error: identificationError } = await supabase
-    .from('assessment_vehicle_identification')
-    .insert({ assessment_id: newAssessment.id })
-
-  if (identificationError) {
-    // Rollback not possible - handle gracefully
-    return { data: null, error: identificationError }
-  }
-
-  const { error: exteriorError } = await supabase
-    .from('assessment_360_exterior')
-    .insert({ assessment_id: newAssessment.id })
-
-  if (exteriorError) {
-    return { data: null, error: exteriorError }
-  }
-
-  return { data: newAssessment, error: null }
-}
-```
-
-### 5. Aggregations
-
-```typescript
-/**
- * Get assessment statistics
- */
-export async function getAssessmentStats(
-  supabase: SupabaseClient<Database>,
-  filters?: { dateFrom?: string; dateTo?: string }
-) {
-  let query = supabase
-    .from('assessments')
-    .select('status, id.count()', { count: 'exact' })
-
-  if (filters?.dateFrom) {
-    query = query.gte('created_at', filters.dateFrom)
-  }
-
-  if (filters?.dateTo) {
-    query = query.lte('created_at', filters.dateTo)
-  }
-
-  return await query
-}
-```
+| New service is... | Use pattern |
+|-------------------|-------------|
+| Pure CRUD on a single table with soft-delete (`is_active`) | **C.3** — `createEntityService` |
+| 1:1 assessment child record (one per assessment_id) | **C.1** — `createAssessmentSubtableService` |
+| Photo-like (display_order + parent FK) | **C.2** — `createPhotoService` |
+| Shop-module scope | **B** — factory function, singleton-free |
+| Has a state machine / workflow / stage transitions | **A** — class + singleton |
+| Pure computation / library | **E** — whatever fits |
+| Legacy unified-function service to extend | Migrate to **A** as you go |
 
 ---
 
-## Service Best Practices
+## Common pitfalls
 
-### 1. Always Accept Supabase Client
-
-**Good:**
-```typescript
-export async function getClient(supabase: SupabaseClient<Database>, id: string)
-```
-
-**Bad:**
-```typescript
-import { supabase } from '$lib/supabase'
-export async function getClient(id: string) {
-  return await supabase.from('clients').select('*')
-}
-```
-
-**Why:** Accepting the client allows for flexibility:
-- Use `locals.supabase` for authenticated requests
-- Use `supabaseServer` for server-side operations
-- Easier to test with mocked clients
+1. **Missing `client?: ServiceClient`** → RLS 42501 errors. Add it to every method that hits the DB.
+2. **Passing `client` to a factory-function service method** → factory services don't take the param; the supabase handle was captured at construction.
+3. **Using `fooService` singleton in a route that needs `locals.supabase`** → you forgot to pass it: `fooService.method(args, locals.supabase)`.
+4. **Using `new FooService()` for a shop service** → shop services are factory functions. Use `createFooService(supabase)`.
+5. **Adding a conditional branch inside a consolidation factory** → smell; that service probably shouldn't use the factory. Split it out.
+6. **Missing audit log on a state-changing mutation** → for assessment children, confirm via grep that `auditService.logChange` is called somewhere in the flow (in the factory or the service).
 
 ---
 
-### 2. Return Raw Supabase Response
+## Related documentation
 
-**Good:**
-```typescript
-export async function getClient(supabase: SupabaseClient<Database>, id: string) {
-  return await supabase.from('clients').select('*').eq('id', id).single()
-}
-```
-
-**Bad:**
-```typescript
-export async function getClient(supabase: SupabaseClient<Database>, id: string) {
-  const { data, error } = await supabase.from('clients').select('*').eq('id', id).single()
-  if (error) throw new Error(error.message)
-  return data
-}
-```
-
-**Why:** Let the caller decide how to handle errors. Different contexts may need different error handling.
-
----
-
-### 3. Use TypeScript Types
-
-**Good:**
-```typescript
-import type { Database } from '$lib/types/database'
-
-type ClientInsert = Database['public']['Tables']['clients']['Insert']
-
-export async function createClient(
-  supabase: SupabaseClient<Database>,
-  client: ClientInsert
-) { ... }
-```
-
-**Bad:**
-```typescript
-export async function createClient(
-  supabase: any,
-  client: any
-) { ... }
-```
-
-**Why:** Type safety prevents bugs and provides autocomplete.
-
----
-
-### 4. Use Optional Filters
-
-**Good:**
-```typescript
-export async function getClients(
-  supabase: SupabaseClient<Database>,
-  filters?: { is_active?: boolean; type?: string }
-) {
-  let query = supabase.from('clients').select('*')
-
-  if (filters?.is_active !== undefined) {
-    query = query.eq('is_active', filters.is_active)
-  }
-
-  if (filters?.type) {
-    query = query.eq('type', filters.type)
-  }
-
-  return await query
-}
-```
-
-**Why:** Single function can handle multiple use cases without creating separate functions.
-
----
-
-### 5. Document Complex Queries
-
-Use JSDoc comments for complex functions:
-
-```typescript
-/**
- * Get assessment with all related data for report generation
- *
- * @param supabase - Supabase client
- * @param assessmentId - Assessment ID
- * @returns Assessment with joined data (appointment, request, client, damage, estimates)
- */
-export async function getAssessmentForReport(
-  supabase: SupabaseClient<Database>,
-  assessmentId: string
-) {
-  return await supabase
-    .from('assessments')
-    .select(`
-      *,
-      appointment:appointments(*),
-      request:requests(*, client:clients(*)),
-      damage:assessment_damage(*),
-      estimates:assessment_estimates(*)
-    `)
-    .eq('id', assessmentId)
-    .single()
-}
-```
-
----
-
-## Common Service Examples from ClaimTech
-
-### Example 1: Assessment Service
-
-```typescript
-// src/lib/services/assessment.service.ts
-import type { SupabaseClient } from '@supabase/supabase-js'
-import type { Database } from '$lib/types/database'
-
-export async function getAssessment(
-  supabase: SupabaseClient<Database>,
-  id: string
-) {
-  return await supabase
-    .from('assessments')
-    .select('*')
-    .eq('id', id)
-    .single()
-}
-
-export async function updateAssessmentStatus(
-  supabase: SupabaseClient<Database>,
-  id: string,
-  status: string
-) {
-  return await supabase
-    .from('assessments')
-    .update({ status, updated_at: new Date().toISOString() })
-    .eq('id', id)
-}
-
-export async function finalizeAssessment(
-  supabase: SupabaseClient<Database>,
-  id: string,
-  finalizationData: {
-    report_number?: string
-    assessor_name?: string
-    assessor_contact?: string
-  }
-) {
-  return await supabase
-    .from('assessments')
-    .update({
-      status: 'submitted',
-      submitted_at: new Date().toISOString(),
-      estimate_finalized_at: new Date().toISOString(),
-      ...finalizationData
-    })
-    .eq('id', id)
-}
-```
-
-### Example 2: Estimate Service
-
-```typescript
-// src/lib/services/estimate.service.ts
-export async function getEstimates(
-  supabase: SupabaseClient<Database>,
-  assessmentId: string
-) {
-  return await supabase
-    .from('assessment_estimates')
-    .select('*')
-    .eq('assessment_id', assessmentId)
-    .eq('is_removed', false)
-    .order('line_number')
-}
-
-export async function createEstimateLine(
-  supabase: SupabaseClient<Database>,
-  estimate: Database['public']['Tables']['assessment_estimates']['Insert']
-) {
-  return await supabase
-    .from('assessment_estimates')
-    .insert(estimate)
-    .select()
-    .single()
-}
-
-export async function removeEstimateLine(
-  supabase: SupabaseClient<Database>,
-  lineId: string
-) {
-  // Soft delete
-  return await supabase
-    .from('assessment_estimates')
-    .update({ is_removed: true })
-    .eq('id', lineId)
-}
-```
-
-### Example 3: Storage Service
-
-```typescript
-// src/lib/services/storage.service.ts
-export async function uploadPhoto(
-  supabase: SupabaseClient<Database>,
-  file: File,
-  path: string
-) {
-  return await supabase.storage
-    .from('SVA Photos')
-    .upload(path, file, {
-      cacheControl: '3600',
-      upsert: false
-    })
-}
-
-export async function getSignedUrl(
-  supabase: SupabaseClient<Database>,
-  bucket: string,
-  path: string,
-  expiresIn: number = 3600
-) {
-  return await supabase.storage
-    .from(bucket)
-    .createSignedUrl(path, expiresIn)
-}
-
-export async function deletePhoto(
-  supabase: SupabaseClient<Database>,
-  path: string
-) {
-  return await supabase.storage
-    .from('SVA Photos')
-    .remove([path])
-}
-```
-
----
-
-## Testing Services
-
-### Unit Testing with Mocked Client
-
-```typescript
-import { describe, it, expect, vi } from 'vitest'
-import { getClient } from '$lib/services/client.service'
-
-describe('client.service', () => {
-  it('should get client by id', async () => {
-    // Mock Supabase client
-    const mockSupabase = {
-      from: vi.fn(() => ({
-        select: vi.fn(() => ({
-          eq: vi.fn(() => ({
-            single: vi.fn(() => ({
-              data: { id: '123', name: 'Test Client' },
-              error: null
-            }))
-          }))
-        }))
-      }))
-    } as any
-
-    const { data, error } = await getClient(mockSupabase, '123')
-
-    expect(error).toBeNull()
-    expect(data).toEqual({ id: '123', name: 'Test Client' })
-  })
-})
-```
-
----
-
-## Common Pitfalls
-
-### 1. Hardcoding Supabase Client
-
-**Bad:**
-```typescript
-import { supabase } from '$lib/supabase'
-
-export async function getClient(id: string) {
-  return await supabase.from('clients').select('*').eq('id', id).single()
-}
-```
-
-**Why:** You can't use different clients (authenticated vs. service role).
-
----
-
-### 2. Throwing Errors in Services
-
-**Bad:**
-```typescript
-export async function getClient(supabase: SupabaseClient, id: string) {
-  const { data, error } = await supabase.from('clients').select('*').eq('id', id).single()
-  if (error) throw new Error(error.message)
-  return data
-}
-```
-
-**Why:** Let the caller handle errors. They may want to handle 404s differently than 500s.
-
----
-
-### 3. Not Using Filters
-
-**Bad:**
-```typescript
-export async function getActiveClients(supabase: SupabaseClient) { ... }
-export async function getInactiveClients(supabase: SupabaseClient) { ... }
-export async function getAllClients(supabase: SupabaseClient) { ... }
-```
-
-**Good:**
-```typescript
-export async function getClients(
-  supabase: SupabaseClient,
-  filters?: { is_active?: boolean }
-) { ... }
-```
-
----
-
-## Related Documentation
-- Project Architecture: `../System/project_architecture.md`
-- Adding Page Routes: `adding_page_route.md`
-- Database Schema: `../System/database_schema.md`
+- [Shop Module Overview](../System/shop_module_overview.md) — the shop subsystem's services, routes, and architectural divergence.
+- [Refactor Consolidation Summary](../Tasks/completed/REFACTOR_CONSOLIDATION_SUMMARY.md) — the 6-PR refactor that introduced the consolidation factories.
+- [Audit Logging System](../System/audit_logging_system.md) — deeper dive into the audit trail.
+- [Adding Page Route](adding_page_route.md) — how services plug into `(app)` and `(shop)` routes.
+- [Database Schema](../System/database_schema.md) — table definitions the services operate on.
