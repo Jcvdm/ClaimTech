@@ -2,14 +2,26 @@
 	import '../app.css';
 	import favicon from '$lib/assets/favicon.svg';
 	import { onMount } from 'svelte';
-	import { invalidate } from '$app/navigation';
+	import { invalidate, onNavigate } from '$app/navigation';
 	import NavigationLoadingBar from '$lib/components/layout/NavigationLoadingBar.svelte';
-	import NavigationLoadingModal from '$lib/components/layout/NavigationLoadingModal.svelte';
 	import InstallPrompt from '$lib/components/pwa/InstallPrompt.svelte';
 	import OfflineIndicator from '$lib/offline/components/OfflineIndicator.svelte';
 	import { syncManager } from '$lib/offline';
 
 	let { children, data } = $props();
+
+	// Cross-fade page navigations via the View Transitions API (Chromium/Safari/Edge).
+	// Firefox has no-op pass-through until it ships the API.
+	onNavigate((navigation) => {
+		if (!document.startViewTransition) return;
+
+		return new Promise((resolve) => {
+			document.startViewTransition(async () => {
+				resolve();
+				await navigation.complete;
+			});
+		});
+	});
 
 	// Listen for auth state changes (login, logout, token refresh)
 	onMount(() => {
@@ -39,7 +51,6 @@
 <OfflineIndicator position="top" showWhenOnline={true} />
 
 <NavigationLoadingBar />
-<NavigationLoadingModal />
 <InstallPrompt />
 
 {@render children?.()}
