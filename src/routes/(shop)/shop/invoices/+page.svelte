@@ -10,7 +10,8 @@
 	import { Button } from '$lib/components/ui/button';
 	import { FileText, Hash, User, Activity, DollarSign, Calendar } from 'lucide-svelte';
 	import type { PageData } from './$types';
-	import type { ShopInvoiceStatus } from '$lib/services/shop-invoice.service';
+	import type { ShopInvoiceStatus } from '$lib/services/shop-invoice.service';
+	import { formatDate, formatCurrency } from '$lib/utils/formatters';
 
 	let { data }: { data: PageData } = $props();
 	const { loadingId, startNavigation } = useNavigationLoading();
@@ -32,19 +33,6 @@
 		overdue: 'Overdue',
 		void: 'Void'
 	};
-
-	function formatCurrency(amount: number) {
-		return new Intl.NumberFormat('en-ZA', { style: 'currency', currency: 'ZAR' }).format(amount);
-	}
-
-	function formatDate(dateStr: string | null) {
-		if (!dateStr) return '—';
-		return new Date(dateStr).toLocaleDateString('en-ZA', {
-			day: '2-digit',
-			month: 'short',
-			year: 'numeric'
-		});
-	}
 
 	const invoicesWithDetails = $derived(
 		data.invoices.map((invoice) => {

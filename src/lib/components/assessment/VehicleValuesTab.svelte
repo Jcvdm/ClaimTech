@@ -7,6 +7,7 @@
 	import { debounce } from '$lib/utils/useUnsavedChanges.svelte';
 	import { useDraft } from '$lib/utils/useDraft.svelte';
 	import { onMount } from 'svelte';
+	import { formatDate } from '$lib/utils/formatters';
 import type {
 	VehicleValues,
 	VehicleValueExtra,
@@ -350,7 +351,7 @@ import type { VehicleDetails } from '$lib/utils/report-data-helpers';
 					<p class="text-sm text-gray-600">Date of Loss</p>
 					<p class="font-medium text-gray-900">
 						{requestInfo.date_of_loss
-							? new Date(requestInfo.date_of_loss).toLocaleDateString()
+							? formatDate(requestInfo.date_of_loss)
 							: 'N/A'}
 					</p>
 				</div>

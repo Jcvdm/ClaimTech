@@ -7,7 +7,8 @@
 	import * as Card from '$lib/components/ui/card';
 	import { Input } from '$lib/components/ui/input';
 	import { Badge } from '$lib/components/ui/badge';
-	import { Separator } from '$lib/components/ui/separator';
+	import { Separator } from '$lib/components/ui/separator';
+	import { formatDate } from '$lib/utils/formatters';
 
 	let { data }: { data: PageData } = $props();
 
@@ -57,15 +58,6 @@
 	let vehicles = $derived(
 		Array.isArray(customer.shop_customer_vehicles) ? customer.shop_customer_vehicles : []
 	);
-
-	function formatDate(dateStr: string | null) {
-		if (!dateStr) return '-';
-		return new Date(dateStr).toLocaleDateString('en-ZA', {
-			year: 'numeric',
-			month: 'short',
-			day: 'numeric'
-		});
-	}
 </script>
 
 <div class="space-y-6 pt-4">

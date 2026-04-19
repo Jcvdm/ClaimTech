@@ -12,7 +12,8 @@
 		Briefcase,
 		ClipboardList
 	} from 'lucide-svelte';
-	import type { PageData } from './$types';
+	import type { PageData } from './$types';
+	import { formatDate, formatCurrency } from '$lib/utils/formatters';
 
 	let { data }: { data: PageData } = $props();
 
@@ -73,20 +74,6 @@
 		completed: 'Completed',
 		cancelled: 'Cancelled'
 	};
-
-	function formatDate(dateStr: string | null) {
-		if (!dateStr) return '—';
-		return new Date(dateStr).toLocaleDateString('en-ZA', {
-			day: 'numeric',
-			month: 'short',
-			year: 'numeric'
-		});
-	}
-
-	function formatCurrency(value: number | null) {
-		if (value == null) return '—';
-		return new Intl.NumberFormat('en-ZA', { style: 'currency', currency: 'ZAR' }).format(value);
-	}
 
 	const statCards = $derived([
 		{

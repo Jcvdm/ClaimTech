@@ -4,6 +4,7 @@
 	import EmptyState from '$lib/components/data/EmptyState.svelte';
 	import { Button } from '$lib/components/ui/button';
 	import { Plus, FileText } from 'lucide-svelte';
+	import { formatDate } from '$lib/utils/formatters';
 
 	let {
 		data
@@ -23,7 +24,7 @@
 		data.items.map((item, i) => ({
 			...item,
 			status: ['draft', 'pending', 'sent', 'approved'][i % 4],
-			date: new Date(item.updated_at).toLocaleDateString()
+			date: formatDate(item.updated_at)
 		}))
 	);
 

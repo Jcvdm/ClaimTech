@@ -30,7 +30,7 @@ import type { Repairer } from '$lib/types/repairer';
 		formatWarrantyStatus,
 		getWarrantyStatusClasses
 	} from '$lib/utils/estimateThresholds';
-	import { formatCurrency } from '$lib/utils/formatters';
+	import { formatCurrency, formatDate } from '$lib/utils/formatters';
 	import { validateEstimate, type TabValidation } from '$lib/utils/validation';
 	import { assessmentNotesService } from '$lib/services/assessment-notes.service';
 	import { generatePartsListText } from '$lib/utils/csv-generator';
@@ -823,9 +823,7 @@ import type { Repairer } from '$lib/types/repairer';
 						</h4>
 						{#if vehicleValues.warranty_start_date && vehicleValues.warranty_end_date}
 							<p class="mt-1 text-xs {statusClasses.text}">
-								Valid from {new Date(vehicleValues.warranty_start_date).toLocaleDateString()} to {new Date(
-									vehicleValues.warranty_end_date
-								).toLocaleDateString()}
+								Valid from {formatDate(vehicleValues.warranty_start_date)} to {formatDate(vehicleValues.warranty_end_date)}
 							</p>
 						{/if}
 						{#if vehicleValues.warranty_expiry_mileage}

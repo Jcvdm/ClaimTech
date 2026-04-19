@@ -18,7 +18,7 @@ import type { VehicleDetails } from '$lib/utils/report-data-helpers';
 		getAssessmentResultInfo,
 		getAssessmentResultColorClasses
 	} from '$lib/utils/assessmentResults';
-	import { formatCurrency } from '$lib/utils/formatters';
+	import { formatCurrency, formatDate } from '$lib/utils/formatters';
 
 	interface Props {
 		// Primary: Assessment-centric (preferred)
@@ -200,7 +200,7 @@ import type { VehicleDetails } from '$lib/utils/report-data-helpers';
 				<p class="text-sm text-gray-600">Date of Loss</p>
 				<p class="font-medium text-gray-900">
 					{derivedRequest?.date_of_loss
-						? new Date(derivedRequest.date_of_loss).toLocaleDateString()
+						? formatDate(derivedRequest.date_of_loss)
 						: 'N/A'}
 				</p>
 			</div>
@@ -422,9 +422,7 @@ import type { VehicleDetails } from '$lib/utils/report-data-helpers';
 						</h4>
 						{#if vehicleValues.warranty_start_date && vehicleValues.warranty_end_date}
 							<p class="mt-1 text-xs {statusClasses.text}">
-								Valid from {new Date(vehicleValues.warranty_start_date).toLocaleDateString()} to {new Date(
-									vehicleValues.warranty_end_date
-								).toLocaleDateString()}
+								Valid from {formatDate(vehicleValues.warranty_start_date)} to {formatDate(vehicleValues.warranty_end_date)}
 							</p>
 						{/if}
 						{#if vehicleValues.warranty_expiry_mileage}

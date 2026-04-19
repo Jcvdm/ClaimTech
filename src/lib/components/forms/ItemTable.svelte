@@ -4,6 +4,7 @@
 	import * as Table from '$lib/components/ui/table';
 	import { Plus, X } from 'lucide-svelte';
 	import { cn } from '$lib/utils';
+	import { formatCurrency } from '$lib/utils/formatters';
 
 	export type LineItem = {
 		id: string;
@@ -114,7 +115,7 @@
 								/>
 							</Table.Cell>
 							<Table.Cell class="text-right font-medium">
-								{currency} {item.amount.toFixed(2)}
+								{formatCurrency(item.amount)}
 							</Table.Cell>
 							<Table.Cell class="text-center">
 								<Button
@@ -142,7 +143,7 @@
 		<div class="flex items-center gap-4 text-sm">
 			<span class="text-gray-600">Sub Total</span>
 			<span class="text-lg font-semibold">
-				{currency} {subtotal.toFixed(2)}
+				{formatCurrency(subtotal)}
 			</span>
 		</div>
 	</div>

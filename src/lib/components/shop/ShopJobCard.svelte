@@ -1,6 +1,7 @@
 <script lang="ts">
 	import type { EstimateLineItem } from '$lib/types/assessment';
 	import { getProcessTypeBadgeColor } from '$lib/constants/processTypes';
+	import { formatDate } from '$lib/utils/formatters';
 
 	interface Props {
 		job: any;
@@ -22,21 +23,13 @@
 			{#if (job as any).date_in}
 				<p>
 					<span class="text-gray-500">Date In:</span>
-					{new Date((job as any).date_in).toLocaleDateString('en-ZA', {
-						day: 'numeric',
-						month: 'short',
-						year: 'numeric'
-					})}
+					{formatDate((job as any).date_in)}
 				</p>
 			{/if}
 			{#if job.date_promised}
 				<p>
 					<span class="text-gray-500">Promised:</span>
-					{new Date(job.date_promised).toLocaleDateString('en-ZA', {
-						day: 'numeric',
-						month: 'short',
-						year: 'numeric'
-					})}
+					{formatDate(job.date_promised)}
 				</p>
 			{/if}
 		</div>

@@ -8,7 +8,8 @@
 	import * as Card from '$lib/components/ui/card';
 	import { Input } from '$lib/components/ui/input';
 	import { Badge } from '$lib/components/ui/badge';
-	import { Separator } from '$lib/components/ui/separator';
+	import { Separator } from '$lib/components/ui/separator';
+	import { formatDate, formatCurrency } from '$lib/utils/formatters';
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();
 
@@ -39,19 +40,6 @@
 
 	function getStatusLabel(status: string) {
 		return statusLabel[status as ShopInvoiceStatus] ?? status;
-	}
-
-	function formatCurrency(amount: number) {
-		return new Intl.NumberFormat('en-ZA', { style: 'currency', currency: 'ZAR' }).format(amount);
-	}
-
-	function formatDate(dateStr: string | null) {
-		if (!dateStr) return '—';
-		return new Date(dateStr).toLocaleDateString('en-ZA', {
-			day: '2-digit',
-			month: 'short',
-			year: 'numeric'
-		});
 	}
 
 	const status = $derived((invoice as { status?: string }).status ?? 'draft');
@@ -432,7 +420,7 @@
 					<tbody>
 						{#each data.payments as payment (payment.id)}
 							<tr class="border-b border-gray-100">
-								<td class="py-2">{new Date(payment.payment_date).toLocaleDateString('en-ZA')}</td>
+								<td class="py-2">{formatDate(payment.payment_date)}</td>
 								<td class="py-2 font-medium text-green-600">{formatCurrency(payment.amount)}</td>
 								<td class="py-2 capitalize">{payment.payment_method}</td>
 								<td class="py-2 text-gray-600">{payment.payment_reference || '-'}</td>

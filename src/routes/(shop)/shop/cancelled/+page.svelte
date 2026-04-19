@@ -6,7 +6,8 @@
 	import TableCell from '$lib/components/data/TableCell.svelte';
 	import EmptyState from '$lib/components/data/EmptyState.svelte';
 	import { Briefcase, Hash, User, Car, Calendar, Activity } from 'lucide-svelte';
-	import type { PageData } from './$types';
+	import type { PageData } from './$types';
+	import { formatDate, formatCurrency } from '$lib/utils/formatters';
 
 	let { data }: { data: PageData } = $props();
 	const { loadingId, startNavigation } = useNavigationLoading();
@@ -30,20 +31,6 @@
 		revised: 'Revised',
 		expired: 'Expired'
 	};
-
-	function formatCurrency(amount: number | null | undefined) {
-		if (amount == null) return '—';
-		return new Intl.NumberFormat('en-ZA', { style: 'currency', currency: 'ZAR' }).format(amount);
-	}
-
-	function formatDate(dateStr: string | null) {
-		if (!dateStr) return '-';
-		return new Date(dateStr).toLocaleDateString('en-ZA', {
-			year: 'numeric',
-			month: 'short',
-			day: 'numeric'
-		});
-	}
 
 	const jobsWithDetails = $derived(
 		// eslint-disable-next-line @typescript-eslint/no-explicit-any

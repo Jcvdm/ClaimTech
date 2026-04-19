@@ -11,7 +11,8 @@
 	import { Button } from '$lib/components/ui/button';
 	import { FileText, Hash, User, Car, Activity, Calendar, Plus } from 'lucide-svelte';
 	import { toast } from 'svelte-sonner';
-	import type { PageData } from './$types';
+	import type { PageData } from './$types';
+	import { formatDate, formatCurrency } from '$lib/utils/formatters';
 
 	let { data }: { data: PageData } = $props();
 	const { loadingId, startNavigation } = useNavigationLoading();
@@ -35,20 +36,6 @@
 		revised: 'Revised',
 		expired: 'Expired'
 	};
-
-	function formatCurrency(amount: number | null | undefined) {
-		if (amount == null) return '—';
-		return new Intl.NumberFormat('en-ZA', { style: 'currency', currency: 'ZAR' }).format(amount);
-	}
-
-	function formatDate(dateStr: string | null | undefined) {
-		if (!dateStr) return '—';
-		return new Date(dateStr).toLocaleDateString('en-ZA', {
-			day: '2-digit',
-			month: 'short',
-			year: 'numeric'
-		});
-	}
 
 	const jobsWithDetails = $derived(
 		// eslint-disable-next-line @typescript-eslint/no-explicit-any

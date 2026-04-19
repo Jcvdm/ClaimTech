@@ -10,7 +10,7 @@
 	import TableCell from '$lib/components/data/TableCell.svelte';
 	import EmptyState from '$lib/components/data/EmptyState.svelte';
 	import { FilterTabs } from '$lib/components/ui/tabs';
-	import { formatDate, formatVehicle } from '$lib/utils/formatters';
+	import { formatDate, formatVehicle, formatCurrency } from '$lib/utils/formatters';
 	import {
 		Plus,
 		Hash,
@@ -252,10 +252,7 @@
 					{/if}
 				{:else if column.key === 'totalApproved'}
 					<TableCell variant="success" bold>
-						R {row.totalApproved.toLocaleString('en-ZA', {
-							minimumFractionDigits: 2,
-							maximumFractionDigits: 2
-						})}
+						{formatCurrency(row.totalApproved)}
 					</TableCell>
 				{:else if (column.key as any) === 'actions'}
 					<ActionButtonGroup align="right">

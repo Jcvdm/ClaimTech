@@ -42,6 +42,7 @@
 	import { additionalsPhotosService } from '$lib/services/additionals-photos.service';
 	import { documentGenerationService } from '$lib/services/document-generation.service';
 	import { validateAdditionals, type TabValidation } from '$lib/utils/validation';
+	import { formatCurrency } from '$lib/utils/formatters';
 
 	interface Props {
 		assessmentId: string;
@@ -1001,11 +1002,11 @@
 														handlePartPriceClick(item.id!, item.part_price_nett || null)}
 													class="w-full cursor-pointer text-right text-sm font-medium text-blue-600 hover:text-blue-800"
 												>
-													R {(item.part_price_nett || 0).toFixed(2)}
+													{formatCurrency(item.part_price_nett || 0)}
 												</button>
 											{/if}
 										{:else}
-											R {(item.part_price_nett || 0).toFixed(2)}
+											{formatCurrency(item.part_price_nett || 0)}
 										{/if}
 									</td>
 									<td class="py-2 text-right {isRemoved || isReversal ? 'text-blue-600' : ''}">
@@ -1029,11 +1030,11 @@
 													onclick={() => handleSAClick(item.id!, item.strip_assemble_hours || null)}
 													class="w-full cursor-pointer text-right text-sm font-medium text-blue-600 hover:text-blue-800"
 												>
-													R {(item.strip_assemble || 0).toFixed(2)}
+													{formatCurrency(item.strip_assemble || 0)}
 												</button>
 											{/if}
 										{:else}
-											R {(item.strip_assemble || 0).toFixed(2)}
+											{formatCurrency(item.strip_assemble || 0)}
 										{/if}
 									</td>
 									<td class="py-2 text-right {isRemoved || isReversal ? 'text-blue-600' : ''}">
@@ -1057,11 +1058,11 @@
 													onclick={() => handleLabourClick(item.id!, item.labour_hours || null)}
 													class="w-full cursor-pointer text-right text-sm font-medium text-blue-600 hover:text-blue-800"
 												>
-													R {(item.labour_cost || 0).toFixed(2)}
+													{formatCurrency(item.labour_cost || 0)}
 												</button>
 											{/if}
 										{:else}
-											R {(item.labour_cost || 0).toFixed(2)}
+											{formatCurrency(item.labour_cost || 0)}
 										{/if}
 									</td>
 									<td class="py-2 text-right {isRemoved || isReversal ? 'text-blue-600' : ''}">
@@ -1085,11 +1086,11 @@
 													onclick={() => handlePaintClick(item.id!, item.paint_panels || null)}
 													class="w-full cursor-pointer text-right text-sm font-medium text-blue-600 hover:text-blue-800"
 												>
-													R {(item.paint_cost || 0).toFixed(2)}
+													{formatCurrency(item.paint_cost || 0)}
 												</button>
 											{/if}
 										{:else}
-											R {(item.paint_cost || 0).toFixed(2)}
+											{formatCurrency(item.paint_cost || 0)}
 										{/if}
 									</td>
 									<td class="py-2 text-right {isRemoved || isReversal ? 'text-blue-600' : ''}">
@@ -1114,17 +1115,17 @@
 														handleOutworkClick(item.id!, item.outwork_charge_nett || null)}
 													class="w-full cursor-pointer text-right text-sm font-medium text-blue-600 hover:text-blue-800"
 												>
-													R {(item.outwork_charge_nett || 0).toFixed(2)}
+													{formatCurrency(item.outwork_charge_nett || 0)}
 												</button>
 											{/if}
 										{:else}
-											R {(item.outwork_charge_nett || 0).toFixed(2)}
+											{formatCurrency(item.outwork_charge_nett || 0)}
 										{/if}
 									</td>
 									<td
 										class="py-2 text-right font-medium {isRemoved || isReversal
 											? 'text-blue-600'
-											: ''}">R {item.total.toFixed(2)}</td
+											: ''}">{formatCurrency(item.total)}</td
 									>
 									<td class="py-2">
 										{#if isReversal}

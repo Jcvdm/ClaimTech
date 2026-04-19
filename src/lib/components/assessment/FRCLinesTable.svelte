@@ -6,7 +6,7 @@
 	import { Check, Clock, AlertCircle } from 'lucide-svelte';
 	import type { FinalRepairCosting, FRCLineItem, FRCDocument } from '$lib/types/assessment';
 	import FRCLineCard from './FRCLineCard.svelte';
-	import { formatCurrency } from '$lib/utils/formatters';
+	import { formatCurrency, formatDate } from '$lib/utils/formatters';
 	import { getProcessTypeBadgeColor } from '$lib/constants/processTypes';
 
     interface Props {
@@ -432,7 +432,7 @@
                     >
                         <option value="">Select Document</option>
                         {#each documents as doc (doc.id)}
-                            <option value={doc.id}>{doc.label || doc.document_type} ({new Date(doc.created_at).toLocaleDateString()})</option>
+                            <option value={doc.id}>{doc.label || doc.document_type} ({formatDate(doc.created_at)})</option>
                         {/each}
                     </select>
                     <div class="flex items-center gap-2">

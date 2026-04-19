@@ -31,7 +31,7 @@ import FRCLinesTable from './FRCLinesTable.svelte';
 	import { frcService } from '$lib/services/frc.service';
 	import { frcDocumentsService } from '$lib/services/frc-documents.service';
 	import { additionalsService } from '$lib/services/additionals.service';
-	import { formatCurrency } from '$lib/utils/formatters';
+	import { formatCurrency, formatDate } from '$lib/utils/formatters';
 import { calculateDeltas } from '$lib/utils/frcCalculations';
 	import { calculateSACost, calculateLabourCost, calculatePaintCost } from '$lib/utils/estimateCalculations';
 
@@ -591,9 +591,9 @@ import { calculateDeltas } from '$lib/utils/frcCalculations';
 						FRC Status: {frc.status === 'completed' ? 'Completed' : 'In Progress'}
 					</p>
 					<p class="text-xs {frc.status === 'completed' ? 'text-green-700' : 'text-blue-700'}">
-						{lines.length} line items • Started {new Date(frc.started_at!).toLocaleDateString()}
+						{lines.length} line items • Started {formatDate(frc.started_at!)}
 						{#if frc.completed_at}
-							• Completed {new Date(frc.completed_at).toLocaleDateString()}
+							• Completed {formatDate(frc.completed_at)}
 						{/if}
 					</p>
 				</div>
@@ -1011,7 +1011,7 @@ import { calculateDeltas } from '$lib/utils/frcCalculations';
 								<div>
 									<p class="text-sm font-medium text-gray-900">{doc.label || 'Document'}</p>
 									<p class="text-xs text-gray-500">
-										{doc.document_type} • {new Date(doc.created_at).toLocaleDateString()}
+										{doc.document_type} • {formatDate(doc.created_at)}
 									</p>
 								</div>
 							</div>

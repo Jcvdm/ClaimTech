@@ -8,7 +8,8 @@
 	import FilterTabs from '$lib/components/ui/tabs/FilterTabs.svelte';
 	import { Briefcase, Hash, User, Car, Activity, Calendar } from 'lucide-svelte';
 	import type { PageData } from './$types';
-	import type { ShopJobStatus } from '$lib/services/shop-job.service';
+	import type { ShopJobStatus } from '$lib/services/shop-job.service';
+	import { formatDate } from '$lib/utils/formatters';
 
 	let { data }: { data: PageData } = $props();
 	const { loadingId, startNavigation } = useNavigationLoading();
@@ -36,15 +37,6 @@
 		completed: 'Completed',
 		cancelled: 'Cancelled'
 	};
-
-	function formatDate(dateStr: string | null) {
-		if (!dateStr) return '-';
-		return new Date(dateStr).toLocaleDateString('en-ZA', {
-			year: 'numeric',
-			month: 'short',
-			day: 'numeric'
-		});
-	}
 
 	const jobsWithDetails = $derived(
 		// eslint-disable-next-line @typescript-eslint/no-explicit-any

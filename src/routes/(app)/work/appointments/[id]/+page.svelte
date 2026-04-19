@@ -18,6 +18,7 @@
 		XCircle,
 		Play
 	} from 'lucide-svelte';
+	import { formatDateWithWeekday, formatDateLong } from '$lib/utils/formatters';
 	import { appointmentService } from '$lib/services/appointment.service';
 	import type { StructuredAddress } from '$lib/types/address';
 	import type { Province } from '$lib/types/engineer';
@@ -178,12 +179,7 @@
 
 	// Format date and time
 	const formattedDate = $derived(
-		new Date(data.appointment.appointment_date).toLocaleDateString('en-ZA', {
-			weekday: 'long',
-			year: 'numeric',
-			month: 'long',
-			day: 'numeric'
-		})
+		formatDateWithWeekday(data.appointment.appointment_date)
 	);
 
 	const formattedTime = $derived(data.appointment.appointment_time || 'Not specified');
@@ -255,7 +251,7 @@
 					</h3>
 					{#if data.appointment.rescheduled_from_date}
 						<div class="mt-2 text-sm text-yellow-700">
-							<p>Original date: {new Date(data.appointment.rescheduled_from_date).toLocaleDateString('en-ZA', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
+							<p>Original date: {formatDateLong(data.appointment.rescheduled_from_date)}</p>
 						</div>
 					{/if}
 					{#if data.appointment.reschedule_reason}

@@ -20,7 +20,7 @@
 		calculateTotal,
 		recalculateLineItem
 	} from '$lib/utils/estimateCalculations';
-	import { formatCurrency } from '$lib/utils/formatters';
+	import { formatCurrency, formatDate } from '$lib/utils/formatters';
 	import { generatePartsListText } from '$lib/utils/csv-generator';
 	import { Trash2, ShieldCheck, Package, Recycle, Percent, CheckCircle, ChevronDown, FileText, Download, Wrench, ClipboardList, Car, Receipt, DollarSign, ArrowRight, Printer } from 'lucide-svelte';
 	import { getProcessTypeBadgeColor, getProcessTypeConfig, getProcessTypeOptions } from '$lib/constants/processTypes';
@@ -214,15 +214,6 @@
 
 	async function refreshPhotos() {
 		await invalidateAll();
-	}
-
-	function formatDate(dateStr: string | null) {
-		if (!dateStr) return '-';
-		return new Date(dateStr).toLocaleDateString('en-ZA', {
-			year: 'numeric',
-			month: 'short',
-			day: 'numeric'
-		});
 	}
 
 	// Reactive local editable fields
@@ -1107,7 +1098,7 @@
 										<span class="font-medium text-gray-700">Checked in</span>
 									</div>
 									<span class="text-gray-500">
-										{new Date((data.job as any).checked_in_at).toLocaleDateString('en-ZA', { day: 'numeric', month: 'short', year: 'numeric' })}
+										{formatDate((data.job as any).checked_in_at)}
 										at {new Date((data.job as any).checked_in_at).toLocaleTimeString('en-ZA', { hour: '2-digit', minute: '2-digit' })}
 									</span>
 									{#if data.checkedInByName}
@@ -1321,7 +1312,7 @@
 								<p class="font-medium text-green-800">Estimate Approved</p>
 								{#if (estimate as { approved_at?: string }).approved_at}
 									<p class="text-sm text-green-700">
-										Approved on {new Date((estimate as { approved_at: string }).approved_at).toLocaleDateString('en-ZA', { day: '2-digit', month: 'short', year: 'numeric' })}
+										Approved on {formatDate((estimate as { approved_at: string }).approved_at)}
 									</p>
 								{/if}
 							</div>
@@ -1952,7 +1943,7 @@
 									<span class="text-sm font-medium text-gray-700">Parts Ordered</span>
 									{#if (job as any).parts_ordered_at}
 										<p class="text-xs text-gray-500">
-											{new Date((job as any).parts_ordered_at).toLocaleDateString('en-ZA', { day: 'numeric', month: 'short', year: 'numeric' })}
+											{formatDate((job as any).parts_ordered_at)}
 											at {new Date((job as any).parts_ordered_at).toLocaleTimeString('en-ZA', { hour: '2-digit', minute: '2-digit' })}
 											{#if data.milestoneUserNames?.[(job as any).parts_ordered_by]}
 												&middot; {data.milestoneUserNames[(job as any).parts_ordered_by]}
@@ -1981,7 +1972,7 @@
 									<span class="text-sm font-medium text-gray-700">Parts Arrived</span>
 									{#if (job as any).parts_arrived_at}
 										<p class="text-xs text-gray-500">
-											{new Date((job as any).parts_arrived_at).toLocaleDateString('en-ZA', { day: 'numeric', month: 'short', year: 'numeric' })}
+											{formatDate((job as any).parts_arrived_at)}
 											at {new Date((job as any).parts_arrived_at).toLocaleTimeString('en-ZA', { hour: '2-digit', minute: '2-digit' })}
 											{#if data.milestoneUserNames?.[(job as any).parts_arrived_by]}
 												&middot; {data.milestoneUserNames[(job as any).parts_arrived_by]}
@@ -2093,7 +2084,7 @@
 										<span class="text-sm font-medium text-gray-700">Parts Ordered</span>
 										{#if (job as any).parts_ordered_at}
 											<p class="text-xs text-gray-500">
-												{new Date((job as any).parts_ordered_at).toLocaleDateString('en-ZA', { day: 'numeric', month: 'short', year: 'numeric' })}
+												{formatDate((job as any).parts_ordered_at)}
 												at {new Date((job as any).parts_ordered_at).toLocaleTimeString('en-ZA', { hour: '2-digit', minute: '2-digit' })}
 												{#if data.milestoneUserNames?.[(job as any).parts_ordered_by]}
 													&middot; {data.milestoneUserNames[(job as any).parts_ordered_by]}
@@ -2122,7 +2113,7 @@
 										<span class="text-sm font-medium text-gray-700">Parts Arrived</span>
 										{#if (job as any).parts_arrived_at}
 											<p class="text-xs text-gray-500">
-												{new Date((job as any).parts_arrived_at).toLocaleDateString('en-ZA', { day: 'numeric', month: 'short', year: 'numeric' })}
+												{formatDate((job as any).parts_arrived_at)}
 												at {new Date((job as any).parts_arrived_at).toLocaleTimeString('en-ZA', { hour: '2-digit', minute: '2-digit' })}
 												{#if data.milestoneUserNames?.[(job as any).parts_arrived_by]}
 													&middot; {data.milestoneUserNames[(job as any).parts_arrived_by]}
@@ -2151,7 +2142,7 @@
 										<span class="text-sm font-medium text-gray-700">Strip Started</span>
 										{#if (job as any).strip_started_at}
 											<p class="text-xs text-gray-500">
-												{new Date((job as any).strip_started_at).toLocaleDateString('en-ZA', { day: 'numeric', month: 'short', year: 'numeric' })}
+												{formatDate((job as any).strip_started_at)}
 												at {new Date((job as any).strip_started_at).toLocaleTimeString('en-ZA', { hour: '2-digit', minute: '2-digit' })}
 												{#if data.milestoneUserNames?.[(job as any).strip_started_by]}
 													&middot; {data.milestoneUserNames[(job as any).strip_started_by]}
