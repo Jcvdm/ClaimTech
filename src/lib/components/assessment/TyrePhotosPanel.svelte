@@ -8,7 +8,7 @@
 	import { useOptimisticArray } from '$lib/utils/useOptimisticArray.svelte';
 	import PhotoViewer from '$lib/components/photo-viewer/PhotoViewer.svelte';
 	import { FileUploadProgress } from '$lib/components/ui/progress';
-	import { shouldResetDragState } from '$lib/utils/drag-helpers';
+	import { usePhotoUpload } from '$lib/hooks/use-photo-upload.svelte';
 
 	interface Props {
 		tyreId: string;
@@ -30,68 +30,15 @@
 	// Use optimistic array with getter function for reactivity
 	const photos = useOptimisticArray(() => props.photos);
 
-	let uploading = $state(false);
-	let compressing = $state(false);
-	let uploadProgress = $state(0);
-	let compressionProgress = $state(0);
-	let isDragging = $state(false);
-	let fileInput: HTMLInputElement;
-	let cameraInput: HTMLInputElement;
+	const upload = usePhotoUpload({ onFilesSelected: uploadFiles });
 	let selectedPhotoIndex = $state<number | null>(null);
 
-	// Drag and drop handlers
-	function handleDragEnter(event: DragEvent) {
-		event.preventDefault();
-		event.stopPropagation();
-		isDragging = true;
-	}
-
-	function handleDragOver(event: DragEvent) {
-		event.preventDefault();
-		event.stopPropagation();
-	}
-
-	function handleDragLeave(event: DragEvent) {
-		event.preventDefault();
-		event.stopPropagation();
-		// Only reset if cursor is actually outside the container boundary
-		if (shouldResetDragState(event)) {
-			isDragging = false;
-		}
-	}
-
-	async function handleDrop(event: DragEvent) {
-		event.preventDefault();
-		event.stopPropagation();
-		isDragging = false;
-
-		const files = Array.from(event.dataTransfer?.files || []);
-		if (files.length > 0) {
-			await uploadFiles(files);
-		}
-	}
-
-	function handleFileSelect(event: Event) {
-		const target = event.target as HTMLInputElement;
-		const files = Array.from(target.files || []);
-		if (files.length > 0) {
-			uploadFiles(files);
-		}
-	}
-
-	function triggerFileInput() {
-		fileInput?.click();
-	}
-
-	function triggerCameraInput() {
-		cameraInput?.click();
-	}
-
 	async function uploadFiles(files: File[]) {
-		uploading = true;
-		compressing = true;
-		uploadProgress = 0;
-		compressionProgress = 0;
+		// NOTE: uploading = true init preserved intentionally (pre-existing behavior, flag for follow-up)
+		upload.uploading = true;
+		upload.compressing = true;
+		upload.uploadProgress = 0;
+		upload.compressionProgress = 0;
 
 		try {
 			const totalFiles = files.length;
@@ -106,14 +53,14 @@
 					tyrePosition, // Use tyre position as subcategory
 					{
 						onCompressionProgress: (progress: number) => {
-							compressing = true;
-							uploading = false;
-							compressionProgress = progress;
+							upload.compressing = true;
+							upload.uploading = false;
+							upload.compressionProgress = progress;
 						},
 						onUploadProgress: (progress: number) => {
-							compressing = false;
-							uploading = true;
-							uploadProgress = progress;
+							upload.compressing = false;
+							upload.uploading = true;
+							upload.uploadProgress = progress;
 						}
 					}
 				);
@@ -131,7 +78,7 @@
 				photos.add(newPhoto);
 
 				completedFiles++;
-				uploadProgress = Math.round((completedFiles / totalFiles) * 100);
+				upload.uploadProgress = Math.round((completedFiles / totalFiles) * 100);
 			}
 
 			// Notify parent with updated photos (direct state update pattern)
@@ -139,13 +86,13 @@
 		} catch (error) {
 			console.error('Error uploading photos:', error);
 		} finally {
-			uploading = false;
-			compressing = false;
-			uploadProgress = 0;
-			compressionProgress = 0;
+			upload.uploading = false;
+			upload.compressing = false;
+			upload.uploadProgress = 0;
+			upload.compressionProgress = 0;
 			// Reset file inputs to allow re-capture
-			if (fileInput) fileInput.value = '';
-			if (cameraInput) cameraInput.value = '';
+			if (upload.fileInput) upload.fileInput.value = '';
+			if (upload.cameraInput) upload.cameraInput.value = '';
 		}
 	}
 
@@ -192,31 +139,31 @@
 		<div
 			role="button"
 			tabindex="0"
-			class="relative rounded-lg border-2 border-dashed transition-colors {isDragging
+			class="relative rounded-lg border-2 border-dashed transition-colors {upload.isDragging
 				? 'border-rose-500 bg-rose-50'
-				: 'border-slate-300 bg-slate-50'} {uploading || compressing ? 'opacity-50' : ''}"
-			ondragenter={handleDragEnter}
-			ondragover={handleDragOver}
-			ondragleave={handleDragLeave}
-			ondrop={handleDrop}
+				: 'border-slate-300 bg-slate-50'} {upload.uploading || upload.compressing ? 'opacity-50' : ''}"
+			ondragenter={upload.handleDragEnter}
+			ondragover={upload.handleDragOver}
+			ondragleave={upload.handleDragLeave}
+			ondrop={upload.handleDrop}
 			onkeydown={(e) => {
 				if (e.key === 'Enter' || e.key === ' ') {
 					e.preventDefault();
-					triggerFileInput();
+					upload.triggerFileInput();
 				}
 			}}
 			aria-label="Upload photos - drag and drop or click to select"
 		>
 			<div class="flex flex-col items-center justify-center p-6">
-				{#if uploading || compressing}
+				{#if upload.uploading || upload.compressing}
 					<FileUploadProgress
-						isCompressing={compressing}
-						isUploading={uploading}
-						compressionProgress={compressionProgress}
-						uploadProgress={uploadProgress}
+						isCompressing={upload.compressing}
+						isUploading={upload.uploading}
+						compressionProgress={upload.compressionProgress}
+						uploadProgress={upload.uploadProgress}
 						fileName=""
 					/>
-				{:else if isDragging}
+				{:else if upload.isDragging}
 					<Upload class="h-8 w-8 text-rose-500" />
 					<p class="mt-2 text-sm font-medium text-rose-600">Drop photos here</p>
 				{:else}
@@ -225,7 +172,7 @@
 						Drag and drop photos here, or
 						<button
 							type="button"
-							onclick={triggerFileInput}
+							onclick={upload.triggerFileInput}
 							class="text-rose-600 hover:text-rose-700 font-medium"
 						>
 							browse
@@ -233,11 +180,11 @@
 					</p>
 					<p class="mt-1 text-xs text-slate-500">Supports multiple files</p>
 					<div class="flex gap-2 justify-center mt-3">
-						<Button onclick={triggerCameraInput} variant="outline" size="sm">
+						<Button onclick={upload.triggerCameraInput} variant="outline" size="sm">
 							<Camera class="mr-2 h-4 w-4" />
 							Camera
 						</Button>
-						<Button onclick={triggerFileInput} size="sm">
+						<Button onclick={upload.triggerFileInput} size="sm">
 							<Upload class="mr-2 h-4 w-4" />
 							Upload
 						</Button>
@@ -283,22 +230,22 @@
 
 <!-- Hidden file input -->
 <input
-	bind:this={fileInput}
+	bind:this={upload.fileInput}
 	type="file"
 	accept="image/*"
 	multiple
-	onchange={handleFileSelect}
+	onchange={upload.handleFileSelect}
 	class="hidden"
 />
 
 <!-- Hidden camera input -->
 <input
-	bind:this={cameraInput}
+	bind:this={upload.cameraInput}
 	type="file"
 	accept="image/*"
 	capture="environment"
 	multiple
-	onchange={handleFileSelect}
+	onchange={upload.handleFileSelect}
 	class="hidden"
 />
 
@@ -312,4 +259,3 @@
 		onLabelUpdate={handleLabelUpdate}
 	/>
 {/if}
-
