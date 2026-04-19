@@ -1,123 +1,30 @@
 import { supabase } from '$lib/supabase';
+import { createEntityService } from './entity-service-factory';
 import type { Repairer, CreateRepairerInput, UpdateRepairerInput } from '$lib/types/repairer';
 import type { ServiceClient } from '$lib/types/service';
 
-export class RepairerService {
-	/**
-	 * List all repairers
-	 */
-	async listRepairers(activeOnly = true, client?: ServiceClient): Promise<Repairer[]> {
-		const db = client ?? supabase;
+const base = createEntityService<'repairers', CreateRepairerInput, UpdateRepairerInput, Repairer>({
+	table: 'repairers',
+	label: 'repairer',
+	orderField: 'name'
+});
 
-		let query = db.from('repairers').select('*').order('name', { ascending: true });
+export const repairerService = {
+	// Historical method names — preserved for zero callsite changes
+	listRepairers: (activeOnly = true, client?: ServiceClient) => base.list(activeOnly, client),
+	getRepairer: (id: string, client?: ServiceClient) => base.getById(id, client),
+	createRepairer: (input: CreateRepairerInput, client?: ServiceClient) =>
+		base.create(input, client),
+	updateRepairer: (id: string, input: UpdateRepairerInput, client?: ServiceClient) =>
+		base.update(id, input, client),
+	deleteRepairer: (id: string, client?: ServiceClient) => base.softDelete(id, client),
 
-		if (activeOnly) {
-			query = query.eq('is_active', true);
-		}
-
-		const { data, error } = await query;
-
-		if (error) {
-			console.error('Error fetching repairers:', error);
-			throw new Error(`Failed to fetch repairers: ${error.message}`);
-		}
-
-		return (data as unknown as Repairer[]) || [];
-	}
-
-	/**
-	 * Get a single repairer by ID
-	 */
-	async getRepairer(id: string, client?: ServiceClient): Promise<Repairer | null> {
-		const db = client ?? supabase;
-
-		const { data, error } = await db
-			.from('repairers')
-			.select('*')
-			.eq('id', id)
-			.single();
-
-		if (error) {
-			if (error.code === 'PGRST116') {
-				return null; // Not found
-			}
-			console.error('Error fetching repairer:', error);
-			throw new Error(`Failed to fetch repairer: ${error.message}`);
-		}
-
-		return data as unknown as Repairer;
-	}
-
-	/**
-	 * Create a new repairer
-	 */
-	async createRepairer(input: CreateRepairerInput, client?: ServiceClient): Promise<Repairer> {
-		const db = client ?? supabase;
-
-		const { data, error } = await db
-			.from('repairers')
-			.insert({
-				...input,
-				is_active: true
-			})
-			.select()
-			.single();
-
-		if (error) {
-			console.error('Error creating repairer:', error);
-			throw new Error(`Failed to create repairer: ${error.message}`);
-		}
-
-		return data as unknown as Repairer;
-	}
-
-	/**
-	 * Update an existing repairer
-	 */
-	async updateRepairer(id: string, input: UpdateRepairerInput, client?: ServiceClient): Promise<Repairer | null> {
-		const db = client ?? supabase;
-
-		const { data, error } = await db
-			.from('repairers')
-			.update(input)
-			.eq('id', id)
-			.select()
-			.single();
-
-		if (error) {
-			if (error.code === 'PGRST116') {
-				return null; // Not found
-			}
-			console.error('Error updating repairer:', error);
-			throw new Error(`Failed to update repairer: ${error.message}`);
-		}
-
-		return data as unknown as Repairer;
-	}
-
-	/**
-	 * Soft delete a repairer (set is_active to false)
-	 */
-	async deleteRepairer(id: string, client?: ServiceClient): Promise<boolean> {
-		const db = client ?? supabase;
-
-		const { error } = await db
-			.from('repairers')
-			.update({ is_active: false })
-			.eq('id', id);
-
-		if (error) {
-			console.error('Error deleting repairer:', error);
-			throw new Error(`Failed to delete repairer: ${error.message}`);
-		}
-
-		return true;
-	}
-
-	/**
-	 * Search repairers by name
-	 */
-	async searchRepairers(searchTerm: string, activeOnly = true, client?: ServiceClient): Promise<Repairer[]> {
+	// Extension: search repairers by name
+	async searchRepairers(
+		searchTerm: string,
+		activeOnly = true,
+		client?: ServiceClient
+	): Promise<Repairer[]> {
 		const db = client ?? supabase;
 
 		let query = db
@@ -139,7 +46,6 @@ export class RepairerService {
 
 		return (data as unknown as Repairer[]) || [];
 	}
-}
+};
 
-export const repairerService = new RepairerService();
-
+export type { Repairer, CreateRepairerInput, UpdateRepairerInput };
