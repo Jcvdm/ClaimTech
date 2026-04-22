@@ -12,6 +12,12 @@
 				destructive:
 					"bg-destructive [a&]:hover:bg-destructive/90 focus-visible:ring-destructive/20 dark:focus-visible:ring-destructive/40 dark:bg-destructive/70 border-transparent text-white",
 				outline: "text-foreground [a&]:hover:bg-accent [a&]:hover:text-accent-foreground",
+				// NEW soft-tone variants (spec-aligned):
+				muted: "bg-muted text-muted-foreground border-border",
+				info: "bg-accent text-accent-foreground border-accent",
+				success: "bg-success-soft text-success border-success-border",
+				warning: "bg-warning-soft text-warning border-warning-border",
+				"destructive-soft": "bg-destructive-soft text-destructive border-destructive-border",
 			},
 		},
 		defaultVariants: {
