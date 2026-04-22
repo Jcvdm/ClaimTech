@@ -3,26 +3,26 @@
 	import { useNavigationLoading } from '$lib/utils/useNavigationLoading.svelte';
 	import PageHeader from '$lib/components/layout/PageHeader.svelte';
 	import ModernDataTable from '$lib/components/data/ModernDataTable.svelte';
-	import GradientBadge from '$lib/components/data/GradientBadge.svelte';
+	import { Badge } from '$lib/components/ui/badge';
 	import TableCell from '$lib/components/data/TableCell.svelte';
 	import EmptyState from '$lib/components/data/EmptyState.svelte';
 	import FilterTabs from '$lib/components/ui/tabs/FilterTabs.svelte';
 	import { Button } from '$lib/components/ui/button';
 	import { FileText, Hash, User, Activity, DollarSign, Calendar } from 'lucide-svelte';
 	import type { PageData } from './$types';
-	import type { ShopInvoiceStatus } from '$lib/services/shop-invoice.service';
+	import type { ShopInvoiceStatus } from '$lib/services/shop-invoice.service';
 	import { formatDate, formatCurrency } from '$lib/utils/formatters';
 
 	let { data }: { data: PageData } = $props();
 	const { loadingId, startNavigation } = useNavigationLoading();
 
-	const statusVariantMap: Record<ShopInvoiceStatus, 'gray' | 'blue' | 'green' | 'red' | 'yellow' | 'purple'> = {
-		draft: 'gray',
-		sent: 'blue',
-		paid: 'green',
-		partially_paid: 'yellow',
-		overdue: 'red',
-		void: 'gray'
+	const statusVariantMap: Record<ShopInvoiceStatus, 'muted' | 'info' | 'success' | 'destructive-soft' | 'warning'> = {
+		draft: 'muted',
+		sent: 'info',
+		paid: 'success',
+		partially_paid: 'warning',
+		overdue: 'destructive-soft',
+		void: 'muted'
 	};
 
 	const statusLabelMap: Record<ShopInvoiceStatus, string> = {
@@ -192,9 +192,9 @@
 							{row.invoice_number}
 						</TableCell>
 					{:else if column.key === 'status'}
-						{@const variant = statusVariantMap[row.status] ?? 'gray'}
+						{@const variant = statusVariantMap[row.status] ?? 'muted'}
 						{@const label = statusLabelMap[row.status] ?? row.status}
-						<GradientBadge {variant} {label} />
+						<Badge {variant}>{label}</Badge>
 					{:else}
 						{row[column.key]}
 					{/if}

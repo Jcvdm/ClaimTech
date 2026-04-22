@@ -4,7 +4,7 @@
 	import PageHeader from '$lib/components/layout/PageHeader.svelte';
 	import ModernDataTable from '$lib/components/data/ModernDataTable.svelte';
 import type { CardConfig } from '$lib/components/data/ListItemCard.svelte';
-	import GradientBadge from '$lib/components/data/GradientBadge.svelte';
+	import { Badge } from '$lib/components/ui/badge';
 	import TableCell from '$lib/components/data/TableCell.svelte';
 	import EmptyState from '$lib/components/data/EmptyState.svelte';
 	import { Button } from '$lib/components/ui/button';
@@ -150,10 +150,9 @@ import { FilterTabs } from '$lib/components/ui/tabs';
 				{:else if column.key === 'vehicle_make'}
 					{formatVehicleDisplay(row.vehicle_make, row.vehicle_model)}
 				{:else if column.key === 'type'}
-					<GradientBadge
-						variant={getTypeVariant(row.type as 'insurance' | 'private')}
-						label={getTypeLabel(row.type as 'insurance' | 'private')}
-					/>
+					<Badge variant={getTypeVariant(row.type as 'insurance' | 'private')}>
+						{getTypeLabel(row.type as 'insurance' | 'private')}
+					</Badge>
 				{:else}
 					{row[column.key]}
 				{/if}
@@ -162,10 +161,9 @@ import { FilterTabs } from '$lib/components/ui/tabs';
 				{#if field === 'request_number'}
 					<span class="font-semibold text-gray-900">{row.request_number}</span>
 				{:else if field === 'type'}
-					<GradientBadge
-						variant={getTypeVariant(row.type as 'insurance' | 'private')}
-						label={getTypeLabel(row.type as 'insurance' | 'private')}
-					/>
+					<Badge variant={getTypeVariant(row.type as 'insurance' | 'private')}>
+						{getTypeLabel(row.type as 'insurance' | 'private')}
+					</Badge>
 				{:else if field === 'client_name'}
 					<span class="text-gray-600"><User class="inline h-3.5 w-3.5 mr-1 text-gray-400" />{row.client_name}</span>
 				{:else if field === 'vehicle_make'}

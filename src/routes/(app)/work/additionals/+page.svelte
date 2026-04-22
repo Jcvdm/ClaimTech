@@ -6,7 +6,7 @@
 	import ModernDataTable from '$lib/components/data/ModernDataTable.svelte';
 	import ActionButtonGroup from '$lib/components/data/ActionButtonGroup.svelte';
 	import ActionIconButton from '$lib/components/data/ActionIconButton.svelte';
-	import GradientBadge from '$lib/components/data/GradientBadge.svelte';
+	import { Badge } from '$lib/components/ui/badge';
 	import TableCell from '$lib/components/data/TableCell.svelte';
 	import EmptyState from '$lib/components/data/EmptyState.svelte';
 	import { FilterTabs } from '$lib/components/ui/tabs';
@@ -236,19 +236,19 @@
 					{#if row.pendingCount === 0}
 						<span class="text-gray-400">0</span>
 					{:else}
-						<GradientBadge variant="yellow" label={row.pendingCount.toString()} />
+						<Badge variant="warning">{row.pendingCount.toString()}</Badge>
 					{/if}
 				{:else if column.key === 'approvedCount'}
 					{#if row.approvedCount === 0}
 						<span class="text-gray-400">0</span>
 					{:else}
-						<GradientBadge variant="green" label={row.approvedCount.toString()} />
+						<Badge variant="success">{row.approvedCount.toString()}</Badge>
 					{/if}
 				{:else if column.key === 'declinedCount'}
 					{#if row.declinedCount === 0}
 						<span class="text-gray-400">0</span>
 					{:else}
-						<GradientBadge variant="red" label={row.declinedCount.toString()} />
+						<Badge variant="destructive-soft">{row.declinedCount.toString()}</Badge>
 					{/if}
 				{:else if column.key === 'totalApproved'}
 					<TableCell variant="success" bold>

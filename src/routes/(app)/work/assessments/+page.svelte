@@ -9,7 +9,7 @@
 	import type { CardConfig } from '$lib/components/data/ListItemCard.svelte';
 	import ActionButtonGroup from '$lib/components/data/ActionButtonGroup.svelte';
 	import ActionIconButton from '$lib/components/data/ActionIconButton.svelte';
-	import GradientBadge from '$lib/components/data/GradientBadge.svelte';
+	import { Badge } from '$lib/components/ui/badge';
 	import TableCell from '$lib/components/data/TableCell.svelte';
 	import EmptyState from '$lib/components/data/EmptyState.svelte';
 	import { Button } from '$lib/components/ui/button';
@@ -230,15 +230,15 @@
 			{#snippet cellContent(column, row)}
 				{#if column.key === 'progress_display'}
 					{@const percentage = row.progress_percentage}
-					{@const variant =
+					{@const tone =
 						percentage === 100
-							? 'green'
+							? 'success'
 							: percentage >= 60
-								? 'blue'
+								? 'info'
 								: percentage >= 30
-									? 'yellow'
-									: 'gray'}
-					<GradientBadge {variant} label={`${row.progress_display} (${percentage}%)`} />
+									? 'warning'
+									: 'muted'}
+					<Badge variant={tone}>{row.progress_display} ({percentage}%)</Badge>
 				{:else if column.key === 'engineer_name'}
 					<TableCell variant={row.engineer_name === 'Unassigned' ? 'muted' : 'default'}>
 						{row.engineer_name}
@@ -273,15 +273,15 @@
 					<span class="font-semibold text-gray-900">{row.assessment_number}</span>
 				{:else if field === 'progress_display'}
 					{@const percentage = row.progress_percentage}
-					{@const variant =
+					{@const tone =
 						percentage === 100
-							? 'green'
+							? 'success'
 							: percentage >= 60
-								? 'blue'
+								? 'info'
 								: percentage >= 30
-									? 'yellow'
-									: 'gray'}
-					<GradientBadge {variant} label={`${percentage}%`} />
+									? 'warning'
+									: 'muted'}
+					<Badge variant={tone}>{percentage}%</Badge>
 				{:else if field === 'vehicle_display'}
 					<span class="text-gray-600"><Car class="inline h-3.5 w-3.5 mr-1 text-gray-400" />{row.vehicle_display}</span>
 				{:else if field === 'vehicle_registration'}

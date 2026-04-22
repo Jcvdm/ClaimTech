@@ -758,32 +758,32 @@
 	<!-- Tabbed layout -->
 	<Tabs.Root bind:value={activeTab}>
 		<Tabs.List class="flex h-auto w-full snap-x snap-mandatory gap-1.5 overflow-x-auto bg-transparent p-0 pb-2 scrollbar-hide sm:flex sm:snap-none sm:gap-2 sm:overflow-visible sm:pb-0">
-			<Tabs.Trigger value="overview" class="relative flex h-8 min-w-[4.5rem] shrink-0 snap-start items-center justify-center gap-1.5 rounded-md border border-transparent px-2.5 py-1.5 text-xs font-medium text-muted-foreground ring-offset-background transition-all hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-rose-500 data-[state=active]:text-white data-[state=active]:shadow-sm sm:h-9 sm:px-3 sm:py-2 sm:text-sm">
+			<Tabs.Trigger value="overview" class="relative flex h-8 min-w-[4.5rem] shrink-0 snap-start items-center justify-center gap-1.5 rounded-md border border-transparent px-2.5 py-1.5 text-xs font-medium text-muted-foreground ring-offset-background transition-all hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-sm sm:h-9 sm:px-3 sm:py-2 sm:text-sm">
 				<ClipboardList class="h-3.5 w-3.5" />
 				Overview
 			</Tabs.Trigger>
 			{#if showBooking}
-				<Tabs.Trigger value="booking" class="relative flex h-8 min-w-[4.5rem] shrink-0 snap-start items-center justify-center gap-1.5 rounded-md border border-transparent px-2.5 py-1.5 text-xs font-medium text-muted-foreground ring-offset-background transition-all hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-rose-500 data-[state=active]:text-white data-[state=active]:shadow-sm sm:h-9 sm:px-3 sm:py-2 sm:text-sm">
+				<Tabs.Trigger value="booking" class="relative flex h-8 min-w-[4.5rem] shrink-0 snap-start items-center justify-center gap-1.5 rounded-md border border-transparent px-2.5 py-1.5 text-xs font-medium text-muted-foreground ring-offset-background transition-all hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-sm sm:h-9 sm:px-3 sm:py-2 sm:text-sm">
 					<Car class="h-3.5 w-3.5" />
 					Booking
 				</Tabs.Trigger>
 			{/if}
-			<Tabs.Trigger value="estimate" class="relative flex h-8 min-w-[4.5rem] shrink-0 snap-start items-center justify-center gap-1.5 rounded-md border border-transparent px-2.5 py-1.5 text-xs font-medium text-muted-foreground ring-offset-background transition-all hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-rose-500 data-[state=active]:text-white data-[state=active]:shadow-sm sm:h-9 sm:px-3 sm:py-2 sm:text-sm">
+			<Tabs.Trigger value="estimate" class="relative flex h-8 min-w-[4.5rem] shrink-0 snap-start items-center justify-center gap-1.5 rounded-md border border-transparent px-2.5 py-1.5 text-xs font-medium text-muted-foreground ring-offset-background transition-all hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-sm sm:h-9 sm:px-3 sm:py-2 sm:text-sm">
 				<DollarSign class="h-3.5 w-3.5" />
 				Estimate
 			</Tabs.Trigger>
 			{#if showWork}
-				<Tabs.Trigger value="work" class="relative flex h-8 min-w-[4.5rem] shrink-0 snap-start items-center justify-center gap-1.5 rounded-md border border-transparent px-2.5 py-1.5 text-xs font-medium text-muted-foreground ring-offset-background transition-all hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-rose-500 data-[state=active]:text-white data-[state=active]:shadow-sm sm:h-9 sm:px-3 sm:py-2 sm:text-sm">
+				<Tabs.Trigger value="work" class="relative flex h-8 min-w-[4.5rem] shrink-0 snap-start items-center justify-center gap-1.5 rounded-md border border-transparent px-2.5 py-1.5 text-xs font-medium text-muted-foreground ring-offset-background transition-all hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-sm sm:h-9 sm:px-3 sm:py-2 sm:text-sm">
 					<Wrench class="h-3.5 w-3.5" />
 					Work
 				</Tabs.Trigger>
-				<Tabs.Trigger value="jobcard" class="relative flex h-8 min-w-[4.5rem] shrink-0 snap-start items-center justify-center gap-1.5 rounded-md border border-transparent px-2.5 py-1.5 text-xs font-medium text-muted-foreground ring-offset-background transition-all hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-rose-500 data-[state=active]:text-white data-[state=active]:shadow-sm sm:h-9 sm:px-3 sm:py-2 sm:text-sm">
+				<Tabs.Trigger value="jobcard" class="relative flex h-8 min-w-[4.5rem] shrink-0 snap-start items-center justify-center gap-1.5 rounded-md border border-transparent px-2.5 py-1.5 text-xs font-medium text-muted-foreground ring-offset-background transition-all hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-sm sm:h-9 sm:px-3 sm:py-2 sm:text-sm">
 					<FileText class="h-3.5 w-3.5" />
 					Job Card
 				</Tabs.Trigger>
 			{/if}
 			{#if showInvoice}
-				<Tabs.Trigger value="invoice" class="relative flex h-8 min-w-[4.5rem] shrink-0 snap-start items-center justify-center gap-1.5 rounded-md border border-transparent px-2.5 py-1.5 text-xs font-medium text-muted-foreground ring-offset-background transition-all hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-rose-500 data-[state=active]:text-white data-[state=active]:shadow-sm sm:h-9 sm:px-3 sm:py-2 sm:text-sm">
+				<Tabs.Trigger value="invoice" class="relative flex h-8 min-w-[4.5rem] shrink-0 snap-start items-center justify-center gap-1.5 rounded-md border border-transparent px-2.5 py-1.5 text-xs font-medium text-muted-foreground ring-offset-background transition-all hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-sm sm:h-9 sm:px-3 sm:py-2 sm:text-sm">
 					<Receipt class="h-3.5 w-3.5" />
 					Invoice
 				</Tabs.Trigger>

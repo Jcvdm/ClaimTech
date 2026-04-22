@@ -140,7 +140,7 @@
 			role="button"
 			tabindex="0"
 			class="relative rounded-lg border-2 border-dashed transition-colors {upload.isDragging
-				? 'border-rose-500 bg-rose-50'
+				? 'border-primary bg-primary/5'
 				: 'border-slate-300 bg-slate-50'} {upload.uploading || upload.compressing ? 'opacity-50' : ''}"
 			ondragenter={upload.handleDragEnter}
 			ondragover={upload.handleDragOver}
@@ -164,8 +164,8 @@
 						fileName=""
 					/>
 				{:else if upload.isDragging}
-					<Upload class="h-8 w-8 text-rose-500" />
-					<p class="mt-2 text-sm font-medium text-rose-600">Drop photos here</p>
+					<Upload class="h-8 w-8 text-primary" />
+					<p class="mt-2 text-sm font-medium text-primary">Drop photos here</p>
 				{:else}
 					<Upload class="h-8 w-8 text-slate-400" />
 					<p class="mt-2 text-sm text-slate-600">
@@ -173,7 +173,7 @@
 						<button
 							type="button"
 							onclick={upload.triggerFileInput}
-							class="text-rose-600 hover:text-rose-700 font-medium"
+							class="text-primary hover:text-primary/80 font-medium"
 						>
 							browse
 						</button>

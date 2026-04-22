@@ -290,7 +290,7 @@
 		<!-- Empty state: Large centered upload zone -->
 		<div
 			class="relative border-2 border-dashed rounded-lg p-8 text-center transition-colors {isDragging
-				? 'border-rose-500 bg-rose-50'
+				? 'border-primary bg-primary/5'
 				: 'border-slate-300 hover:border-slate-400'}"
 			ondragenter={handleDragEnter}
 			ondragover={handleDragOver}
@@ -310,8 +310,8 @@
 				/>
 			{:else if isDragging}
 				<div>
-					<Upload class="mx-auto h-12 w-12 text-rose-500" />
-					<p class="mt-2 text-sm font-medium text-rose-600">Drop photos here to upload</p>
+					<Upload class="mx-auto h-12 w-12 text-primary" />
+					<p class="mt-2 text-sm font-medium text-primary">Drop photos here to upload</p>
 				</div>
 			{:else}
 				<Upload class="mx-auto h-12 w-12 text-slate-400" />
@@ -319,7 +319,7 @@
 					Drag & drop photos or <button
 						type="button"
 						onclick={triggerFileInput}
-						class="font-medium text-rose-600 hover:text-rose-800"
+						class="font-medium text-primary hover:text-primary/80"
 					>
 						browse
 					</button>
@@ -345,7 +345,7 @@
 			<!-- Upload zone as first grid cell -->
 			<div
 				class="relative w-full aspect-square border-2 border-dashed rounded-lg transition-colors cursor-pointer {isDragging
-					? 'border-rose-500 bg-rose-50'
+					? 'border-primary bg-primary/5'
 					: 'border-slate-300 hover:border-slate-400 bg-slate-50'}"
 				ondragenter={handleDragEnter}
 				ondragover={handleDragOver}
@@ -370,8 +370,8 @@
 					</div>
 				{:else if isDragging}
 					<div class="absolute inset-0 flex flex-col items-center justify-center p-4">
-						<Upload class="h-8 w-8 text-rose-500" />
-						<p class="mt-2 text-xs font-medium text-rose-600 text-center">Drop here</p>
+						<Upload class="h-8 w-8 text-primary" />
+						<p class="mt-2 text-xs font-medium text-primary text-center">Drop here</p>
 					</div>
 				{:else}
 					<div class="absolute inset-0 flex flex-col items-center justify-center p-4">

@@ -2,11 +2,11 @@
 	import { useNavigationLoading } from '$lib/utils/useNavigationLoading.svelte';
 	import PageHeader from '$lib/components/layout/PageHeader.svelte';
 	import ModernDataTable from '$lib/components/data/ModernDataTable.svelte';
-	import GradientBadge from '$lib/components/data/GradientBadge.svelte';
+	import { Badge } from '$lib/components/ui/badge';
 	import TableCell from '$lib/components/data/TableCell.svelte';
 	import EmptyState from '$lib/components/data/EmptyState.svelte';
 	import { Briefcase, Hash, User, Car, Activity, Calendar } from 'lucide-svelte';
-	import type { PageData } from './$types';
+	import type { PageData } from './$types';
 	import { formatDate, formatCurrency } from '$lib/utils/formatters';
 
 	let { data }: { data: PageData } = $props();
@@ -93,13 +93,13 @@
 					</TableCell>
 				{:else if column.key === 'invoice_status'}
 					{#if row.invoice_status === 'none'}
-						<GradientBadge variant="gray" label="No Invoice" />
+						<Badge variant="muted">No Invoice</Badge>
 					{:else if row.invoice_status === 'paid'}
-						<GradientBadge variant="green" label="Paid" />
+						<Badge variant="success">Paid</Badge>
 					{:else if row.invoice_status === 'partial'}
-						<GradientBadge variant="blue" label="Partial" />
+						<Badge variant="info">Partial</Badge>
 					{:else}
-						<GradientBadge variant="yellow" label="Unpaid" />
+						<Badge variant="warning">Unpaid</Badge>
 					{/if}
 				{:else if column.key === 'total'}
 					{formatCurrency(row.total)}

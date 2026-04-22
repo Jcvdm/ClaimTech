@@ -2,28 +2,28 @@
 	import { useNavigationLoading } from '$lib/utils/useNavigationLoading.svelte';
 	import PageHeader from '$lib/components/layout/PageHeader.svelte';
 	import ModernDataTable from '$lib/components/data/ModernDataTable.svelte';
-	import GradientBadge from '$lib/components/data/GradientBadge.svelte';
+	import { Badge } from '$lib/components/ui/badge';
 	import TableCell from '$lib/components/data/TableCell.svelte';
 	import EmptyState from '$lib/components/data/EmptyState.svelte';
 	import FilterTabs from '$lib/components/ui/tabs/FilterTabs.svelte';
 	import { Briefcase, Hash, User, Car, Activity, Calendar } from 'lucide-svelte';
 	import type { PageData } from './$types';
-	import type { ShopJobStatus } from '$lib/services/shop-job.service';
+	import type { ShopJobStatus } from '$lib/services/shop-job.service';
 	import { formatDate } from '$lib/utils/formatters';
 
 	let { data }: { data: PageData } = $props();
 	const { loadingId, startNavigation } = useNavigationLoading();
 
-	const statusVariantMap: Record<ShopJobStatus, 'gray' | 'blue' | 'green' | 'yellow' | 'red' | 'purple'> = {
-		quote_requested: 'gray',
-		quoted: 'blue',
-		approved: 'green',
-		checked_in: 'yellow',
-		in_progress: 'yellow',
-		quality_check: 'purple',
-		ready_for_collection: 'green',
-		completed: 'green',
-		cancelled: 'red'
+	const statusVariantMap: Record<ShopJobStatus, 'muted' | 'info' | 'success' | 'warning' | 'destructive-soft'> = {
+		quote_requested: 'muted',
+		quoted: 'info',
+		approved: 'success',
+		checked_in: 'warning',
+		in_progress: 'warning',
+		quality_check: 'info',
+		ready_for_collection: 'success',
+		completed: 'success',
+		cancelled: 'destructive-soft'
 	};
 
 	const statusLabelMap: Record<ShopJobStatus, string> = {
@@ -141,17 +141,14 @@
 						</TableCell>
 					{:else if column.key === 'job_type'}
 						{#if row.job_type}
-							<GradientBadge
-								variant={row.job_type === 'autobody' ? 'blue' : 'yellow'}
-								label={row.job_type.charAt(0).toUpperCase() + row.job_type.slice(1)}
-							/>
+							<Badge variant={row.job_type === 'autobody' ? 'info' : 'warning'}>{row.job_type.charAt(0).toUpperCase() + row.job_type.slice(1)}</Badge>
 						{:else}
 							<span class="text-gray-400">—</span>
 						{/if}
 					{:else if column.key === 'status'}
-						{@const variant = statusVariantMap[row.status] ?? 'gray'}
+						{@const variant = statusVariantMap[row.status] ?? 'muted'}
 						{@const label = statusLabelMap[row.status] ?? row.status}
-						<GradientBadge {variant} {label} />
+						<Badge {variant}>{label}</Badge>
 					{:else}
 						{row[column.key]}
 					{/if}

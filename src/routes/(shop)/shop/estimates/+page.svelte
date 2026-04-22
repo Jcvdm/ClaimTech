@@ -4,14 +4,14 @@
 	import { useNavigationLoading } from '$lib/utils/useNavigationLoading.svelte';
 	import PageHeader from '$lib/components/layout/PageHeader.svelte';
 	import ModernDataTable from '$lib/components/data/ModernDataTable.svelte';
-	import GradientBadge from '$lib/components/data/GradientBadge.svelte';
+	import { Badge } from '$lib/components/ui/badge';
 	import TableCell from '$lib/components/data/TableCell.svelte';
 	import EmptyState from '$lib/components/data/EmptyState.svelte';
 	import FilterTabs from '$lib/components/ui/tabs/FilterTabs.svelte';
 	import { Button } from '$lib/components/ui/button';
 	import { FileText, Hash, User, Car, Activity, Calendar, Plus } from 'lucide-svelte';
 	import { toast } from 'svelte-sonner';
-	import type { PageData } from './$types';
+	import type { PageData } from './$types';
 	import { formatDate, formatCurrency } from '$lib/utils/formatters';
 
 	let { data }: { data: PageData } = $props();
@@ -19,13 +19,13 @@
 
 	type EstimateStatus = 'draft' | 'sent' | 'approved' | 'declined' | 'revised' | 'expired';
 
-	const estimateStatusVariantMap: Record<EstimateStatus, 'gray' | 'blue' | 'green' | 'red' | 'yellow' | 'purple'> = {
-		draft: 'gray',
-		sent: 'blue',
-		approved: 'green',
-		declined: 'red',
-		revised: 'yellow',
-		expired: 'gray'
+	const estimateStatusVariantMap: Record<EstimateStatus, 'muted' | 'info' | 'success' | 'destructive-soft' | 'warning'> = {
+		draft: 'muted',
+		sent: 'info',
+		approved: 'success',
+		declined: 'destructive-soft',
+		revised: 'warning',
+		expired: 'muted'
 	};
 
 	const estimateStatusLabelMap: Record<EstimateStatus, string> = {
@@ -161,9 +161,9 @@
 						</TableCell>
 					{:else if column.key === 'estimate_status'}
 						{#if row.estimate_status}
-							{@const variant = estimateStatusVariantMap[row.estimate_status] ?? 'gray'}
+							{@const variant = estimateStatusVariantMap[row.estimate_status] ?? 'muted'}
 							{@const label = estimateStatusLabelMap[row.estimate_status] ?? row.estimate_status}
-							<GradientBadge {variant} {label} />
+							<Badge {variant}>{label}</Badge>
 						{:else}
 							<span class="text-gray-400">—</span>
 						{/if}

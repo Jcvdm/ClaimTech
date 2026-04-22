@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { Button } from '$lib/components/ui/button';
-	import GradientBadge from '$lib/components/data/GradientBadge.svelte';
+	import { Badge } from '$lib/components/ui/badge';
 	import {
 		Wrench,
 		FileText,
@@ -12,7 +12,7 @@
 		Briefcase,
 		ClipboardList
 	} from 'lucide-svelte';
-	import type { PageData } from './$types';
+	import type { PageData } from './$types';
 	import { formatDate, formatCurrency } from '$lib/utils/formatters';
 
 	let { data }: { data: PageData } = $props();
@@ -31,13 +31,13 @@
 
 	const estimateStatusVariant: Record<
 		EstimateStatus,
-		'gray' | 'blue' | 'green' | 'yellow' | 'red'
+		'muted' | 'info' | 'success' | 'warning' | 'destructive-soft'
 	> = {
-		draft: 'gray',
-		sent: 'blue',
-		approved: 'green',
-		rejected: 'red',
-		invoiced: 'green'
+		draft: 'muted',
+		sent: 'info',
+		approved: 'success',
+		rejected: 'destructive-soft',
+		invoiced: 'success'
 	};
 
 	const estimateStatusLabel: Record<EstimateStatus, string> = {
@@ -50,17 +50,17 @@
 
 	const jobStatusVariant: Record<
 		JobStatus,
-		'gray' | 'blue' | 'green' | 'yellow' | 'red' | 'purple'
+		'muted' | 'info' | 'success' | 'warning' | 'destructive-soft'
 	> = {
-		quote_requested: 'gray',
-		quoted: 'blue',
-		approved: 'green',
-		checked_in: 'yellow',
-		in_progress: 'yellow',
-		quality_check: 'purple',
-		ready_for_collection: 'green',
-		completed: 'green',
-		cancelled: 'red'
+		quote_requested: 'muted',
+		quoted: 'info',
+		approved: 'success',
+		checked_in: 'warning',
+		in_progress: 'warning',
+		quality_check: 'info',
+		ready_for_collection: 'success',
+		completed: 'success',
+		cancelled: 'destructive-soft'
 	};
 
 	const jobStatusLabel: Record<JobStatus, string> = {
@@ -204,10 +204,7 @@
 										<p class="mt-0.5 text-xs text-gray-400">{formatDate(estimate.created_at)}</p>
 									</div>
 									<div class="flex shrink-0 flex-col items-end gap-1">
-										<GradientBadge
-											variant={estimateStatusVariant[status] ?? 'gray'}
-											label={estimateStatusLabel[status] ?? status}
-										/>
+										<Badge variant={estimateStatusVariant[status] ?? 'muted'}>{estimateStatusLabel[status] ?? status}</Badge>
 										<span class="text-xs font-medium text-gray-700">
 											{formatCurrency(estimate.total)}
 										</span>
@@ -261,10 +258,7 @@
 										<p class="mt-0.5 text-xs text-gray-400">{formatDate(job.created_at)}</p>
 									</div>
 									<div class="flex shrink-0 flex-col items-end gap-1">
-										<GradientBadge
-											variant={jobStatusVariant[status] ?? 'gray'}
-											label={jobStatusLabel[status] ?? status}
-										/>
+										<Badge variant={jobStatusVariant[status] ?? 'muted'}>{jobStatusLabel[status] ?? status}</Badge>
 										{#if job.job_type}
 											<span class="text-xs text-gray-400 capitalize">{job.job_type}</span>
 										{/if}

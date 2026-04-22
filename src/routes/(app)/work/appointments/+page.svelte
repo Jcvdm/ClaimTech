@@ -7,7 +7,6 @@
 	import ModernDataTable from '$lib/components/data/ModernDataTable.svelte';
 	import type { CardConfig } from '$lib/components/data/ListItemCard.svelte';
 	import TableCell from '$lib/components/data/TableCell.svelte';
-	import GradientBadge from '$lib/components/data/GradientBadge.svelte';
 	import ActionButtonGroup from '$lib/components/data/ActionButtonGroup.svelte';
 	import ActionIconButton from '$lib/components/data/ActionIconButton.svelte';
 	import { FilterTabs } from '$lib/components/ui/tabs';
@@ -320,10 +319,7 @@
 									{row.appointment_number}
 								</TableCell>
 							{:else if column.key === 'appointment_type'}
-								<GradientBadge
-									variant={row.appointment_type === 'in_person' ? 'blue' : 'purple'}
-									label={row.type_display}
-								/>
+								<Badge variant="info">{row.type_display}</Badge>
 							{:else if column.key === 'datetime_display'}
 								<div class="space-y-1">
 									<div class="font-medium text-red-900">{row.datetime_display}</div>
@@ -340,10 +336,7 @@
 							{#if field === 'appointment_number'}
 								<span class="font-semibold text-red-900">{row.appointment_number}</span>
 							{:else if field === 'appointment_type'}
-								<GradientBadge
-									variant={row.appointment_type === 'in_person' ? 'blue' : 'purple'}
-									label={row.type_display}
-								/>
+								<Badge variant="info">{row.type_display}</Badge>
 							{:else if field === 'datetime_display'}
 								<span class="text-red-700"><Clock class="inline h-3.5 w-3.5 mr-1" />{row.datetime_display} · {row.time_display}</span>
 							{:else if field === 'client_name'}
@@ -385,10 +378,7 @@
 								{row.appointment_number}
 							</TableCell>
 						{:else if column.key === 'appointment_type'}
-							<GradientBadge
-								variant={row.appointment_type === 'in_person' ? 'blue' : 'purple'}
-								label={row.type_display}
-							/>
+							<Badge variant="info">{row.type_display}</Badge>
 						{:else if column.key === 'datetime_display'}
 							<div class="space-y-1">
 								<div class="font-medium text-gray-900">{row.datetime_display}</div>
@@ -405,10 +395,7 @@
 						{#if field === 'appointment_number'}
 							<span class="font-semibold text-gray-900">{row.appointment_number}</span>
 						{:else if field === 'appointment_type'}
-							<GradientBadge
-								variant={row.appointment_type === 'in_person' ? 'blue' : 'purple'}
-								label={row.type_display}
-							/>
+							<Badge variant="info">{row.type_display}</Badge>
 						{:else if field === 'datetime_display'}
 							<span class="text-gray-700"><Clock class="inline h-3.5 w-3.5 mr-1 text-gray-400" />{row.datetime_display} · {row.time_display}</span>
 						{:else if field === 'client_name'}

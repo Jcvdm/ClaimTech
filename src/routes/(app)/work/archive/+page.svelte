@@ -7,7 +7,7 @@
 	import type { CardConfig } from '$lib/components/data/ListItemCard.svelte';
 	import ActionButtonGroup from '$lib/components/data/ActionButtonGroup.svelte';
 	import ActionIconButton from '$lib/components/data/ActionIconButton.svelte';
-	import GradientBadge from '$lib/components/data/GradientBadge.svelte';
+	import { Badge } from '$lib/components/ui/badge';
 	import TableCell from '$lib/components/data/TableCell.svelte';
 	import EmptyState from '$lib/components/data/EmptyState.svelte';
 	import { FilterTabs } from '$lib/components/ui/tabs';
@@ -363,32 +363,31 @@
 			{#snippet cellContent(column, row)}
 				{#if column.key === 'type'}
 					{@const config = typeBadgeConfig[row.type]}
-					{@const variant =
+					{@const tone =
 						row.type === 'request'
-							? 'gray'
+							? 'muted'
 							: row.type === 'inspection'
-								? 'blue'
+								? 'info'
 								: row.type === 'appointment'
-									? 'yellow'
-									: 'purple'}
-					<GradientBadge {variant} label={config?.label || row.type} icon={config?.icon} />
+									? 'warning'
+									: 'info'}
+					<Badge variant={tone}>{config?.label || row.type}</Badge>
 				{:else if column.key === 'number'}
 					<TableCell variant="primary" bold>
 						{row.number}
 					</TableCell>
 				{:else if column.key === 'clientType'}
-					{@const isInsurance = row.clientType === 'insurance'}
-					<GradientBadge
-						variant={isInsurance ? 'blue' : 'purple'}
-						label={isInsurance ? 'Insurance' : 'Private'}
-					/>
+					<Badge variant="info">{row.clientType === 'insurance' ? 'Insurance' : 'Private'}</Badge>
 				{:else if column.key === 'status'}
 					{@const isCompleted = row.status === 'Completed'}
-					<GradientBadge
-						variant={isCompleted ? 'green' : 'red'}
-						label={row.status}
-						icon={isCompleted ? CheckCircle2 : XCircle}
-					/>
+					<Badge variant={isCompleted ? 'success' : 'destructive-soft'}>
+						{#if isCompleted}
+							<CheckCircle2 class="h-3 w-3" />
+						{:else}
+							<XCircle class="h-3 w-3" />
+						{/if}
+						{row.status}
+					</Badge>
 				{:else}
 					{row[column.key]}
 				{/if}
@@ -398,11 +397,14 @@
 					<span class="font-semibold text-gray-900">{row.number}</span>
 				{:else if field === 'status'}
 					{@const isCompleted = row.status === 'Completed'}
-					<GradientBadge
-						variant={isCompleted ? 'green' : 'red'}
-						label={row.status}
-						icon={isCompleted ? CheckCircle2 : XCircle}
-					/>
+					<Badge variant={isCompleted ? 'success' : 'destructive-soft'}>
+						{#if isCompleted}
+							<CheckCircle2 class="h-3 w-3" />
+						{:else}
+							<XCircle class="h-3 w-3" />
+						{/if}
+						{row.status}
+					</Badge>
 				{:else if field === 'clientName'}
 					<span class="text-gray-600"><User class="inline h-3.5 w-3.5 mr-1 text-gray-400" />{row.clientName}</span>
 				{:else if field === 'vehicle'}

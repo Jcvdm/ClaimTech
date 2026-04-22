@@ -6,7 +6,7 @@
 import type { CardConfig } from '$lib/components/data/ListItemCard.svelte';
 	import ActionButtonGroup from '$lib/components/data/ActionButtonGroup.svelte';
 	import ActionIconButton from '$lib/components/data/ActionIconButton.svelte';
-	import GradientBadge from '$lib/components/data/GradientBadge.svelte';
+	import { Badge } from '$lib/components/ui/badge';
 	import TableCell from '$lib/components/data/TableCell.svelte';
 	import EmptyState from '$lib/components/data/EmptyState.svelte';
 	import { formatDate, formatVehicle } from '$lib/utils/formatters';
@@ -139,12 +139,9 @@ import type { CardConfig } from '$lib/components/data/ListItemCard.svelte';
 						{row.assessment_number}
 					</TableCell>
 				{:else if column.key === 'type'}
-					<GradientBadge
-						variant={getTypeVariant(row.type as 'insurance' | 'private')}
-						label={getTypeLabel(row.type as 'insurance' | 'private')}
-					/>
+					<Badge variant={getTypeVariant(row.type as 'insurance' | 'private')}>{getTypeLabel(row.type as 'insurance' | 'private')}</Badge>
 				{:else if column.key === 'stage'}
-					<GradientBadge variant="yellow" label="Inspection Scheduled" />
+					<Badge variant="warning">Inspection Scheduled</Badge>
 				{:else}
 					{row[column.key]}
 				{/if}
@@ -153,10 +150,7 @@ import type { CardConfig } from '$lib/components/data/ListItemCard.svelte';
 				{#if field === 'assessment_number'}
 					<span class="font-semibold text-gray-900">{row.assessment_number}</span>
 				{:else if field === 'type'}
-					<GradientBadge
-						variant={getTypeVariant(row.type as 'insurance' | 'private')}
-						label={getTypeLabel(row.type as 'insurance' | 'private')}
-					/>
+					<Badge variant={getTypeVariant(row.type as 'insurance' | 'private')}>{getTypeLabel(row.type as 'insurance' | 'private')}</Badge>
 				{:else if field === 'client_name'}
 					<span class="text-gray-600"><User class="inline h-3.5 w-3.5 mr-1 text-gray-400" />{row.client_name}</span>
 				{:else if field === 'vehicle_display'}
@@ -164,7 +158,7 @@ import type { CardConfig } from '$lib/components/data/ListItemCard.svelte';
 				{:else if field === 'request_date'}
 					<span class="text-gray-500"><Calendar class="inline h-3.5 w-3.5 mr-1 text-gray-400" />{row.request_date}</span>
 				{:else if field === 'stage'}
-					<GradientBadge variant="yellow" label="Inspection Scheduled" />
+					<Badge variant="warning">Inspection Scheduled</Badge>
 				{:else}
 					{row[field]}
 				{/if}

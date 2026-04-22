@@ -10,7 +10,7 @@ import type { CardConfig } from '$lib/components/data/ListItemCard.svelte';
 	import ActionButtonGroup from '$lib/components/data/ActionButtonGroup.svelte';
 	import ActionIconButton from '$lib/components/data/ActionIconButton.svelte';
 	import EmptyState from '$lib/components/data/EmptyState.svelte';
-	import GradientBadge from '$lib/components/data/GradientBadge.svelte';
+	import { Badge } from '$lib/components/ui/badge';
 	import TableCell from '$lib/components/data/TableCell.svelte';
 	import SummaryComponent from '$lib/components/shared/SummaryComponent.svelte';
 	import { Button } from '$lib/components/ui/button';
@@ -248,11 +248,7 @@ import type { CardConfig } from '$lib/components/data/ListItemCard.svelte';
 					<TableCell variant="default">
 						<div class="flex flex-col">
 							<span class="font-medium text-gray-900">{row.clientName}</span>
-							<GradientBadge
-								variant={getTypeVariant(row.clientType as 'insurance' | 'private')}
-								label={getTypeLabel(row.clientType as 'insurance' | 'private')}
-								class="mt-1"
-							/>
+							<Badge variant={getTypeVariant(row.clientType as 'insurance' | 'private')} class="mt-1">{getTypeLabel(row.clientType as 'insurance' | 'private')}</Badge>
 						</div>
 					</TableCell>
 				{:else if column.key === 'vehicle'}
@@ -279,10 +275,7 @@ import type { CardConfig } from '$lib/components/data/ListItemCard.svelte';
 				{#if field === 'assessmentNumber'}
 					<span class="font-semibold text-gray-900">{row.assessmentNumber}</span>
 				{:else if field === 'clientType'}
-					<GradientBadge
-						variant={getTypeVariant(row.clientType as 'insurance' | 'private')}
-						label={getTypeLabel(row.clientType as 'insurance' | 'private')}
-					/>
+					<Badge variant={getTypeVariant(row.clientType as 'insurance' | 'private')}>{getTypeLabel(row.clientType as 'insurance' | 'private')}</Badge>
 				{:else if field === 'clientName'}
 					<span class="text-gray-600"><User class="inline h-3.5 w-3.5 mr-1 text-gray-400" />{row.clientName}</span>
 				{:else if field === 'vehicle'}

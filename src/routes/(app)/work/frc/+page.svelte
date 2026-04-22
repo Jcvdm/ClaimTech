@@ -6,7 +6,7 @@
 	import ModernDataTable from '$lib/components/data/ModernDataTable.svelte';
 	import ActionButtonGroup from '$lib/components/data/ActionButtonGroup.svelte';
 	import ActionIconButton from '$lib/components/data/ActionIconButton.svelte';
-	import GradientBadge from '$lib/components/data/GradientBadge.svelte';
+	import { Badge } from '$lib/components/ui/badge';
 	import TableCell from '$lib/components/data/TableCell.svelte';
 	import EmptyState from '$lib/components/data/EmptyState.svelte';
 	import { FilterTabs } from '$lib/components/ui/tabs';
@@ -232,15 +232,15 @@
 						{row.assessmentNumber}
 					</TableCell>
 				{:else if column.key === 'status'}
-					{@const variant =
-						row.status === 'completed' ? 'green' : row.status === 'in_progress' ? 'blue' : 'gray'}
+					{@const tone =
+						row.status === 'completed' ? 'success' : row.status === 'in_progress' ? 'info' : 'muted'}
 					{@const label =
 						row.status === 'completed'
 							? 'Completed'
 							: row.status === 'in_progress'
 								? 'In Progress'
 								: 'Not Started'}
-					<GradientBadge {variant} {label} />
+					<Badge variant={tone}>{label}</Badge>
 				{:else if column.key === 'lineItemCount'}
 					<TableCell variant={row.lineItemCount > 0 ? 'default' : 'muted'}>
 						{row.lineItemCount}

@@ -1,47 +1,44 @@
 import type { AssessmentStage } from '$lib/types/assessment';
 
 /**
- * Badge variant type for GradientBadge component
+ * Badge tone variant type for Badge component (shadcn soft-tone variants)
  */
 export type BadgeVariant =
-	| 'blue'
-	| 'green'
-	| 'yellow'
-	| 'red'
-	| 'purple'
-	| 'indigo'
-	| 'pink'
-	| 'gray';
+	| 'info'
+	| 'success'
+	| 'warning'
+	| 'destructive-soft'
+	| 'muted';
 
 /**
  * Get badge variant for assessment stage
  * @param stage - Assessment stage
- * @returns Badge variant color
+ * @returns Badge tone variant
  */
 export function getStageVariant(stage: AssessmentStage): BadgeVariant {
 	switch (stage) {
 		case 'request_submitted':
 		case 'request_reviewed':
-			return 'gray';
+			return 'muted';
 		case 'inspection_scheduled':
-			return 'yellow';
+			return 'warning';
 		case 'appointment_scheduled':
-			return 'blue';
+			return 'info';
 		case 'assessment_in_progress':
-			return 'indigo';
+			return 'muted';
 		case 'estimate_review':
 		case 'estimate_sent':
-			return 'purple';
+			return 'info';
 		case 'estimate_finalized':
-			return 'green';
+			return 'success';
 		case 'frc_in_progress':
-			return 'pink';
+			return 'muted';
 		case 'archived':
-			return 'gray';
+			return 'muted';
 		case 'cancelled':
-			return 'red';
+			return 'destructive-soft';
 		default:
-			return 'gray';
+			return 'muted';
 	}
 }
 
@@ -80,12 +77,12 @@ export function getStageLabel(stage: AssessmentStage): string {
 }
 
 /**
- * Get badge variant for request type
+ * Get badge tone variant for request type
  * @param type - Request type ('insurance' or 'private')
- * @returns Badge variant color
+ * @returns Badge tone variant
  */
 export function getTypeVariant(type: 'insurance' | 'private'): BadgeVariant {
-	return type === 'insurance' ? 'blue' : 'purple';
+	return type === 'insurance' ? 'info' : 'info';
 }
 
 /**
