@@ -42,14 +42,14 @@
 
 	const statusColors = {
 		pending: 'text-slate-400',
-		processing: 'text-rose-500',
+		processing: 'text-primary',
 		success: 'text-emerald-500',
 		error: 'text-red-500'
 	};
 
 	const progressBackgrounds = {
 		pending: 'bg-slate-100',
-		processing: 'bg-rose-50',
+		processing: 'bg-muted',
 		success: 'bg-emerald-50',
 		error: 'bg-red-50'
 	};

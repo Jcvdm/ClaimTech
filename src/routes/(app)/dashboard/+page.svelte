@@ -25,30 +25,30 @@
       count: data.counts.requests,
       href: '/requests',
       icon: FileText,
-      bgColor: 'bg-rose-50',
-      textColor: 'text-rose-600',
-      badgeBg: 'bg-rose-100',
-      badgeText: 'text-rose-700'
+      bgColor: 'bg-muted',
+      textColor: 'text-muted-foreground',
+      badgeBg: 'bg-muted',
+      badgeText: 'text-muted-foreground'
     },
     {
       label: 'Inspections',
       count: data.counts.inspections,
       href: '/work/inspections',
       icon: ClipboardCheck,
-      bgColor: 'bg-rose-50',
-      textColor: 'text-rose-600',
-      badgeBg: 'bg-rose-100',
-      badgeText: 'text-rose-700'
+      bgColor: 'bg-muted',
+      textColor: 'text-muted-foreground',
+      badgeBg: 'bg-muted',
+      badgeText: 'text-muted-foreground'
     },
     {
       label: 'Appointments',
       count: data.counts.appointments,
       href: '/work/appointments',
       icon: Calendar,
-      bgColor: 'bg-rose-50',
-      textColor: 'text-rose-600',
-      badgeBg: 'bg-rose-100',
-      badgeText: 'text-rose-700'
+      bgColor: 'bg-muted',
+      textColor: 'text-muted-foreground',
+      badgeBg: 'bg-muted',
+      badgeText: 'text-muted-foreground'
     },
     {
       label: 'Open Assessments',
@@ -133,7 +133,7 @@
         </div>
         <a
           href={category.href}
-          class="text-sm font-medium text-rose-600 hover:text-rose-700 hover:underline inline-flex items-center gap-1"
+          class="text-sm font-medium text-primary hover:text-primary/90 hover:underline inline-flex items-center gap-1"
         >
           View all →
         </a>

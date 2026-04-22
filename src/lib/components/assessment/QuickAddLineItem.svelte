@@ -197,7 +197,7 @@
 	}
 </script>
 
-<Card class="p-4 sm:p-6 bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200">
+<Card class="p-4 sm:p-6 bg-muted border-border">
 	<div class="flex items-center justify-between mb-3 sm:mb-4">
 		<h3 class="text-base sm:text-lg font-semibold text-gray-900">Quick Add Line Item</h3>
 		{#if description || partPriceNett || stripAssembleHours || labourHours || paintPanels || outworkChargeNett}

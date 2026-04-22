@@ -410,7 +410,7 @@
 				>
 					{#snippet child({ props })}
 						<button
-							class="text-slate-400 hover:bg-slate-800 hover:text-slate-200 focus-visible:ring-2 focus-visible:ring-slate-600 focus-visible:outline-none"
+							class="text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
 							{...props}
 						>
 							<LogOut />

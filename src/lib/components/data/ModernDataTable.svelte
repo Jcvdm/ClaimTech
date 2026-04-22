@@ -127,7 +127,7 @@
 		<Table.Root>
 			<Table.Header>
 				<Table.Row
-					class="bg-gradient-to-r from-slate-50 via-blue-50 to-indigo-50 hover:from-slate-100 hover:via-blue-100 hover:to-indigo-100 transition-all duration-300"
+					class="bg-muted/50 transition-colors"
 				>
 					{#each columns as column}
 						<Table.Head class={column.class}>
@@ -182,7 +182,7 @@
 								: loadingRowId
 									? 'opacity-60'
 									: ''} {!isLoading && animated
-								? 'hover:bg-gradient-to-r hover:from-blue-50/50 hover:to-indigo-50/50 hover:shadow-md hover:scale-[1.002] transform transition-all duration-200 ease-out'
+								? 'hover:bg-muted/50 transition-colors duration-150'
 								: 'hover:bg-gray-50'}"
 							onclick={() => !loadingRowId && onRowClick?.(row)}
 						>

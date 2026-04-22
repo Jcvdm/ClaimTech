@@ -48,7 +48,7 @@
 			case 'pending':
 				return 'text-slate-400';
 			case 'processing':
-				return 'text-rose-500';
+				return 'text-primary';
 			case 'success':
 				return 'text-emerald-500';
 			case 'error':
@@ -65,7 +65,7 @@
 			case 'error':
 				return 'bg-red-50';
 			case 'processing':
-				return 'bg-rose-50';
+				return 'bg-muted';
 			default:
 				return 'bg-slate-100';
 		}
@@ -121,7 +121,7 @@
 					<a 
 						href={doc.data.url} 
 						target="_blank"
-						class="text-sm text-rose-600 hover:underline inline-flex items-center gap-1"
+						class="text-sm text-primary hover:underline inline-flex items-center gap-1"
 					>
 						View Document →
 					</a>

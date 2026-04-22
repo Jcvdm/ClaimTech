@@ -49,10 +49,10 @@
 			{#if isError}
 				<AlertCircle class="size-8 text-red-500" />
 			{:else}
-				<Loader2 class="size-8 text-rose-500 animate-spin" />
+				<Loader2 class="size-8 text-primary animate-spin" />
 			{/if}
 
-			<Progress value={progress} class="w-full bg-rose-100" />
+			<Progress value={progress} class="w-full bg-muted" />
 
 			<div class="text-center">
 				<p class="text-sm font-medium text-gray-700">{message}</p>

@@ -252,7 +252,7 @@
 			role="button"
 			tabindex="0"
 			class="relative rounded-lg border-2 border-dashed transition-colors {isDragging
-				? 'border-rose-500 bg-rose-50'
+				? 'border-primary bg-primary/5'
 				: 'border-slate-300 bg-slate-50 hover:bg-slate-100'} {uploading || compressing ? 'opacity-50' : ''} {height}"
 			aria-label="Photo upload area"
 			ondragenter={handleDragEnter}
@@ -277,8 +277,8 @@
 					/>
 				{:else if isDragging}
 					<div class="flex flex-col items-center gap-2">
-						<Upload class="h-8 w-8 text-rose-500" />
-						<p class="text-sm font-medium text-rose-600">Drop photo here</p>
+						<Upload class="h-8 w-8 text-primary" />
+						<p class="text-sm font-medium text-primary">Drop photo here</p>
 					</div>
 				{:else}
 					<Upload class="h-8 w-8 text-slate-400" />
@@ -286,7 +286,7 @@
 						Drag and drop photo here, or
 						<button
 							type="button"
-							class="ml-1 text-rose-600 font-medium hover:text-rose-700 disabled:cursor-not-allowed disabled:text-rose-300"
+							class="ml-1 text-primary font-medium hover:text-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
 							onclick={triggerFileInput}
 							disabled={disabled || uploading || compressing}
 						>

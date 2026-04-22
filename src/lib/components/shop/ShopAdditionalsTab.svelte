@@ -341,7 +341,7 @@
 														? 'bg-cyan-500 text-white'
 														: item.process_type === 'A'
 															? 'bg-slate-500 text-white'
-															: 'bg-rose-400 text-white'}
+															: 'bg-muted text-muted-foreground'}
 									>
 										{item.process_type}
 									</Badge>

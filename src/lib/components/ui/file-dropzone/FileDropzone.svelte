@@ -344,10 +344,10 @@
 			>
 				<div class="pointer-events-none text-center">
 					{#if uploading}
-						<Loader2 class="mx-auto h-8 w-8 animate-spin text-rose-500" />
+						<Loader2 class="mx-auto h-8 w-8 animate-spin text-primary" />
 						<p class="mt-2 text-sm font-medium text-gray-700">Uploading...</p>
 						{#if progress > 0}
-							<Progress value={progress} class="mx-auto w-32 bg-rose-100" />
+							<Progress value={progress} class="mx-auto w-32 bg-muted" />
 						{/if}
 					{:else if isDragging}
 						<Upload class="mx-auto h-8 w-8 text-blue-500" />

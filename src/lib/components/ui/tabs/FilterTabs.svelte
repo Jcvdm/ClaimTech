@@ -40,13 +40,13 @@
 				{disabled}
 				class={cn(
 					'relative flex h-9 items-center gap-2 rounded-none border-b-2 border-transparent px-4 py-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50',
-					'data-[state=active]:border-rose-500 data-[state=active]:text-rose-600'
+					'data-[state=active]:border-primary data-[state=active]:text-primary'
 				)}
 			>
 				<span>{item.label}</span>
 				<Badge
 					variant="secondary"
-					class="data-[state=active]:bg-rose-100 data-[state=active]:text-rose-700"
+					class="data-[state=active]:bg-primary/10 data-[state=active]:text-primary"
 				>
 					{counts[item.value]}
 				</Badge>

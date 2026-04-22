@@ -41,7 +41,7 @@
 
 <div class="space-y-3 {className}">
 	<div class="flex items-center gap-2">
-		<Loader2 class="size-4 text-rose-500 animate-spin" />
+		<Loader2 class="size-4 text-primary animate-spin" />
 		<span class="text-sm font-medium text-gray-900">
 			{#if isCompressing}
 				Compressing {fileName}...
@@ -59,7 +59,7 @@
 				<span>Compression</span>
 				<span>{compressionProgress}%</span>
 			</div>
-			<Progress value={compressionProgress} class="bg-rose-100" />
+			<Progress value={compressionProgress} class="bg-muted" />
 		</div>
 	{/if}
 
@@ -69,7 +69,7 @@
 				<span>Upload</span>
 				<span>{uploadProgress}%</span>
 			</div>
-			<Progress value={uploadProgress} class="bg-rose-100" />
+			<Progress value={uploadProgress} class="bg-muted" />
 		</div>
 	{/if}
 </div>

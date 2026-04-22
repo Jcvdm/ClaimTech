@@ -131,7 +131,7 @@ export function getProcessTypeBadgeColor(processType: ProcessType): string {
 		N: 'bg-blue-100 text-blue-800',
 		R: 'bg-green-100 text-green-800',
 		P: 'bg-purple-100 text-purple-800',
-		B: 'bg-pink-100 text-pink-800',
+		B: 'bg-muted text-muted-foreground',
 		A: 'bg-yellow-100 text-yellow-800',
 		O: 'bg-orange-100 text-orange-800'
 	};

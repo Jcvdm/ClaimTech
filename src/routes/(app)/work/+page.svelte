@@ -78,7 +78,7 @@
 	];
 
 	const colorClasses: Record<string, { bg: string; text: string; border: string }> = {
-		blue: { bg: 'bg-rose-50', text: 'text-rose-700', border: 'border-rose-200' },
+		blue: { bg: 'bg-muted', text: 'text-muted-foreground', border: 'border-border' },
 		purple: { bg: 'bg-purple-50', text: 'text-purple-700', border: 'border-purple-200' },
 		indigo: { bg: 'bg-slate-50', text: 'text-slate-700', border: 'border-slate-200' },
 		green: { bg: 'bg-green-50', text: 'text-green-700', border: 'border-green-200' },
@@ -141,7 +141,7 @@
 		<h3 class="text-lg font-semibold text-slate-900">Quick Stats</h3>
 		<div class="mt-4 grid grid-cols-2 gap-4 md:grid-cols-4">
 			<div class="text-center">
-				<p class="text-2xl font-bold text-rose-600">{data.inspectionCount}</p>
+				<p class="text-2xl font-bold text-foreground">{data.inspectionCount}</p>
 				<p class="text-sm text-slate-500">Pending Inspections</p>
 			</div>
 			<div class="text-center">

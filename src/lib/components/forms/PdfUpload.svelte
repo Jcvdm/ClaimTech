@@ -250,9 +250,9 @@
 				{#if uploading}
 					<div class="w-full max-w-xs space-y-2">
 						<div class="flex items-center justify-center">
-							<div class="h-8 w-8 animate-spin rounded-full border-4 border-rose-500 border-t-transparent"></div>
+							<div class="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
 						</div>
-						<Progress value={uploadProgress} class="bg-rose-100" />
+						<Progress value={uploadProgress} class="bg-muted" />
 						<p class="text-center text-sm text-gray-600">Uploading... {uploadProgress}%</p>
 					</div>
 				{:else}

@@ -79,30 +79,30 @@
 	</div>
 
 	{#if generating}
-		<div class="mt-4 rounded-md bg-rose-50 p-3">
+		<div class="mt-4 rounded-md bg-muted p-3">
 			<div class="flex items-center gap-2">
-				<Loader2 class="h-4 w-4 animate-spin text-rose-500" />
+				<Loader2 class="h-4 w-4 animate-spin text-primary" />
 				<p class="text-sm font-medium text-slate-900">Generating document...</p>
 			</div>
 
 			<!-- Progress Bar -->
 			<div class="mt-3">
 				<div class="flex items-center justify-between mb-1">
-					<span class="text-xs text-rose-700">{progressMessage || 'Processing...'}</span>
+					<span class="text-xs text-muted-foreground">{progressMessage || 'Processing...'}</span>
 					<span class="text-xs font-medium text-slate-900">{progress}%</span>
 				</div>
-				<div class="w-full bg-rose-200 rounded-full h-2 overflow-hidden">
+				<div class="w-full bg-muted rounded-full h-2 overflow-hidden">
 					<div
-						class="bg-rose-500 h-2 rounded-full transition-all duration-300 ease-out"
+						class="bg-primary h-2 rounded-full transition-all duration-300 ease-out"
 						style="width: {progress}%"
 					></div>
 				</div>
 			</div>
 
-			<p class="mt-2 text-xs text-rose-700">
+			<p class="mt-2 text-xs text-muted-foreground">
 				This may take 1-3 minutes depending on server speed and document complexity.
 			</p>
-			<p class="mt-1 text-xs text-rose-600 font-medium">
+			<p class="mt-1 text-xs text-muted-foreground font-medium">
 				💡 Tip: Auto-save is paused during generation to prevent interruptions.
 			</p>
 		</div>
