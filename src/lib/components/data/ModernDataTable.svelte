@@ -103,7 +103,7 @@
 	{#if mobileCardConfig}
 		<div class="space-y-3 md:hidden">
 			{#if paginatedData().length === 0}
-				<div class="rounded-xl border border-gray-200 bg-white p-8 text-center text-gray-500 shadow-sm">
+				<div class="rounded-lg border border-border bg-card p-8 text-center text-muted-foreground">
 					{emptyMessage}
 				</div>
 			{:else}
@@ -123,11 +123,11 @@
 	{/if}
 
 	<!-- Desktop Table View (hidden below md breakpoint when mobileCardConfig is provided) -->
-	<div class="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm {mobileCardConfig ? 'hidden md:block' : ''}">
+	<div class="overflow-hidden rounded-lg border border-border bg-card {mobileCardConfig ? 'hidden md:block' : ''}">
 		<Table.Root>
 			<Table.Header>
 				<Table.Row
-					class="bg-muted/50 transition-colors"
+					class="bg-muted hover:bg-muted transition-colors"
 				>
 					{#each columns as column}
 						<Table.Head class={column.class}>
@@ -135,10 +135,10 @@
 								{@const Icon = getSortIcon(column)}
 								<button
 									onclick={() => handleSort(column)}
-									class="flex items-center gap-2 font-semibold text-gray-700 hover:text-gray-900 transition-colors"
+									class="flex items-center gap-2 text-[11.5px] font-semibold uppercase tracking-wide text-muted-foreground hover:text-foreground transition-colors"
 								>
 									{#if column.icon}
-										<column.icon class="h-4 w-4 text-blue-600" />
+										<column.icon class="h-4 w-4 text-primary" />
 									{/if}
 									{column.label}
 									{#if Icon}
@@ -148,9 +148,9 @@
 							{:else}
 								<div class="flex items-center gap-2">
 									{#if column.icon}
-										<column.icon class="h-4 w-4 text-blue-600" />
+										<column.icon class="h-4 w-4 text-primary" />
 									{/if}
-									<span class="font-semibold text-gray-700">{column.label}</span>
+									<span class="text-[11.5px] font-semibold uppercase tracking-wide text-muted-foreground">{column.label}</span>
 								</div>
 							{/if}
 						</Table.Head>
@@ -160,7 +160,7 @@
 			<Table.Body>
 				{#if paginatedData().length === 0}
 					<Table.Row class="hover:bg-transparent">
-						<Table.Cell colspan={columns.length} class="h-24 text-center text-gray-500">
+						<Table.Cell colspan={columns.length} class="h-24 text-center text-muted-foreground">
 							{emptyMessage}
 						</Table.Cell>
 					</Table.Row>
@@ -169,21 +169,21 @@
 						{@const rowId = String(row[rowIdKey])}
 						{@const isLoading = loadingRowId === rowId}
 						<Table.Row
-							class="group border-b border-gray-100 relative {onRowClick && !loadingRowId
+							class="group border-b border-border relative {onRowClick && !loadingRowId
 								? 'cursor-pointer'
 								: ''} {isLoading
-								? 'bg-blue-50 border-blue-200 animate-pulse'
+								? 'bg-accent border-accent animate-pulse'
 								: striped && index % 2 === 0
-									? 'bg-white'
+									? 'bg-card'
 									: striped
-										? 'bg-gray-50/30'
-										: 'bg-white'} {isLoading
+										? 'bg-muted/30'
+										: 'bg-card'} {isLoading
 								? 'opacity-100'
 								: loadingRowId
 									? 'opacity-60'
 									: ''} {!isLoading && animated
 								? 'hover:bg-muted/50 transition-colors duration-150'
-								: 'hover:bg-gray-50'}"
+								: 'hover:bg-muted/50'}"
 							onclick={() => !loadingRowId && onRowClick?.(row)}
 						>
 							{#each columns as column, colIndex}
@@ -192,7 +192,7 @@
 										<div class="flex items-center gap-2">
 											<div class="flex-shrink-0">
 												<svg
-													class="h-4 w-4 animate-spin text-blue-600"
+													class="h-4 w-4 animate-spin text-primary"
 													xmlns="http://www.w3.org/2000/svg"
 													fill="none"
 													viewBox="0 0 24 24"
@@ -212,7 +212,7 @@
 													/>
 												</svg>
 											</div>
-											<span class="text-sm font-medium text-blue-600">Loading...</span>
+											<span class="text-sm font-medium text-primary">Loading...</span>
 										</div>
 									{:else if cellContent}
 										{@render cellContent(column, row)}
@@ -230,11 +230,11 @@
 
 	{#if totalPages > 1}
 		<div class="flex items-center justify-between px-2">
-			<div class="text-sm text-gray-600">
-				Showing <span class="font-semibold text-gray-900"
+			<div class="text-sm text-muted-foreground">
+				Showing <span class="font-semibold text-foreground"
 					>{currentPage * pageSize + 1} to {Math.min((currentPage + 1) * pageSize, data.length)}</span
 				>
-				of <span class="font-semibold text-gray-900">{data.length}</span> results
+				of <span class="font-semibold text-foreground">{data.length}</span> results
 			</div>
 			<div class="flex items-center gap-2">
 				<Button

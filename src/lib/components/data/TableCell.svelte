@@ -15,25 +15,25 @@
 	let {
 		variant = 'default',
 		icon,
-		iconColor = 'text-slate-500',
+		iconColor = 'text-muted-foreground',
 		bold = false,
 		class: className = '',
 		children
 	}: Props = $props();
 
 	const variantClasses: Record<Variant, string> = {
-		default: 'text-slate-900',
-		primary: 'text-rose-600 font-medium',
-		success: 'text-green-600 font-medium',
-		warning: 'text-yellow-600 font-medium',
-		danger: 'text-red-600 font-medium',
-		muted: 'text-slate-500'
+		default: 'text-foreground',
+		primary: 'text-primary font-medium',
+		success: 'text-success font-medium',
+		warning: 'text-warning font-medium',
+		danger: 'text-destructive font-medium',
+		muted: 'text-muted-foreground'
 	};
 </script>
 
 <div class="flex items-center gap-2 {bold ? 'font-semibold' : ''} {variantClasses[variant]} {className}">
 	{#if icon}
-		<div class="flex h-8 w-8 items-center justify-center rounded-full bg-slate-100">
+		<div class="flex h-8 w-8 items-center justify-center rounded-full bg-muted">
 			{@render icon({ class: `h-4 w-4 ${iconColor}` })}
 		</div>
 	{/if}
