@@ -279,7 +279,7 @@
 						<TabsTrigger
 							value={tab.id}
 							disabled={tabLoading}
-							class="relative flex h-8 min-w-[4.5rem] shrink-0 snap-start items-center justify-center gap-1 rounded-md border border-transparent px-2 py-1.5 text-xs font-medium text-muted-foreground ring-offset-background transition-all hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm sm:h-9 sm:min-w-0 sm:shrink sm:gap-2 sm:px-3 sm:py-2 sm:text-sm"
+							class="relative -mb-px flex h-8 min-w-[4.5rem] shrink-0 snap-start items-center justify-center gap-1 rounded-none border-0 border-b-2 border-transparent bg-transparent px-2 py-1.5 text-xs font-medium text-muted-foreground shadow-none ring-offset-background transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50 data-[state=active]:border-b-foreground data-[state=active]:bg-transparent data-[state=active]:text-foreground data-[state=active]:shadow-none sm:h-9 sm:min-w-0 sm:shrink sm:gap-2 sm:px-3 sm:py-2 sm:text-sm"
 						>
 							<TabLoadingIndicator
 								isLoading={tabLoading && currentTab === tab.id}
@@ -288,7 +288,7 @@
 							<span class="hidden sm:inline">{tab.label}</span>
 							<span class="sm:hidden">{getShortLabel(tab.label)}</span>
 							{#if missingCount > 0}
-								<Badge variant="destructive" class="ml-1 h-5 min-w-5 px-1.5 text-[10px] font-bold">
+								<Badge variant="destructive-soft" class="ml-1 h-5 min-w-5 px-1.5 text-[10px] font-bold">
 									{missingCount}
 								</Badge>
 							{/if}
