@@ -491,8 +491,8 @@
 			<div class="md:hidden space-y-3">
 				{#if localLineItems().length === 0}
 					<div class="flex flex-col items-center justify-center py-12 text-center">
-						<p class="text-gray-500">No line items added.</p>
-						<p class="text-sm text-gray-400">Use "Quick Add" above or tap "Add Empty Row".</p>
+						<p class="text-muted-foreground">No line items added.</p>
+						<p class="text-sm text-muted-foreground">Use "Quick Add" above or tap "Add Empty Row".</p>
 					</div>
 				{:else}
 					{#each localLineItems() as item (item.id)}
@@ -532,28 +532,28 @@
 									aria-label="Select all items"
 								/>
 							</Table.Head>
-							<Table.Head class="w-[120px] px-3">Process Type</Table.Head>
-							<Table.Head class="w-[100px] px-3">Part Type</Table.Head>
-							<Table.Head class="min-w-[200px] px-3">Description</Table.Head>
-							<Table.Head class="w-[140px] text-right px-3">Part Price</Table.Head>
-							<Table.Head class="w-[140px] text-right px-3">S&A</Table.Head>
-							<Table.Head class="w-[150px] text-right px-3">Labour</Table.Head>
-							<Table.Head class="w-[150px] text-right px-3">Paint</Table.Head>
-							<Table.Head class="w-[150px] text-right px-3">Outwork</Table.Head>
-							<Table.Head class="w-[160px] text-right px-3">Total</Table.Head>
+							<Table.Head class="w-[120px] px-3 uppercase tracking-wide text-[11.5px] font-medium text-muted-foreground">Process Type</Table.Head>
+							<Table.Head class="w-[100px] px-3 uppercase tracking-wide text-[11.5px] font-medium text-muted-foreground">Part Type</Table.Head>
+							<Table.Head class="min-w-[200px] px-3 uppercase tracking-wide text-[11.5px] font-medium text-muted-foreground">Description</Table.Head>
+							<Table.Head class="w-[140px] text-right px-3 uppercase tracking-wide text-[11.5px] font-medium text-muted-foreground">Part Price</Table.Head>
+							<Table.Head class="w-[140px] text-right px-3 uppercase tracking-wide text-[11.5px] font-medium text-muted-foreground">S&A</Table.Head>
+							<Table.Head class="w-[150px] text-right px-3 uppercase tracking-wide text-[11.5px] font-medium text-muted-foreground">Labour</Table.Head>
+							<Table.Head class="w-[150px] text-right px-3 uppercase tracking-wide text-[11.5px] font-medium text-muted-foreground">Paint</Table.Head>
+							<Table.Head class="w-[150px] text-right px-3 uppercase tracking-wide text-[11.5px] font-medium text-muted-foreground">Outwork</Table.Head>
+							<Table.Head class="w-[160px] text-right px-3 uppercase tracking-wide text-[11.5px] font-medium text-muted-foreground">Total</Table.Head>
 							<Table.Head class="w-[70px] px-2"></Table.Head>
 						</Table.Row>
 					</Table.Header>
 					<Table.Body>
 						{#if localLineItems().length === 0}
 							<Table.Row class="hover:bg-transparent">
-								<Table.Cell colspan={11} class="h-24 text-center text-gray-500">
+								<Table.Cell colspan={11} class="h-24 text-center text-muted-foreground">
 									No line items added. Use "Quick Add" above or click "Add Empty Row".
 								</Table.Cell>
 							</Table.Row>
 						{:else}
 							{#each localLineItems() as item (item.id)}
-								<Table.Row class="hover:bg-gray-50">
+								<Table.Row class="hover:bg-muted/50">
 									<!-- Checkbox -->
 									<Table.Cell class="px-3 py-2">
 										<input
@@ -593,7 +593,7 @@
 												<option value="2ND">2ND</option>
 											</select>
 										{:else}
-											<span class="text-gray-400 text-sm">-</span>
+											<span class="text-muted-foreground text-sm">-</span>
 										{/if}
 									</Table.Cell>
 
@@ -624,22 +624,22 @@
 															if (e.key === 'Escape') handlePartPriceCancel();
 														}}
 														onblur={() => handlePartPriceSave(item.id!, item)}
-														class="border-0 text-right text-sm focus-visible:ring-0 focus-visible:ring-offset-0"
+														class="border-0 text-right text-sm focus-visible:ring-0 focus-visible:ring-offset-0 font-mono-tabular"
 														autofocus
 													/>
-													<p class="text-xs text-gray-500 italic">Only input nett price</p>
+													<p class="text-xs text-muted-foreground italic">Only input nett price</p>
 												</div>
 											{:else}
 												<button
 													onclick={() => handlePartPriceClick(item.id!, item.part_price_nett || null)}
-													class="text-sm font-medium text-blue-600 hover:text-blue-800 cursor-pointer w-full text-right font-mono-tabular"
+													class="text-sm text-foreground hover:text-foreground/70 cursor-pointer w-full text-right font-mono-tabular font-medium"
 													title="Click to edit nett price (selling price includes markup)"
 												>
 													{formatCurrency(item.part_price || 0)}
 												</button>
 											{/if}
 										{:else}
-											<span class="text-gray-400 text-xs">-</span>
+											<span class="text-muted-foreground text-xs">-</span>
 										{/if}
 									</Table.Cell>
 
@@ -657,20 +657,20 @@
 														if (e.key === 'Escape') handleSACancel();
 													}}
 													onblur={() => handleSASave(item.id!)}
-													class="border-0 text-right text-sm focus-visible:ring-0 focus-visible:ring-offset-0"
+													class="border-0 text-right text-sm focus-visible:ring-0 focus-visible:ring-offset-0 font-mono-tabular"
 													autofocus
 												/>
 											{:else}
 												<button
 													onclick={() => handleSAClick(item.id!, item.strip_assemble_hours || null)}
-													class="text-sm font-medium text-blue-600 hover:text-blue-800 cursor-pointer w-full text-right font-mono-tabular"
+													class="text-sm text-foreground hover:text-foreground/70 cursor-pointer w-full text-right font-mono-tabular font-medium"
 													title="Click to edit hours (S&A = hours × labour rate)"
 												>
 													{formatCurrency(item.strip_assemble || 0)}
 												</button>
 											{/if}
 										{:else}
-											<span class="text-gray-400 text-xs">-</span>
+											<span class="text-muted-foreground text-xs">-</span>
 										{/if}
 									</Table.Cell>
 
@@ -688,20 +688,20 @@
 														if (e.key === 'Escape') handleLabourCancel();
 													}}
 													onblur={() => handleLabourSave(item.id!)}
-													class="border-0 text-right text-sm focus-visible:ring-0 focus-visible:ring-offset-0"
+													class="border-0 text-right text-sm focus-visible:ring-0 focus-visible:ring-offset-0 font-mono-tabular"
 													autofocus
 												/>
 											{:else}
 												<button
 													onclick={() => handleLabourClick(item.id!, item.labour_hours || null)}
-													class="text-sm font-medium text-blue-600 hover:text-blue-800 cursor-pointer w-full text-right font-mono-tabular"
+													class="text-sm text-foreground hover:text-foreground/70 cursor-pointer w-full text-right font-mono-tabular font-medium"
 													title="Click to edit hours (Labour = hours × labour rate)"
 												>
 													{formatCurrency(item.labour_cost || 0)}
 												</button>
 											{/if}
 										{:else}
-											<span class="text-gray-400 text-xs">-</span>
+											<span class="text-muted-foreground text-xs">-</span>
 										{/if}
 									</Table.Cell>
 
@@ -719,20 +719,20 @@
 														if (e.key === 'Escape') handlePaintCancel();
 													}}
 													onblur={() => handlePaintSave(item.id!)}
-													class="border-0 text-right text-sm focus-visible:ring-0 focus-visible:ring-offset-0"
+													class="border-0 text-right text-sm focus-visible:ring-0 focus-visible:ring-offset-0 font-mono-tabular"
 													autofocus
 												/>
 											{:else}
 												<button
 													onclick={() => handlePaintClick(item.id!, item.paint_panels || null)}
-													class="text-sm font-medium text-blue-600 hover:text-blue-800 cursor-pointer w-full text-right font-mono-tabular"
+													class="text-sm text-foreground hover:text-foreground/70 cursor-pointer w-full text-right font-mono-tabular font-medium"
 													title="Click to edit panels (Paint = panels × paint rate)"
 												>
 													{formatCurrency(item.paint_cost || 0)}
 												</button>
 											{/if}
 										{:else}
-											<span class="text-gray-400 text-xs">-</span>
+											<span class="text-muted-foreground text-xs">-</span>
 										{/if}
 									</Table.Cell>
 
@@ -751,22 +751,22 @@
 															if (e.key === 'Escape') handleOutworkCancel();
 														}}
 														onblur={() => handleOutworkSave(item.id!)}
-														class="border-0 text-right text-sm focus-visible:ring-0 focus-visible:ring-offset-0"
+														class="border-0 text-right text-sm focus-visible:ring-0 focus-visible:ring-offset-0 font-mono-tabular"
 														autofocus
 													/>
-													<p class="text-xs text-gray-500 italic">Only input nett price</p>
+													<p class="text-xs text-muted-foreground italic">Only input nett price</p>
 												</div>
 											{:else}
 												<button
 													onclick={() => handleOutworkClick(item.id!, item.outwork_charge_nett || null)}
-													class="text-sm font-medium text-blue-600 hover:text-blue-800 cursor-pointer w-full text-right font-mono-tabular"
+													class="text-sm text-foreground hover:text-foreground/70 cursor-pointer w-full text-right font-mono-tabular font-medium"
 													title="Click to edit nett price (selling price includes markup)"
 												>
 													{formatCurrency(item.outwork_charge || 0)}
 												</button>
 											{/if}
 										{:else}
-											<span class="text-gray-400 text-xs">-</span>
+											<span class="text-muted-foreground text-xs">-</span>
 										{/if}
 									</Table.Cell>
 
@@ -847,7 +847,7 @@
 					<!-- Total -->
 					<div class="flex items-center justify-between pt-3">
 						<span class="text-lg font-bold text-gray-900">Total (Inc VAT)</span>
-						<span class="text-2xl font-bold text-blue-600 font-mono-tabular">{formatCurrency(localEstimate.total)}</span>
+						<span class="text-2xl font-bold text-foreground font-mono-tabular">{formatCurrency(localEstimate.total)}</span>
 					</div>
 				</div>
 			{/if}

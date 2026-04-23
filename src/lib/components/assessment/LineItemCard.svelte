@@ -200,10 +200,10 @@
 				<button
 					type="button"
 					onclick={onEditPartPrice}
-					class="flex items-center justify-between rounded border bg-white p-2 text-left hover:border-blue-300"
+					class="flex items-center justify-between rounded border bg-white p-2 text-left hover:border-foreground/30"
 				>
-					<span class="text-gray-600">Part (nett)</span>
-					<span class="font-medium text-blue-600 font-mono-tabular">{formatCurrency(item.part_price_nett || 0)}</span>
+					<span class="text-[11.5px] font-semibold uppercase tracking-wide text-muted-foreground">Part (nett)</span>
+					<span class="font-medium text-foreground font-mono-tabular">{formatCurrency(item.part_price_nett || 0)}</span>
 				</button>
 			{/if}
 
@@ -212,13 +212,13 @@
 				<button
 					type="button"
 					onclick={onEditSA}
-					class="flex items-center justify-between rounded border bg-white p-2 text-left hover:border-blue-300"
+					class="flex items-center justify-between rounded border bg-white p-2 text-left hover:border-foreground/30"
 				>
-					<span class="text-gray-600">S&A</span>
-					<span class="font-medium text-blue-600 font-mono-tabular">
+					<span class="text-[11.5px] font-semibold uppercase tracking-wide text-muted-foreground">S&A</span>
+					<span class="font-medium text-foreground font-mono-tabular">
 						{formatCurrency(item.strip_assemble || 0)}
 						{#if item.strip_assemble_hours}
-							<span class="text-xs text-gray-500">({item.strip_assemble_hours}h)</span>
+							<span class="text-xs text-muted-foreground">({item.strip_assemble_hours}h)</span>
 						{/if}
 					</span>
 				</button>
@@ -229,13 +229,13 @@
 				<button
 					type="button"
 					onclick={onEditLabour}
-					class="flex items-center justify-between rounded border bg-white p-2 text-left hover:border-blue-300"
+					class="flex items-center justify-between rounded border bg-white p-2 text-left hover:border-foreground/30"
 				>
-					<span class="text-gray-600">Labour</span>
-					<span class="font-medium text-blue-600 font-mono-tabular">
+					<span class="text-[11.5px] font-semibold uppercase tracking-wide text-muted-foreground">Labour</span>
+					<span class="font-medium text-foreground font-mono-tabular">
 						{formatCurrency(item.labour_cost || 0)}
 						{#if item.labour_hours}
-							<span class="text-xs text-gray-500">({item.labour_hours}h)</span>
+							<span class="text-xs text-muted-foreground">({item.labour_hours}h)</span>
 						{/if}
 					</span>
 				</button>
@@ -246,13 +246,13 @@
 				<button
 					type="button"
 					onclick={onEditPaint}
-					class="flex items-center justify-between rounded border bg-white p-2 text-left hover:border-blue-300"
+					class="flex items-center justify-between rounded border bg-white p-2 text-left hover:border-foreground/30"
 				>
-					<span class="text-gray-600">Paint</span>
-					<span class="font-medium text-blue-600 font-mono-tabular">
+					<span class="text-[11.5px] font-semibold uppercase tracking-wide text-muted-foreground">Paint</span>
+					<span class="font-medium text-foreground font-mono-tabular">
 						{formatCurrency(item.paint_cost || 0)}
 						{#if item.paint_panels}
-							<span class="text-xs text-gray-500">({item.paint_panels}p)</span>
+							<span class="text-xs text-muted-foreground">({item.paint_panels}p)</span>
 						{/if}
 					</span>
 				</button>
@@ -263,10 +263,10 @@
 				<button
 					type="button"
 					onclick={onEditOutwork}
-					class="flex items-center justify-between rounded border bg-white p-2 text-left hover:border-blue-300"
+					class="flex items-center justify-between rounded border bg-white p-2 text-left hover:border-foreground/30"
 				>
-					<span class="text-gray-600">Outwork</span>
-					<span class="font-medium text-blue-600 font-mono-tabular">{formatCurrency(item.outwork_charge_nett || 0)}</span>
+					<span class="text-[11.5px] font-semibold uppercase tracking-wide text-muted-foreground">Outwork</span>
+					<span class="font-medium text-foreground font-mono-tabular">{formatCurrency(item.outwork_charge_nett || 0)}</span>
 				</button>
 			{/if}
 
@@ -275,10 +275,10 @@
 				<button
 					type="button"
 					onclick={onEditBetterment}
-					class="flex items-center justify-between rounded border bg-white p-2 text-left hover:border-blue-300 {item.betterment_total ? 'border-orange-200 bg-orange-50' : ''}"
+					class="flex items-center justify-between rounded border bg-white p-2 text-left hover:border-foreground/30 {item.betterment_total ? 'border-orange-200 bg-orange-50' : ''}"
 				>
-					<span class="text-gray-600">Betterment</span>
-					<span class="font-medium font-mono-tabular {item.betterment_total ? 'text-orange-600' : 'text-gray-400'}">
+					<span class="text-[11.5px] font-semibold uppercase tracking-wide text-muted-foreground">Betterment</span>
+					<span class="font-medium font-mono-tabular {item.betterment_total ? 'text-orange-600' : 'text-muted-foreground'}">
 						{item.betterment_total ? `-${formatCurrency(item.betterment_total)}` : '-'}
 					</span>
 				</button>

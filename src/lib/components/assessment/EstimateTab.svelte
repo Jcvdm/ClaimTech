@@ -881,11 +881,11 @@ import type { Repairer } from '$lib/types/repairer';
 		<Card class="p-3 sm:p-6">
 			<!-- Header - Responsive -->
 			<div class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-				<h3 class="text-base font-semibold text-gray-900 sm:text-lg">
+				<h3 class="text-[11.5px] font-semibold uppercase tracking-wide text-muted-foreground">
 					Line Items
-					<span class="ml-2 text-sm font-normal text-gray-500">({localLineItems.length})</span>
+					<span class="ml-2 font-mono-tabular text-muted-foreground text-xs">({localLineItems.length})</span>
 					{#if dirty}
-						<span class="ml-2 inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700">
+						<span class="ml-2 inline-flex items-center rounded-full bg-warning-soft px-2 py-0.5 text-xs font-medium text-warning border border-warning-border">
 							Unsaved
 						</span>
 					{/if}
@@ -925,8 +925,8 @@ import type { Repairer } from '$lib/types/repairer';
 			<div class="space-y-3 md:hidden">
 				{#if localLineItems.length === 0}
 					<div class="flex flex-col items-center justify-center py-12 text-center">
-						<p class="text-gray-500">No line items added.</p>
-						<p class="text-sm text-gray-400">Click "+ Add line" to start.</p>
+						<p class="text-muted-foreground">No line items added.</p>
+						<p class="text-sm text-muted-foreground">Click "+ Add line" to start.</p>
 					</div>
 				{:else}
 					{#each localLineItems as item (item.id)}
@@ -955,7 +955,7 @@ import type { Repairer } from '$lib/types/repairer';
 			<div class="hidden rounded-lg border overflow-x-auto max-h-[70vh] overflow-y-auto md:block">
 				<Table.Root>
 					<Table.Header class="sticky top-0 z-10 bg-white">
-						<Table.Row class="hover:bg-transparent border-b-2">
+						<Table.Row class="hover:bg-transparent border-b border-border">
 							<Table.Head class="w-[40px] px-2">
 								<input
 									type="checkbox"
@@ -965,29 +965,29 @@ import type { Repairer } from '$lib/types/repairer';
 									aria-label="Select all items"
 								/>
 							</Table.Head>
-							<Table.Head class="w-[50px] px-2">Type</Table.Head>
-							<Table.Head class="w-[60px] px-2">Part</Table.Head>
-							<Table.Head class="min-w-[180px] flex-1 px-3">Description</Table.Head>
-							<Table.Head class="w-[120px] text-right px-2">Part Price</Table.Head>
-							<Table.Head class="w-[100px] text-right px-2">S&A</Table.Head>
-							<Table.Head class="w-[120px] text-right px-2">Labour</Table.Head>
-							<Table.Head class="w-[100px] text-right px-2">Paint</Table.Head>
-							<Table.Head class="w-[120px] text-right px-2">Outwork</Table.Head>
-							<Table.Head class="w-[40px] px-2 text-center" title="Betterment">%</Table.Head>
-							<Table.Head class="w-[140px] text-right px-2">Total</Table.Head>
+							<Table.Head class="w-[50px] px-2 uppercase tracking-wide text-[11.5px] font-medium text-muted-foreground">Type</Table.Head>
+							<Table.Head class="w-[60px] px-2 uppercase tracking-wide text-[11.5px] font-medium text-muted-foreground">Part</Table.Head>
+							<Table.Head class="min-w-[180px] flex-1 px-3 uppercase tracking-wide text-[11.5px] font-medium text-muted-foreground">Description</Table.Head>
+							<Table.Head class="w-[120px] text-right px-2 uppercase tracking-wide text-[11.5px] font-medium text-muted-foreground">Part Price</Table.Head>
+							<Table.Head class="w-[100px] text-right px-2 uppercase tracking-wide text-[11.5px] font-medium text-muted-foreground">S&A</Table.Head>
+							<Table.Head class="w-[120px] text-right px-2 uppercase tracking-wide text-[11.5px] font-medium text-muted-foreground">Labour</Table.Head>
+							<Table.Head class="w-[100px] text-right px-2 uppercase tracking-wide text-[11.5px] font-medium text-muted-foreground">Paint</Table.Head>
+							<Table.Head class="w-[120px] text-right px-2 uppercase tracking-wide text-[11.5px] font-medium text-muted-foreground">Outwork</Table.Head>
+							<Table.Head class="w-[40px] px-2 text-center uppercase tracking-wide text-[11.5px] font-medium text-muted-foreground" title="Betterment">%</Table.Head>
+							<Table.Head class="w-[140px] text-right px-2 uppercase tracking-wide text-[11.5px] font-medium text-muted-foreground">Total</Table.Head>
 							<Table.Head class="w-[60px] px-2"></Table.Head>
 						</Table.Row>
 					</Table.Header>
 					<Table.Body>
 						{#if localLineItems.length === 0}
 							<Table.Row class="hover:bg-transparent">
-								<Table.Cell colspan={12} class="h-24 text-center text-gray-500">
+								<Table.Cell colspan={12} class="h-24 text-center text-muted-foreground">
 									No line items added. Click "+ Add line" to start.
 								</Table.Cell>
 							</Table.Row>
 						{:else}
 							{#each localLineItems as item (item.id)}
-								<Table.Row class="hover:bg-gray-50">
+								<Table.Row class="hover:bg-muted/50">
 									<!-- Checkbox -->
 									<Table.Cell class="px-3 py-2">
 										<input
@@ -1098,15 +1098,15 @@ import type { Repairer } from '$lib/types/repairer';
 															if (e.key === 'Escape') handlePartPriceCancel();
 														}}
 														onblur={() => handlePartPriceSave(item.id!, item)}
-														class="border-0 text-right text-sm focus-visible:ring-0 focus-visible:ring-offset-0"
+														class="border-0 text-right text-sm focus-visible:ring-0 focus-visible:ring-offset-0 font-mono-tabular"
 														autofocus
 													/>
-													<p class="text-xs text-gray-500 italic">Only input nett price</p>
+													<p class="text-xs text-muted-foreground italic">Only input nett price</p>
 												</div>
 											{:else}
 												<button
 													onclick={() => handlePartPriceClick(item.id!, item.part_price_nett || null)}
-													class="text-sm font-medium text-blue-600 hover:text-blue-800 cursor-pointer w-full text-right"
+													class="text-sm font-medium text-foreground hover:text-foreground/70 cursor-pointer w-full text-right font-mono-tabular"
 													title="Click to edit nett price (selling price includes markup)"
 												>
 													{formatCurrency(item.part_price_nett || 0)}
@@ -1131,13 +1131,13 @@ import type { Repairer } from '$lib/types/repairer';
 														if (e.key === 'Escape') handleSACancel();
 													}}
 													onblur={() => handleSASave(item.id!)}
-													class="border-0 text-right text-sm focus-visible:ring-0 focus-visible:ring-offset-0"
+													class="border-0 text-right text-sm focus-visible:ring-0 focus-visible:ring-offset-0 font-mono-tabular"
 													autofocus
 												/>
 											{:else}
 												<button
 													onclick={() => handleSAClick(item.id!, item.strip_assemble_hours || null)}
-													class="text-sm font-medium text-blue-600 hover:text-blue-800 cursor-pointer w-full text-right"
+													class="text-sm font-medium text-foreground hover:text-foreground/70 cursor-pointer w-full text-right font-mono-tabular"
 													title="Click to edit hours (S&A = hours × labour rate)"
 												>
 													{formatCurrency(item.strip_assemble || 0)}
@@ -1162,13 +1162,13 @@ import type { Repairer } from '$lib/types/repairer';
 														if (e.key === 'Escape') handleLabourCancel();
 													}}
 													onblur={() => handleLabourSave(item.id!)}
-													class="border-0 text-right text-sm focus-visible:ring-0 focus-visible:ring-offset-0"
+													class="border-0 text-right text-sm focus-visible:ring-0 focus-visible:ring-offset-0 font-mono-tabular"
 													autofocus
 												/>
 											{:else}
 												<button
 													onclick={() => handleLabourClick(item.id!, item.labour_hours || null)}
-													class="text-sm font-medium text-blue-600 hover:text-blue-800 cursor-pointer w-full text-right"
+													class="text-sm font-medium text-foreground hover:text-foreground/70 cursor-pointer w-full text-right font-mono-tabular"
 													title="Click to edit hours (Labour = hours × labour rate)"
 												>
 													{formatCurrency(item.labour_cost || 0)}
@@ -1193,13 +1193,13 @@ import type { Repairer } from '$lib/types/repairer';
 														if (e.key === 'Escape') handlePaintCancel();
 													}}
 													onblur={() => handlePaintSave(item.id!)}
-													class="border-0 text-right text-sm focus-visible:ring-0 focus-visible:ring-offset-0"
+													class="border-0 text-right text-sm focus-visible:ring-0 focus-visible:ring-offset-0 font-mono-tabular"
 													autofocus
 												/>
 											{:else}
 												<button
 													onclick={() => handlePaintClick(item.id!, item.paint_panels || null)}
-													class="text-sm font-medium text-blue-600 hover:text-blue-800 cursor-pointer w-full text-right"
+													class="text-sm font-medium text-foreground hover:text-foreground/70 cursor-pointer w-full text-right font-mono-tabular"
 													title="Click to edit panels (Paint = panels × paint rate)"
 												>
 													{formatCurrency(item.paint_cost || 0)}
@@ -1225,15 +1225,15 @@ import type { Repairer } from '$lib/types/repairer';
 															if (e.key === 'Escape') handleOutworkCancel();
 														}}
 														onblur={() => handleOutworkSave(item.id!)}
-														class="border-0 text-right text-sm focus-visible:ring-0 focus-visible:ring-offset-0"
+														class="border-0 text-right text-sm focus-visible:ring-0 focus-visible:ring-offset-0 font-mono-tabular"
 														autofocus
 													/>
-													<p class="text-xs text-gray-500 italic">Only input nett price</p>
+													<p class="text-xs text-muted-foreground italic">Only input nett price</p>
 												</div>
 											{:else}
 												<button
 													onclick={() => handleOutworkClick(item.id!, item.outwork_charge_nett || null)}
-													class="text-sm font-medium text-blue-600 hover:text-blue-800 cursor-pointer w-full text-right"
+													class="text-sm font-medium text-foreground hover:text-foreground/70 cursor-pointer w-full text-right font-mono-tabular"
 													title="Click to edit nett price (selling price includes markup)"
 												>
 													{formatCurrency(item.outwork_charge_nett || 0)}
@@ -1262,7 +1262,7 @@ import type { Repairer } from '$lib/types/repairer';
 									</Table.Cell>
 
 									<!-- Total -->
-									<Table.Cell class="text-right px-3 py-2 font-bold">
+									<Table.Cell class="text-right px-3 py-2 font-bold font-mono-tabular">
 										{formatCurrency(item.total)}
 									</Table.Cell>
 
@@ -1306,40 +1306,40 @@ import type { Repairer } from '$lib/types/repairer';
 				<div class="space-y-2">
 					<!-- Category Totals -->
 					<div class="flex items-center justify-between py-2">
-						<span class="text-sm text-gray-600">Parts Total</span>
-						<span class="text-sm font-medium">{formatCurrency(totals?.partsTotal || 0)}</span>
+						<span class="text-sm text-muted-foreground">Parts Total</span>
+						<span class="text-sm font-medium font-mono-tabular">{formatCurrency(totals?.partsTotal || 0)}</span>
 					</div>
 
 					<div class="flex items-center justify-between py-2">
-						<span class="text-sm text-gray-600">Markup Total</span>
-						<span class="text-sm font-medium text-green-600">{formatCurrency(totals?.markupTotal || 0)}</span>
+						<span class="text-sm text-muted-foreground">Markup Total</span>
+						<span class="text-sm font-medium text-green-600 font-mono-tabular">{formatCurrency(totals?.markupTotal || 0)}</span>
 					</div>
 
 					<div class="flex items-center justify-between py-2">
-						<span class="text-sm text-gray-600">S&A Total</span>
-						<span class="text-sm font-medium">{formatCurrency(totals?.saTotal || 0)}</span>
+						<span class="text-sm text-muted-foreground">S&A Total</span>
+						<span class="text-sm font-medium font-mono-tabular">{formatCurrency(totals?.saTotal || 0)}</span>
 					</div>
 
 					<div class="flex items-center justify-between py-2">
-						<span class="text-sm text-gray-600">Labour Total</span>
-						<span class="text-sm font-medium">{formatCurrency(totals?.labourTotal || 0)}</span>
+						<span class="text-sm text-muted-foreground">Labour Total</span>
+						<span class="text-sm font-medium font-mono-tabular">{formatCurrency(totals?.labourTotal || 0)}</span>
 					</div>
 
 					<div class="flex items-center justify-between py-2">
-						<span class="text-sm text-gray-600">Paint Total</span>
-						<span class="text-sm font-medium">{formatCurrency(totals?.paintTotal || 0)}</span>
+						<span class="text-sm text-muted-foreground">Paint Total</span>
+						<span class="text-sm font-medium font-mono-tabular">{formatCurrency(totals?.paintTotal || 0)}</span>
 					</div>
 
 					<div class="flex items-center justify-between py-2 border-b">
-						<span class="text-sm text-gray-600">Outwork Total</span>
-						<span class="text-sm font-medium">{formatCurrency(totals?.outworkTotal || 0)}</span>
+						<span class="text-sm text-muted-foreground">Outwork Total</span>
+						<span class="text-sm font-medium font-mono-tabular">{formatCurrency(totals?.outworkTotal || 0)}</span>
 					</div>
 
 					<!-- Betterment Deduction (NEW) -->
 					{#if totals?.bettermentTotal && totals.bettermentTotal > 0}
 						<div class="flex items-center justify-between py-2 border-t border-gray-200">
 							<span class="text-sm font-medium text-gray-900">Betterment Deduction</span>
-							<span class="text-sm font-bold text-red-600">
+							<span class="text-sm font-bold text-red-600 font-mono-tabular">
 								-{formatCurrency(totals.bettermentTotal)}
 							</span>
 						</div>
@@ -1348,25 +1348,25 @@ import type { Repairer } from '$lib/types/repairer';
 					<!-- Subtotal -->
                 <div class="flex items-center justify-between py-2 border-b-2">
                     <span class="text-base font-semibold text-gray-700">Subtotal (Ex VAT)</span>
-                    <span class="text-lg font-semibold">{formatCurrency(totals?.subtotalExVat || 0)}</span>
+                    <span class="text-lg font-semibold font-mono-tabular">{formatCurrency(totals?.subtotalExVat || 0)}</span>
                 </div>
 
                 <div class="flex items-center justify-between py-2 border-b-2">
 					<span class="text-base font-semibold text-gray-700">Sundries ({Math.round(((totals?.sundriesPct ?? 1) * 100)) / 100}%)</span>
-					<span class="text-lg font-semibold">{formatCurrency(totals?.sundriesAmount || 0)}</span>
+					<span class="text-lg font-semibold font-mono-tabular">{formatCurrency(totals?.sundriesAmount || 0)}</span>
                 </div>
 
 					<!-- VAT -->
 					<div class="flex items-center justify-between py-2 border-b-2">
                         <span class="text-base font-semibold text-gray-700">VAT ({totals?.vatPercentage ?? 0}%)</span>
-                        <span class="text-lg font-semibold">{formatCurrency(totals?.vatAmount || 0)}</span>
+                        <span class="text-lg font-semibold font-mono-tabular">{formatCurrency(totals?.vatAmount || 0)}</span>
 					</div>
 
 					<!-- Excess Amount (if applicable) -->
 					{#if totals?.excessAmount && totals.excessAmount > 0}
 						<div class="flex items-center justify-between py-2 border-b-2">
 							<span class="text-base font-semibold text-orange-700">Less: Excess</span>
-							<span class="text-lg font-semibold text-orange-600">-{formatCurrency(totals.excessAmount)}</span>
+							<span class="text-lg font-semibold text-orange-600 font-mono-tabular">-{formatCurrency(totals.excessAmount)}</span>
 						</div>
 					{/if}
 
@@ -1378,7 +1378,7 @@ import type { Repairer } from '$lib/types/repairer';
 							<div class="flex items-center justify-between">
 								<span class="text-lg font-bold text-gray-900">Total (Inc VAT)</span>
 								<span
-									class="text-2xl font-bold {threshold.color === 'red'
+									class="text-2xl font-bold font-mono-tabular {threshold.color === 'red'
 										? 'text-red-600'
 										: threshold.color === 'orange'
 											? 'text-orange-600'
@@ -1423,7 +1423,7 @@ import type { Repairer } from '$lib/types/repairer';
 						<!-- Fallback if no threshold data -->
 						<div class="flex items-center justify-between pt-3">
 							<span class="text-lg font-bold text-gray-900">Total (Inc VAT)</span>
-							<span class="text-2xl font-bold text-blue-600">{formatCurrency(totals?.totalIncVat || 0)}</span>
+							<span class="text-2xl font-bold text-blue-600 font-mono-tabular">{formatCurrency(totals?.totalIncVat || 0)}</span>
 						</div>
 					{/if}
 
@@ -1431,9 +1431,9 @@ import type { Repairer } from '$lib/types/repairer';
 					{#if totals?.excessAmount && totals.excessAmount > 0}
 						<div class="flex items-center justify-between pt-3 mt-2 border-t-2 border-green-200">
 							<span class="text-lg font-bold text-green-800">Net Amount Payable</span>
-							<span class="text-2xl font-bold text-green-600">{formatCurrency(totals.netPayable)}</span>
+							<span class="text-2xl font-bold text-green-600 font-mono-tabular">{formatCurrency(totals.netPayable)}</span>
 						</div>
-						<p class="text-xs text-gray-500 mt-1">After excess deduction of {formatCurrency(totals.excessAmount)}</p>
+						<p class="text-xs text-muted-foreground mt-1">After excess deduction of {formatCurrency(totals.excessAmount)}</p>
 					{/if}
 				</div>
 			{/if}
