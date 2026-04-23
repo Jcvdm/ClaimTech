@@ -519,7 +519,7 @@
 			</div>
 
 			<!-- Desktop: Table Layout -->
-			<div class="hidden md:block rounded-lg border overflow-x-auto">
+			<div class="hidden md:block rounded-sm border overflow-x-auto">
 				<Table.Root>
 					<Table.Header>
 						<Table.Row class="hover:bg-transparent">

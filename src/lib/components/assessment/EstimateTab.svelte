@@ -800,7 +800,7 @@ import type { Repairer } from '$lib/types/repairer';
 		{#if vehicleValues && warrantyInfo()}
 			{@const warranty = warrantyInfo()!}
 			{@const statusClasses = getWarrantyStatusClasses(warranty.color)}
-			<Card class="p-4 {statusClasses.bg} border-2 {statusClasses.border}">
+			<Card class="p-4 {statusClasses.bg} border {statusClasses.border}">
 				<div class="flex items-start gap-3">
 					<div class="mt-0.5">
 						{#if warranty.icon === 'check'}
@@ -952,7 +952,7 @@ import type { Repairer } from '$lib/types/repairer';
 			</div>
 
 			<!-- Desktop: Table Layout -->
-			<div class="hidden rounded-lg border overflow-x-auto max-h-[70vh] overflow-y-auto md:block">
+			<div class="hidden rounded-sm border overflow-x-auto max-h-[70vh] overflow-y-auto md:block">
 				<Table.Root>
 					<Table.Header class="sticky top-0 z-10 bg-white">
 						<Table.Row class="hover:bg-transparent border-b border-border">
