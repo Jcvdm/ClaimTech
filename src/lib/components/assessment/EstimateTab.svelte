@@ -10,7 +10,7 @@
 	import RequiredFieldsWarning from './RequiredFieldsWarning.svelte';
 	import BettermentModal from './BettermentModal.svelte';
 	import LineItemCard from './LineItemCard.svelte';
-    import { Plus, Trash2, Check, CircleAlert, CircleCheck, CircleX, Info, Percent, ShieldCheck, Package, Recycle, RefreshCw } from 'lucide-svelte';
+    import { Plus, Trash2, Check, CircleAlert, CircleCheck, CircleX, Info, Percent, ShieldCheck, Package, Recycle, RefreshCw, Camera } from 'lucide-svelte';
 	import { onDestroy, onMount } from 'svelte';
 import type {
 	Estimate,
@@ -18,7 +18,9 @@ import type {
 	EstimatePhoto,
 	VehicleValues,
 	VehicleIdentification,
-	AssessmentResultType
+	AssessmentResultType,
+	ProcessType,
+	PartType
 } from '$lib/types/assessment';
 import type { VehicleDetails } from '$lib/utils/report-data-helpers';
 import type { Repairer } from '$lib/types/repairer';
@@ -414,6 +416,124 @@ import type { Repairer } from '$lib/types/repairer';
 	let tempPaintPanels = $state<number | null>(null);
 	let tempPartPriceNett = $state<number | null>(null);
 	let tempOutworkNett = $state<number | null>(null);
+
+	// ---------- Skeleton row state (Phase 8e) ----------
+	let skeletonProcessType = $state<ProcessType>('N');
+	let skeletonPartType = $state<PartType>('OEM');
+	let skeletonDescription = $state('');
+	let skeletonPartPriceNett = $state<number | null>(null);
+	let skeletonSAHours = $state<number | null>(null);
+	let skeletonLabourHours = $state<number | null>(null);
+	let skeletonPaintPanels = $state<number | null>(null);
+	let skeletonOutworkNett = $state<number | null>(null);
+
+	// Which skeleton cost field (if any) is in edit mode
+	let skeletonEditingField = $state<
+		'partPrice' | 'sa' | 'labour' | 'paint' | 'outwork' | null
+	>(null);
+
+	// Ref to description input for focus management
+	let skeletonDescInput = $state<HTMLInputElement | null>(null);
+	let skeletonDescInputMobile = $state<HTMLInputElement | null>(null);
+	let skeletonMobileHint = $state('');
+
+	function resetSkeleton() {
+		skeletonProcessType = 'N';
+		skeletonPartType = 'OEM';
+		skeletonDescription = '';
+		skeletonPartPriceNett = null;
+		skeletonSAHours = null;
+		skeletonLabourHours = null;
+		skeletonPaintPanels = null;
+		skeletonOutworkNett = null;
+		skeletonEditingField = null;
+	}
+
+	function skeletonHasContent(): boolean {
+		return (
+			skeletonDescription.trim() !== '' ||
+			skeletonPartPriceNett != null ||
+			skeletonSAHours != null ||
+			skeletonLabourHours != null ||
+			skeletonPaintPanels != null ||
+			skeletonOutworkNett != null
+		);
+	}
+
+	function commitSkeleton(opts: { refocus?: boolean; mobile?: boolean } = {}) {
+		if (!skeletonHasContent()) {
+			if (opts.mobile) {
+				skeletonMobileHint = 'Enter a description first';
+			}
+			return;
+		}
+		if (!localEstimate) return;
+
+		const newItem = createEmptyLineItem(skeletonProcessType) as EstimateLineItem;
+		newItem.description = skeletonDescription.trim();
+		if (skeletonProcessType === 'N') {
+			newItem.part_type = skeletonPartType;
+		}
+
+		if (skeletonPartPriceNett != null) {
+			newItem.part_price_nett = skeletonPartPriceNett;
+			// Calculate selling price with markup based on part type
+			let markupPercentage = 0;
+			const partType = skeletonProcessType === 'N' ? skeletonPartType : null;
+			if (partType === 'OEM') markupPercentage = localEstimate.oem_markup_percentage;
+			else if (partType === 'ALT') markupPercentage = localEstimate.alt_markup_percentage;
+			else if (partType === '2ND') markupPercentage = localEstimate.second_hand_markup_percentage;
+			newItem.part_price = Number((skeletonPartPriceNett * (1 + markupPercentage / 100)).toFixed(2));
+		}
+		if (skeletonSAHours != null) {
+			newItem.strip_assemble_hours = skeletonSAHours;
+			newItem.strip_assemble = skeletonSAHours * localEstimate.labour_rate;
+		}
+		if (skeletonLabourHours != null) {
+			newItem.labour_hours = skeletonLabourHours;
+			newItem.labour_cost = skeletonLabourHours * localEstimate.labour_rate;
+		}
+		if (skeletonPaintPanels != null) {
+			newItem.paint_panels = skeletonPaintPanels;
+			newItem.paint_cost = skeletonPaintPanels * localEstimate.paint_rate;
+		}
+		if (skeletonOutworkNett != null) {
+			newItem.outwork_charge_nett = skeletonOutworkNett;
+			newItem.outwork_charge = Number(
+				(skeletonOutworkNett * (1 + localEstimate.outwork_markup_percentage / 100)).toFixed(2)
+			);
+		}
+
+		addLocalLine(newItem);
+		resetSkeleton();
+		skeletonMobileHint = '';
+
+		if (opts.refocus) {
+			// Return focus to description input on next tick so user can keep typing
+			setTimeout(() => {
+				if (opts.mobile) {
+					skeletonDescInputMobile?.focus();
+				} else {
+					skeletonDescInput?.focus();
+				}
+			}, 0);
+		}
+	}
+
+	function handleSkeletonDescriptionBlur() {
+		// Commit only when there's actual content
+		if (skeletonDescription.trim() !== '' || skeletonHasContent()) {
+			commitSkeleton({ refocus: true });
+		}
+	}
+
+	function handleSkeletonCostBlur() {
+		// Any cost field blur/Enter triggers commit
+		skeletonEditingField = null;
+		if (skeletonHasContent()) {
+			commitSkeleton({ refocus: true });
+		}
+	}
 
 	async function handleUpdateLineItem(itemId: string, field: keyof EstimateLineItem, value: any) {
 		updateLocalItem(itemId, { [field]: value } as Partial<EstimateLineItem>);
@@ -914,41 +1034,92 @@ import type { Repairer } from '$lib/types/repairer';
 							<span class="hidden sm:inline">Delete ({selectedItems.size})</span>
 						</Button>
 					{/if}
-					<Button onclick={() => quickAddOpen = true} size="sm" variant="outline">
-						<Plus class="h-4 w-4 sm:mr-2" />
-						<span class="hidden sm:inline">+ Add line</span>
+					<Button
+						onclick={() => quickAddOpen = true}
+						size="sm"
+						variant="ghost"
+						title="Add line with photos"
+						aria-label="Add line with photos"
+					>
+						<Camera class="h-4 w-4" />
 					</Button>
 				</div>
 			</div>
 
 			<!-- Mobile: Card Layout -->
 			<div class="space-y-3 md:hidden">
-				{#if localLineItems.length === 0}
-					<div class="flex flex-col items-center justify-center py-12 text-center">
-						<p class="text-muted-foreground">No line items added.</p>
-						<p class="text-sm text-muted-foreground">Click "+ Add line" to start.</p>
+				{#each localLineItems as item (item.id)}
+					<LineItemCard
+						{item}
+						labourRate={localEstimate?.labour_rate ?? estimate?.labour_rate ?? 0}
+						paintRate={localEstimate?.paint_rate ?? estimate?.paint_rate ?? 0}
+						selected={selectedItems.has(item.id!)}
+						onToggleSelect={() => handleToggleSelect(item.id!)}
+						onUpdateDescription={(value) => handleUpdateLineItem(item.id!, 'description', value)}
+						onUpdateProcessType={(value) => handleUpdateLineItem(item.id!, 'process_type', value)}
+						onUpdatePartType={(value) => handleUpdateLineItem(item.id!, 'part_type', value)}
+						onEditPartPrice={() => handlePartPriceClick(item.id!, item.part_price_nett || null)}
+						onEditSA={() => handleSAClick(item.id!, item.strip_assemble_hours || null)}
+						onEditLabour={() => handleLabourClick(item.id!, item.labour_hours || null)}
+						onEditPaint={() => handlePaintClick(item.id!, item.paint_panels || null)}
+						onEditOutwork={() => handleOutworkClick(item.id!, item.outwork_charge_nett || null)}
+						onEditBetterment={() => handleBettermentClick(item)}
+						onDelete={() => removeLocalLines([item.id!])}
+					/>
+				{/each}
+
+				<!-- Skeleton card (Phase 8e) - persistent add card -->
+				<div class="rounded-sm border bg-muted/20 p-3 space-y-3">
+					<p class="text-[11.5px] font-semibold uppercase tracking-wide text-muted-foreground">
+						New Line
+					</p>
+					<div class="grid grid-cols-2 gap-2">
+						<label class="block">
+							<span class="text-xs text-muted-foreground">Process</span>
+							<select
+								bind:value={skeletonProcessType}
+								class="mt-1 w-full rounded border border-input bg-background px-2 py-1 text-sm"
+								aria-label="New line process type"
+							>
+								{#each processTypeOptions as option}
+									<option value={option.value}>{option.value} - {option.label}</option>
+								{/each}
+							</select>
+						</label>
+						{#if skeletonProcessType === 'N'}
+							<label class="block">
+								<span class="text-xs text-muted-foreground">Part</span>
+								<select
+									bind:value={skeletonPartType}
+									class="mt-1 w-full rounded border border-input bg-background px-2 py-1 text-sm"
+									aria-label="New line part type"
+								>
+									<option value="OEM">OEM</option>
+									<option value="ALT">ALT</option>
+									<option value="2ND">2ND</option>
+								</select>
+							</label>
+						{/if}
 					</div>
-				{:else}
-					{#each localLineItems as item (item.id)}
-						<LineItemCard
-							{item}
-							labourRate={localEstimate?.labour_rate ?? estimate?.labour_rate ?? 0}
-							paintRate={localEstimate?.paint_rate ?? estimate?.paint_rate ?? 0}
-							selected={selectedItems.has(item.id!)}
-							onToggleSelect={() => handleToggleSelect(item.id!)}
-							onUpdateDescription={(value) => handleUpdateLineItem(item.id!, 'description', value)}
-							onUpdateProcessType={(value) => handleUpdateLineItem(item.id!, 'process_type', value)}
-							onUpdatePartType={(value) => handleUpdateLineItem(item.id!, 'part_type', value)}
-							onEditPartPrice={() => handlePartPriceClick(item.id!, item.part_price_nett || null)}
-							onEditSA={() => handleSAClick(item.id!, item.strip_assemble_hours || null)}
-							onEditLabour={() => handleLabourClick(item.id!, item.labour_hours || null)}
-							onEditPaint={() => handlePaintClick(item.id!, item.paint_panels || null)}
-							onEditOutwork={() => handleOutworkClick(item.id!, item.outwork_charge_nett || null)}
-							onEditBetterment={() => handleBettermentClick(item)}
-							onDelete={() => removeLocalLines([item.id!])}
-						/>
-					{/each}
-				{/if}
+					<Input
+						bind:ref={skeletonDescInputMobile}
+						type="text"
+						placeholder="Description — type to add"
+						aria-label="New line description"
+						bind:value={skeletonDescription}
+						oninput={() => { if (skeletonMobileHint) skeletonMobileHint = ''; }}
+					/>
+					{#if skeletonMobileHint}
+						<p aria-live="polite" class="text-xs text-destructive">{skeletonMobileHint}</p>
+					{/if}
+					<Button
+						onclick={() => commitSkeleton({ refocus: true, mobile: true })}
+						size="sm"
+						class="w-full"
+					>
+						Save
+					</Button>
+				</div>
 			</div>
 
 			<!-- Desktop: Table Layout -->
@@ -979,14 +1150,7 @@ import type { Repairer } from '$lib/types/repairer';
 						</Table.Row>
 					</Table.Header>
 					<Table.Body>
-						{#if localLineItems.length === 0}
-							<Table.Row class="hover:bg-transparent">
-								<Table.Cell colspan={12} class="h-24 text-center text-muted-foreground">
-									No line items added. Click "+ Add line" to start.
-								</Table.Cell>
-							</Table.Row>
-						{:else}
-							{#each localLineItems as item (item.id)}
+						{#each localLineItems as item (item.id)}
 								<Table.Row class="hover:bg-muted/50">
 									<!-- Checkbox -->
 									<Table.Cell class="px-3 py-2">
@@ -1279,18 +1443,271 @@ import type { Repairer } from '$lib/types/repairer';
 									</Table.Cell>
 								</Table.Row>
 							{/each}
-						{/if}
-						<Table.Row class="hover:bg-transparent border-t-2">
-							<Table.Cell colspan={12} class="py-2 text-center">
-								<button
-									type="button"
-									onclick={() => quickAddOpen = true}
-									class="text-sm text-muted-foreground hover:text-foreground transition-colors"
-								>
-									+ Add line
-								</button>
-							</Table.Cell>
-						</Table.Row>
+							<!-- Skeleton row (Phase 8e) - persistent add row -->
+							<Table.Row class="hover:bg-muted/20 bg-muted/20">
+								<!-- Checkbox (disabled) -->
+								<Table.Cell class="px-3 py-2">
+									<input
+										type="checkbox"
+										disabled
+										class="rounded border-gray-300 opacity-50 cursor-not-allowed"
+										aria-label="Skeleton row (not selectable)"
+										tabindex={-1}
+									/>
+								</Table.Cell>
+
+								<!-- Process Type -->
+								<Table.Cell class="px-3 py-2">
+									<div class="relative group">
+										<select
+											bind:value={skeletonProcessType}
+											class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+											aria-label="New line process type"
+										>
+											{#each processTypeOptions as option}
+												<option value={option.value}>{option.value} - {option.label}</option>
+											{/each}
+										</select>
+										<div class="flex items-center justify-center pointer-events-none">
+											<span class="px-2 py-1 text-xs font-semibold rounded {getProcessTypeBadgeColor(skeletonProcessType)}">
+												{skeletonProcessType}
+											</span>
+										</div>
+										<div class="absolute hidden group-hover:block bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 text-xs bg-gray-900 text-white rounded whitespace-nowrap z-20 pointer-events-none">
+											{getProcessTypeConfig(skeletonProcessType).label}
+										</div>
+									</div>
+								</Table.Cell>
+
+								<!-- Part Type (N only) -->
+								<Table.Cell class="px-3 py-2">
+									{#if skeletonProcessType === 'N'}
+										<div class="relative group">
+											<select
+												bind:value={skeletonPartType}
+												class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+												aria-label="New line part type"
+											>
+												<option value="OEM">OEM</option>
+												<option value="ALT">ALT</option>
+												<option value="2ND">2ND</option>
+											</select>
+											<div class="flex items-center justify-center pointer-events-none">
+												{#if skeletonPartType === 'OEM'}
+													<div class="flex items-center gap-1 px-2 py-1 rounded bg-blue-100 text-blue-800">
+														<ShieldCheck class="h-3 w-3" />
+														<span class="text-xs font-semibold">OEM</span>
+													</div>
+												{:else if skeletonPartType === 'ALT'}
+													<div class="flex items-center gap-1 px-2 py-1 rounded bg-green-100 text-green-800">
+														<Package class="h-3 w-3" />
+														<span class="text-xs font-semibold">ALT</span>
+													</div>
+												{:else if skeletonPartType === '2ND'}
+													<div class="flex items-center gap-1 px-2 py-1 rounded bg-amber-100 text-amber-800">
+														<Recycle class="h-3 w-3" />
+														<span class="text-xs font-semibold">2ND</span>
+													</div>
+												{/if}
+											</div>
+										</div>
+									{:else}
+										<span class="text-muted-foreground text-sm">—</span>
+									{/if}
+								</Table.Cell>
+
+								<!-- Description -->
+								<Table.Cell class="px-3 py-2">
+									<Input
+										bind:ref={skeletonDescInput}
+										type="text"
+										placeholder="Description — type to add"
+										aria-label="New line description"
+										bind:value={skeletonDescription}
+										onblur={handleSkeletonDescriptionBlur}
+										onkeydown={(e) => {
+											if (e.key === 'Enter') {
+												e.currentTarget.blur();
+											}
+										}}
+										class="border-0 focus-visible:ring-0 focus-visible:ring-offset-0"
+									/>
+								</Table.Cell>
+
+								<!-- Part Price (N only) -->
+								<Table.Cell class="text-right px-3 py-2">
+									{#if skeletonProcessType === 'N'}
+										{#if skeletonEditingField === 'partPrice'}
+											<div class="space-y-1">
+												<Input
+													type="number"
+													min="0"
+													step="0.01"
+													bind:value={skeletonPartPriceNett}
+													onkeydown={(e) => {
+														if (e.key === 'Enter') handleSkeletonCostBlur();
+														if (e.key === 'Escape') { skeletonPartPriceNett = null; skeletonEditingField = null; }
+													}}
+													onblur={handleSkeletonCostBlur}
+													class="border-0 text-right text-sm focus-visible:ring-0 focus-visible:ring-offset-0 font-mono-tabular"
+													autofocus
+												/>
+												<p class="text-xs text-muted-foreground italic">Only input nett price</p>
+											</div>
+										{:else}
+											<button
+												onclick={() => (skeletonEditingField = 'partPrice')}
+												class="text-sm text-muted-foreground hover:text-foreground cursor-pointer w-full text-right font-mono-tabular"
+												title="Click to enter nett price"
+											>
+												{formatCurrency(0)}
+											</button>
+										{/if}
+									{:else}
+										<span class="text-muted-foreground text-xs">—</span>
+									{/if}
+								</Table.Cell>
+
+								<!-- S&A (N,R,P,B) -->
+								<Table.Cell class="text-right px-3 py-2">
+									{#if ['N', 'R', 'P', 'B'].includes(skeletonProcessType)}
+										{#if skeletonEditingField === 'sa'}
+											<Input
+												type="number"
+												min="0"
+												step="0.25"
+												bind:value={skeletonSAHours}
+												onkeydown={(e) => {
+													if (e.key === 'Enter') handleSkeletonCostBlur();
+													if (e.key === 'Escape') { skeletonSAHours = null; skeletonEditingField = null; }
+												}}
+												onblur={handleSkeletonCostBlur}
+												class="border-0 text-right text-sm focus-visible:ring-0 focus-visible:ring-offset-0 font-mono-tabular"
+												autofocus
+											/>
+										{:else}
+											<button
+												onclick={() => (skeletonEditingField = 'sa')}
+												class="text-sm text-muted-foreground hover:text-foreground cursor-pointer w-full text-right font-mono-tabular"
+												title="Click to enter hours"
+											>
+												{formatCurrency(0)}
+											</button>
+										{/if}
+									{:else}
+										<span class="text-muted-foreground text-xs">—</span>
+									{/if}
+								</Table.Cell>
+
+								<!-- Labour (N,R,A) -->
+								<Table.Cell class="text-right px-3 py-2">
+									{#if ['N', 'R', 'A'].includes(skeletonProcessType)}
+										{#if skeletonEditingField === 'labour'}
+											<Input
+												type="number"
+												min="0"
+												step="0.5"
+												bind:value={skeletonLabourHours}
+												onkeydown={(e) => {
+													if (e.key === 'Enter') handleSkeletonCostBlur();
+													if (e.key === 'Escape') { skeletonLabourHours = null; skeletonEditingField = null; }
+												}}
+												onblur={handleSkeletonCostBlur}
+												class="border-0 text-right text-sm focus-visible:ring-0 focus-visible:ring-offset-0 font-mono-tabular"
+												autofocus
+											/>
+										{:else}
+											<button
+												onclick={() => (skeletonEditingField = 'labour')}
+												class="text-sm text-muted-foreground hover:text-foreground cursor-pointer w-full text-right font-mono-tabular"
+												title="Click to enter hours"
+											>
+												{formatCurrency(0)}
+											</button>
+										{/if}
+									{:else}
+										<span class="text-muted-foreground text-xs">—</span>
+									{/if}
+								</Table.Cell>
+
+								<!-- Paint (N,R,P,B) -->
+								<Table.Cell class="text-right px-3 py-2">
+									{#if ['N', 'R', 'P', 'B'].includes(skeletonProcessType)}
+										{#if skeletonEditingField === 'paint'}
+											<Input
+												type="number"
+												min="0"
+												step="0.5"
+												bind:value={skeletonPaintPanels}
+												onkeydown={(e) => {
+													if (e.key === 'Enter') handleSkeletonCostBlur();
+													if (e.key === 'Escape') { skeletonPaintPanels = null; skeletonEditingField = null; }
+												}}
+												onblur={handleSkeletonCostBlur}
+												class="border-0 text-right text-sm focus-visible:ring-0 focus-visible:ring-offset-0 font-mono-tabular"
+												autofocus
+											/>
+										{:else}
+											<button
+												onclick={() => (skeletonEditingField = 'paint')}
+												class="text-sm text-muted-foreground hover:text-foreground cursor-pointer w-full text-right font-mono-tabular"
+												title="Click to enter panels"
+											>
+												{formatCurrency(0)}
+											</button>
+										{/if}
+									{:else}
+										<span class="text-muted-foreground text-xs">—</span>
+									{/if}
+								</Table.Cell>
+
+								<!-- Outwork (O only) -->
+								<Table.Cell class="text-right px-3 py-2">
+									{#if skeletonProcessType === 'O'}
+										{#if skeletonEditingField === 'outwork'}
+											<div class="space-y-1">
+												<Input
+													type="number"
+													min="0"
+													step="0.01"
+													bind:value={skeletonOutworkNett}
+													onkeydown={(e) => {
+														if (e.key === 'Enter') handleSkeletonCostBlur();
+														if (e.key === 'Escape') { skeletonOutworkNett = null; skeletonEditingField = null; }
+													}}
+													onblur={handleSkeletonCostBlur}
+													class="border-0 text-right text-sm focus-visible:ring-0 focus-visible:ring-offset-0 font-mono-tabular"
+													autofocus
+												/>
+												<p class="text-xs text-muted-foreground italic">Only input nett price</p>
+											</div>
+										{:else}
+											<button
+												onclick={() => (skeletonEditingField = 'outwork')}
+												class="text-sm text-muted-foreground hover:text-foreground cursor-pointer w-full text-right font-mono-tabular"
+												title="Click to enter nett price"
+											>
+												{formatCurrency(0)}
+											</button>
+										{/if}
+									{:else}
+										<span class="text-muted-foreground text-xs">—</span>
+									{/if}
+								</Table.Cell>
+
+								<!-- Betterment (N/A for new row) -->
+								<Table.Cell class="px-2 py-2 text-center">
+									<span class="text-muted-foreground text-sm">—</span>
+								</Table.Cell>
+
+								<!-- Total -->
+								<Table.Cell class="text-right px-3 py-2 font-mono-tabular text-muted-foreground">
+									{formatCurrency(0)}
+								</Table.Cell>
+
+								<!-- Actions (empty) -->
+								<Table.Cell class="px-2 py-2"></Table.Cell>
+							</Table.Row>
 					</Table.Body>
 				</Table.Root>
 			</div>
