@@ -35,6 +35,7 @@ import type { Repairer } from '$lib/types/repairer';
 	import { assessmentNotesService } from '$lib/services/assessment-notes.service';
 	import { generatePartsListText } from '$lib/utils/csv-generator';
 	import * as Dialog from '$lib/components/ui/dialog';
+	import * as ResponsiveDialog from '$lib/components/ui/responsive-dialog';
 
 	interface Props {
 		estimate: Estimate | null;
@@ -113,6 +114,7 @@ import type { Repairer } from '$lib/types/repairer';
 	let saving = $state(false);
 	let saveInFlight = $state(false); // Track when save is happening to prevent race conditions
 	let recalculating = $state(false);
+	let quickAddOpen = $state(false);
 
 	// Parts list modal state
 	let showPartsListModal = $state(false);
@@ -412,11 +414,6 @@ import type { Repairer } from '$lib/types/repairer';
 	let tempPaintPanels = $state<number | null>(null);
 	let tempPartPriceNett = $state<number | null>(null);
 	let tempOutworkNett = $state<number | null>(null);
-
-	function handleAddEmptyLineItem() {
-	const newItem = createEmptyLineItem('N') as EstimateLineItem;
-	addLocalLine(newItem);
-}
 
 	async function handleUpdateLineItem(itemId: string, field: keyof EstimateLineItem, value: any) {
 		updateLocalItem(itemId, { [field]: value } as Partial<EstimateLineItem>);
@@ -855,22 +852,31 @@ import type { Repairer } from '$lib/types/repairer';
 			disabled={saving || recalculating}
 		/>
 
-		<!-- Quick Add Form -->
-		<QuickAddLineItem
-			labourRate={localEstimate ? localEstimate.labour_rate : estimate.labour_rate}
-			paintRate={localEstimate ? localEstimate.paint_rate : estimate.paint_rate}
-			oemMarkup={localEstimate ? localEstimate.oem_markup_percentage : estimate.oem_markup_percentage}
-			altMarkup={localEstimate ? localEstimate.alt_markup_percentage : estimate.alt_markup_percentage}
-			secondHandMarkup={localEstimate ? localEstimate.second_hand_markup_percentage : estimate.second_hand_markup_percentage}
-			outworkMarkup={localEstimate ? localEstimate.outwork_markup_percentage : estimate.outwork_markup_percentage}
-			onAddLineItem={(item) => { addLocalLine(item); }}
-			enablePhotos={true}
-			{assessmentId}
-			parentId={estimate.id}
-			photoCategory="estimate"
-			onPhotosUploaded={onPhotosUpdate}
-		/>
+		<!-- Quick Add Dialog -->
+		<ResponsiveDialog.Root bind:open={quickAddOpen}>
+			<ResponsiveDialog.Content class="sm:max-w-2xl">
+				<ResponsiveDialog.Header>
+					<ResponsiveDialog.Title>Add line item</ResponsiveDialog.Title>
+				</ResponsiveDialog.Header>
+				<QuickAddLineItem
+					labourRate={localEstimate ? localEstimate.labour_rate : estimate.labour_rate}
+					paintRate={localEstimate ? localEstimate.paint_rate : estimate.paint_rate}
+					oemMarkup={localEstimate ? localEstimate.oem_markup_percentage : estimate.oem_markup_percentage}
+					altMarkup={localEstimate ? localEstimate.alt_markup_percentage : estimate.alt_markup_percentage}
+					secondHandMarkup={localEstimate ? localEstimate.second_hand_markup_percentage : estimate.second_hand_markup_percentage}
+					outworkMarkup={localEstimate ? localEstimate.outwork_markup_percentage : estimate.outwork_markup_percentage}
+					onAddLineItem={(item) => { addLocalLine(item); quickAddOpen = false; }}
+					enablePhotos={true}
+					{assessmentId}
+					parentId={estimate.id}
+					photoCategory="estimate"
+					onPhotosUploaded={onPhotosUpdate}
+				/>
+			</ResponsiveDialog.Content>
+		</ResponsiveDialog.Root>
 
+		<!-- Line Items + Totals two-pane grid -->
+		<div class="lg:grid lg:grid-cols-[minmax(0,1fr)_340px] lg:gap-6 lg:items-start">
 		<!-- Line Items Section -->
 		<Card class="p-3 sm:p-6">
 			<!-- Header - Responsive -->
@@ -908,9 +914,9 @@ import type { Repairer } from '$lib/types/repairer';
 							<span class="hidden sm:inline">Delete ({selectedItems.size})</span>
 						</Button>
 					{/if}
-					<Button onclick={handleAddEmptyLineItem} size="sm" variant="outline">
+					<Button onclick={() => quickAddOpen = true} size="sm" variant="outline">
 						<Plus class="h-4 w-4 sm:mr-2" />
-						<span class="hidden sm:inline">Add Row</span>
+						<span class="hidden sm:inline">+ Add line</span>
 					</Button>
 				</div>
 			</div>
@@ -920,7 +926,7 @@ import type { Repairer } from '$lib/types/repairer';
 				{#if localLineItems.length === 0}
 					<div class="flex flex-col items-center justify-center py-12 text-center">
 						<p class="text-gray-500">No line items added.</p>
-						<p class="text-sm text-gray-400">Use "Quick Add" above or tap + to add items.</p>
+						<p class="text-sm text-gray-400">Click "+ Add line" to start.</p>
 					</div>
 				{:else}
 					{#each localLineItems as item (item.id)}
@@ -975,8 +981,8 @@ import type { Repairer } from '$lib/types/repairer';
 					<Table.Body>
 						{#if localLineItems.length === 0}
 							<Table.Row class="hover:bg-transparent">
-								<Table.Cell colspan={11} class="h-24 text-center text-gray-500">
-									No line items added. Use "Quick Add" above or click "Add Empty Row".
+								<Table.Cell colspan={12} class="h-24 text-center text-gray-500">
+									No line items added. Click "+ Add line" to start.
 								</Table.Cell>
 							</Table.Row>
 						{:else}
@@ -1274,12 +1280,24 @@ import type { Repairer } from '$lib/types/repairer';
 								</Table.Row>
 							{/each}
 						{/if}
+						<Table.Row class="hover:bg-transparent border-t-2">
+							<Table.Cell colspan={12} class="py-2 text-center">
+								<button
+									type="button"
+									onclick={() => quickAddOpen = true}
+									class="text-sm text-muted-foreground hover:text-foreground transition-colors"
+								>
+									+ Add line
+								</button>
+							</Table.Cell>
+						</Table.Row>
 					</Table.Body>
 				</Table.Root>
 			</div>
 		</Card>
 
 		<!-- Totals Summary -->
+		<div class="lg:sticky lg:top-24 lg:self-start mt-6 lg:mt-0">
 		<Card class="p-6">
 			<h3 class="mb-4 text-lg font-semibold text-gray-900">Totals Breakdown</h3>
 
@@ -1420,6 +1438,8 @@ import type { Repairer } from '$lib/types/repairer';
 				</div>
 			{/if}
 		</Card>
+		</div>
+		</div>
 
 		<!-- Assessment Result Selector -->
 		<AssessmentResultSelector
