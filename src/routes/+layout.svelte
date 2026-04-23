@@ -2,7 +2,7 @@
 	import '../app.css';
 	import favicon from '$lib/assets/favicon.svg';
 	import { onMount } from 'svelte';
-	import { invalidate, onNavigate } from '$app/navigation';
+	import { invalidate, afterNavigate } from '$app/navigation';
 	import NavigationLoadingBar from '$lib/components/layout/NavigationLoadingBar.svelte';
 	import InstallPrompt from '$lib/components/pwa/InstallPrompt.svelte';
 	import OfflineIndicator from '$lib/offline/components/OfflineIndicator.svelte';
@@ -10,17 +10,22 @@
 
 	let { children, data } = $props();
 
-	// Cross-fade page navigations via the View Transitions API (Chromium/Safari/Edge).
-	// Firefox has no-op pass-through until it ships the API.
-	onNavigate((navigation) => {
-		if (!document.startViewTransition) return;
+	// View Transitions snippet intentionally removed — diagnosing a mouse-wheel
+	// scroll regression reported on Vercel preview (scrollbar works, wheel doesn't).
+	// Two suspects: (1) onNavigate + document.startViewTransition leaving the
+	// page in a stuck-transition state that blocks wheel events, (2) bits-ui
+	// Dialog/DropdownMenu BodyScrollLock leaking pointerEvents:none / overflow:
+	// hidden on <body> after close. NavigationLoadingBar stays as the sole
+	// global loading indicator.
 
-		return new Promise((resolve) => {
-			document.startViewTransition(async () => {
-				resolve();
-				await navigation.complete;
-			});
-		});
+	// Defensive belt-and-braces: reset any leaked body-style locks after every
+	// navigation. bits-ui applies these when Dialog/Sheet/DropdownMenu opens;
+	// if cleanup races with View Transitions or SvelteKit nav, they can persist
+	// and kill mouse-wheel scroll (scrollbar drag keeps working because it's
+	// browser UI, not subject to pointer-events).
+	afterNavigate(() => {
+		document.body.style.pointerEvents = '';
+		document.body.style.overflow = '';
 	});
 
 	// Listen for auth state changes (login, logout, token refresh)
