@@ -2,7 +2,6 @@
 	import { Button } from '$lib/components/ui/button';
 	import LoadingButton from '$lib/components/ui/button/LoadingButton.svelte';
 	import { Tabs, TabsList, TabsTrigger } from '$lib/components/ui/tabs';
-	import { Badge } from '$lib/components/ui/badge';
 	import { TabLoadingIndicator } from '$lib/components/ui/tab-loading';
 	import {
 		Save,
@@ -18,7 +17,9 @@
 		Plus,
 		Trash2,
 		History,
-		Clock
+		Clock,
+		Check,
+		Circle
 	} from 'lucide-svelte';
 	import type { Assessment } from '$lib/types/assessment';
 	import {
@@ -276,22 +277,21 @@
 				>
 					{#each tabs() as tab}
 						{@const missingCount = getMissingFieldsCount(tab.id)}
+						{@const done = missingCount === 0}
 						<TabsTrigger
 							value={tab.id}
 							disabled={tabLoading}
 							class="relative -mb-px flex h-8 min-w-[4.5rem] shrink-0 snap-start items-center justify-center gap-1 rounded-none border-0 border-b-2 border-transparent bg-transparent px-2 py-1.5 text-xs font-medium text-muted-foreground shadow-none ring-offset-background transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50 data-[state=active]:border-b-foreground data-[state=active]:bg-transparent data-[state=active]:text-foreground data-[state=active]:shadow-none sm:h-9 sm:min-w-0 sm:shrink sm:gap-2 sm:px-3 sm:py-2 sm:text-sm"
 						>
-							<TabLoadingIndicator
-								isLoading={tabLoading && currentTab === tab.id}
-								icon={tab.icon}
-							/>
+							{#if tabLoading && currentTab === tab.id}
+								<TabLoadingIndicator isLoading={true} />
+							{:else if done}
+								<Check class="size-3.5 text-success shrink-0" />
+							{:else}
+								<Circle class="size-3.5 text-muted-foreground shrink-0" />
+							{/if}
 							<span class="hidden sm:inline">{tab.label}</span>
 							<span class="sm:hidden">{getShortLabel(tab.label)}</span>
-							{#if missingCount > 0}
-								<Badge variant="destructive-soft" class="ml-1 h-5 min-w-5 px-1.5 text-[10px] font-bold">
-									{missingCount}
-								</Badge>
-							{/if}
 						</TabsTrigger>
 					{/each}
 				</TabsList>
