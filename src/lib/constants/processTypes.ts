@@ -128,13 +128,13 @@ export function getProcessTypeLabel(processType: ProcessType): string {
  */
 export function getProcessTypeBadgeColor(processType: ProcessType): string {
 	const colors: Record<ProcessType, string> = {
-		N: 'bg-blue-100 text-blue-800',
-		R: 'bg-green-100 text-green-800',
-		P: 'bg-purple-100 text-purple-800',
-		B: 'bg-muted text-muted-foreground',
-		A: 'bg-yellow-100 text-yellow-800',
-		O: 'bg-orange-100 text-orange-800'
+		N: 'bg-muted text-muted-foreground border border-border',
+		R: 'bg-muted text-muted-foreground border border-border',
+		P: 'bg-muted text-muted-foreground border border-border',
+		B: 'bg-muted text-muted-foreground border border-border',
+		A: 'bg-warning-soft text-warning border border-warning-border',
+		O: 'bg-destructive-soft text-destructive border border-destructive-border'
 	};
-	return colors[processType] || 'bg-gray-100 text-gray-800';
+	return colors[processType] || 'bg-muted text-muted-foreground border border-border';
 }
 

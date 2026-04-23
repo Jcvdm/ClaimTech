@@ -1210,22 +1210,22 @@ import type { Repairer } from '$lib/types/repairer';
 												<!-- Visual Badge with Icon -->
 												<div class="flex items-center justify-center pointer-events-none">
 													{#if item.part_type === 'OEM'}
-														<div class="flex items-center gap-1 px-2 py-1 rounded bg-blue-100 text-blue-800">
+														<div class="flex items-center gap-1 px-2 py-1 rounded-sm bg-muted text-muted-foreground border border-border">
 															<ShieldCheck class="h-3 w-3" />
 															<span class="text-xs font-semibold">OEM</span>
 														</div>
 													{:else if item.part_type === 'ALT'}
-														<div class="flex items-center gap-1 px-2 py-1 rounded bg-green-100 text-green-800">
+														<div class="flex items-center gap-1 px-2 py-1 rounded-sm bg-success-soft text-success border border-success-border">
 															<Package class="h-3 w-3" />
 															<span class="text-xs font-semibold">ALT</span>
 														</div>
 													{:else if item.part_type === '2ND'}
-														<div class="flex items-center gap-1 px-2 py-1 rounded bg-amber-100 text-amber-800">
+														<div class="flex items-center gap-1 px-2 py-1 rounded-sm bg-warning-soft text-warning border border-warning-border">
 															<Recycle class="h-3 w-3" />
 															<span class="text-xs font-semibold">2ND</span>
 														</div>
 													{:else}
-						<span class="text-xs text-gray-500">OEM</span>
+						<span class="text-xs text-muted-foreground">OEM</span>
 					{/if}
 					</div>
 				</div>
@@ -1412,13 +1412,13 @@ import type { Repairer } from '$lib/types/repairer';
 									<Table.Cell class="px-2 py-2 text-center">
 										<button
 											onclick={() => handleBettermentClick(item)}
-											class="p-1.5 rounded-md transition-all {item.betterment_total && item.betterment_total > 0
-												? 'bg-orange-100 hover:bg-orange-200 border border-orange-300 shadow-sm'
-												: 'bg-gray-50 hover:bg-gray-100 border border-gray-200'}"
+											class="p-1.5 rounded-sm transition-all {item.betterment_total && item.betterment_total > 0
+												? 'bg-warning-soft hover:bg-warning-soft/80 border border-warning-border'
+												: 'bg-muted hover:bg-muted/80 border border-border'}"
 											title="Set betterment percentages"
 										>
 											{#if item.betterment_total && item.betterment_total > 0}
-												<Percent class="h-4 w-4 text-orange-700 font-bold" />
+												<Percent class="h-4 w-4 text-warning font-bold" />
 											{:else}
 												<Percent class="h-4 w-4 text-gray-400" />
 											{/if}
@@ -1494,17 +1494,17 @@ import type { Repairer } from '$lib/types/repairer';
 											</select>
 											<div class="flex items-center justify-center pointer-events-none">
 												{#if skeletonPartType === 'OEM'}
-													<div class="flex items-center gap-1 px-2 py-1 rounded bg-blue-100 text-blue-800">
+													<div class="flex items-center gap-1 px-2 py-1 rounded-sm bg-muted text-muted-foreground border border-border">
 														<ShieldCheck class="h-3 w-3" />
 														<span class="text-xs font-semibold">OEM</span>
 													</div>
 												{:else if skeletonPartType === 'ALT'}
-													<div class="flex items-center gap-1 px-2 py-1 rounded bg-green-100 text-green-800">
+													<div class="flex items-center gap-1 px-2 py-1 rounded-sm bg-success-soft text-success border border-success-border">
 														<Package class="h-3 w-3" />
 														<span class="text-xs font-semibold">ALT</span>
 													</div>
 												{:else if skeletonPartType === '2ND'}
-													<div class="flex items-center gap-1 px-2 py-1 rounded bg-amber-100 text-amber-800">
+													<div class="flex items-center gap-1 px-2 py-1 rounded-sm bg-warning-soft text-warning border border-warning-border">
 														<Recycle class="h-3 w-3" />
 														<span class="text-xs font-semibold">2ND</span>
 													</div>

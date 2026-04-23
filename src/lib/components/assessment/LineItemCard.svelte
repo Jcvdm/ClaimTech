@@ -84,7 +84,7 @@
 	});
 </script>
 
-<Card class="overflow-hidden {selected ? 'ring-2 ring-rose-500' : ''}">
+<Card class="overflow-hidden {selected ? 'ring-2 ring-foreground' : ''}">
 	<!-- Header Row -->
 	<div class="flex items-start justify-between gap-2 border-b bg-gray-50 p-3">
 		<div class="flex items-center gap-2">
@@ -130,22 +130,22 @@
 						<option value="2ND">2ND</option>
 					</select>
 					{#if item.part_type === 'OEM'}
-						<Badge variant="outline" class="gap-1 bg-blue-50 text-blue-700">
+						<Badge variant="muted" class="gap-1">
 							<ShieldCheck class="h-3 w-3" />
 							OEM
 						</Badge>
 					{:else if item.part_type === 'ALT'}
-						<Badge variant="outline" class="gap-1 bg-green-50 text-green-700">
+						<Badge variant="success" class="gap-1">
 							<Package class="h-3 w-3" />
 							ALT
 						</Badge>
 					{:else if item.part_type === '2ND'}
-						<Badge variant="outline" class="gap-1 bg-amber-50 text-amber-700">
+						<Badge variant="warning" class="gap-1">
 							<Recycle class="h-3 w-3" />
 							2ND
 						</Badge>
 					{:else}
-						<Badge variant="outline">OEM</Badge>
+						<Badge variant="muted">OEM</Badge>
 					{/if}
 				</div>
 			{/if}
@@ -154,7 +154,7 @@
 			{#if item.betterment_total && item.betterment_total > 0}
 				<button
 					onclick={onEditBetterment}
-					class="flex items-center gap-1 rounded bg-orange-100 px-1.5 py-0.5 text-xs text-orange-700"
+					class="flex items-center gap-1 rounded-sm bg-warning-soft px-1.5 py-0.5 text-xs text-warning border border-warning-border"
 				>
 					<Percent class="h-3 w-3" />
 					<span class="font-mono-tabular">-{formatCurrency(item.betterment_total)}</span>
