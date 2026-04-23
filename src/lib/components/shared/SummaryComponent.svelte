@@ -261,7 +261,7 @@ import type { VehicleDetails } from '$lib/utils/report-data-helpers';
 					{#if vehicleValues.trade_value}
 						<div class="grid grid-cols-3 gap-2">
 							<dt class="font-medium text-gray-500">Trade Value:</dt>
-							<dd class="col-span-2 text-gray-900">
+							<dd class="col-span-2 text-gray-900 font-mono-tabular">
 								{formatCurrency(vehicleValues.trade_value)}
 								{#if vehicleValues.trade_total_adjusted_value && vehicleValues.trade_total_adjusted_value !== vehicleValues.trade_value}
 									→ {formatCurrency(vehicleValues.trade_total_adjusted_value)}
@@ -272,7 +272,7 @@ import type { VehicleDetails } from '$lib/utils/report-data-helpers';
 					{#if vehicleValues.market_value}
 						<div class="grid grid-cols-3 gap-2">
 							<dt class="font-medium text-gray-500">Market Value:</dt>
-							<dd class="col-span-2 text-gray-900">
+							<dd class="col-span-2 text-gray-900 font-mono-tabular">
 								{formatCurrency(vehicleValues.market_value)}
 								{#if vehicleValues.market_total_adjusted_value && vehicleValues.market_total_adjusted_value !== vehicleValues.market_value}
 									→ {formatCurrency(vehicleValues.market_total_adjusted_value)}
@@ -283,7 +283,7 @@ import type { VehicleDetails } from '$lib/utils/report-data-helpers';
 					{#if vehicleValues.retail_value}
 						<div class="grid grid-cols-3 gap-2">
 							<dt class="font-medium text-gray-500">Retail Value:</dt>
-							<dd class="col-span-2 text-gray-900">
+							<dd class="col-span-2 text-gray-900 font-mono-tabular">
 								{formatCurrency(vehicleValues.retail_value)}
 								{#if vehicleValues.retail_total_adjusted_value && vehicleValues.retail_total_adjusted_value !== vehicleValues.retail_value}
 									→ {formatCurrency(vehicleValues.retail_total_adjusted_value)}
@@ -294,7 +294,7 @@ import type { VehicleDetails } from '$lib/utils/report-data-helpers';
 					{#if vehicleValues.borderline_writeoff_retail}
 						<div class="grid grid-cols-3 gap-2">
 							<dt class="font-medium text-gray-500">Borderline Write-off:</dt>
-							<dd class="col-span-2 font-semibold text-orange-600">
+							<dd class="col-span-2 font-semibold text-orange-600 font-mono-tabular">
 								{formatCurrency(vehicleValues.borderline_writeoff_retail)}
 							</dd>
 						</div>
@@ -310,17 +310,17 @@ import type { VehicleDetails } from '$lib/utils/report-data-helpers';
 				<dl class="grid gap-3 text-sm">
 					<div class="grid grid-cols-3 gap-2">
 						<dt class="font-medium text-gray-500">Subtotal:</dt>
-						<dd class="col-span-2 text-gray-900">{formatCurrency(preIncidentEstimate.subtotal)}</dd>
+						<dd class="col-span-2 text-gray-900 font-mono-tabular">{formatCurrency(preIncidentEstimate.subtotal)}</dd>
 					</div>
 					<div class="grid grid-cols-3 gap-2">
 						<dt class="font-medium text-gray-500">VAT ({preIncidentEstimate.vat_percentage}%):</dt>
-						<dd class="col-span-2 text-gray-900">
+						<dd class="col-span-2 text-gray-900 font-mono-tabular">
 							{formatCurrency(preIncidentEstimate.vat_amount)}
 						</dd>
 					</div>
 					<div class="grid grid-cols-3 gap-2">
 						<dt class="font-medium text-gray-500">Total:</dt>
-						<dd class="col-span-2 font-bold text-gray-900">
+						<dd class="col-span-2 font-bold text-gray-900 font-mono-tabular">
 							{formatCurrency(preIncidentEstimate.total)}
 						</dd>
 					</div>
@@ -337,16 +337,16 @@ import type { VehicleDetails } from '$lib/utils/report-data-helpers';
 				<dl class="grid gap-3 text-sm">
 					<div class="grid grid-cols-3 gap-2">
 						<dt class="font-medium text-gray-500">Subtotal:</dt>
-						<dd class="col-span-2 text-gray-900">{formatCurrency(estimate.subtotal)}</dd>
+						<dd class="col-span-2 text-gray-900 font-mono-tabular">{formatCurrency(estimate.subtotal)}</dd>
 					</div>
 					<div class="grid grid-cols-3 gap-2">
 						<dt class="font-medium text-gray-500">VAT ({estimate.vat_percentage}%):</dt>
-						<dd class="col-span-2 text-gray-900">{formatCurrency(estimate.vat_amount)}</dd>
+						<dd class="col-span-2 text-gray-900 font-mono-tabular">{formatCurrency(estimate.vat_amount)}</dd>
 					</div>
 					<div class="grid grid-cols-3 gap-2">
 						<dt class="font-medium text-gray-500">Total:</dt>
 						<dd
-							class="col-span-2 font-bold {threshold?.color === 'red'
+							class="col-span-2 font-bold font-mono-tabular {threshold?.color === 'red'
 								? 'text-red-600'
 								: threshold?.color === 'orange'
 									? 'text-orange-600'

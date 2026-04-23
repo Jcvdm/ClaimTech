@@ -68,7 +68,7 @@
 						{removedOriginalLineIds.length} line{removedOriginalLineIds.length > 1 ? 's' : ''} removed
 					</p>
 					<p class="text-xs text-red-700 mt-1">
-						Removed total: {formatCurrency(removedTotal())}
+						Removed total: <span class="font-mono-tabular">{formatCurrency(removedTotal())}</span>
 					</p>
 				</div>
 			</div>
@@ -100,7 +100,7 @@
 				</div>
 				<div class="rounded-lg border bg-blue-50 p-3">
 					<p class="text-xs text-blue-600">Removed Total</p>
-					<p class="text-lg font-semibold text-blue-900">{formatCurrency(removedTotal())}</p>
+					<p class="text-lg font-semibold text-blue-900 font-mono-tabular">{formatCurrency(removedTotal())}</p>
 				</div>
 			</div>
 
@@ -137,7 +137,7 @@
 									</div>
 								</Table.Cell>
 								<Table.Cell class="text-right">
-									<span class="font-medium {isRemoved ? 'text-red-600 line-through' : 'text-gray-900'}">
+									<span class="font-medium font-mono-tabular {isRemoved ? 'text-red-600 line-through' : 'text-gray-900'}">
 										{formatCurrency(item.total || 0)}
 									</span>
 								</Table.Cell>

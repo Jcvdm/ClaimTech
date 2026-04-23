@@ -354,7 +354,7 @@
 									</span>
 								</div>
 								<div class="flex shrink-0 items-center gap-2">
-									<span class="text-sm font-medium">{formatCurrency(item.total || 0)}</span>
+									<span class="text-sm font-medium font-mono-tabular">{formatCurrency(item.total || 0)}</span>
 									{#if isRemoved}
 										<Badge variant="destructive" class="text-xs">Removed</Badge>
 									{:else if canEdit}
@@ -473,18 +473,18 @@
 				<div class="space-y-1.5 text-sm">
 					<div class="flex justify-between">
 						<span class="text-gray-600">Original Estimate Subtotal</span>
-						<span class="font-medium">{formatCurrency(estimateSubtotal)}</span>
+						<span class="font-medium font-mono-tabular">{formatCurrency(estimateSubtotal)}</span>
 					</div>
 					{#if removedTotal() > 0}
 						<div class="flex justify-between text-red-600">
 							<span>Removed Items</span>
-							<span class="font-medium">- {formatCurrency(removedTotal())}</span>
+							<span class="font-medium font-mono-tabular">- {formatCurrency(removedTotal())}</span>
 						</div>
 					{/if}
 					{#if approvedAdditionalsTotal() > 0}
 						<div class="flex justify-between text-green-600">
 							<span>Approved Additionals</span>
-							<span class="font-medium">+ {formatCurrency(approvedAdditionalsTotal())}</span>
+							<span class="font-medium font-mono-tabular">+ {formatCurrency(approvedAdditionalsTotal())}</span>
 						</div>
 					{/if}
 
@@ -492,25 +492,25 @@
 
 					<div class="flex justify-between font-medium">
 						<span>Combined Subtotal (Ex VAT)</span>
-						<span>{formatCurrency(combinedSubtotal())}</span>
+						<span class="font-mono-tabular">{formatCurrency(combinedSubtotal())}</span>
 					</div>
 					<div class="flex justify-between text-gray-600">
 						<span>VAT ({vatRate}%)</span>
-						<span>{formatCurrency(combinedVat())}</span>
+						<span class="font-mono-tabular">{formatCurrency(combinedVat())}</span>
 					</div>
 
 					<Separator class="my-2" />
 
 					<div class="flex justify-between text-base font-bold">
 						<span>Grand Total</span>
-						<span>{formatCurrency(combinedTotal())}</span>
+						<span class="font-mono-tabular">{formatCurrency(combinedTotal())}</span>
 					</div>
 
 					<Separator class="my-2" />
 
 					<div class="flex justify-between text-gray-500">
 						<span>Original Total (Snapshot)</span>
-						<span>{formatCurrency(originalTotal())}</span>
+						<span class="font-mono-tabular">{formatCurrency(originalTotal())}</span>
 					</div>
 					<div
 						class="flex justify-between font-medium {delta() > 0
@@ -520,7 +520,7 @@
 								: 'text-gray-500'}"
 					>
 						<span>Delta</span>
-						<span>
+						<span class="font-mono-tabular">
 							{delta() >= 0 ? '+' : ''}{formatCurrency(delta())}
 						</span>
 					</div>

@@ -661,15 +661,15 @@ import type { VehicleDetails } from '$lib/utils/report-data-helpers';
 			<div class="grid gap-4 md:grid-cols-3">
 				<div>
 					<p class="text-xs text-gray-600">Trade</p>
-					<p class="text-lg font-semibold text-gray-900">{formatCurrency(tradeAdjusted)}</p>
+					<p class="text-lg font-semibold text-gray-900 font-mono-tabular">{formatCurrency(tradeAdjusted)}</p>
 				</div>
 				<div>
 					<p class="text-xs text-gray-600">Market</p>
-					<p class="text-lg font-semibold text-gray-900">{formatCurrency(marketAdjusted)}</p>
+					<p class="text-lg font-semibold text-gray-900 font-mono-tabular">{formatCurrency(marketAdjusted)}</p>
 				</div>
 				<div>
 					<p class="text-xs text-gray-600">Retail</p>
-					<p class="text-lg font-semibold text-gray-900">{formatCurrency(retailAdjusted)}</p>
+					<p class="text-lg font-semibold text-gray-900 font-mono-tabular">{formatCurrency(retailAdjusted)}</p>
 				</div>
 			</div>
 		</div>
@@ -687,23 +687,23 @@ import type { VehicleDetails } from '$lib/utils/report-data-helpers';
 		<div class="grid gap-4 md:grid-cols-3">
 			<div class="rounded-lg bg-blue-50 p-4">
 				<p class="text-sm text-gray-600">Trade Total</p>
-				<p class="text-xl font-bold text-blue-900">{formatCurrency(tradeTotalAdjusted)}</p>
+				<p class="text-xl font-bold text-blue-900 font-mono-tabular">{formatCurrency(tradeTotalAdjusted)}</p>
 				<p class="mt-1 text-xs text-gray-500">
-					Adjusted: {formatCurrency(tradeAdjusted)} + Accessories: {formatCurrency(accessoriesTotal)}
+					Adjusted: <span class="font-mono-tabular">{formatCurrency(tradeAdjusted)}</span> + Accessories: <span class="font-mono-tabular">{formatCurrency(accessoriesTotal)}</span>
 				</p>
 			</div>
 			<div class="rounded-lg bg-blue-50 p-4">
 				<p class="text-sm text-gray-600">Market Total</p>
-				<p class="text-xl font-bold text-blue-900">{formatCurrency(marketTotalAdjusted)}</p>
+				<p class="text-xl font-bold text-blue-900 font-mono-tabular">{formatCurrency(marketTotalAdjusted)}</p>
 				<p class="mt-1 text-xs text-gray-500">
-					Adjusted: {formatCurrency(marketAdjusted)} + Accessories: {formatCurrency(accessoriesTotal)}
+					Adjusted: <span class="font-mono-tabular">{formatCurrency(marketAdjusted)}</span> + Accessories: <span class="font-mono-tabular">{formatCurrency(accessoriesTotal)}</span>
 				</p>
 			</div>
 			<div class="rounded-lg bg-blue-50 p-4">
 				<p class="text-sm text-gray-600">Retail Total</p>
-				<p class="text-xl font-bold text-blue-900">{formatCurrency(retailTotalAdjusted)}</p>
+				<p class="text-xl font-bold text-blue-900 font-mono-tabular">{formatCurrency(retailTotalAdjusted)}</p>
 				<p class="mt-1 text-xs text-gray-500">
-					Adjusted: {formatCurrency(retailAdjusted)} + Accessories: {formatCurrency(accessoriesTotal)}
+					Adjusted: <span class="font-mono-tabular">{formatCurrency(retailAdjusted)}</span> + Accessories: <span class="font-mono-tabular">{formatCurrency(accessoriesTotal)}</span>
 				</p>
 			</div>
 		</div>
@@ -738,33 +738,33 @@ import type { VehicleDetails } from '$lib/utils/report-data-helpers';
 				<tbody>
 					<tr class="border-b border-gray-100">
 						<td class="px-4 py-3 font-medium text-gray-900">Trade</td>
-						<td class="px-4 py-3 text-right text-gray-900">
+						<td class="px-4 py-3 text-right text-gray-900 font-mono-tabular">
 							{formatCurrency(borderlineWriteoffTrade)}
 						</td>
-						<td class="px-4 py-3 text-right text-gray-900">
+						<td class="px-4 py-3 text-right text-gray-900 font-mono-tabular">
 							{formatCurrency(totalWriteoffTrade)}
 						</td>
-						<td class="px-4 py-3 text-right text-gray-900">{formatCurrency(salvageTrade)}</td>
+						<td class="px-4 py-3 text-right text-gray-900 font-mono-tabular">{formatCurrency(salvageTrade)}</td>
 					</tr>
 					<tr class="border-b border-gray-100">
 						<td class="px-4 py-3 font-medium text-gray-900">Market</td>
-						<td class="px-4 py-3 text-right text-gray-900">
+						<td class="px-4 py-3 text-right text-gray-900 font-mono-tabular">
 							{formatCurrency(borderlineWriteoffMarket)}
 						</td>
-						<td class="px-4 py-3 text-right text-gray-900">
+						<td class="px-4 py-3 text-right text-gray-900 font-mono-tabular">
 							{formatCurrency(totalWriteoffMarket)}
 						</td>
-						<td class="px-4 py-3 text-right text-gray-900">{formatCurrency(salvageMarket)}</td>
+						<td class="px-4 py-3 text-right text-gray-900 font-mono-tabular">{formatCurrency(salvageMarket)}</td>
 					</tr>
 					<tr class="border-b border-gray-100">
 						<td class="px-4 py-3 font-medium text-gray-900">Retail</td>
-						<td class="px-4 py-3 text-right text-gray-900">
+						<td class="px-4 py-3 text-right text-gray-900 font-mono-tabular">
 							{formatCurrency(borderlineWriteoffRetail)}
 						</td>
-						<td class="px-4 py-3 text-right text-gray-900">
+						<td class="px-4 py-3 text-right text-gray-900 font-mono-tabular">
 							{formatCurrency(totalWriteoffRetail)}
 						</td>
-						<td class="px-4 py-3 text-right text-gray-900">{formatCurrency(salvageRetail)}</td>
+						<td class="px-4 py-3 text-right text-gray-900 font-mono-tabular">{formatCurrency(salvageRetail)}</td>
 					</tr>
 				</tbody>
 			</table>

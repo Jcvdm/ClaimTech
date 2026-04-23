@@ -157,13 +157,13 @@
 					class="flex items-center gap-1 rounded bg-orange-100 px-1.5 py-0.5 text-xs text-orange-700"
 				>
 					<Percent class="h-3 w-3" />
-					-{formatCurrency(item.betterment_total)}
+					<span class="font-mono-tabular">-{formatCurrency(item.betterment_total)}</span>
 				</button>
 			{/if}
 		</div>
 
 		<!-- Total -->
-		<span class="text-lg font-bold text-gray-900">
+		<span class="text-lg font-bold text-gray-900 font-mono-tabular">
 			{formatCurrency(item.total)}
 		</span>
 	</div>
@@ -203,7 +203,7 @@
 					class="flex items-center justify-between rounded border bg-white p-2 text-left hover:border-blue-300"
 				>
 					<span class="text-gray-600">Part (nett)</span>
-					<span class="font-medium text-blue-600">{formatCurrency(item.part_price_nett || 0)}</span>
+					<span class="font-medium text-blue-600 font-mono-tabular">{formatCurrency(item.part_price_nett || 0)}</span>
 				</button>
 			{/if}
 
@@ -215,7 +215,7 @@
 					class="flex items-center justify-between rounded border bg-white p-2 text-left hover:border-blue-300"
 				>
 					<span class="text-gray-600">S&A</span>
-					<span class="font-medium text-blue-600">
+					<span class="font-medium text-blue-600 font-mono-tabular">
 						{formatCurrency(item.strip_assemble || 0)}
 						{#if item.strip_assemble_hours}
 							<span class="text-xs text-gray-500">({item.strip_assemble_hours}h)</span>
@@ -232,7 +232,7 @@
 					class="flex items-center justify-between rounded border bg-white p-2 text-left hover:border-blue-300"
 				>
 					<span class="text-gray-600">Labour</span>
-					<span class="font-medium text-blue-600">
+					<span class="font-medium text-blue-600 font-mono-tabular">
 						{formatCurrency(item.labour_cost || 0)}
 						{#if item.labour_hours}
 							<span class="text-xs text-gray-500">({item.labour_hours}h)</span>
@@ -249,7 +249,7 @@
 					class="flex items-center justify-between rounded border bg-white p-2 text-left hover:border-blue-300"
 				>
 					<span class="text-gray-600">Paint</span>
-					<span class="font-medium text-blue-600">
+					<span class="font-medium text-blue-600 font-mono-tabular">
 						{formatCurrency(item.paint_cost || 0)}
 						{#if item.paint_panels}
 							<span class="text-xs text-gray-500">({item.paint_panels}p)</span>
@@ -266,7 +266,7 @@
 					class="flex items-center justify-between rounded border bg-white p-2 text-left hover:border-blue-300"
 				>
 					<span class="text-gray-600">Outwork</span>
-					<span class="font-medium text-blue-600">{formatCurrency(item.outwork_charge_nett || 0)}</span>
+					<span class="font-medium text-blue-600 font-mono-tabular">{formatCurrency(item.outwork_charge_nett || 0)}</span>
 				</button>
 			{/if}
 
@@ -278,7 +278,7 @@
 					class="flex items-center justify-between rounded border bg-white p-2 text-left hover:border-blue-300 {item.betterment_total ? 'border-orange-200 bg-orange-50' : ''}"
 				>
 					<span class="text-gray-600">Betterment</span>
-					<span class="font-medium {item.betterment_total ? 'text-orange-600' : 'text-gray-400'}">
+					<span class="font-medium font-mono-tabular {item.betterment_total ? 'text-orange-600' : 'text-gray-400'}">
 						{item.betterment_total ? `-${formatCurrency(item.betterment_total)}` : '-'}
 					</span>
 				</button>

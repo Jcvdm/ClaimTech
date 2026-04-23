@@ -71,7 +71,7 @@
 				<tfoot>
 					<tr class="border-t-2 border-gray-300 bg-gray-50 font-semibold">
 						<td class="px-4 py-3 text-left text-sm text-gray-900">Total Accessories</td>
-						<td class="px-4 py-3 text-right text-sm text-gray-900">{formatCurrency(total)}</td>
+						<td class="px-4 py-3 text-right text-sm text-gray-900 font-mono-tabular">{formatCurrency(total)}</td>
 					</tr>
 				</tfoot>
 			</table>

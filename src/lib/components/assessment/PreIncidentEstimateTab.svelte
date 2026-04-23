@@ -632,7 +632,7 @@
 											{:else}
 												<button
 													onclick={() => handlePartPriceClick(item.id!, item.part_price_nett || null)}
-													class="text-sm font-medium text-blue-600 hover:text-blue-800 cursor-pointer w-full text-right"
+													class="text-sm font-medium text-blue-600 hover:text-blue-800 cursor-pointer w-full text-right font-mono-tabular"
 													title="Click to edit nett price (selling price includes markup)"
 												>
 													{formatCurrency(item.part_price || 0)}
@@ -663,7 +663,7 @@
 											{:else}
 												<button
 													onclick={() => handleSAClick(item.id!, item.strip_assemble_hours || null)}
-													class="text-sm font-medium text-blue-600 hover:text-blue-800 cursor-pointer w-full text-right"
+													class="text-sm font-medium text-blue-600 hover:text-blue-800 cursor-pointer w-full text-right font-mono-tabular"
 													title="Click to edit hours (S&A = hours × labour rate)"
 												>
 													{formatCurrency(item.strip_assemble || 0)}
@@ -694,7 +694,7 @@
 											{:else}
 												<button
 													onclick={() => handleLabourClick(item.id!, item.labour_hours || null)}
-													class="text-sm font-medium text-blue-600 hover:text-blue-800 cursor-pointer w-full text-right"
+													class="text-sm font-medium text-blue-600 hover:text-blue-800 cursor-pointer w-full text-right font-mono-tabular"
 													title="Click to edit hours (Labour = hours × labour rate)"
 												>
 													{formatCurrency(item.labour_cost || 0)}
@@ -725,7 +725,7 @@
 											{:else}
 												<button
 													onclick={() => handlePaintClick(item.id!, item.paint_panels || null)}
-													class="text-sm font-medium text-blue-600 hover:text-blue-800 cursor-pointer w-full text-right"
+													class="text-sm font-medium text-blue-600 hover:text-blue-800 cursor-pointer w-full text-right font-mono-tabular"
 													title="Click to edit panels (Paint = panels × paint rate)"
 												>
 													{formatCurrency(item.paint_cost || 0)}
@@ -759,7 +759,7 @@
 											{:else}
 												<button
 													onclick={() => handleOutworkClick(item.id!, item.outwork_charge_nett || null)}
-													class="text-sm font-medium text-blue-600 hover:text-blue-800 cursor-pointer w-full text-right"
+													class="text-sm font-medium text-blue-600 hover:text-blue-800 cursor-pointer w-full text-right font-mono-tabular"
 													title="Click to edit nett price (selling price includes markup)"
 												>
 													{formatCurrency(item.outwork_charge || 0)}
@@ -771,7 +771,7 @@
 									</Table.Cell>
 
 									<!-- Total -->
-									<Table.Cell class="text-right px-3 py-2 font-bold">
+									<Table.Cell class="text-right px-3 py-2 font-bold font-mono-tabular">
 										{formatCurrency(item.total)}
 									</Table.Cell>
 
@@ -804,50 +804,50 @@
 					<!-- Category Totals -->
 					<div class="flex items-center justify-between py-2">
 						<span class="text-sm text-gray-600">Parts Total</span>
-						<span class="text-sm font-medium">{formatCurrency(totals?.partsTotal || 0)}</span>
+						<span class="text-sm font-medium font-mono-tabular">{formatCurrency(totals?.partsTotal || 0)}</span>
 					</div>
 
 					<div class="flex items-center justify-between py-2">
 						<span class="text-sm text-gray-600">Markup Total</span>
-						<span class="text-sm font-medium text-green-600">{formatCurrency(totals?.markupTotal || 0)}</span>
+						<span class="text-sm font-medium text-green-600 font-mono-tabular">{formatCurrency(totals?.markupTotal || 0)}</span>
 					</div>
 
 					<div class="flex items-center justify-between py-2">
 						<span class="text-sm text-gray-600">S&A Total</span>
-						<span class="text-sm font-medium">{formatCurrency(totals?.saTotal || 0)}</span>
+						<span class="text-sm font-medium font-mono-tabular">{formatCurrency(totals?.saTotal || 0)}</span>
 					</div>
 
 					<div class="flex items-center justify-between py-2">
 						<span class="text-sm text-gray-600">Labour Total</span>
-						<span class="text-sm font-medium">{formatCurrency(totals?.labourTotal || 0)}</span>
+						<span class="text-sm font-medium font-mono-tabular">{formatCurrency(totals?.labourTotal || 0)}</span>
 					</div>
 
 					<div class="flex items-center justify-between py-2">
 						<span class="text-sm text-gray-600">Paint Total</span>
-						<span class="text-sm font-medium">{formatCurrency(totals?.paintTotal || 0)}</span>
+						<span class="text-sm font-medium font-mono-tabular">{formatCurrency(totals?.paintTotal || 0)}</span>
 					</div>
 
 					<div class="flex items-center justify-between py-2 border-b">
 						<span class="text-sm text-gray-600">Outwork Total</span>
-						<span class="text-sm font-medium">{formatCurrency(totals?.outworkTotal || 0)}</span>
+						<span class="text-sm font-medium font-mono-tabular">{formatCurrency(totals?.outworkTotal || 0)}</span>
 					</div>
 
 					<!-- Subtotal -->
 					<div class="flex items-center justify-between py-2 border-b-2">
 						<span class="text-base font-semibold text-gray-700">Subtotal (Ex VAT)</span>
-						<span class="text-lg font-semibold">{formatCurrency(localEstimate.subtotal)}</span>
+						<span class="text-lg font-semibold font-mono-tabular">{formatCurrency(localEstimate.subtotal)}</span>
 					</div>
 
 					<!-- VAT -->
 					<div class="flex items-center justify-between py-2 border-b-2">
 						<span class="text-base font-semibold text-gray-700">VAT ({localEstimate.vat_percentage}%)</span>
-						<span class="text-lg font-semibold">{formatCurrency(localEstimate.vat_amount)}</span>
+						<span class="text-lg font-semibold font-mono-tabular">{formatCurrency(localEstimate.vat_amount)}</span>
 					</div>
 
 					<!-- Total -->
 					<div class="flex items-center justify-between pt-3">
 						<span class="text-lg font-bold text-gray-900">Total (Inc VAT)</span>
-						<span class="text-2xl font-bold text-blue-600">{formatCurrency(localEstimate.total)}</span>
+						<span class="text-2xl font-bold text-blue-600 font-mono-tabular">{formatCurrency(localEstimate.total)}</span>
 					</div>
 				</div>
 			{/if}

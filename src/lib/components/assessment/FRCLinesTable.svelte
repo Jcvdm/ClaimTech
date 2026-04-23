@@ -168,7 +168,7 @@
                                         {@const removal = lines.find(l => l.is_removal_additional && l.removal_for_source_line_id === line.source_line_id)}
                                         {#if removal}
                                             <Badge variant="outline" class="text-[10px] py-0 px-1.5 border-red-400 text-red-600">
-                                                Deduction {formatCurrency(removal.quoted_total)}
+                                                Deduction <span class="font-mono-tabular">{formatCurrency(removal.quoted_total)}</span>
                                             </Badge>
                                         {/if}
                                     {/if}
@@ -188,7 +188,7 @@
                                     {/if}
 									{#if ((line.quoted_outwork_charge_nett || 0) > 0 || (line.actual_outwork_charge ?? 0) > 0)}
 										<span>
-											Outwork (nett): {formatCurrency(line.actual_outwork_charge ?? line.quoted_outwork_charge_nett ?? 0)}
+											Outwork (nett): <span class="font-mono-tabular">{formatCurrency(line.actual_outwork_charge ?? line.quoted_outwork_charge_nett ?? 0)}</span>
 										</span>
 									{/if}
 								</p>
@@ -204,15 +204,15 @@
 						<Table.Cell class="text-right px-3 py-3">
 							{#if showParts(line.process_type)}
 								<div class="space-y-0.5">
-									<div class="text-xs text-gray-500">{formatCurrency(line.quoted_part_price_nett || 0)}</div>
-									<div class="text-sm font-medium text-gray-900">
+									<div class="text-xs text-gray-500 font-mono-tabular">{formatCurrency(line.quoted_part_price_nett || 0)}</div>
+									<div class="text-sm font-medium text-gray-900 font-mono-tabular">
 										{line.actual_part_price_nett !== null && line.actual_part_price_nett !== undefined
 											? formatCurrency(line.actual_part_price_nett)
 											: '-'}
 									</div>
 									{#if line.actual_part_price_nett !== null && line.actual_part_price_nett !== undefined}
 										{@const delta = getDeltaDisplay(line.quoted_part_price_nett || 0, line.actual_part_price_nett)}
-										<div class="text-xs {delta.class}">{delta.text}</div>
+										<div class="text-xs font-mono-tabular {delta.class}">{delta.text}</div>
 									{/if}
 								</div>
 							{:else}
@@ -225,7 +225,7 @@
 							<div class="space-y-1">
 								{#if showSA(line.process_type)}
 									<div>
-										<div class="text-[11px] text-gray-500">S&A: {formatCurrency(line.quoted_strip_assemble || 0)}</div>
+										<div class="text-[11px] text-gray-500">S&A: <span class="font-mono-tabular">{formatCurrency(line.quoted_strip_assemble || 0)}</span></div>
 										<div class="text-sm font-medium text-gray-900">
 											{line.actual_strip_assemble ?? '-'}
 											{#if line.actual_strip_assemble_hours !== null && line.actual_strip_assemble_hours !== undefined}
@@ -234,14 +234,14 @@
 										</div>
 										{#if line.actual_strip_assemble !== null && line.actual_strip_assemble !== undefined}
 											{@const d = getDeltaDisplay(line.quoted_strip_assemble || 0, line.actual_strip_assemble)}
-											<div class="text-[11px] {d.class}">{d.text}</div>
+											<div class="text-[11px] font-mono-tabular {d.class}">{d.text}</div>
 										{/if}
 									</div>
 								{/if}
 
 								{#if showLabour(line.process_type)}
 									<div>
-										<div class="text-[11px] text-gray-500">Labour: {formatCurrency(line.quoted_labour_cost || 0)}</div>
+										<div class="text-[11px] text-gray-500">Labour: <span class="font-mono-tabular">{formatCurrency(line.quoted_labour_cost || 0)}</span></div>
 										<div class="text-sm font-medium text-gray-900">
 											{line.actual_labour_cost ?? '-'}
 											{#if line.actual_labour_hours !== null && line.actual_labour_hours !== undefined}
@@ -250,14 +250,14 @@
 										</div>
 										{#if line.actual_labour_cost !== null && line.actual_labour_cost !== undefined}
 											{@const d = getDeltaDisplay(line.quoted_labour_cost || 0, line.actual_labour_cost)}
-											<div class="text-[11px] {d.class}">{d.text}</div>
+											<div class="text-[11px] font-mono-tabular {d.class}">{d.text}</div>
 										{/if}
 									</div>
 								{/if}
 
 								{#if showPaint(line.process_type)}
 									<div>
-										<div class="text-[11px] text-gray-500">Paint: {formatCurrency(line.quoted_paint_cost || 0)}</div>
+										<div class="text-[11px] text-gray-500">Paint: <span class="font-mono-tabular">{formatCurrency(line.quoted_paint_cost || 0)}</span></div>
 										<div class="text-sm font-medium text-gray-900">
 											{line.actual_paint_cost ?? '-'}
 											{#if line.actual_paint_panels !== null && line.actual_paint_panels !== undefined}
@@ -266,7 +266,7 @@
 										</div>
 										{#if line.actual_paint_cost !== null && line.actual_paint_cost !== undefined}
 											{@const d = getDeltaDisplay(line.quoted_paint_cost || 0, line.actual_paint_cost)}
-											<div class="text-[11px] {d.class}">{d.text}</div>
+											<div class="text-[11px] font-mono-tabular {d.class}">{d.text}</div>
 										{/if}
 									</div>
 								{/if}
@@ -277,11 +277,11 @@
 						<Table.Cell class="hidden xl:table-cell text-right px-3 py-3">
 							{#if showSA(line.process_type)}
 								<div class="space-y-0.5">
-									<div class="text-xs text-gray-500">
+									<div class="text-xs text-gray-500 font-mono-tabular">
 										{formatCurrency(line.quoted_strip_assemble || 0)}
 										{#if line.strip_assemble_hours}<span class="text-gray-400">({line.strip_assemble_hours}h)</span>{/if}
 									</div>
-									<div class="text-sm font-medium text-gray-900">
+									<div class="text-sm font-medium text-gray-900 font-mono-tabular">
 										{line.actual_strip_assemble !== null && line.actual_strip_assemble !== undefined
 											? formatCurrency(line.actual_strip_assemble)
 											: '-'}
@@ -291,7 +291,7 @@
 									</div>
 									{#if line.actual_strip_assemble !== null && line.actual_strip_assemble !== undefined}
 										{@const delta = getDeltaDisplay(line.quoted_strip_assemble || 0, line.actual_strip_assemble)}
-										<div class="text-xs {delta.class}">{delta.text}</div>
+										<div class="text-xs font-mono-tabular {delta.class}">{delta.text}</div>
 									{/if}
 								</div>
 							{:else}
@@ -303,11 +303,11 @@
 						<Table.Cell class="hidden xl:table-cell text-right px-3 py-3">
 							{#if showLabour(line.process_type)}
 								<div class="space-y-0.5">
-									<div class="text-xs text-gray-500">
+									<div class="text-xs text-gray-500 font-mono-tabular">
 										{formatCurrency(line.quoted_labour_cost || 0)}
 										{#if line.labour_hours}<span class="text-gray-400">({line.labour_hours}h)</span>{/if}
 									</div>
-									<div class="text-sm font-medium text-gray-900">
+									<div class="text-sm font-medium text-gray-900 font-mono-tabular">
 										{line.actual_labour_cost !== null && line.actual_labour_cost !== undefined
 											? formatCurrency(line.actual_labour_cost)
 											: '-'}
@@ -317,7 +317,7 @@
 									</div>
 									{#if line.actual_labour_cost !== null && line.actual_labour_cost !== undefined}
 										{@const delta = getDeltaDisplay(line.quoted_labour_cost || 0, line.actual_labour_cost)}
-										<div class="text-xs {delta.class}">{delta.text}</div>
+										<div class="text-xs font-mono-tabular {delta.class}">{delta.text}</div>
 									{/if}
 								</div>
 							{:else}
@@ -329,11 +329,11 @@
 						<Table.Cell class="hidden xl:table-cell text-right px-3 py-3">
 							{#if showPaint(line.process_type)}
 								<div class="space-y-0.5">
-									<div class="text-xs text-gray-500">
+									<div class="text-xs text-gray-500 font-mono-tabular">
 										{formatCurrency(line.quoted_paint_cost || 0)}
 										{#if line.paint_panels}<span class="text-gray-400">({line.paint_panels}p)</span>{/if}
 									</div>
-									<div class="text-sm font-medium text-gray-900">
+									<div class="text-sm font-medium text-gray-900 font-mono-tabular">
 										{line.actual_paint_cost !== null && line.actual_paint_cost !== undefined
 											? formatCurrency(line.actual_paint_cost)
 											: '-'}
@@ -343,7 +343,7 @@
 									</div>
 									{#if line.actual_paint_cost !== null && line.actual_paint_cost !== undefined}
 										{@const delta = getDeltaDisplay(line.quoted_paint_cost || 0, line.actual_paint_cost)}
-										<div class="text-xs {delta.class}">{delta.text}</div>
+										<div class="text-xs font-mono-tabular {delta.class}">{delta.text}</div>
 									{/if}
 								</div>
 							{:else}
@@ -362,15 +362,15 @@
 						<!-- Total -->
 						<Table.Cell class="text-right px-3 py-3">
 							<div class="space-y-0.5">
-								<div class="text-xs text-gray-500">{formatCurrency(line.quoted_total)}</div>
-								<div class="text-sm font-bold text-gray-900">
+								<div class="text-xs text-gray-500 font-mono-tabular">{formatCurrency(line.quoted_total)}</div>
+								<div class="text-sm font-bold text-gray-900 font-mono-tabular">
 									{line.actual_total !== null && line.actual_total !== undefined
 										? formatCurrency(line.actual_total)
 										: '-'}
 								</div>
 								{#if line.actual_total !== null && line.actual_total !== undefined}
 									{@const delta = getDeltaDisplay(line.quoted_total, line.actual_total)}
-									<div class="text-xs font-medium {delta.class}">{delta.text}</div>
+									<div class="text-xs font-medium font-mono-tabular {delta.class}">{delta.text}</div>
 								{/if}
 							</div>
 						</Table.Cell>
