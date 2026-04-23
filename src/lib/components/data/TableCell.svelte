@@ -23,7 +23,7 @@
 
 	const variantClasses: Record<Variant, string> = {
 		default: 'text-foreground',
-		primary: 'text-primary font-medium',
+		primary: 'text-brand font-medium',
 		success: 'text-success font-medium',
 		warning: 'text-warning font-medium',
 		danger: 'text-destructive font-medium',
