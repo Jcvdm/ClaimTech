@@ -339,51 +339,37 @@
 
 											<!-- Badges -->
 											{#if item.href === '/requests' && newRequestCount > 0}
-												<span
-													class="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-red-600 px-1 text-xs font-medium text-white"
-												>
+												<span class="ml-auto font-mono-tabular tabular-nums text-[11px] text-muted-foreground">
 													{newRequestCount}
 												</span>
 											{/if}
 											{#if item.href === '/work/inspections' && inspectionCount > 0}
-												<span
-													class="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-blue-600 px-1 text-xs font-medium text-white"
-												>
+												<span class="ml-auto font-mono-tabular tabular-nums text-[11px] text-muted-foreground">
 													{inspectionCount}
 												</span>
 											{/if}
 											{#if item.href === '/work/appointments' && appointmentCount > 0}
-												<span
-													class="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-blue-600 px-1 text-xs font-medium text-white"
-												>
+												<span class="ml-auto font-mono-tabular tabular-nums text-[11px] text-muted-foreground">
 													{appointmentCount}
 												</span>
 											{/if}
 											{#if item.href === '/work/assessments' && assessmentCount > 0}
-												<span
-													class="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-blue-600 px-1 text-xs font-medium text-white"
-												>
+												<span class="ml-auto font-mono-tabular tabular-nums text-[11px] text-muted-foreground">
 													{assessmentCount}
 												</span>
 											{/if}
 											{#if item.href === '/work/finalized-assessments' && finalizedAssessmentCount > 0}
-												<span
-													class="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-green-600 px-1 text-xs font-medium text-white"
-												>
+												<span class="ml-auto font-mono-tabular tabular-nums text-[11px] text-muted-foreground">
 													{finalizedAssessmentCount}
 												</span>
 											{/if}
 											{#if item.href === '/work/frc' && frcCount > 0}
-												<span
-													class="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-purple-600 px-1 text-xs font-medium text-white"
-												>
+												<span class="ml-auto font-mono-tabular tabular-nums text-[11px] text-muted-foreground">
 													{frcCount}
 												</span>
 											{/if}
 											{#if item.href === '/work/additionals' && additionalsCount > 0}
-												<span
-													class="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-orange-600 px-1 text-xs font-medium text-white"
-												>
+												<span class="ml-auto font-mono-tabular tabular-nums text-[11px] text-muted-foreground">
 													{additionalsCount}
 												</span>
 											{/if}

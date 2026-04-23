@@ -44,7 +44,7 @@ import { SidebarProvider, SidebarTrigger, SidebarInset } from '$lib/components/u
 	<SidebarInset>
 		<!-- Top bar -->
 		<header
-			class="flex h-16 shrink-0 items-center gap-2 border-b bg-white px-4 shadow-sm transition-[width,height] ease-linear group-has-[[data-collapsible=icon]]/sidebar-wrapper:h-12"
+			class="flex h-11 shrink-0 items-center gap-2 border-b bg-card px-4 transition-[width,height] ease-linear group-has-[[data-collapsible=icon]]/sidebar-wrapper:h-10"
 		>
 			<div class="flex items-center gap-2">
 				<SidebarTrigger class="-ml-1" />
@@ -75,14 +75,14 @@ import { SidebarProvider, SidebarTrigger, SidebarInset } from '$lib/components/u
 				<DropdownMenu.Root>
 					<DropdownMenu.Trigger>
 						<div
-							class="flex cursor-pointer items-center gap-2 rounded-full p-1 pr-3 transition-colors hover:bg-gray-100"
+							class="flex cursor-pointer items-center gap-2 rounded-full p-1 pr-3 transition-colors hover:bg-muted"
 						>
 							<Avatar.Root class="h-8 w-8">
-								<Avatar.Fallback class="bg-gray-200 text-gray-700">
+								<Avatar.Fallback class="bg-muted text-muted-foreground">
 									{userName.charAt(0).toUpperCase()}
 								</Avatar.Fallback>
 							</Avatar.Root>
-							<span class="hidden text-sm font-medium text-gray-700 sm:inline-block"
+							<span class="hidden text-sm font-medium text-foreground sm:inline-block"
 								>{userName}</span
 							>
 						</div>
