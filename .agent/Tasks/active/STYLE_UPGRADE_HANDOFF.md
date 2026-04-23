@@ -2,9 +2,10 @@
 
 **Purpose**: Portable resume doc. Checked into the repo so another Claude Code instance on another machine can pull this branch and pick up exactly where work stopped.
 
-**Last updated**: 2026-04-23 (session paused for device switch)
+**Last updated**: 2026-04-23 (Mac session paused — 7 more commits pushed since previous handoff)
 **Active branch**: `claude/confident-mendel`
 **Remote**: `origin` (github.com/Jcvdm/ClaimTech.git)
+**HEAD**: `f1731ad`
 
 ---
 
@@ -33,10 +34,18 @@ Then tell the new Claude: **"Read `.agent/Tasks/active/STYLE_UPGRADE_HANDOFF.md`
 
 ## 📍 Current commit chain on `claude/confident-mendel`
 
-As of the last push (2026-04-23):
+As of 2026-04-23 (Mac session):
 
 ```
-35fdeb1  style(typography): Phase 5 — form density + mono-tabular        ← HEAD
+f1731ad  style(badges): process + part type badges to Phase 1 tone tokens   ← HEAD
+fd8a4f9  feat(estimate): permanent skeleton add row — Phase 8e
+64a20b4  style(radius): square pass — tighten radius + drop card shadow
+13f8f95  style(estimate): utilitarian retune on editable line tables — Phase 8d
+466027d  style(estimate): two-pane layout + QuickAdd behind dialog — Phase 8b
+3dce459  style(tabs): add done/pending step icons to assessment rail — Phase 7b
+4b776e8  style(tabs): assessment nav to utilitarian underline — Phase 7a
+14d0b37  docs(handoff): cross-device resume doc for style upgrade
+35fdeb1  style(typography): Phase 5 — form density + mono-tabular
 1889426  style(chrome): Phase 6 — sidebar + topbar compaction
 2af6164  fix(scroll): disable View Transitions + reset body-style locks
 ef9453f  style(tokens): Phase 1.5 monochrome retune + refs → brand
@@ -48,6 +57,55 @@ e5312bb  style(cleanup): Phase 2 decorative sweep — rose/gradient/shadow
 ```
 
 Everything from 411c967 forward is the style upgrade. `origin/main` is at 217d2c7 — the style work lives on the preview branch, not production.
+
+## What shipped in the 2026-04-23 Mac session (Phases 7 + 8)
+
+Previous session left off at Phase 5 (form density). In this session we:
+
+### Phase 7 — Tab rail upgrade (on-page, not a left rail per user preference)
+- **7a** `4b776e8` — Assessment tabs restyled to utilitarian underline. Active tab: 2px foreground bottom border, no pill fill, no shadow. Replaces the filled black pill pattern.
+- **7b** `3dce459` — Step icons on each tab: green `Check` (missingCount === 0) or muted `Circle` (pending). Dropped the `destructive-soft` missing-count badge since the icon conveys that.
+
+### Phase 8b — Two-pane EstimateTab + QuickAdd in a dialog
+- `466027d` — Line items card LEFT, sticky Totals Breakdown RIGHT at `lg:` and up. Grid cols `minmax(0,1fr) 340px`, sticky totals at `lg:top-24`. Mobile stacks cleanly.
+- QuickAddLineItem (403-line card) moved into a `ResponsiveDialog` triggered from the header. Preserves photo capture workflow.
+
+### Phase 8d — Editable table retune (style only)
+- `13f8f95` — EstimateTab + PreIncidentEstimateTab + shared LineItemCard. Headers uppercase 11.5px tracking muted. Click-to-edit buttons drop blue → foreground + mono-tabular. Totals Breakdown all currency values mono-tabular. Unsaved pill → warning tokens. User-approved Option 3 (defer EditableLinesTable extraction until a 3rd editable table exists).
+
+### Square pass — shape retune
+- `64a20b4` — Card `rounded-xl` (12px) → `rounded-sm` (4px) + dropped `shadow-sm`. Input/Badge also dropped to `rounded-sm`. Cascades through 62 Card callsites. Status banner borders `border-2` → `border`. Matches the wireframe's sharper corners.
+
+### Phase 8e — Permanent skeleton row (Solution D chosen)
+- `fd8a4f9` — Replaces the two "+ Add line" buttons on the estimate with a persistent skeleton row at the bottom of the desktop table and a skeleton card on mobile. Type description + blur → row commits, new skeleton appears, focus returns to description (spreadsheet speed at 200-row scale). ResponsiveDialog preserved behind a small Camera icon button for photo-first entry. selectAll excludes skeleton.
+
+### Badge color vocabulary — Phase 1 tone tokens
+- `f1731ad` — `getProcessTypeBadgeColor()` flipped from raw `bg-blue-100/bg-green-100/bg-purple-100/bg-yellow-100/bg-orange-100` to token-driven: N/R/P/B → muted; A → warning-soft; O → destructive-soft. Exception process types stand out on review. Part-type badges (OEM/ALT/2ND) in EstimateTab + LineItemCard + skeleton row also flipped: OEM → muted, ALT → success-soft, 2ND → warning-soft. Betterment % button and LineItemCard selected ring also migrated.
+
+## Outstanding work (deferred)
+
+Remaining raw-Tailwind color leaks — same pattern, ready for a follow-up commit:
+- `AdditionalsTab.svelte` — status Badges (bg-green-100 / bg-yellow-100 / bg-blue-100) + 5 click-to-edit cells still `text-blue-600`
+- `FRCTab.svelte`, `FRCLinesTable.svelte`, `FRCLineCard.svelte` — status/stage badges
+- `AdditionalLineItemCard.svelte` — type/status badges
+- `OriginalEstimateLinesPanel.svelte` — diff badges (bg-blue-100 / bg-green-100)
+- `RatesAndRepairerConfiguration.svelte`, `RatesConfiguration.svelte`, `AssessmentNotes.svelte` — hover states (bg-blue-100) and accent borders (border-blue-200)
+- `DocumentCard.svelte` — print button (border-orange-300 bg-orange-50)
+- `FRCTab.svelte` + `EstimateTab.svelte` — "Net Amount Payable" `text-green-800` / "Less: Excess" `text-orange-700` (semantic, may be intentional — review before flipping)
+
+Other roadmap items still deferred:
+- **8c work queue filter strip** above ModernDataTable (~0.5 day)
+- **Sync pill** (OfflineIndicator → compact top-bar pill, ~0.5 day)
+- **8g/h/i field routes** (tablet/phone shells + guided photo capture, ~5+ days, needs wireframes fleshed out — `wire/field.jsx` has references, `wire/ios-frame.jsx` too)
+- **EditableLinesTable extraction** — ~1–2 days. Only revisit when a 3rd editable table appears or auto-save semantics change.
+- **Auth pages dark treatment** — `wire/logins.jsx` is empty in the repo; needs wireframe sharing first.
+
+## Environment notes for cross-device resume
+
+- Repo is SvelteKit + Vite. `.env` required for Supabase. `PUBLIC_SUPABASE_MODE=main` for production DB.
+- Dev: `npm install` then `npm run dev`. Server configs in `.claude/launch.json` support ports 5100/5101/5102/4173.
+- Mac-specific this session: used `~/.nvm` (Node v24.15.0) + `~/.local/bin/gh` (cli 2.91.0). Windows machine uses its own toolchain — `.claude/launch.json` uses `runtimeExecutable: "npm"` which resolves from PATH on both platforms.
+- Wireframe files live at `wire/` (user-local staging, gitignored informally) AND `.agent/Design/wireframes/` (committed copy). The .agent copy is the source of truth for future sessions.
 
 Vercel preview URL: whatever GitHub-integrated URL your Vercel project generates for `claude/confident-mendel`. Check the Vercel dashboard for the exact URL.
 
