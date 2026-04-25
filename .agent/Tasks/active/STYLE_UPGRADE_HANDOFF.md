@@ -2,10 +2,10 @@
 
 **Purpose**: Portable resume doc. Checked into the repo so another Claude Code instance on another machine can pull this branch and pick up exactly where work stopped.
 
-**Last updated**: 2026-04-25 (Windows session — Phase 8a step rail shipped, supersedes Mac's 7a/7b)
+**Last updated**: 2026-04-25 (Windows session — Phase 8a step rail + scroll fix shipped)
 **Active branch**: `claude/confident-mendel`
 **Remote**: `origin` (github.com/Jcvdm/ClaimTech.git)
-**HEAD**: `e785468`
+**HEAD**: `27ddf43`
 
 ---
 
@@ -37,7 +37,9 @@ Then tell the new Claude: **"Read `.agent/Tasks/active/STYLE_UPGRADE_HANDOFF.md`
 As of 2026-04-25 (Windows session):
 
 ```
-e785468  style(assessment): Phase 8a — replace horizontal tabs with step rail   ← HEAD
+27ddf43  fix(scroll): one natural page scroll on assessment routes              ← HEAD
+c062dcd  docs(handoff): mark Phase 8a shipped, move task to completed
+e785468  style(assessment): Phase 8a — replace horizontal tabs with step rail
 cefd93e  feat(validation): expose totalFields on TabValidation
 72092ad  docs(handoff): update with Mac session — Phases 7a/7b, 8b, 8d, 8e + square + badge tokens
 f1731ad  style(badges): process + part type badges to Phase 1 tone tokens
@@ -61,7 +63,19 @@ e5312bb  style(cleanup): Phase 2 decorative sweep — rose/gradient/shadow
 
 Everything from 411c967 forward is the style upgrade. `origin/main` is at 217d2c7 — the style work lives on the preview branch, not production.
 
-## What shipped in the 2026-04-25 Windows session (Phase 8a)
+## What shipped in the 2026-04-25 Windows session (Phase 8a + scroll fix)
+
+### Scroll fix — `27ddf43`
+Users (especially on Firefox) reported assessment pages feeling stuck when wheeling over an inner panel. Root cause: global `.overflow-y-auto { overscroll-behavior: contain; }` rule in `src/app.css` blocked all scroll chaining, combined with 8 inner `max-h-... overflow-y-auto` regions inside assessment `<main>` (estimate table + parts pre, AssessmentNotes, 5 photo grids).
+
+Fix:
+- `src/app.css` — replaced the global rule with an opt-in `.scroll-isolate` utility.
+- Stripped `max-h-...` + `overflow-y-auto` from EstimateTab desktop table (kept `overflow-x-auto` for wide tables), parts-list `<pre>`, AssessmentNotes list, and the 5 photo grids (Exterior360PhotosPanel, EstimatePhotosPanel, InteriorPhotosPanel, PreIncidentPhotosPanel, AdditionalsPhotosPanel). Panels grow inline; page handles scroll. `bigger-picture` still gives per-photo fullscreen on click.
+- Applied `scroll-isolate` to 4 legitimate modal scroll containers (OriginalEstimateLinesPanel Dialog, RatesAndRepairer QuickAdd Dialog, FRC adjust Dialog, Finalize document DialogContent) plus the mobile StepRail SheetContent (bits-ui SheetContent doesn't set `overscroll-behavior` itself).
+
+Scope: assessment routes only. `src/lib/components/assessment/*` + `src/app.css`. 14 files, all surgical 1–2 line edits per file.
+
+
 
 User explicitly picked Phase 8a from the roadmap (the proper left-rail rebuild). The Mac session's `7a` underline + `7b` step icons on horizontal tabs were treated as the smaller-step version of the same intent and have been **superseded** by 8a. Mac's other work (8b two-pane EstimateTab, 8d editable table retune, square pass, 8e skeleton row, badge token migration) is unaffected — those touched different files.
 
