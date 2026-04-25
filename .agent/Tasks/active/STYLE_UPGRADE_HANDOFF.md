@@ -2,10 +2,10 @@
 
 **Purpose**: Portable resume doc. Checked into the repo so another Claude Code instance on another machine can pull this branch and pick up exactly where work stopped.
 
-**Last updated**: 2026-04-23 (Mac session paused — 7 more commits pushed since previous handoff)
+**Last updated**: 2026-04-25 (Windows session — Phase 8a step rail shipped, supersedes Mac's 7a/7b)
 **Active branch**: `claude/confident-mendel`
 **Remote**: `origin` (github.com/Jcvdm/ClaimTech.git)
-**HEAD**: `f1731ad`
+**HEAD**: `e785468`
 
 ---
 
@@ -34,16 +34,19 @@ Then tell the new Claude: **"Read `.agent/Tasks/active/STYLE_UPGRADE_HANDOFF.md`
 
 ## 📍 Current commit chain on `claude/confident-mendel`
 
-As of 2026-04-23 (Mac session):
+As of 2026-04-25 (Windows session):
 
 ```
-f1731ad  style(badges): process + part type badges to Phase 1 tone tokens   ← HEAD
+e785468  style(assessment): Phase 8a — replace horizontal tabs with step rail   ← HEAD
+cefd93e  feat(validation): expose totalFields on TabValidation
+72092ad  docs(handoff): update with Mac session — Phases 7a/7b, 8b, 8d, 8e + square + badge tokens
+f1731ad  style(badges): process + part type badges to Phase 1 tone tokens
 fd8a4f9  feat(estimate): permanent skeleton add row — Phase 8e
 64a20b4  style(radius): square pass — tighten radius + drop card shadow
 13f8f95  style(estimate): utilitarian retune on editable line tables — Phase 8d
 466027d  style(estimate): two-pane layout + QuickAdd behind dialog — Phase 8b
-3dce459  style(tabs): add done/pending step icons to assessment rail — Phase 7b
-4b776e8  style(tabs): assessment nav to utilitarian underline — Phase 7a
+3dce459  style(tabs): add done/pending step icons to assessment rail — Phase 7b   [SUPERSEDED by 8a]
+4b776e8  style(tabs): assessment nav to utilitarian underline — Phase 7a           [SUPERSEDED by 8a]
 14d0b37  docs(handoff): cross-device resume doc for style upgrade
 35fdeb1  style(typography): Phase 5 — form density + mono-tabular
 1889426  style(chrome): Phase 6 — sidebar + topbar compaction
@@ -57,6 +60,26 @@ e5312bb  style(cleanup): Phase 2 decorative sweep — rose/gradient/shadow
 ```
 
 Everything from 411c967 forward is the style upgrade. `origin/main` is at 217d2c7 — the style work lives on the preview branch, not production.
+
+## What shipped in the 2026-04-25 Windows session (Phase 8a)
+
+User explicitly picked Phase 8a from the roadmap (the proper left-rail rebuild). The Mac session's `7a` underline + `7b` step icons on horizontal tabs were treated as the smaller-step version of the same intent and have been **superseded** by 8a. Mac's other work (8b two-pane EstimateTab, 8d editable table retune, square pass, 8e skeleton row, badge token migration) is unaffected — those touched different files.
+
+### Phase 8a — Step rail (`e785468` + `cefd93e`)
+- New components in `src/lib/components/ui/step-rail/`:
+  - `StepRing.svelte` — pure SVG 14px ring, three states (complete = filled green + tick, in-progress = arc at proportional fill, not-started = empty `border-strong` outline). Geometry per design-system.md §Step rail (radius 6, circumference 37.7).
+  - `StepRailItem.svelte` — row composing `StepRing` + label + optional muted mono missing-count chip; active state `bg-muted` + 2px `border-foreground` left bar.
+  - `StepRail.svelte` — container with `role="tablist"` and ArrowDown/ArrowUp + Enter keyboard nav (replaces `Tabs` keyboard behavior we lose).
+  - `index.ts` — barrel.
+- `AssessmentLayout.svelte` restructured: outer `h-screen overflow-hidden`, sticky header on top (kept), inner flex-row with `<aside class="hidden lg:flex w-[232px]">` + `<main class="flex-1 overflow-y-auto">`. Added hamburger `<Button class="lg:hidden">` in the header actions row that opens a `<Sheet side="left" class="w-[280px]">` containing the same `<StepRail>` for `<lg`. Same `currentTab`/`onTabChange` API as before — parent `+page.svelte` untouched.
+- `validation.ts` extended with optional `totalFields?: number` on `TabValidation` and per-validator counts (8 validators) so `StepRing`'s in-progress arc can show `(total - missing) / total`. Non-breaking — older consumers ignore the new field.
+- Status derivation: no validation entry → `not-started`; `isComplete: true` → `complete`; otherwise `in-progress` with progress = `(total - missing) / total`.
+
+Removed from AssessmentLayout: horizontal `<Tabs>`/`<TabsList>`/`<TabsTrigger>` block, the `<style>` `scrollbar-hide` global (no longer needed), the `getShortLabel` helper (rail shows full labels), and the destructive missing-count badge (replaced by ring state + muted chip).
+
+Build: `svelte-check` 0 errors, no new warnings. `package.json` unchanged.
+
+---
 
 ## What shipped in the 2026-04-23 Mac session (Phases 7 + 8)
 
@@ -168,7 +191,7 @@ Key questions to validate at this gate:
 
 These are greenfield code, not retunes. User previously excluded Phase 8f.
 
-- **8a.** Step rail for assessment (~1 day) — replaces the 13-tab horizontal nav at the top of the assessment detail page with a 232px left rail + status rings. Matches wireframe's `UAssessSidebar`. Materially changes assessment UX.
+- **8a.** ✅ SHIPPED 2026-04-25 (`e785468`). Replaced 13-tab horizontal nav with 232px left rail + StepRing status rings + Sheet drawer for `<lg`. See "What shipped in the 2026-04-25 Windows session" above.
 - **8b.** Two-pane assessment layout (~1–2 days) — refactor `DamageTab` and `EstimateTab` to editable-left + sticky-totals/policy-right. Matches `UDamage` + `UEstimate` wireframes.
 - **8c.** Work queue tab strip + filter-chip strip (~0.5 day) — small additive components above ModernDataTable.
 - **8d.** Chip group (~0.5 day) — enum picker for condition / repair action. Matches `FieldPhoneZone` pattern.
