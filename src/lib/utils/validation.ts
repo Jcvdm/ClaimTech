@@ -9,10 +9,14 @@ export interface TabValidation {
 	tabId: string;
 	isComplete: boolean;
 	missingFields: string[];
+	/** Total number of fields counted by this validator (used to compute progress in StepRail). Optional — older call sites that don't set it gracefully degrade. */
+	totalFields?: number;
 }
 
 /**
  * Validate Vehicle Identification tab
+ * totalFields = 4: registration_number, vin_number, registration_photo_url, vin_photo_url
+ * (engine_number is intentionally excluded — it's optional and not counted)
  */
 export function validateVehicleIdentification(data: any): TabValidation {
 	const missingFields: string[] = [];
@@ -26,19 +30,21 @@ export function validateVehicleIdentification(data: any): TabValidation {
 	return {
 		tabId: 'identification',
 		isComplete: missingFields.length === 0,
-		missingFields
+		missingFields,
+		totalFields: 4
 	};
 }
 
 /**
  * Validate 360 Exterior tab
+ * totalFields = 3: overall_condition, vehicle_color, ≥4 photos (treated as 1 grouped check)
  */
 export function validateExterior360(data: any, exterior360Photos: any[] = []): TabValidation {
 	const missingFields: string[] = [];
 
 	if (!data?.overall_condition) missingFields.push('Overall Condition');
 	if (!data?.vehicle_color) missingFields.push('Vehicle Color');
-	
+
 	// Require at least 4 exterior photos (similar to old requirement of front, rear, left, right)
 	if (exterior360Photos.length < 4) {
 		missingFields.push(`At least 4 exterior photos (currently ${exterior360Photos.length})`);
@@ -47,12 +53,15 @@ export function validateExterior360(data: any, exterior360Photos: any[] = []): T
 	return {
 		tabId: '360',
 		isComplete: missingFields.length === 0,
-		missingFields
+		missingFields,
+		totalFields: 3
 	};
 }
 
 /**
  * Validate Interior & Mechanical tab
+ * totalFields = 7: mileage_reading, interior_condition, srs_system, steering, brakes, handbrake,
+ *                  ≥2 photos (treated as 1 grouped check)
  */
 export function validateInteriorMechanical(data: any, interiorPhotos: any[] = []): TabValidation {
 	const missingFields: string[] = [];
@@ -63,7 +72,7 @@ export function validateInteriorMechanical(data: any, interiorPhotos: any[] = []
 	if (!data?.steering) missingFields.push('Steering Status');
 	if (!data?.brakes) missingFields.push('Brakes Status');
 	if (!data?.handbrake) missingFields.push('Handbrake Status');
-	
+
 	// Require at least 2 interior photos
 	if (interiorPhotos.length < 2) {
 		missingFields.push('At least 2 interior photos');
@@ -72,7 +81,8 @@ export function validateInteriorMechanical(data: any, interiorPhotos: any[] = []
 	return {
 		tabId: 'interior',
 		isComplete: missingFields.length === 0,
-		missingFields
+		missingFields,
+		totalFields: 7
 	};
 }
 
@@ -80,6 +90,8 @@ export function validateInteriorMechanical(data: any, interiorPhotos: any[] = []
  * Validate Tyres tab
  * Requires at least 1 photo per tyre
  * Condition and tread depth are optional
+ * totalFields = 1 (presence of tyres) + tyres.length (1 photo check per tyre)
+ *   = dynamic. When tyrePhotosMap is absent, we only count 1 (the presence check).
  */
 export function validateTyres(tyres: any[], tyrePhotosMap?: Map<string, any[]>): TabValidation {
 	const missingFields: string[] = [];
@@ -89,9 +101,13 @@ export function validateTyres(tyres: any[], tyrePhotosMap?: Map<string, any[]>):
 		return {
 			tabId: 'tyres',
 			isComplete: false,
-			missingFields
+			missingFields,
+			totalFields: 1
 		};
 	}
+
+	// totalFields: 1 presence check + 1 photo check per tyre (when map provided)
+	const totalFields = tyrePhotosMap ? 1 + tyres.length : 1;
 
 	// Check each tyre has at least 1 photo
 	tyres.forEach((tyre, index) => {
@@ -109,7 +125,8 @@ export function validateTyres(tyres: any[], tyrePhotosMap?: Map<string, any[]>):
 	return {
 		tabId: 'tyres',
 		isComplete: missingFields.length === 0,
-		missingFields
+		missingFields,
+		totalFields
 	};
 }
 
@@ -117,6 +134,7 @@ export function validateTyres(tyres: any[], tyrePhotosMap?: Map<string, any[]>):
  * Validate Damage tab
  * Requires: matches_description (Yes/No), severity
  * Note: damage_area and damage_type are NOT NULL in database, always have default values
+ * totalFields = 2: matches_description, severity
  */
 export function validateDamage(damageRecords: any[]): TabValidation {
 	const missingFields: string[] = [];
@@ -141,7 +159,8 @@ export function validateDamage(damageRecords: any[]): TabValidation {
 	return {
 		tabId: 'damage',
 		isComplete: missingFields.length === 0,
-		missingFields
+		missingFields,
+		totalFields: 2
 	};
 }
 
@@ -187,6 +206,7 @@ export function validateAssessment(assessmentData: {
 
 /**
  * Validate Estimate tab
+ * totalFields = 3: labour_rate, paint_rate, ≥1 line item (treated as 1 grouped check)
  */
 export function validateEstimate(data: any): TabValidation {
 	const missingFields: string[] = [];
@@ -196,7 +216,8 @@ export function validateEstimate(data: any): TabValidation {
 		return {
 			tabId: 'estimate',
 			isComplete: false,
-			missingFields
+			missingFields,
+			totalFields: 3
 		};
 	}
 
@@ -222,7 +243,8 @@ export function validateEstimate(data: any): TabValidation {
 	return {
 		tabId: 'estimate',
 		isComplete: missingFields.length === 0,
-		missingFields
+		missingFields,
+		totalFields: 3
 	};
 }
 
@@ -246,6 +268,7 @@ export function validateAdditionals(data: any): TabValidation {
 
 /**
  * Validate Pre-Incident Estimate tab
+ * totalFields = 4: labour_rate, paint_rate, ≥1 line item, total > 0
  */
 export function validatePreIncidentEstimate(data: any): TabValidation {
 	const missingFields: string[] = [];
@@ -255,7 +278,8 @@ export function validatePreIncidentEstimate(data: any): TabValidation {
 		return {
 			tabId: 'pre-incident',
 			isComplete: false,
-			missingFields
+			missingFields,
+			totalFields: 4
 		};
 	}
 
@@ -281,12 +305,14 @@ export function validatePreIncidentEstimate(data: any): TabValidation {
 	return {
 		tabId: 'pre-incident',
 		isComplete: missingFields.length === 0,
-		missingFields
+		missingFields,
+		totalFields: 4
 	};
 }
 
 /**
  * Validate vehicle values tab
+ * totalFields = 6: ≥1 value type, sourced_from, sourced_code, sourced_date, warranty_status, valuation_pdf_url
  */
 export function validateVehicleValues(vehicleValues: any): TabValidation {
 	// Normalize to TabValidation with missingFields (interface contract)
@@ -297,7 +323,8 @@ export function validateVehicleValues(vehicleValues: any): TabValidation {
 		return {
 			tabId: 'values',
 			isComplete: false,
-			missingFields
+			missingFields,
+			totalFields: 6
 		};
 	}
 
@@ -334,7 +361,8 @@ export function validateVehicleValues(vehicleValues: any): TabValidation {
 	return {
 		tabId: 'values',
 		isComplete: missingFields.length === 0,
-		missingFields
+		missingFields,
+		totalFields: 6
 	};
 }
 
