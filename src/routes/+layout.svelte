@@ -5,7 +5,6 @@
 	import { invalidate, afterNavigate } from '$app/navigation';
 	import NavigationLoadingBar from '$lib/components/layout/NavigationLoadingBar.svelte';
 	import InstallPrompt from '$lib/components/pwa/InstallPrompt.svelte';
-	import OfflineIndicator from '$lib/offline/components/OfflineIndicator.svelte';
 	import { syncManager } from '$lib/offline';
 
 	let { children, data } = $props();
@@ -51,9 +50,6 @@
 <svelte:head>
 	<link rel="icon" href={favicon} />
 </svelte:head>
-
-<!-- Offline indicator banner -->
-<OfflineIndicator position="top" showWhenOnline={true} />
 
 <NavigationLoadingBar />
 <InstallPrompt />

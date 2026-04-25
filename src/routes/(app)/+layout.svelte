@@ -7,6 +7,7 @@ import { SidebarProvider, SidebarTrigger, SidebarInset } from '$lib/components/u
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
 	import * as Avatar from '$lib/components/ui/avatar';
 	import { LogOut } from 'lucide-svelte';
+	import { SyncPill } from '$lib/offline';
 	import { enhance } from '$app/forms';
 	import { page } from '$app/stores';
 	import { invalidateAll, invalidate, goto } from '$app/navigation';
@@ -71,6 +72,7 @@ import { SidebarProvider, SidebarTrigger, SidebarInset } from '$lib/components/u
 			</div>
 
 			<div class="ml-auto flex items-center gap-2">
+				<SyncPill />
 				<!-- User Dropdown -->
 				<DropdownMenu.Root>
 					<DropdownMenu.Trigger>
