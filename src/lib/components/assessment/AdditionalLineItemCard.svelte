@@ -83,15 +83,15 @@
 	// Can edit only pending items that aren't removed or reversals
 	const canEdit = $derived(!isRemoved && !isReversal && item.status === 'pending');
 
-	// Status badge styling
-	function getStatusBadgeClass(status: string) {
+	// Status badge variant
+	function getStatusBadgeVariant(status: string): 'success' | 'destructive-soft' | 'warning' {
 		switch (status) {
 			case 'approved':
-				return 'bg-green-100 text-green-800';
+				return 'success';
 			case 'declined':
-				return 'bg-red-100 text-red-800';
+				return 'destructive-soft';
 			default:
-				return 'bg-yellow-100 text-yellow-800';
+				return 'warning';
 		}
 	}
 
@@ -108,10 +108,10 @@
 
 	// Card border based on status
 	const cardClass = $derived(() => {
-		if (isRemoved) return 'border-red-200 bg-red-50/50';
-		if (isReversal || isReversed) return 'border-blue-200 bg-blue-50/50';
-		if (item.status === 'approved') return 'border-green-200 bg-green-50/50';
-		if (item.status === 'declined') return 'border-red-200 bg-red-50/50';
+		if (isRemoved) return 'border-destructive-border bg-destructive-soft';
+		if (isReversal || isReversed) return 'border-border-strong bg-muted';
+		if (item.status === 'approved') return 'border-success-border bg-success-soft';
+		if (item.status === 'declined') return 'border-destructive-border bg-destructive-soft';
 		return '';
 	});
 </script>
@@ -159,22 +159,22 @@
 
 			<!-- Status Badge -->
 			{#if isReversal}
-				<Badge class="bg-blue-100 text-blue-800">
+				<Badge variant="secondary">
 					<RotateCcw class="mr-1 h-3 w-3" />
 					Reversal
 				</Badge>
 			{:else if isRemoved}
-				<Badge class="bg-red-100 text-red-800">
+				<Badge variant="destructive-soft">
 					<Trash2 class="mr-1 h-3 w-3" />
 					Removed
 				</Badge>
 			{:else if isReversed}
-				<Badge class="bg-blue-100 text-blue-800">
+				<Badge variant="secondary">
 					<RotateCcw class="mr-1 h-3 w-3" />
 					Reversed
 				</Badge>
 			{:else}
-				<Badge class={getStatusBadgeClass(item.status)}>
+				<Badge variant={getStatusBadgeVariant(item.status)}>
 					{#if item.status === 'approved'}
 						<Check class="mr-1 h-3 w-3" />
 					{:else if item.status === 'declined'}
@@ -188,7 +188,7 @@
 		</div>
 
 		<!-- Total -->
-		<span class="text-lg font-bold {isRemoved || isReversal ? 'text-blue-600' : 'text-gray-900'}">
+		<span class="text-lg font-bold {isRemoved || isReversal ? 'text-foreground' : 'text-gray-900'}">
 			{formatCurrency(item.total)}
 		</span>
 	</div>
@@ -204,20 +204,20 @@
 				class="h-10 text-base"
 			/>
 		{:else}
-			<p class="text-base {isRemoved ? 'text-red-600 line-through' : isReversal || isReversed ? 'text-blue-600' : ''}">
+			<p class="text-base {isRemoved ? 'text-red-600 line-through' : isReversal || isReversed ? 'text-foreground' : ''}">
 				{item.description}
 			</p>
 		{/if}
 
 		<!-- Reversal/Decline reasons -->
 		{#if isReversal && item.reversal_reason}
-			<p class="mt-2 flex items-center gap-1 text-xs text-blue-600">
+			<p class="mt-2 flex items-center gap-1 text-xs text-muted-foreground">
 				<RotateCcw class="h-3 w-3" />
 				Reversal: {item.reversal_reason}
 			</p>
 		{/if}
 		{#if isReversed && reversalReason}
-			<p class="mt-2 flex items-center gap-1 text-xs text-blue-600">
+			<p class="mt-2 flex items-center gap-1 text-xs text-muted-foreground">
 				<RotateCcw class="h-3 w-3" />
 				Reversed: {reversalReason}
 			</p>
@@ -265,11 +265,11 @@
 				<button
 					type="button"
 					onclick={canEdit ? onEditPartPrice : undefined}
-					class="flex items-center justify-between rounded border bg-white p-2 text-left {canEdit ? 'hover:border-blue-300' : 'cursor-default'}"
+					class="flex items-center justify-between rounded border bg-white p-2 text-left {canEdit ? 'hover:border-border-strong' : 'cursor-default'}"
 					disabled={!canEdit}
 				>
 					<span class="text-gray-600">Part (nett)</span>
-					<span class="font-medium {canEdit ? 'text-blue-600' : ''}">{formatCurrency(item.part_price_nett || 0)}</span>
+					<span class="font-medium {canEdit ? 'text-foreground' : ''}">{formatCurrency(item.part_price_nett || 0)}</span>
 				</button>
 			{/if}
 
@@ -278,11 +278,11 @@
 				<button
 					type="button"
 					onclick={canEdit ? onEditSA : undefined}
-					class="flex items-center justify-between rounded border bg-white p-2 text-left {canEdit ? 'hover:border-blue-300' : 'cursor-default'}"
+					class="flex items-center justify-between rounded border bg-white p-2 text-left {canEdit ? 'hover:border-border-strong' : 'cursor-default'}"
 					disabled={!canEdit}
 				>
 					<span class="text-gray-600">S&A</span>
-					<span class="font-medium {canEdit ? 'text-blue-600' : ''}">
+					<span class="font-medium {canEdit ? 'text-foreground' : ''}">
 						{formatCurrency(item.strip_assemble || 0)}
 						{#if item.strip_assemble_hours}
 							<span class="text-xs text-gray-500">({item.strip_assemble_hours}h)</span>
@@ -296,11 +296,11 @@
 				<button
 					type="button"
 					onclick={canEdit ? onEditLabour : undefined}
-					class="flex items-center justify-between rounded border bg-white p-2 text-left {canEdit ? 'hover:border-blue-300' : 'cursor-default'}"
+					class="flex items-center justify-between rounded border bg-white p-2 text-left {canEdit ? 'hover:border-border-strong' : 'cursor-default'}"
 					disabled={!canEdit}
 				>
 					<span class="text-gray-600">Labour</span>
-					<span class="font-medium {canEdit ? 'text-blue-600' : ''}">
+					<span class="font-medium {canEdit ? 'text-foreground' : ''}">
 						{formatCurrency(item.labour_cost || 0)}
 						{#if item.labour_hours}
 							<span class="text-xs text-gray-500">({item.labour_hours}h)</span>
@@ -314,11 +314,11 @@
 				<button
 					type="button"
 					onclick={canEdit ? onEditPaint : undefined}
-					class="flex items-center justify-between rounded border bg-white p-2 text-left {canEdit ? 'hover:border-blue-300' : 'cursor-default'}"
+					class="flex items-center justify-between rounded border bg-white p-2 text-left {canEdit ? 'hover:border-border-strong' : 'cursor-default'}"
 					disabled={!canEdit}
 				>
 					<span class="text-gray-600">Paint</span>
-					<span class="font-medium {canEdit ? 'text-blue-600' : ''}">
+					<span class="font-medium {canEdit ? 'text-foreground' : ''}">
 						{formatCurrency(item.paint_cost || 0)}
 						{#if item.paint_panels}
 							<span class="text-xs text-gray-500">({item.paint_panels}p)</span>
@@ -332,11 +332,11 @@
 				<button
 					type="button"
 					onclick={canEdit ? onEditOutwork : undefined}
-					class="flex items-center justify-between rounded border bg-white p-2 text-left {canEdit ? 'hover:border-blue-300' : 'cursor-default'}"
+					class="flex items-center justify-between rounded border bg-white p-2 text-left {canEdit ? 'hover:border-border-strong' : 'cursor-default'}"
 					disabled={!canEdit}
 				>
 					<span class="text-gray-600">Outwork</span>
-					<span class="font-medium {canEdit ? 'text-blue-600' : ''}">{formatCurrency(item.outwork_charge_nett || 0)}</span>
+					<span class="font-medium {canEdit ? 'text-foreground' : ''}">{formatCurrency(item.outwork_charge_nett || 0)}</span>
 				</button>
 			{/if}
 		</div>
@@ -346,13 +346,13 @@
 	<div class="flex items-center justify-end gap-2 border-t bg-gray-50 p-2">
 		{#if isReversal}
 			<!-- Reversal entries are immutable -->
-			<span class="flex items-center gap-1 text-xs italic text-blue-600">
+			<span class="flex items-center gap-1 text-xs italic text-muted-foreground">
 				<RotateCcw class="h-3 w-3" />
 				Reversal
 			</span>
 		{:else if isReversed}
 			<!-- Reversed items: no actions -->
-			<span class="flex items-center gap-1 text-xs italic text-blue-600">
+			<span class="flex items-center gap-1 text-xs italic text-muted-foreground">
 				<RotateCcw class="h-3 w-3" />
 				Reversed
 			</span>

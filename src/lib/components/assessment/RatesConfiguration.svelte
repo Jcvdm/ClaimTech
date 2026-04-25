@@ -89,14 +89,14 @@
 	});
 </script>
 
-<Card class="border-blue-200 bg-blue-50">
+<Card class="border-border bg-muted">
 	<button
 		onclick={() => (isExpanded = !isExpanded)}
-		class="flex w-full items-center justify-between p-4 text-left hover:bg-blue-100 transition-colors"
+		class="flex w-full items-center justify-between p-4 text-left hover:bg-accent transition-colors"
 		type="button"
 	>
 		<div class="flex items-center gap-3">
-			<Settings class="h-5 w-5 text-blue-600" />
+			<Settings class="h-5 w-5 text-muted-foreground" />
 			<div>
 				<h3 class="text-base font-semibold text-gray-900">Rates Configuration</h3>
 				<p class="text-sm text-gray-600">
@@ -115,7 +115,7 @@
 	</button>
 
 	{#if isExpanded}
-		<div class="border-t border-blue-200 p-4 space-y-4">
+		<div class="border-t border-border p-4 space-y-4">
 			<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
 				<!-- Labour Rate -->
 				<div>
@@ -287,10 +287,10 @@
 			</div>
 
 			{#if hasChanges}
-				<div class="flex items-center justify-between p-3 bg-yellow-50 border border-yellow-200 rounded-md">
+				<div class="flex items-center justify-between p-3 bg-warning-soft border border-warning-border rounded-md">
 					<div class="flex items-center gap-2">
-						<RefreshCw class="h-4 w-4 text-yellow-600" />
-						<span class="text-sm text-yellow-800">
+						<RefreshCw class="h-4 w-4 text-warning" />
+						<span class="text-sm text-warning">
 							Rates have changed. Click "Update Rates" to recalculate all line items.
 						</span>
 					</div>

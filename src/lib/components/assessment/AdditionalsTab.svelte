@@ -521,15 +521,15 @@
 		await onUpdate();
 	}
 
-	// Get status badge class
-	function getStatusBadgeClass(status: string) {
+	// Get status badge variant
+	function getStatusBadgeVariant(status: string): 'success' | 'destructive-soft' | 'warning' {
 		switch (status) {
 			case 'approved':
-				return 'bg-green-100 text-green-800';
+				return 'success';
 			case 'declined':
-				return 'bg-red-100 text-red-800';
+				return 'destructive-soft';
 			default:
-				return 'bg-yellow-100 text-yellow-800';
+				return 'warning';
 		}
 	}
 
@@ -612,13 +612,13 @@
 			<p class="text-center text-gray-600">Loading additionals...</p>
 		</Card>
 	{:else if error}
-		<Card class="border-red-200 bg-red-50 p-6">
-			<p class="text-red-800">{error}</p>
+		<Card class="border-destructive-border bg-destructive-soft p-6">
+			<p class="text-destructive">{error}</p>
 		</Card>
 	{:else if additionals}
 		<!-- Info Banner -->
-		<Card class="border-blue-200 bg-blue-50 p-4">
-			<p class="text-sm text-blue-900">
+		<Card class="border-border bg-muted p-4">
+			<p class="text-sm text-foreground">
 				<strong>Additionals:</strong>
 				{#if additionals.line_items.length === 0}
 					This estimate has been finalized. You can now add supplementary repairs,
@@ -779,16 +779,16 @@
 			<div class="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
 				<h3 class="text-lg font-semibold">Additional Line Items</h3>
 				<div class="flex flex-wrap gap-1.5 sm:gap-2">
-					<Badge class="bg-yellow-100 text-yellow-800 text-xs">
+					<Badge variant="warning" class="text-xs">
 						{statusCounts().pending} Pending
 					</Badge>
-					<Badge class="bg-green-100 text-green-800 text-xs">
+					<Badge variant="success" class="text-xs">
 						{statusCounts().approved} Approved
 					</Badge>
-					<Badge class="bg-red-100 text-red-800 text-xs">
+					<Badge variant="destructive-soft" class="text-xs">
 						{statusCounts().declined} Declined
 					</Badge>
-					<Badge class="bg-blue-100 text-blue-800 text-xs">
+					<Badge variant="secondary" class="text-xs">
 						{statusCounts().reversed} Reversed
 					</Badge>
 				</div>
@@ -872,11 +872,11 @@
 								{@const isReversal = item.action === 'reversal'}
 								{@const isReversed = item.id && reversedTargets().has(item.id)}
 								{@const rowClass = isRemoved
-									? 'bg-red-50'
+									? 'bg-destructive-soft'
 									: isReversal
-										? 'bg-blue-50'
+										? 'bg-muted'
 										: isReversed
-											? 'bg-blue-50'
+											? 'bg-muted'
 											: ''}
 								{@const StatusIcon = getStatusIcon(item.status)}
 								<tr class="border-b hover:bg-gray-50 {rowClass}">
@@ -897,14 +897,14 @@
 													class={isRemoved
 														? 'text-red-600 line-through'
 														: isReversal || isReversed
-															? 'text-blue-600'
+															? 'text-foreground'
 															: ''}
 												>
 													{item.description}
 												</span>
 											{/if}
 											{#if isReversal && item.reversal_reason}
-												<p class="mt-1 flex items-center gap-1 text-xs text-blue-600">
+												<p class="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
 													<RotateCcw class="h-3 w-3" />
 													Reversal: {item.reversal_reason}
 												</p>
@@ -912,7 +912,7 @@
 											{#if isReversed && item.id}
 												{@const reversalEntry = reversedBy().get(item.id)}
 												{#if reversalEntry?.reversal_reason}
-													<p class="mt-1 flex items-center gap-1 text-xs text-blue-600">
+													<p class="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
 														<RotateCcw class="h-3 w-3" />
 														Reversed: {reversalEntry.reversal_reason}
 													</p>
@@ -980,7 +980,7 @@
 											<span>—</span>
 										{/if}
 									</td>
-									<td class="py-2 text-right {isRemoved || isReversal ? 'text-blue-600' : ''}">
+									<td class="py-2 text-right {isRemoved || isReversal ? 'text-foreground' : ''}">
 										{#if !isRemoved && !isReversal && item.status === 'pending' && item.process_type === 'N'}
 											{#if editingPartPrice === item.id}
 												<Input
@@ -1000,7 +1000,7 @@
 												<button
 													onclick={() =>
 														handlePartPriceClick(item.id!, item.part_price_nett || null)}
-													class="w-full cursor-pointer text-right text-sm font-medium text-blue-600 hover:text-blue-800"
+													class="w-full cursor-pointer text-right text-sm font-medium text-foreground hover:text-foreground"
 												>
 													{formatCurrency(item.part_price_nett || 0)}
 												</button>
@@ -1009,7 +1009,7 @@
 											{formatCurrency(item.part_price_nett || 0)}
 										{/if}
 									</td>
-									<td class="py-2 text-right {isRemoved || isReversal ? 'text-blue-600' : ''}">
+									<td class="py-2 text-right {isRemoved || isReversal ? 'text-foreground' : ''}">
 										{#if !isRemoved && !isReversal && item.status === 'pending' && ['N', 'R', 'P', 'B'].includes(item.process_type)}
 											{#if editingSA === item.id}
 												<Input
@@ -1028,7 +1028,7 @@
 											{:else}
 												<button
 													onclick={() => handleSAClick(item.id!, item.strip_assemble_hours || null)}
-													class="w-full cursor-pointer text-right text-sm font-medium text-blue-600 hover:text-blue-800"
+													class="w-full cursor-pointer text-right text-sm font-medium text-foreground hover:text-foreground"
 												>
 													{formatCurrency(item.strip_assemble || 0)}
 												</button>
@@ -1037,7 +1037,7 @@
 											{formatCurrency(item.strip_assemble || 0)}
 										{/if}
 									</td>
-									<td class="py-2 text-right {isRemoved || isReversal ? 'text-blue-600' : ''}">
+									<td class="py-2 text-right {isRemoved || isReversal ? 'text-foreground' : ''}">
 										{#if !isRemoved && !isReversal && item.status === 'pending' && ['N', 'R', 'A'].includes(item.process_type)}
 											{#if editingLabour === item.id}
 												<Input
@@ -1056,7 +1056,7 @@
 											{:else}
 												<button
 													onclick={() => handleLabourClick(item.id!, item.labour_hours || null)}
-													class="w-full cursor-pointer text-right text-sm font-medium text-blue-600 hover:text-blue-800"
+													class="w-full cursor-pointer text-right text-sm font-medium text-foreground hover:text-foreground"
 												>
 													{formatCurrency(item.labour_cost || 0)}
 												</button>
@@ -1065,7 +1065,7 @@
 											{formatCurrency(item.labour_cost || 0)}
 										{/if}
 									</td>
-									<td class="py-2 text-right {isRemoved || isReversal ? 'text-blue-600' : ''}">
+									<td class="py-2 text-right {isRemoved || isReversal ? 'text-foreground' : ''}">
 										{#if !isRemoved && !isReversal && item.status === 'pending' && ['N', 'R', 'P', 'B'].includes(item.process_type)}
 											{#if editingPaint === item.id}
 												<Input
@@ -1084,7 +1084,7 @@
 											{:else}
 												<button
 													onclick={() => handlePaintClick(item.id!, item.paint_panels || null)}
-													class="w-full cursor-pointer text-right text-sm font-medium text-blue-600 hover:text-blue-800"
+													class="w-full cursor-pointer text-right text-sm font-medium text-foreground hover:text-foreground"
 												>
 													{formatCurrency(item.paint_cost || 0)}
 												</button>
@@ -1093,7 +1093,7 @@
 											{formatCurrency(item.paint_cost || 0)}
 										{/if}
 									</td>
-									<td class="py-2 text-right {isRemoved || isReversal ? 'text-blue-600' : ''}">
+									<td class="py-2 text-right {isRemoved || isReversal ? 'text-foreground' : ''}">
 										{#if !isRemoved && !isReversal && item.status === 'pending' && item.process_type === 'O'}
 											{#if editingOutwork === item.id}
 												<Input
@@ -1113,7 +1113,7 @@
 												<button
 													onclick={() =>
 														handleOutworkClick(item.id!, item.outwork_charge_nett || null)}
-													class="w-full cursor-pointer text-right text-sm font-medium text-blue-600 hover:text-blue-800"
+													class="w-full cursor-pointer text-right text-sm font-medium text-foreground hover:text-foreground"
 												>
 													{formatCurrency(item.outwork_charge_nett || 0)}
 												</button>
@@ -1124,27 +1124,27 @@
 									</td>
 									<td
 										class="py-2 text-right font-medium {isRemoved || isReversal
-											? 'text-blue-600'
+											? 'text-foreground'
 											: ''}">{formatCurrency(item.total)}</td
 									>
 									<td class="py-2">
 										{#if isReversal}
-											<Badge class="bg-blue-100 text-blue-800">
+											<Badge variant="secondary">
 												<RotateCcw class="mr-1 h-3 w-3" />
 												Reversal
 											</Badge>
 										{:else if isRemoved}
-											<Badge class="bg-red-100 text-red-800">
+											<Badge variant="destructive-soft">
 												<Trash2 class="mr-1 h-3 w-3" />
 												Removed
 											</Badge>
 										{:else if isReversed}
-											<Badge class="bg-blue-100 text-blue-800">
+											<Badge variant="secondary">
 												<RotateCcw class="mr-1 h-3 w-3" />
 												Reversed
 											</Badge>
 										{:else}
-											<Badge class={getStatusBadgeClass(item.status)}>
+											<Badge variant={getStatusBadgeVariant(item.status)}>
 												<StatusIcon class="mr-1 h-3 w-3" />
 												{item.status}
 											</Badge>
@@ -1154,13 +1154,13 @@
 										<div class="flex gap-1">
 											{#if item.action === 'reversal'}
 												<!-- Reversal entries are immutable and auto-approved -->
-												<span class="flex items-center gap-1 text-xs text-blue-600 italic">
+												<span class="flex items-center gap-1 text-xs text-muted-foreground italic">
 													<RotateCcw class="h-3 w-3" />
 													Reversal
 												</span>
 											{:else if isReversed}
 												<!-- Reversed items: no actions available (already reversed) -->
-												<span class="flex items-center gap-1 text-xs text-blue-600 italic">
+												<span class="flex items-center gap-1 text-xs text-muted-foreground italic">
 													<RotateCcw class="h-3 w-3" />
 													Reversed
 												</span>

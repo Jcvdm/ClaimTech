@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { Card } from '$lib/components/ui/card';
 	import { Button } from '$lib/components/ui/button';
+	import { Badge } from '$lib/components/ui/badge';
 	import * as Table from '$lib/components/ui/table';
 	import * as Dialog from '$lib/components/ui/dialog';
 	import { Trash2 } from 'lucide-svelte';
@@ -60,14 +61,14 @@
 	</div>
 
 	{#if removedOriginalLineIds.length > 0}
-		<div class="rounded-md bg-red-50 border border-red-200 p-3">
+		<div class="rounded-md bg-destructive-soft border border-destructive-border p-3">
 			<div class="flex items-start gap-2">
-				<Trash2 class="h-5 w-5 text-red-600 mt-0.5 flex-shrink-0" />
+				<Trash2 class="h-5 w-5 text-destructive mt-0.5 flex-shrink-0" />
 				<div class="flex-1">
-					<p class="text-sm font-medium text-red-900">
+					<p class="text-sm font-medium text-destructive">
 						{removedOriginalLineIds.length} line{removedOriginalLineIds.length > 1 ? 's' : ''} removed
 					</p>
-					<p class="text-xs text-red-700 mt-1">
+					<p class="text-xs text-destructive mt-1">
 						Removed total: <span class="font-mono-tabular">{formatCurrency(removedTotal())}</span>
 					</p>
 				</div>
@@ -94,13 +95,13 @@
 					<p class="text-xs text-gray-600">Total Lines</p>
 					<p class="text-lg font-semibold text-gray-900">{estimate.line_items.length}</p>
 				</div>
-				<div class="rounded-lg border bg-red-50 p-3">
-					<p class="text-xs text-red-600">Removed Lines</p>
-					<p class="text-lg font-semibold text-red-900">{removedOriginalLineIds.length}</p>
+				<div class="rounded-lg border bg-destructive-soft p-3">
+					<p class="text-xs text-destructive">Removed Lines</p>
+					<p class="text-lg font-semibold text-destructive">{removedOriginalLineIds.length}</p>
 				</div>
-				<div class="rounded-lg border bg-blue-50 p-3">
-					<p class="text-xs text-blue-600">Removed Total</p>
-					<p class="text-lg font-semibold text-blue-900 font-mono-tabular">{formatCurrency(removedTotal())}</p>
+				<div class="rounded-lg border bg-muted p-3">
+					<p class="text-xs text-muted-foreground">Removed Total</p>
+					<p class="text-lg font-semibold text-foreground font-mono-tabular">{formatCurrency(removedTotal())}</p>
 				</div>
 			</div>
 
@@ -119,12 +120,12 @@
 					<Table.Body>
 						{#each estimate.line_items as item (item.id)}
 							{@const isRemoved = removedOriginalLineIds.includes(item.id!)}
-							<Table.Row class={isRemoved ? 'bg-red-50' : ''}>
+							<Table.Row class={isRemoved ? 'bg-destructive-soft' : ''}>
 								<Table.Cell class="font-medium">
 									<span
 										class="inline-flex items-center justify-center w-6 h-6 rounded text-xs font-bold {isRemoved
-											? 'bg-red-200 text-red-900'
-											: 'bg-blue-100 text-blue-900'}"
+											? 'bg-destructive-border text-destructive'
+											: 'bg-muted text-foreground'}"
 									>
 										{item.process_type}
 									</span>
@@ -137,24 +138,20 @@
 									</div>
 								</Table.Cell>
 								<Table.Cell class="text-right">
-									<span class="font-medium font-mono-tabular {isRemoved ? 'text-red-600 line-through' : 'text-gray-900'}">
+									<span class="font-medium font-mono-tabular {isRemoved ? 'text-destructive line-through' : 'text-gray-900'}">
 										{formatCurrency(item.total || 0)}
 									</span>
 								</Table.Cell>
 								<Table.Cell class="text-center">
 									{#if isRemoved}
-										<span
-											class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800"
-										>
+										<Badge variant="destructive-soft">
 											<Trash2 class="h-3 w-3 mr-1" />
 											Removed
-										</span>
+										</Badge>
 									{:else}
-										<span
-											class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800"
-										>
+										<Badge variant="success">
 											Active
-										</span>
+										</Badge>
 									{/if}
 								</Table.Cell>
 								<Table.Cell class="text-right">
@@ -175,8 +172,8 @@
 			</div>
 
 			<!-- Info Box -->
-			<div class="rounded-md bg-blue-50 border border-blue-200 p-3">
-				<p class="text-xs text-blue-900">
+			<div class="rounded-md bg-muted border border-border-strong p-3">
+				<p class="text-xs text-foreground">
 					<strong>Note:</strong> Removed lines are added to Additionals as negative items, which reduces
 					the combined total. The original estimate document remains unchanged. You can add replacement
 					items through the Additionals "Add Line Item" feature.

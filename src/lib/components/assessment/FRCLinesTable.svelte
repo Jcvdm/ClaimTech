@@ -33,11 +33,11 @@
 	function getDecisionBadge(decision: string) {
 		switch (decision) {
 			case 'agree':
-				return { variant: 'default' as const, icon: Check, label: 'Agreed', class: 'bg-green-100 text-green-800' };
+				return { variant: 'success' as const, icon: Check, label: 'Agreed', class: '' };
 			case 'adjust':
-				return { variant: 'default' as const, icon: AlertCircle, label: 'Adjusted', class: 'bg-orange-100 text-orange-800' };
+				return { variant: 'warning' as const, icon: AlertCircle, label: 'Adjusted', class: '' };
 			case 'declined':
-				return { variant: 'destructive' as const, icon: AlertCircle, label: 'Declined', class: 'bg-red-100 text-red-800' };
+				return { variant: 'destructive-soft' as const, icon: AlertCircle, label: 'Declined', class: '' };
 			default:
 				return { variant: 'secondary' as const, icon: Clock, label: 'Pending', class: '' };
 		}
@@ -175,7 +175,7 @@
                                 </p>
 								<p class="text-xs text-gray-500 mt-0.5 flex items-center gap-2">
                                     {#if line.removed_via_additionals}
-                                        <Badge class="bg-green-100 text-green-800">
+                                        <Badge variant="success">
                                             <Check class="h-3 w-3 mr-1" />
                                             Agreed (Removed)
                                         </Badge>

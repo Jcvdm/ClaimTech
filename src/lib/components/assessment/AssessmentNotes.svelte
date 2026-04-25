@@ -84,16 +84,16 @@
 	}
 </script>
 
-<Card class="border-blue-200 bg-blue-50/50">
+<Card class="border-border bg-muted">
 	<!-- Header - Clickable to expand/collapse -->
 	<button
 		type="button"
 		onclick={() => (isExpanded = !isExpanded)}
-		class="flex w-full items-center justify-between border-b border-blue-200 p-3 transition-colors hover:bg-blue-100/50 sm:p-4"
+		class="flex w-full items-center justify-between border-b border-border p-3 transition-colors hover:bg-accent sm:p-4"
 		class:border-b-0={!isExpanded}
 	>
 		<div class="flex items-center gap-2">
-			<StickyNote class="h-4 w-4 text-blue-600 sm:h-5 sm:w-5" />
+			<StickyNote class="h-4 w-4 text-muted-foreground sm:h-5 sm:w-5" />
 			<h3 class="text-base font-semibold text-gray-900 sm:text-lg">Notes</h3>
 			<span class="text-xs text-gray-500 sm:text-sm">({notes.length})</span>
 		</div>
@@ -129,7 +129,7 @@
 		</div>
 
 		<!-- Add Note Input (sticky at bottom) -->
-		<div class="border-t border-blue-200 bg-white p-3 sm:p-4">
+		<div class="border-t border-border bg-white p-3 sm:p-4">
 			<AddNoteInput onAdd={handleAddNote} />
 		</div>
 	{/if}

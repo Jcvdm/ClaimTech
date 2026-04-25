@@ -58,7 +58,7 @@
 
 				<div class="mt-3 flex items-center gap-2">
 					{#if generated}
-						<Badge variant="default" class="bg-emerald-100 text-emerald-800">
+						<Badge variant="success">
 							<CheckCircle class="mr-1 h-3 w-3" />
 							Generated
 						</Badge>
@@ -132,7 +132,7 @@
 		{/if}
 
 		{#if showPrintFallback && printUrl}
-			<Button onclick={handlePrint} variant="secondary" class="border-orange-300 bg-orange-50 hover:bg-orange-100">
+			<Button onclick={handlePrint} variant="outline">
 				<Printer class="mr-2 h-4 w-4" />
 				Print Instead
 			</Button>
@@ -140,8 +140,8 @@
 	</div>
 
 	{#if showPrintFallback}
-		<div class="mt-3 rounded-md bg-orange-50 p-3 border border-orange-200">
-			<p class="text-xs text-orange-900">
+		<div class="mt-3 rounded-md bg-muted p-3 border border-border-strong">
+			<p class="text-xs text-foreground">
 				<strong>⚡ Quick Print:</strong> Server generation is taking longer than expected. Use "Print Instead" to open a print-friendly view in your browser, then save as PDF (Ctrl+P or Cmd+P).
 			</p>
 		</div>
