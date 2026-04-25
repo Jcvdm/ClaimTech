@@ -223,7 +223,8 @@
     font-size: max(16px, 1rem);
   }
 
-  .overflow-y-auto, .overflow-auto, .overflow-y-scroll {
+  /* opt-in only — apply to Dialog/Sheet content with bounded internal scroll, not to inline page sections */
+  .scroll-isolate {
     overscroll-behavior: contain;
   }
 }

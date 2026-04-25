@@ -582,7 +582,7 @@
 <div class="space-y-6">
 	<!-- Validation Modal -->
 	<Dialog bind:open={showValidationModal}>
-		<DialogContent class="max-h-[80vh] max-w-2xl overflow-y-auto">
+		<DialogContent class="max-h-[80vh] max-w-2xl overflow-y-auto scroll-isolate">
 			<DialogHeader>
 				<DialogTitle>Required Fields Missing</DialogTitle>
 				<DialogDescription>

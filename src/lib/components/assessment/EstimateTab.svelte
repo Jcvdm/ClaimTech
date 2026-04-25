@@ -1123,7 +1123,7 @@ import type { Repairer } from '$lib/types/repairer';
 			</div>
 
 			<!-- Desktop: Table Layout -->
-			<div class="hidden rounded-sm border overflow-x-auto max-h-[70vh] overflow-y-auto md:block">
+			<div class="hidden rounded-sm border overflow-x-auto md:block">
 				<Table.Root>
 					<Table.Header class="sticky top-0 z-10 bg-white">
 						<Table.Row class="hover:bg-transparent border-b border-border">
@@ -1917,7 +1917,7 @@ import type { Repairer } from '$lib/types/repairer';
 		<div class="space-y-4">
 			<!-- Text Display Area -->
 			<div class="relative">
-				<pre class="bg-gray-50 border border-gray-200 rounded-lg p-4 text-sm font-mono overflow-x-auto whitespace-pre-wrap max-h-96 overflow-y-auto">{partsListText}</pre>
+				<pre class="bg-gray-50 border border-gray-200 rounded-lg p-4 text-sm font-mono overflow-x-auto whitespace-pre-wrap">{partsListText}</pre>
 			</div>
 
 			<!-- Action Buttons -->

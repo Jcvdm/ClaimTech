@@ -297,7 +297,7 @@
 
 	<!-- Mobile drawer (Sheet) -->
 	<Sheet bind:open={drawerOpen}>
-		<SheetContent side="left" class="w-[280px] p-0">
+		<SheetContent side="left" class="w-[280px] p-0 scroll-isolate">
 			<StepRail
 				{steps}
 				currentStep={currentTab}

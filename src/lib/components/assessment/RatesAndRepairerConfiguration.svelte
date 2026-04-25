@@ -525,7 +525,7 @@
 
 <!-- Quick Add Repairer Modal -->
 <Dialog.Root open={showQuickAddModal} onOpenChange={(open) => !open && closeQuickAddModal()}>
-	<Dialog.Content class="max-w-2xl max-h-[90vh] overflow-y-auto">
+	<Dialog.Content class="max-w-2xl max-h-[90vh] overflow-y-auto scroll-isolate">
 		<Dialog.Header>
 			<Dialog.Title>Quick Add Repairer</Dialog.Title>
 		</Dialog.Header>

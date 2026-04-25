@@ -78,7 +78,7 @@
 
 <!-- Modal Dialog -->
 <Dialog.Root open={isOpen} onOpenChange={(open) => (isOpen = open)}>
-	<Dialog.Content class="sm:max-w-4xl max-h-[80vh] overflow-y-auto">
+	<Dialog.Content class="sm:max-w-4xl max-h-[80vh] overflow-y-auto scroll-isolate">
 		<Dialog.Header>
 			<Dialog.Title>Manage Original Estimate Lines</Dialog.Title>
 			<Dialog.Description>

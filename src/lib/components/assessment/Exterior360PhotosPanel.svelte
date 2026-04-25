@@ -256,7 +256,7 @@
 		</div>
 	{:else}
 		<!-- Grid with upload zone as first item -->
-		<div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 max-h-[600px] overflow-y-auto p-1">
+		<div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 p-1">
 			<!-- Upload zone as first grid cell -->
 			<div
 				class="relative w-full aspect-square border-2 border-dashed rounded-lg transition-colors cursor-pointer {upload.isDragging

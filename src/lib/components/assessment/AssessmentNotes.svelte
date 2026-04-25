@@ -113,7 +113,7 @@
 		<!-- Notes List (scrollable) - responsive heights -->
 		<div
 			bind:this={notesContainer}
-			class="max-h-[250px] min-h-[100px] space-y-3 overflow-y-auto p-3 sm:max-h-[400px] sm:min-h-[150px] sm:p-4"
+			class="min-h-[100px] space-y-3 p-3 sm:min-h-[150px] sm:p-4"
 		>
 			{#if sortedNotes.length === 0}
 				<div class="flex h-[80px] flex-col items-center justify-center text-center text-gray-500 sm:h-[130px]">

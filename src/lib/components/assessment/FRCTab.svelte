@@ -1049,7 +1049,7 @@ import { calculateDeltas } from '$lib/utils/frcCalculations';
 
 <!-- Adjust Modal -->
 <Dialog.Root bind:open={showAdjustModal}>
-	<Dialog.Content class="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+	<Dialog.Content class="sm:max-w-2xl max-h-[90vh] overflow-y-auto scroll-isolate">
 		<Dialog.Header>
 			<Dialog.Title>Adjust Line Item</Dialog.Title>
 			<Dialog.Description>
