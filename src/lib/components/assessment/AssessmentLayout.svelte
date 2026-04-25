@@ -1,8 +1,8 @@
 <script lang="ts">
 	import { Button } from '$lib/components/ui/button';
 	import LoadingButton from '$lib/components/ui/button/LoadingButton.svelte';
-	import { Tabs, TabsList, TabsTrigger } from '$lib/components/ui/tabs';
-	import { TabLoadingIndicator } from '$lib/components/ui/tab-loading';
+	import { Sheet, SheetContent } from '$lib/components/ui/sheet';
+	import { StepRail } from '$lib/components/ui/step-rail';
 	import {
 		Save,
 		X,
@@ -18,8 +18,7 @@
 		Trash2,
 		History,
 		Clock,
-		Check,
-		Circle
+		Menu
 	} from 'lucide-svelte';
 	import type { Assessment } from '$lib/types/assessment';
 	import {
@@ -91,6 +90,9 @@
 		onValidationUpdate = undefined,
 		children
 	}: Props = $props();
+
+	// Mobile drawer state
+	let drawerOpen = $state(false);
 
 	// Track child-reported validations (these are more current than prop-based validations)
 	let childValidations = $state<Record<string, TabValidation>>({});
@@ -180,40 +182,39 @@
 		return validations;
 	});
 
-	// Get missing fields count for a tab
-	function getMissingFieldsCount(tabId: string): number {
-		const validation = tabValidations[tabId];
-		return validation?.missingFields?.length || 0;
-	}
+	// Build steps array for StepRail from tabs + validations
+	const steps = $derived.by(() => {
+		return tabs().map((tab) => {
+			const validation = tabValidations[tab.id];
+			if (!validation) {
+				return { id: tab.id, label: tab.label, status: 'not-started' as const };
+			}
+			if (validation.isComplete) {
+				return { id: tab.id, label: tab.label, status: 'complete' as const };
+			}
+			const total = validation.totalFields ?? 0;
+			const missing = validation.missingFields.length;
+			const progress = total > 0 ? Math.max(0, Math.min(1, (total - missing) / total)) : 0;
+			return {
+				id: tab.id,
+				label: tab.label,
+				status: 'in-progress' as const,
+				progress,
+				missingCount: missing
+			};
+		});
+	});
 
 	function handleTabClick(tabId: string) {
 		if (currentTab !== tabId) {
 			onTabChange(tabId);
 		}
 	}
-
-	function getShortLabel(label: string): string {
-		const shortLabels: Record<string, string> = {
-			Summary: 'Sum',
-			'Vehicle ID': 'ID',
-			'360° Exterior': '360°',
-			'Interior & Mechanical': 'Int',
-			Tyres: 'Tyre',
-			'Damage ID': 'Dmg',
-			Values: 'Val',
-			'Pre-Incident': 'Pre',
-			Estimate: 'Est',
-			Finalize: 'Fin',
-			Additionals: 'Add'
-		};
-		return shortLabels[label] || label;
-	}
 </script>
 
-<div class="flex h-full flex-col bg-gray-50">
-	<!-- Sticky Header Container -->
-	<div class="relative z-30 flex flex-col bg-gray-50 shadow-sm">
-		<!-- Header -->
+<div class="flex h-screen flex-col overflow-hidden bg-gray-50">
+	<!-- Sticky Header -->
+	<div class="relative z-30 bg-gray-50 shadow-sm">
 		<div class="border-b bg-white px-3 py-2 sm:px-6 sm:py-4 lg:px-8">
 			<div class="flex items-center justify-between gap-2 sm:gap-3">
 				<!-- Title Section -->
@@ -236,7 +237,18 @@
 						</div>
 					{/if}
 
-					<!-- Buttons - icon only on xs, with text on sm+ -->
+					<!-- Hamburger — mobile/tablet only (hidden on lg+) -->
+					<Button
+						variant="ghost"
+						size="icon"
+						class="lg:hidden h-8 w-8"
+						onclick={() => (drawerOpen = true)}
+						aria-label="Open navigation"
+					>
+						<Menu class="h-4 w-4" />
+					</Button>
+
+					<!-- Save / Cancel / Exit — icon only on xs, with text on sm+ -->
 					<LoadingButton
 						variant="outline"
 						onclick={onSave}
@@ -264,58 +276,36 @@
 				</div>
 			</div>
 		</div>
-
-		<!-- Tabs -->
-		<div class="border-b bg-white px-2 py-2 sm:px-6 lg:px-8">
-			<Tabs
-				bind:value={currentTab}
-				class="w-full"
-				onValueChange={(value: string) => onTabChange(value)}
-			>
-				<TabsList
-					class="flex h-auto w-full snap-x snap-mandatory gap-1.5 overflow-x-auto bg-transparent p-0 pb-2 scrollbar-hide sm:grid sm:snap-none sm:grid-cols-4 sm:gap-2 sm:overflow-visible sm:pb-0 md:grid-cols-6 lg:grid-cols-6"
-				>
-					{#each tabs() as tab}
-						{@const missingCount = getMissingFieldsCount(tab.id)}
-						{@const done = missingCount === 0}
-						<TabsTrigger
-							value={tab.id}
-							disabled={tabLoading}
-							class="relative -mb-px flex h-8 min-w-[4.5rem] shrink-0 snap-start items-center justify-center gap-1 rounded-none border-0 border-b-2 border-transparent bg-transparent px-2 py-1.5 text-xs font-medium text-muted-foreground shadow-none ring-offset-background transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50 data-[state=active]:border-b-foreground data-[state=active]:bg-transparent data-[state=active]:text-foreground data-[state=active]:shadow-none sm:h-9 sm:min-w-0 sm:shrink sm:gap-2 sm:px-3 sm:py-2 sm:text-sm"
-						>
-							{#if tabLoading && currentTab === tab.id}
-								<TabLoadingIndicator isLoading={true} />
-							{:else if done}
-								<Check class="size-3.5 text-success shrink-0" />
-							{:else}
-								<Circle class="size-3.5 text-muted-foreground shrink-0" />
-							{/if}
-							<span class="hidden sm:inline">{tab.label}</span>
-							<span class="sm:hidden">{getShortLabel(tab.label)}</span>
-						</TabsTrigger>
-					{/each}
-				</TabsList>
-			</Tabs>
-		</div>
 	</div>
 
-	<!-- Content Area -->
-	<div class="flex-1 overflow-y-auto p-2 pt-2 sm:p-3 sm:pt-3 md:p-4 lg:p-6 lg:pt-4">
-		<div class="mx-auto w-[98%] max-w-[1600px] sm:w-[95%] md:w-[92%] lg:w-[90%]">
-			{#if children}
-				{@render children()}
-			{/if}
-		</div>
+	<!-- Body: aside rail + main content -->
+	<div class="flex flex-1 min-h-0">
+		<!-- Desktop step rail (lg+) -->
+		<aside class="hidden lg:flex w-[232px] shrink-0 flex-col overflow-y-auto border-r border-sidebar-border bg-sidebar">
+			<StepRail {steps} currentStep={currentTab} onStepChange={handleTabClick} />
+		</aside>
+
+		<!-- Main content area -->
+		<main class="flex-1 overflow-y-auto p-2 pt-2 sm:p-3 sm:pt-3 md:p-4 lg:p-6 lg:pt-4">
+			<div class="mx-auto w-[98%] max-w-[1600px] sm:w-[95%] md:w-[92%] lg:w-[90%]">
+				{#if children}
+					{@render children()}
+				{/if}
+			</div>
+		</main>
 	</div>
+
+	<!-- Mobile drawer (Sheet) -->
+	<Sheet bind:open={drawerOpen}>
+		<SheetContent side="left" class="w-[280px] p-0">
+			<StepRail
+				{steps}
+				currentStep={currentTab}
+				onStepChange={(id) => {
+					handleTabClick(id);
+					drawerOpen = false;
+				}}
+			/>
+		</SheetContent>
+	</Sheet>
 </div>
-
-<style>
-	/* Hide scrollbar for horizontal tab scroll on mobile */
-	:global(.scrollbar-hide) {
-		-ms-overflow-style: none; /* IE and Edge */
-		scrollbar-width: none; /* Firefox */
-	}
-	:global(.scrollbar-hide::-webkit-scrollbar) {
-		display: none; /* Chrome, Safari, Opera */
-	}
-</style>
