@@ -2,10 +2,10 @@
 
 **Purpose**: Portable resume doc. Checked into the repo so another Claude Code instance on another machine can pull this branch and pick up exactly where work stopped.
 
-**Last updated**: 2026-04-25 (Windows session — Phase 8a step rail + scroll fix shipped)
+**Last updated**: 2026-04-25 (Windows session — 8a step rail + scroll fix + color cleanup + sync pill + damage two-pane all shipped)
 **Active branch**: `claude/confident-mendel`
 **Remote**: `origin` (github.com/Jcvdm/ClaimTech.git)
-**HEAD**: `27ddf43`
+**HEAD**: `dd712b8`
 
 ---
 
@@ -37,7 +37,11 @@ Then tell the new Claude: **"Read `.agent/Tasks/active/STYLE_UPGRADE_HANDOFF.md`
 As of 2026-04-25 (Windows session):
 
 ```
-27ddf43  fix(scroll): one natural page scroll on assessment routes              ← HEAD
+dd712b8  style(damage): two-pane DamageTab + sticky DamageSummaryCard — Phase 8b   ← HEAD
+8e3708a  feat(sync): compact topbar pill replaces full-width offline banner
+0c1c5a2  style(badges): flip remaining raw-Tailwind status colors to tokens
+5093618  docs(handoff): record scroll fix, move task to completed
+27ddf43  fix(scroll): one natural page scroll on assessment routes
 c062dcd  docs(handoff): mark Phase 8a shipped, move task to completed
 e785468  style(assessment): Phase 8a — replace horizontal tabs with step rail
 cefd93e  feat(validation): expose totalFields on TabValidation
@@ -64,6 +68,34 @@ e5312bb  style(cleanup): Phase 2 decorative sweep — rose/gradient/shadow
 Everything from 411c967 forward is the style upgrade. `origin/main` is at 217d2c7 — the style work lives on the preview branch, not production.
 
 ## What shipped in the 2026-04-25 Windows session (Phase 8a + scroll fix)
+
+### Color leak cleanup — `0c1c5a2`
+Cleans up the deferred raw-Tailwind leaks listed in this handoff. Mirrors Mac's `f1731ad` pattern (process/part-type badges → tokens):
+- Status badges across `AdditionalsTab`, `FRCLinesTable`, `FRCLineCard`, `AdditionalLineItemCard`, `OriginalEstimateLinesPanel` → `Badge variant=success/warning/destructive-soft`.
+- Card containers in `RatesAndRepairerConfiguration`, `RatesConfiguration`, `AssessmentNotes`, `OriginalEstimateLinesPanel` → token surfaces (`bg-muted border-border`, `bg-success-soft border-success-border`, `bg-warning-soft border-warning-border`).
+- `AdditionalLineItemCard` card-state borders for removed/reversal/approved → `bg-destructive-soft border-destructive-border`, `bg-muted border-border-strong`, `bg-success-soft border-success-border`.
+- Click-to-edit cells: `text-blue-600` → `text-foreground`/`text-muted-foreground`. Hover borders: `border-blue-300` → `border-border-strong`.
+- `DocumentCard` print button: orange → `Button variant="outline"`. Info box: orange → muted.
+
+Left intentionally alone (semantic, separate review needed): EstimateTab/FRCTab "Net Amount Payable" green + "Less: Excess" orange (money-in vs deduction signal); EstimateTab Total (Inc VAT) threshold-based colors (red/orange/yellow/green by assessment value); FRCTab status cards (multi-state); AdditionalsTab Rates Mismatch double-border yellow card (intentional visual weight); AdditionalLineItemCard process-type/part-type badge colors (semantic).
+
+### Sync pill — `8e3708a`
+Replaces the fixed full-width `OfflineIndicator` banner (mounted in root `+layout.svelte`) with a compact pill in the `(app)` topbar's right-side actions row. Three states per design-system §"Offline / sync":
+- Online + 0 queued → `bg-success-soft` + green tick + "Synced"
+- Online + N queued → `bg-warning-soft` + spinner + "Syncing N"
+- Offline → `bg-warning-soft` + cloud-off + "Offline · N queued"
+
+New `src/lib/offline/components/SyncPill.svelte` (~80 lines) reads existing reactive plumbing — `networkStatus.isOnline` (singleton runes class) + `syncManager.pendingCount`. No new state machinery. `OfflineIndicator.svelte` left on disk pending an audit of other consumers; `SyncStatus`/`SyncProgress` components untouched. Barrel export added to `$lib/offline`.
+
+### DamageTab two-pane — `dd712b8`
+Completes the Phase 8b two-pane intent that Mac applied to `EstimateTab` in `466027d`. Mirrors the same grid pattern: `lg:grid-cols-[minmax(0,1fr)_340px]`, `lg:sticky lg:top-24`, mobile stack via `mt-6 lg:mt-0`. DamageTab is a single-record form (not a line-item list), so the right pane isn't "totals" — it's a new compact `DamageSummaryCard.svelte` that mirrors what the engineer has filled in:
+- Match status badge (success/destructive-soft/muted)
+- Severity badge with tone per enum (info/warning/destructive-soft for minor/moderate/severe & total_loss)
+- Damage area + type
+- Estimated repair duration (mono-tabular)
+- Required-fields checklist (Match check, Severity) with green ticks / hollow circles
+
+Engineer sees state at-a-glance without scrolling back. Drafts, autosave, validation logic in DamageTab unchanged.
 
 ### Scroll fix — `27ddf43`
 Users (especially on Firefox) reported assessment pages feeling stuck when wheeling over an inner panel. Root cause: global `.overflow-y-auto { overscroll-behavior: contain; }` rule in `src/app.css` blocked all scroll chaining, combined with 8 inner `max-h-... overflow-y-auto` regions inside assessment `<main>` (estimate table + parts pre, AssessmentNotes, 5 photo grids).
