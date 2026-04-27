@@ -33,6 +33,7 @@
 		Info
 	} from 'lucide-svelte';
 	import { Input } from '$lib/components/ui/input';
+	// B2: Using native <textarea> for description cells (typed events; Textarea shadcn lacks bind:ref)
 	import type {
 		AssessmentAdditionals,
 		AdditionalLineItem,
@@ -91,6 +92,16 @@
 			props.onValidationUpdate(validation);
 		}
 	});
+
+	// A5: Serial mutation queue — guarantees Additionals service writes happen in click order.
+	// The internal .catch(() => undefined) keeps the queue alive across failures;
+	// the returned `result` promise still rejects normally so error banners keep working.
+	let mutationQueue: Promise<void> = Promise.resolve();
+	function enqueue<T>(fn: () => Promise<T>): Promise<T> {
+		const result = mutationQueue.then(fn);
+		mutationQueue = result.then(() => undefined, () => undefined); // catch keeps queue alive
+		return result;
+	}
 
 	let additionals = $state<AssessmentAdditionals | null>(null);
 	let additionalsPhotos = $state<AdditionalsPhoto[]>([]);
@@ -187,9 +198,12 @@
 	}
 
 	async function updatePending(lineItemId: string, patch: any) {
-		const updated = await additionalsService.updatePendingLineItem(assessmentId, lineItemId, patch);
-		additionals = updated;
-		await onUpdate();
+		// A5: wrap in serial queue so concurrent calls (Enter + blur) don't race
+		return enqueue(async () => {
+			const updated = await additionalsService.updatePendingLineItem(assessmentId, lineItemId, patch);
+			additionals = updated;
+			await onUpdate();
+		});
 	}
 
 	function handleSAClick(id: string, currentHours: number | null) {
@@ -197,11 +211,11 @@
 		tempSAHours = currentHours;
 	}
 	async function handleSASave(id: string) {
-		if (tempSAHours !== null) {
-			await updatePending(id, { strip_assemble_hours: tempSAHours });
-		}
-		editingSA = null;
+		if (tempSAHours === null) return;
+		const valueToSave = tempSAHours;
+		editingSA = null;      // A4: clear FIRST so re-entry on blur is a no-op
 		tempSAHours = null;
+		await updatePending(id, { strip_assemble_hours: valueToSave });
 	}
 	function handleSACancel() {
 		editingSA = null;
@@ -213,11 +227,11 @@
 		tempLabourHours = currentHours;
 	}
 	async function handleLabourSave(id: string) {
-		if (tempLabourHours !== null) {
-			await updatePending(id, { labour_hours: tempLabourHours });
-		}
-		editingLabour = null;
+		if (tempLabourHours === null) return;
+		const valueToSave = tempLabourHours;
+		editingLabour = null;  // A4: clear FIRST so re-entry on blur is a no-op
 		tempLabourHours = null;
+		await updatePending(id, { labour_hours: valueToSave });
 	}
 	function handleLabourCancel() {
 		editingLabour = null;
@@ -229,11 +243,11 @@
 		tempPaintPanels = currentPanels;
 	}
 	async function handlePaintSave(id: string) {
-		if (tempPaintPanels !== null) {
-			await updatePending(id, { paint_panels: tempPaintPanels });
-		}
-		editingPaint = null;
+		if (tempPaintPanels === null) return;
+		const valueToSave = tempPaintPanels;
+		editingPaint = null;   // A4: clear FIRST so re-entry on blur is a no-op
 		tempPaintPanels = null;
+		await updatePending(id, { paint_panels: valueToSave });
 	}
 	function handlePaintCancel() {
 		editingPaint = null;
@@ -245,11 +259,11 @@
 		tempPartPriceNett = currentNett;
 	}
 	async function handlePartPriceSave(id: string) {
-		if (tempPartPriceNett !== null) {
-			await updatePending(id, { part_price_nett: tempPartPriceNett });
-		}
-		editingPartPrice = null;
+		if (tempPartPriceNett === null) return;
+		const valueToSave = tempPartPriceNett;
+		editingPartPrice = null; // A4: clear FIRST so re-entry on blur is a no-op
 		tempPartPriceNett = null;
+		await updatePending(id, { part_price_nett: valueToSave });
 	}
 	function handlePartPriceCancel() {
 		editingPartPrice = null;
@@ -261,11 +275,11 @@
 		tempOutworkNett = currentNett;
 	}
 	async function handleOutworkSave(id: string) {
-		if (tempOutworkNett !== null) {
-			await updatePending(id, { outwork_charge_nett: tempOutworkNett });
-		}
-		editingOutwork = null;
+		if (tempOutworkNett === null) return;
+		const valueToSave = tempOutworkNett;
+		editingOutwork = null;  // A4: clear FIRST so re-entry on blur is a no-op
 		tempOutworkNett = null;
+		await updatePending(id, { outwork_charge_nett: valueToSave });
 	}
 	function handleOutworkCancel() {
 		editingOutwork = null;
@@ -384,14 +398,12 @@
 
 		try {
 			error = null;
-			// Service updates DB and returns updated additionals
-			const updatedAdditionals = await additionalsService.addLineItem(assessmentId, item);
-
-			// Update local state directly (triggers Svelte reactivity)
-			additionals = updatedAdditionals;
-
-			// ✅ No loadAdditionals() call - preserves user input in other fields
-			await onUpdate();
+			// A5: wrap in queue so rapid add + approve don't interleave
+			await enqueue(async () => {
+				const updatedAdditionals = await additionalsService.addLineItem(assessmentId, item);
+				additionals = updatedAdditionals;
+				await onUpdate();
+			});
 		} catch (err) {
 			error = err instanceof Error ? err.message : 'Failed to add line item';
 		}
@@ -401,14 +413,12 @@
 	async function handleApprove(lineItemId: string) {
 		try {
 			error = null;
-			// Service updates DB and returns updated additionals
-			const updatedAdditionals = await additionalsService.approveLineItem(assessmentId, lineItemId);
-
-			// Update local state directly (triggers Svelte reactivity)
-			additionals = updatedAdditionals;
-
-			// ✅ No loadAdditionals() call - preserves user input in other fields
-			await onUpdate();
+			// A5: wrap in queue so approve + decline + delete in rapid succession serialize
+			await enqueue(async () => {
+				const updatedAdditionals = await additionalsService.approveLineItem(assessmentId, lineItemId);
+				additionals = updatedAdditionals;
+				await onUpdate();
+			});
 		} catch (err) {
 			error = err instanceof Error ? err.message : 'Failed to approve item';
 		}
@@ -426,18 +436,17 @@
 
 		try {
 			error = null;
-			// Service updates DB and returns updated additionals
-			const updatedAdditionals = await additionalsService.declineLineItem(
-				assessmentId,
-				selectedLineItemId,
-				reason
-			);
-
-			// Update local state directly (triggers Svelte reactivity)
-			additionals = updatedAdditionals;
-
-			// ✅ No loadAdditionals() call - preserves user input in other fields
-			await onUpdate();
+			const idToDecline = selectedLineItemId;
+			// A5: wrap in queue
+			await enqueue(async () => {
+				const updatedAdditionals = await additionalsService.declineLineItem(
+					assessmentId,
+					idToDecline,
+					reason
+				);
+				additionals = updatedAdditionals;
+				await onUpdate();
+			});
 			showDeclineModal = false;
 			selectedLineItemId = null;
 		} catch (err) {
@@ -451,14 +460,12 @@
 
 		try {
 			error = null;
-			// Service updates DB and returns updated additionals
-			const updatedAdditionals = await additionalsService.deleteLineItem(assessmentId, lineItemId);
-
-			// Update local state directly (triggers Svelte reactivity)
-			additionals = updatedAdditionals;
-
-			// ✅ No loadAdditionals() call - preserves user input in other fields
-			await onUpdate();
+			// A5: wrap in queue
+			await enqueue(async () => {
+				const updatedAdditionals = await additionalsService.deleteLineItem(assessmentId, lineItemId);
+				additionals = updatedAdditionals;
+				await onUpdate();
+			});
 		} catch (err) {
 			error = err instanceof Error ? err.message : 'Failed to delete item';
 		}
@@ -491,35 +498,37 @@
 
 		try {
 			error = null;
-			let updatedAdditionals: AssessmentAdditionals;
+			const action = reversalAction;
+			const targetId = reversalTargetId;
+			// A5: wrap in queue (covers reverseApprovedLineItem, reinstateDeclinedLineItem, reinstateRemovedOriginal)
+			await enqueue(async () => {
+				let updatedAdditionals: AssessmentAdditionals;
 
-			if (reversalAction === 'reverse') {
-				updatedAdditionals = await additionalsService.reverseApprovedLineItem(
-					assessmentId,
-					reversalTargetId,
-					reason
-				);
-			} else if (reversalAction === 'reinstate') {
-				updatedAdditionals = await additionalsService.reinstateDeclinedLineItem(
-					assessmentId,
-					reversalTargetId,
-					reason
-				);
-			} else if (reversalAction === 'reinstate-original') {
-				updatedAdditionals = await additionalsService.reinstateRemovedOriginal(
-					assessmentId,
-					reversalTargetId,
-					reason
-				);
-			} else {
-				return; // Should never happen
-			}
+				if (action === 'reverse') {
+					updatedAdditionals = await additionalsService.reverseApprovedLineItem(
+						assessmentId,
+						targetId,
+						reason
+					);
+				} else if (action === 'reinstate') {
+					updatedAdditionals = await additionalsService.reinstateDeclinedLineItem(
+						assessmentId,
+						targetId,
+						reason
+					);
+				} else if (action === 'reinstate-original') {
+					updatedAdditionals = await additionalsService.reinstateRemovedOriginal(
+						assessmentId,
+						targetId,
+						reason
+					);
+				} else {
+					return; // Should never happen
+				}
 
-			// Update local state directly (triggers Svelte reactivity)
-			additionals = updatedAdditionals;
-
-			// ✅ No loadAdditionals() call - preserves user input in other fields
-			await onUpdate();
+				additionals = updatedAdditionals;
+				await onUpdate();
+			});
 			showReversalModal = false;
 			reversalAction = null;
 			reversalTargetId = null;
@@ -843,8 +852,8 @@
 		</ResponsiveDialog.Root>
 
 		<!-- Line Items Table -->
-		<Card class="p-2 sm:p-3">
-			<div class="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+		<Card class="p-0">
+			<div class="px-3 sm:px-4 py-3 border-b border-border mb-0 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
 				<h3 class="text-lg font-semibold">Additional Line Items</h3>
 				<div class="flex flex-wrap items-center gap-1.5 sm:gap-2">
 					<Button
@@ -886,7 +895,7 @@
 			</div>
 
 			{#if additionals.line_items.length === 0}
-				<div class="flex flex-col items-center justify-center py-12 text-center">
+				<div class="flex flex-col items-center justify-center py-12 text-center p-3">
 					<div class="mb-4 rounded-full bg-slate-100 p-4">
 						<Plus class="h-8 w-8 text-slate-400" />
 					</div>
@@ -902,7 +911,7 @@
 				</div>
 			{:else}
 				<!-- Mobile: Card Layout -->
-				<div class="space-y-3 md:hidden">
+				<div class="space-y-3 md:hidden p-3">
 					{#each additionals.line_items as item (item.id)}
 						{@const isRemoved = item.action === 'removed'}
 						{@const isReversal = item.action === 'reversal'}
@@ -944,7 +953,7 @@
 						<Table.Header class="sticky top-0 z-10 bg-white">
 							<Table.Row class="border-b border-border hover:bg-transparent">
 								<Table.Head
-									class="w-[112px] px-2 text-[11.5px] font-medium tracking-wide text-muted-foreground uppercase"
+									class="w-[96px] px-2 text-[11.5px] font-medium tracking-wide text-muted-foreground uppercase"
 									>Type / Part</Table.Head
 								>
 								<Table.Head
@@ -952,11 +961,11 @@
 									>Description</Table.Head
 								>
 								<Table.Head
-									class="w-[380px] px-2 text-[11.5px] font-medium tracking-wide text-muted-foreground uppercase"
+									class="w-[340px] px-2 text-[11.5px] font-medium tracking-wide text-muted-foreground uppercase"
 									>Costs</Table.Head
 								>
 								<Table.Head
-									class="w-[96px] px-2 text-right text-[11.5px] font-medium tracking-wide text-muted-foreground uppercase"
+									class="w-[88px] px-2 text-right text-[11.5px] font-medium tracking-wide text-muted-foreground uppercase"
 									>Total</Table.Head
 								>
 								<Table.Head
@@ -1018,14 +1027,13 @@
 									<Table.Cell class="px-3 py-2 align-top">
 										<div>
 											{#if !isRemoved && !isReversal && item.status === 'pending'}
-												<Input
-													type="text"
-													value={item.description}
-													oninput={(e) => updateLocalDescription(item.id!, e.currentTarget.value)}
-													onblur={(e) =>
-														updatePending(item.id!, { description: e.currentTarget.value })}
-													class="border-0 focus-visible:ring-0 focus-visible:ring-offset-0"
-												/>
+												<textarea
+													rows={2}
+													oninput={(e: Event) => updateLocalDescription(item.id!, (e.currentTarget as HTMLTextAreaElement).value)}
+													onblur={(e: Event) =>
+														updatePending(item.id!, { description: (e.currentTarget as HTMLTextAreaElement).value })}
+													class="flex w-full rounded-md border-0 bg-background px-0 py-0 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0 resize-none whitespace-pre-wrap break-words disabled:cursor-not-allowed disabled:opacity-50"
+												>{item.description}</textarea>
 											{:else}
 												<span
 													class={isRemoved
@@ -1066,7 +1074,7 @@
 															step="0.01"
 															bind:value={tempPartPriceNett}
 															onkeydown={(e) => {
-																if (e.key === 'Enter') handlePartPriceSave(item.id!);
+																if (e.key === 'Enter') e.currentTarget.blur(); // A4: Enter triggers blur (single save path)
 																if (e.key === 'Escape') handlePartPriceCancel();
 															}}
 															onblur={() => handlePartPriceSave(item.id!)}
@@ -1094,7 +1102,7 @@
 															step="0.25"
 															bind:value={tempSAHours}
 															onkeydown={(e) => {
-																if (e.key === 'Enter') handleSASave(item.id!);
+																if (e.key === 'Enter') e.currentTarget.blur(); // A4: Enter triggers blur (single save path)
 																if (e.key === 'Escape') handleSACancel();
 															}}
 															onblur={() => handleSASave(item.id!)}
@@ -1122,7 +1130,7 @@
 															step="0.5"
 															bind:value={tempLabourHours}
 															onkeydown={(e) => {
-																if (e.key === 'Enter') handleLabourSave(item.id!);
+																if (e.key === 'Enter') e.currentTarget.blur(); // A4: Enter triggers blur (single save path)
 																if (e.key === 'Escape') handleLabourCancel();
 															}}
 															onblur={() => handleLabourSave(item.id!)}
@@ -1149,7 +1157,7 @@
 															step="0.5"
 															bind:value={tempPaintPanels}
 															onkeydown={(e) => {
-																if (e.key === 'Enter') handlePaintSave(item.id!);
+																if (e.key === 'Enter') e.currentTarget.blur(); // A4: Enter triggers blur (single save path)
 																if (e.key === 'Escape') handlePaintCancel();
 															}}
 															onblur={() => handlePaintSave(item.id!)}
@@ -1176,7 +1184,7 @@
 															step="0.01"
 															bind:value={tempOutworkNett}
 															onkeydown={(e) => {
-																if (e.key === 'Enter') handleOutworkSave(item.id!);
+																if (e.key === 'Enter') e.currentTarget.blur(); // A4: Enter triggers blur (single save path)
 																if (e.key === 'Escape') handleOutworkCancel();
 															}}
 															onblur={() => handleOutworkSave(item.id!)}

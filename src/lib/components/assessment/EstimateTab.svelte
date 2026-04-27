@@ -2,6 +2,7 @@
 	import { Card } from '$lib/components/ui/card';
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
+	// B1: Using native <textarea> for description cells (bind:ref + typed events; Textarea shadcn lacks bind:ref)
 	import * as Table from '$lib/components/ui/table';
 	import RatesAndRepairerConfiguration from './RatesAndRepairerConfiguration.svelte';
 	import QuickAddLineItem from './QuickAddLineItem.svelte';
@@ -463,7 +464,7 @@
 	);
 
 	// Ref to description input for focus management
-	let skeletonDescInput = $state<HTMLInputElement | null>(null);
+	let skeletonDescInput = $state<HTMLTextAreaElement | null>(null); // B1: Textarea ref
 	let skeletonDescInputMobile = $state<HTMLInputElement | null>(null);
 	let skeletonMobileHint = $state('');
 
@@ -578,8 +579,9 @@
 	function scheduleUpdate(id: string, field: keyof EstimateLineItem, value: any) {
 		handleUpdateLineItem(id, field, value);
 	}
-	function flushUpdate(id: string, field: keyof EstimateLineItem, value: any) {
+	async function flushUpdate(id: string, field: keyof EstimateLineItem, value: any) {
 		handleUpdateLineItem(id, field, value);
+		await saveNow(); // A1: actually flush — clears debounce timer and awaits saveAll
 	}
 
 	function handleToggleSelect(itemId: string) {
@@ -897,6 +899,8 @@
 		outwork: number
 	) {
 		if (!localEstimate) return;
+		// A2: flush any pending line-item edits first so rate change applies on a clean baseline
+		await saveNow();
 		recalculating = true;
 		dirty = true;
 		localEstimate.labour_rate = labourRate;
@@ -1071,9 +1075,9 @@
 			</ResponsiveDialog.Root>
 
 			<!-- Line Items Section (full-width, single-column) -->
-			<Card class="p-2 sm:p-3">
+			<Card class="p-0">
 					<!-- Header - Responsive -->
-					<div class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+					<div class="px-3 sm:px-4 py-3 border-b border-border mb-0 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
 						<h3 class="text-[11.5px] font-semibold tracking-wide text-muted-foreground uppercase">
 							Line Items
 							<span class="font-mono-tabular ml-2 text-xs text-muted-foreground"
@@ -1141,7 +1145,7 @@
 					</div>
 
 					<!-- Mobile: Card Layout -->
-					<div class="space-y-3 md:hidden">
+					<div class="space-y-3 md:hidden p-3">
 						{#each localLineItems as item (item.id)}
 							<LineItemCard
 								{item}
@@ -1221,7 +1225,7 @@
 					</div>
 
 					<!-- Desktop: Table Layout -->
-					<div class="hidden rounded-sm border md:block">
+					<div class="hidden md:block">
 						<Table.Root class="table-fixed">
 							<Table.Header class="sticky top-0 z-10 bg-white">
 								<Table.Row class="border-b border-border hover:bg-transparent">
@@ -1235,7 +1239,7 @@
 										/>
 									</Table.Head>
 									<Table.Head
-										class="w-[112px] px-2 text-[11.5px] font-medium tracking-wide text-muted-foreground uppercase"
+										class="w-[96px] px-2 text-[11.5px] font-medium tracking-wide text-muted-foreground uppercase"
 										>Type / Part</Table.Head
 									>
 									<Table.Head
@@ -1243,7 +1247,7 @@
 										>Description</Table.Head
 									>
 									<Table.Head
-										class="w-[380px] px-2 text-[11.5px] font-medium tracking-wide text-muted-foreground uppercase"
+										class="w-[340px] px-2 text-[11.5px] font-medium tracking-wide text-muted-foreground uppercase"
 										>Costs</Table.Head
 									>
 									<Table.Head
@@ -1251,10 +1255,10 @@
 										title="Betterment">%</Table.Head
 									>
 									<Table.Head
-										class="w-[96px] px-2 text-right text-[11.5px] font-medium tracking-wide text-muted-foreground uppercase"
+										class="w-[88px] px-2 text-right text-[11.5px] font-medium tracking-wide text-muted-foreground uppercase"
 										>Total</Table.Head
 									>
-									<Table.Head class="w-[52px] px-2"></Table.Head>
+									<Table.Head class="w-[44px] px-2"></Table.Head>
 								</Table.Row>
 							</Table.Header>
 							<Table.Body>
@@ -1329,15 +1333,14 @@
 										</Table.Cell>
 
 										<Table.Cell class="px-3 py-2 align-top">
-											<Input
-												type="text"
+											<textarea
 												placeholder="Description"
-												value={item.description}
-												oninput={(e) =>
-													scheduleUpdate(item.id!, 'description', e.currentTarget.value)}
-												onblur={(e) => flushUpdate(item.id!, 'description', e.currentTarget.value)}
-												class="border-0 focus-visible:ring-0 focus-visible:ring-offset-0"
-											/>
+												rows={2}
+												oninput={(e: Event) =>
+													scheduleUpdate(item.id!, 'description', (e.currentTarget as HTMLTextAreaElement).value)}
+												onblur={(e: Event) => flushUpdate(item.id!, 'description', (e.currentTarget as HTMLTextAreaElement).value)}
+												class="flex w-full rounded-md border-0 bg-background px-0 py-0 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0 resize-none whitespace-pre-wrap break-words disabled:cursor-not-allowed disabled:opacity-50"
+											>{item.description}</textarea>
 										</Table.Cell>
 
 										<Table.Cell class="px-2 py-2 align-top">
@@ -1354,7 +1357,7 @@
 																step="0.01"
 																bind:value={tempPartPriceNett}
 																onkeydown={(e) => {
-																	if (e.key === 'Enter') handlePartPriceSave(item.id!, item);
+																	if (e.key === 'Enter') e.currentTarget.blur(); // A3: Enter triggers blur (single save path)
 																	if (e.key === 'Escape') handlePartPriceCancel();
 																}}
 																onblur={() => handlePartPriceSave(item.id!, item)}
@@ -1384,7 +1387,7 @@
 																step="0.25"
 																bind:value={tempSAHours}
 																onkeydown={(e) => {
-																	if (e.key === 'Enter') handleSASave(item.id!);
+																	if (e.key === 'Enter') e.currentTarget.blur(); // A3: Enter triggers blur (single save path)
 																	if (e.key === 'Escape') handleSACancel();
 																}}
 																onblur={() => handleSASave(item.id!)}
@@ -1413,7 +1416,7 @@
 																step="0.5"
 																bind:value={tempLabourHours}
 																onkeydown={(e) => {
-																	if (e.key === 'Enter') handleLabourSave(item.id!);
+																	if (e.key === 'Enter') e.currentTarget.blur(); // A3: Enter triggers blur (single save path)
 																	if (e.key === 'Escape') handleLabourCancel();
 																}}
 																onblur={() => handleLabourSave(item.id!)}
@@ -1442,7 +1445,7 @@
 																step="0.5"
 																bind:value={tempPaintPanels}
 																onkeydown={(e) => {
-																	if (e.key === 'Enter') handlePaintSave(item.id!);
+																	if (e.key === 'Enter') e.currentTarget.blur(); // A3: Enter triggers blur (single save path)
 																	if (e.key === 'Escape') handlePaintCancel();
 																}}
 																onblur={() => handlePaintSave(item.id!)}
@@ -1471,7 +1474,7 @@
 																step="0.01"
 																bind:value={tempOutworkNett}
 																onkeydown={(e) => {
-																	if (e.key === 'Enter') handleOutworkSave(item.id!);
+																	if (e.key === 'Enter') e.currentTarget.blur(); // A3: Enter triggers blur (single save path)
 																	if (e.key === 'Escape') handleOutworkCancel();
 																}}
 																onblur={() => handleOutworkSave(item.id!)}
@@ -1566,18 +1569,18 @@
 										</div>
 									</Table.Cell>
 									<Table.Cell class="px-3 py-2 align-top"
-										><Input
-											bind:ref={skeletonDescInput}
-											type="text"
+										><textarea
+											bind:this={skeletonDescInput}
 											placeholder="Description - type to add"
 											aria-label="New line description"
+											rows={2}
 											bind:value={skeletonDescription}
 											onblur={handleSkeletonDescriptionBlur}
-											onkeydown={(e) => {
-												if (e.key === 'Enter') e.currentTarget.blur();
+											onkeydown={(e: KeyboardEvent) => {
+												if (e.key === 'Enter') (e.currentTarget as HTMLTextAreaElement)?.blur();
 											}}
-											class="border-0 focus-visible:ring-0 focus-visible:ring-offset-0"
-										/></Table.Cell
+											class="flex w-full rounded-md border-0 bg-background px-0 py-0 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0 resize-none whitespace-pre-wrap break-words disabled:cursor-not-allowed disabled:opacity-50"
+										></textarea></Table.Cell
 									>
 									<Table.Cell class="px-2 py-2 align-top">
 										<div class="grid grid-cols-5 gap-1">
