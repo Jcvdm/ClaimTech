@@ -32,18 +32,39 @@
 		return additionals.line_items.filter((li) => li.action === 'removed').length;
 	});
 
+	const reversedTargets = $derived(() => {
+		if (!additionals?.line_items) return new Set<string>();
+		return new Set(
+			additionals.line_items
+				.filter((li) => li.action === 'reversal' && li.reverses_line_id)
+				.map((li) => li.reverses_line_id!)
+		);
+	});
+
 	// Calculate added items total (approved added lines only)
 	const addedItemsTotal = $derived(() => {
 		if (!additionals?.line_items) return 0;
 		return additionals.line_items
-			.filter((li) => li.action === 'added' && li.status === 'approved')
+			.filter(
+				(li) =>
+					li.action === 'added' &&
+					li.status === 'approved' &&
+					!!li.id &&
+					!reversedTargets().has(li.id)
+			)
 			.reduce((sum, li) => sum + (li.total || 0), 0);
 	});
 
 	// Count added lines
 	const addedLineCount = $derived(() => {
 		if (!additionals?.line_items) return 0;
-		return additionals.line_items.filter((li) => li.action === 'added' && li.status === 'approved').length;
+		return additionals.line_items.filter(
+			(li) =>
+				li.action === 'added' &&
+				li.status === 'approved' &&
+				!!li.id &&
+				!reversedTargets().has(li.id)
+		).length;
 	});
 
 	// Calculate combined total (additionals already includes negative removals)

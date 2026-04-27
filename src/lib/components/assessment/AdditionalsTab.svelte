@@ -547,7 +547,7 @@
 
 	// Count by status (excluding reversed items from their original status)
 	const statusCounts = $derived(() => {
-		if (!additionals) return { pending: 0, approved: 0, declined: 0, reversed: 0 };
+		if (!additionals) return { pending: 0, approved: 0, declined: 0, reversed: 0, removed: 0 };
 
 		// Build set of reversed line IDs
 		const rset = new Set(
@@ -563,11 +563,15 @@
 					acc.reversed++;
 					return acc;
 				}
+				if (item.action === 'removed') {
+					acc.removed++;
+					return acc;
+				}
 				// Otherwise count by status
 				acc[item.status]++;
 				return acc;
 			},
-			{ pending: 0, approved: 0, declined: 0, reversed: 0 }
+			{ pending: 0, approved: 0, declined: 0, reversed: 0, removed: 0 }
 		);
 	});
 
@@ -785,6 +789,9 @@
 					<Badge variant="success" class="text-xs">
 						{statusCounts().approved} Approved
 					</Badge>
+					<Badge variant="muted" class="text-xs">
+						{statusCounts().removed} Removed
+					</Badge>
 					<Badge variant="destructive-soft" class="text-xs">
 						{statusCounts().declined} Declined
 					</Badge>
@@ -854,8 +861,8 @@
 						<thead class="border-b">
 							<tr class="text-left">
 								<th class="pb-2 font-medium">Type</th>
-								<th class="pb-2 font-medium">Part Type</th>
 								<th class="pb-2 font-medium">Description</th>
+								<th class="pb-2 font-medium">Part Type</th>
 								<th class="pb-2 text-right font-medium">Part</th>
 								<th class="pb-2 text-right font-medium">S&A</th>
 								<th class="pb-2 text-right font-medium">Labour</th>

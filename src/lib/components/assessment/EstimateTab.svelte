@@ -1875,7 +1875,9 @@ import type { Repairer } from '$lib/types/repairer';
 
 		<!-- Actions -->
 		<div class="flex justify-between">
-			<Button variant="outline" onclick={() => {}}>Save Progress</Button>
+			<Button onclick={saveAll} size="sm" variant="outline" disabled={saving || !dirty}>
+				{saving ? 'Saving...' : 'Save Progress'}
+			</Button>
 			<Button onclick={onComplete} disabled={!isComplete}>
 				<Check class="mr-2 h-4 w-4" />
 				Complete Estimate
