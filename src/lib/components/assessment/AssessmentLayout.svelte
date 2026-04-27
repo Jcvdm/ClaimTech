@@ -296,7 +296,12 @@
 		</aside>
 
 		<!-- Main content area -->
-		<main class="flex-1 overflow-y-auto p-2 pt-2 sm:p-3 sm:pt-3 md:p-4 lg:p-6 lg:pt-4">
+		<main class={[
+				'flex-1 overflow-y-auto pt-2 sm:pt-3',
+				['estimate', 'additionals'].includes(currentTab)
+					? 'px-1 sm:px-2 lg:px-3 pb-0'
+					: 'p-2 sm:p-3 md:p-4 lg:p-6'
+			].join(' ')}>
 			<div
 				class={['estimate', 'additionals'].includes(currentTab)
 					? 'mx-auto w-full max-w-none'

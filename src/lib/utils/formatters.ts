@@ -122,6 +122,19 @@ export function formatDateWithWeekday(dateString: string | null | undefined): st
 }
 
 /**
+ * Format a numeric value as a localized number (no currency symbol).
+ * Use in dense data tables where the column already implies "money".
+ * Use formatCurrency() for summary panels where the symbol adds context.
+ */
+export function formatCurrencyValue(value: number | null | undefined): string {
+	if (value === null || value === undefined) return '0,00';
+	return new Intl.NumberFormat('en-ZA', {
+		minimumFractionDigits: 2,
+		maximumFractionDigits: 2
+	}).format(value);
+}
+
+/**
  * Format vehicle display with year, make, and model
  * @param year - Vehicle year or null/undefined
  * @param make - Vehicle make or null/undefined

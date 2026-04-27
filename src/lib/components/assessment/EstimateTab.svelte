@@ -55,7 +55,7 @@
 		formatWarrantyStatus,
 		getWarrantyStatusClasses
 	} from '$lib/utils/estimateThresholds';
-	import { formatCurrency, formatDate } from '$lib/utils/formatters';
+	import { formatCurrency, formatCurrencyValue, formatDate } from '$lib/utils/formatters';
 	import { validateEstimate, type TabValidation } from '$lib/utils/validation';
 	import { assessmentNotesService } from '$lib/services/assessment-notes.service';
 	import { generatePartsListText } from '$lib/utils/csv-generator';
@@ -147,6 +147,7 @@
 	let recalculating = $state(false);
 	let quickAddOpen = $state(false);
 	let ratesOpen = $state(false);
+	let totalsDetailsOpen = $state(false);
 
 	// Parts list modal state
 	let showPartsListModal = $state(false);
@@ -846,6 +847,21 @@
 		return calculateEstimateThreshold(estimate.total, vehicleValues.borderline_writeoff_retail);
 	});
 
+	// Threshold color class for the bottom sticky strip Net Payable
+	const thresholdColorClass = $derived.by(() => {
+		const threshold = thresholdResult();
+		if (!threshold) return 'text-blue-600';
+		return threshold.color === 'red'
+			? 'text-red-600'
+			: threshold.color === 'orange'
+				? 'text-orange-600'
+				: threshold.color === 'yellow'
+					? 'text-yellow-600'
+					: threshold.color === 'green'
+						? 'text-green-600'
+						: 'text-blue-600';
+	});
+
 	// Format warranty status
 	const warrantyInfo = $derived(() => {
 		if (!vehicleValues) return null;
@@ -1054,10 +1070,8 @@
 				</ResponsiveDialog.Content>
 			</ResponsiveDialog.Root>
 
-			<!-- Line Items + Totals two-pane grid -->
-			<div class="lg:grid lg:grid-cols-[minmax(0,1fr)_340px] lg:items-start lg:gap-6">
-				<!-- Line Items Section -->
-				<Card class="p-3 sm:p-6">
+			<!-- Line Items Section (full-width, single-column) -->
+			<Card class="p-2 sm:p-3">
 					<!-- Header - Responsive -->
 					<div class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
 						<h3 class="text-[11.5px] font-semibold tracking-wide text-muted-foreground uppercase">
@@ -1227,7 +1241,7 @@
 										>Description</Table.Head
 									>
 									<Table.Head
-										class="w-[455px] px-2 text-[11.5px] font-medium tracking-wide text-muted-foreground uppercase"
+										class="w-[380px] px-2 text-[11.5px] font-medium tracking-wide text-muted-foreground uppercase"
 										>Costs</Table.Head
 									>
 									<Table.Head
@@ -1235,7 +1249,7 @@
 										title="Betterment">%</Table.Head
 									>
 									<Table.Head
-										class="w-[118px] px-2 text-right text-[11.5px] font-medium tracking-wide text-muted-foreground uppercase"
+										class="w-[96px] px-2 text-right text-[11.5px] font-medium tracking-wide text-muted-foreground uppercase"
 										>Total</Table.Head
 									>
 									<Table.Head class="w-[52px] px-2"></Table.Head>
@@ -1351,7 +1365,7 @@
 																	handlePartPriceClick(item.id!, item.part_price_nett || null)}
 																class="font-mono-tabular w-full text-right text-xs font-medium hover:text-foreground/70"
 																title="Click to edit nett price"
-																>{formatCurrency(item.part_price_nett || 0)}</button
+																>{formatCurrencyValue(item.part_price_nett || 0)}</button
 															>
 														{/if}
 													{:else}<span class="text-xs text-muted-foreground">-</span>{/if}
@@ -1380,7 +1394,7 @@
 																onclick={() =>
 																	handleSAClick(item.id!, item.strip_assemble_hours || null)}
 																class="font-mono-tabular w-full text-right text-xs font-medium hover:text-foreground/70"
-																>{formatCurrency(item.strip_assemble || 0)}</button
+																>{formatCurrencyValue(item.strip_assemble || 0)}</button
 															>
 														{/if}
 													{:else}<span class="text-xs text-muted-foreground">-</span>{/if}
@@ -1409,7 +1423,7 @@
 																onclick={() =>
 																	handleLabourClick(item.id!, item.labour_hours || null)}
 																class="font-mono-tabular w-full text-right text-xs font-medium hover:text-foreground/70"
-																>{formatCurrency(item.labour_cost || 0)}</button
+																>{formatCurrencyValue(item.labour_cost || 0)}</button
 															>
 														{/if}
 													{:else}<span class="text-xs text-muted-foreground">-</span>{/if}
@@ -1438,7 +1452,7 @@
 																onclick={() =>
 																	handlePaintClick(item.id!, item.paint_panels || null)}
 																class="font-mono-tabular w-full text-right text-xs font-medium hover:text-foreground/70"
-																>{formatCurrency(item.paint_cost || 0)}</button
+																>{formatCurrencyValue(item.paint_cost || 0)}</button
 															>
 														{/if}
 													{:else}<span class="text-xs text-muted-foreground">-</span>{/if}
@@ -1467,7 +1481,7 @@
 																onclick={() =>
 																	handleOutworkClick(item.id!, item.outwork_charge_nett || null)}
 																class="font-mono-tabular w-full text-right text-xs font-medium hover:text-foreground/70"
-																>{formatCurrency(item.outwork_charge_nett || 0)}</button
+																>{formatCurrencyValue(item.outwork_charge_nett || 0)}</button
 															>
 														{/if}
 													{:else}<span class="text-xs text-muted-foreground">-</span>{/if}
@@ -1490,7 +1504,7 @@
 											</button>
 										</Table.Cell>
 										<Table.Cell class="font-mono-tabular px-3 py-2 text-right align-top font-bold"
-											>{formatCurrency(item.total)}</Table.Cell
+											>{formatCurrencyValue(item.total)}</Table.Cell
 										>
 										<Table.Cell class="px-2 py-2 text-center align-top">
 											<Button
@@ -1587,7 +1601,7 @@
 														/>{:else}<button
 															onclick={() => (skeletonEditingField = 'partPrice')}
 															class="font-mono-tabular w-full text-right text-xs text-muted-foreground hover:text-foreground"
-															>{formatCurrency(0)}</button
+															>{formatCurrencyValue(0)}</button
 														>{/if}{:else}<span class="text-xs text-muted-foreground">-</span>{/if}
 											</div>
 											<div class="rounded-sm border bg-background px-1.5 py-1 text-right">
@@ -1612,7 +1626,7 @@
 														/>{:else}<button
 															onclick={() => (skeletonEditingField = 'sa')}
 															class="font-mono-tabular w-full text-right text-xs text-muted-foreground hover:text-foreground"
-															>{formatCurrency(0)}</button
+															>{formatCurrencyValue(0)}</button
 														>{/if}{:else}<span class="text-xs text-muted-foreground">-</span>{/if}
 											</div>
 											<div class="rounded-sm border bg-background px-1.5 py-1 text-right">
@@ -1637,7 +1651,7 @@
 														/>{:else}<button
 															onclick={() => (skeletonEditingField = 'labour')}
 															class="font-mono-tabular w-full text-right text-xs text-muted-foreground hover:text-foreground"
-															>{formatCurrency(0)}</button
+															>{formatCurrencyValue(0)}</button
 														>{/if}{:else}<span class="text-xs text-muted-foreground">-</span>{/if}
 											</div>
 											<div class="rounded-sm border bg-background px-1.5 py-1 text-right">
@@ -1662,7 +1676,7 @@
 														/>{:else}<button
 															onclick={() => (skeletonEditingField = 'paint')}
 															class="font-mono-tabular w-full text-right text-xs text-muted-foreground hover:text-foreground"
-															>{formatCurrency(0)}</button
+															>{formatCurrencyValue(0)}</button
 														>{/if}{:else}<span class="text-xs text-muted-foreground">-</span>{/if}
 											</div>
 											<div class="rounded-sm border bg-background px-1.5 py-1 text-right">
@@ -1687,7 +1701,7 @@
 														/>{:else}<button
 															onclick={() => (skeletonEditingField = 'outwork')}
 															class="font-mono-tabular w-full text-right text-xs text-muted-foreground hover:text-foreground"
-															>{formatCurrency(0)}</button
+															>{formatCurrencyValue(0)}</button
 														>{/if}{:else}<span class="text-xs text-muted-foreground">-</span>{/if}
 											</div>
 										</div>
@@ -1696,22 +1710,80 @@
 										><span class="text-sm text-muted-foreground">-</span></Table.Cell
 									>
 									<Table.Cell class="font-mono-tabular px-3 py-2 text-right text-muted-foreground"
-										>{formatCurrency(0)}</Table.Cell
+										>{formatCurrencyValue(0)}</Table.Cell
 									>
 									<Table.Cell class="px-2 py-2"></Table.Cell>
 								</Table.Row>
 							</Table.Body>
 						</Table.Root>
 					</div>
-				</Card>
+			</Card>
 
-				<!-- Totals Summary -->
-				<div class="mt-6 lg:sticky lg:top-24 lg:mt-0 lg:self-start">
-					<Card class="p-6">
-						<h3 class="mb-4 text-lg font-semibold text-gray-900">Totals Breakdown</h3>
+			<!-- Bottom-sticky compact totals strip -->
 
+			<div class="sticky bottom-0 z-20 -mx-2 sm:-mx-3 mt-3 border-t border-border bg-card shadow-[0_-4px_12px_-6px_rgba(0,0,0,0.1)]">
+				<div class="px-3 sm:px-6 py-2.5">
+					<div class="flex flex-wrap items-center gap-x-5 gap-y-1.5 text-[13px]">
 						{#if categoryTotals()}
 							{@const totals = categoryTotals()}
+							<span class="flex items-center gap-1.5">
+								<span class="text-muted-foreground uppercase text-[10.5px] font-semibold tracking-wide">Parts</span>
+								<span class="font-mono-tabular">{formatCurrency(totals?.partsTotal || 0)}</span>
+							</span>
+							<span class="flex items-center gap-1.5">
+								<span class="text-muted-foreground uppercase text-[10.5px] font-semibold tracking-wide">Markup</span>
+								<span class="font-mono-tabular">{formatCurrency(totals?.markupTotal || 0)}</span>
+							</span>
+							<span class="flex items-center gap-1.5">
+								<span class="text-muted-foreground uppercase text-[10.5px] font-semibold tracking-wide">S&A</span>
+								<span class="font-mono-tabular">{formatCurrency(totals?.saTotal || 0)}</span>
+							</span>
+							<span class="flex items-center gap-1.5">
+								<span class="text-muted-foreground uppercase text-[10.5px] font-semibold tracking-wide">Labour</span>
+								<span class="font-mono-tabular">{formatCurrency(totals?.labourTotal || 0)}</span>
+							</span>
+							<span class="flex items-center gap-1.5">
+								<span class="text-muted-foreground uppercase text-[10.5px] font-semibold tracking-wide">Paint</span>
+								<span class="font-mono-tabular">{formatCurrency(totals?.paintTotal || 0)}</span>
+							</span>
+							<span class="flex items-center gap-1.5">
+								<span class="text-muted-foreground uppercase text-[10.5px] font-semibold tracking-wide">VAT</span>
+								<span class="font-mono-tabular">{formatCurrency(totals?.vatAmount || 0)}</span>
+							</span>
+
+							<span class="ml-auto flex items-center gap-3">
+								{#if totals?.excessAmount && totals.excessAmount > 0}
+									<span class="flex items-center gap-1.5">
+										<span class="text-muted-foreground uppercase text-[10.5px] font-semibold tracking-wide">Less Excess</span>
+										<span class="font-mono-tabular text-warning">−{formatCurrency(totals.excessAmount)}</span>
+									</span>
+								{/if}
+								<span class="flex items-center gap-2">
+									<span class="text-muted-foreground uppercase text-[10.5px] font-semibold tracking-wide">Net Payable</span>
+									<span class="font-mono-tabular text-base font-bold {thresholdColorClass}">{formatCurrency(totals?.netPayable || 0)}</span>
+								</span>
+								<Button size="sm" variant="outline" onclick={() => (totalsDetailsOpen = true)}>
+									<Info class="h-3.5 w-3.5 mr-1.5" />
+									Details
+								</Button>
+							</span>
+						{/if}
+					</div>
+				</div>
+			</div>
+
+			<!-- Totals Details Dialog -->
+			<ResponsiveDialog.Root bind:open={totalsDetailsOpen}>
+				<ResponsiveDialog.Content class="sm:max-w-2xl">
+					<ResponsiveDialog.Header>
+						<ResponsiveDialog.Title>Totals Breakdown</ResponsiveDialog.Title>
+						<ResponsiveDialog.Description>
+							Full breakdown including threshold check and assessment result.
+						</ResponsiveDialog.Description>
+					</ResponsiveDialog.Header>
+					{#if categoryTotals()}
+						{@const totals = categoryTotals()}
+						<div class="p-6">
 							<div class="space-y-2">
 								<!-- Category Totals -->
 								<div class="flex items-center justify-between py-2">
@@ -1875,10 +1947,10 @@
 									</p>
 								{/if}
 							</div>
-						{/if}
-					</Card>
-				</div>
-			</div>
+						</div>
+					{/if}
+				</ResponsiveDialog.Content>
+			</ResponsiveDialog.Root>
 
 			<!-- Assessment Result Selector -->
 			<AssessmentResultSelector

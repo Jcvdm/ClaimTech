@@ -29,7 +29,8 @@
 		FileText,
 		Plus,
 		Camera,
-		Settings
+		Settings,
+		Info
 	} from 'lucide-svelte';
 	import { Input } from '$lib/components/ui/input';
 	import type {
@@ -46,7 +47,7 @@
 	import { additionalsPhotosService } from '$lib/services/additionals-photos.service';
 	import { documentGenerationService } from '$lib/services/document-generation.service';
 	import { validateAdditionals, type TabValidation } from '$lib/utils/validation';
-	import { formatCurrency } from '$lib/utils/formatters';
+	import { formatCurrency, formatCurrencyValue } from '$lib/utils/formatters';
 
 	interface Props {
 		assessmentId: string;
@@ -102,6 +103,43 @@
 	let reversalTargetId = $state<string | null>(null);
 	let ratesOpen = $state(false);
 	let quickAddOpen = $state(false);
+	let totalsDetailsOpen = $state(false);
+
+	// Derived totals for the bottom sticky strip (mirrors CombinedTotalsSummary logic)
+	const stripOriginalTotal = $derived(() => estimate?.total || 0);
+
+	const stripRemovedTotal = $derived(() => {
+		if (!additionals?.line_items) return 0;
+		return additionals.line_items
+			.filter((li) => li.action === 'removed' && li.status === 'approved')
+			.reduce((sum, li) => sum + Math.abs(li.total || 0), 0);
+	});
+
+	const stripReversedTargets = $derived(() => {
+		if (!additionals?.line_items) return new Set<string>();
+		return new Set(
+			additionals.line_items
+				.filter((li) => li.action === 'reversal' && li.reverses_line_id)
+				.map((li) => li.reverses_line_id!)
+		);
+	});
+
+	const stripAddedItemsTotal = $derived(() => {
+		if (!additionals?.line_items) return 0;
+		return additionals.line_items
+			.filter(
+				(li) =>
+					li.action === 'added' &&
+					li.status === 'approved' &&
+					!!li.id &&
+					!stripReversedTargets().has(li.id)
+			)
+			.reduce((sum, li) => sum + (li.total || 0), 0);
+	});
+
+	const stripCombinedTotal = $derived(() => {
+		return (estimate?.total || 0) + (additionals?.total_approved || 0);
+	});
 
 	let editingSA = $state<string | null>(null);
 	let editingLabour = $state<string | null>(null);
@@ -805,7 +843,7 @@
 		</ResponsiveDialog.Root>
 
 		<!-- Line Items Table -->
-		<Card class="p-4 md:p-6">
+		<Card class="p-2 sm:p-3">
 			<div class="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
 				<h3 class="text-lg font-semibold">Additional Line Items</h3>
 				<div class="flex flex-wrap items-center gap-1.5 sm:gap-2">
@@ -912,11 +950,11 @@
 									>Description</Table.Head
 								>
 								<Table.Head
-									class="w-[455px] px-2 text-[11.5px] font-medium tracking-wide text-muted-foreground uppercase"
+									class="w-[380px] px-2 text-[11.5px] font-medium tracking-wide text-muted-foreground uppercase"
 									>Costs</Table.Head
 								>
 								<Table.Head
-									class="w-[118px] px-2 text-right text-[11.5px] font-medium tracking-wide text-muted-foreground uppercase"
+									class="w-[96px] px-2 text-right text-[11.5px] font-medium tracking-wide text-muted-foreground uppercase"
 									>Total</Table.Head
 								>
 								<Table.Head
@@ -1036,12 +1074,12 @@
 															onclick={() =>
 																handlePartPriceClick(item.id!, item.part_price_nett || null)}
 															class="font-mono-tabular w-full text-right text-xs font-medium hover:text-foreground/70"
-															>{formatCurrency(item.part_price_nett || 0)}</button
+															>{formatCurrencyValue(item.part_price_nett || 0)}</button
 														>{/if}{:else}<span
 														class="font-mono-tabular text-xs {isRemoved || isReversal
 															? 'text-foreground'
 															: 'text-muted-foreground'}"
-														>{formatCurrency(item.part_price_nett || 0)}</span
+														>{formatCurrencyValue(item.part_price_nett || 0)}</span
 													>{/if}
 											</div>
 											<div class="rounded-sm border bg-background px-1.5 py-1 text-right">
@@ -1064,12 +1102,12 @@
 															onclick={() =>
 																handleSAClick(item.id!, item.strip_assemble_hours || null)}
 															class="font-mono-tabular w-full text-right text-xs font-medium hover:text-foreground/70"
-															>{formatCurrency(item.strip_assemble || 0)}</button
+															>{formatCurrencyValue(item.strip_assemble || 0)}</button
 														>{/if}{:else}<span
 														class="font-mono-tabular text-xs {isRemoved || isReversal
 															? 'text-foreground'
 															: 'text-muted-foreground'}"
-														>{formatCurrency(item.strip_assemble || 0)}</span
+														>{formatCurrencyValue(item.strip_assemble || 0)}</span
 													>{/if}
 											</div>
 											<div class="rounded-sm border bg-background px-1.5 py-1 text-right">
@@ -1091,12 +1129,12 @@
 														/>{:else}<button
 															onclick={() => handleLabourClick(item.id!, item.labour_hours || null)}
 															class="font-mono-tabular w-full text-right text-xs font-medium hover:text-foreground/70"
-															>{formatCurrency(item.labour_cost || 0)}</button
+															>{formatCurrencyValue(item.labour_cost || 0)}</button
 														>{/if}{:else}<span
 														class="font-mono-tabular text-xs {isRemoved || isReversal
 															? 'text-foreground'
 															: 'text-muted-foreground'}"
-														>{formatCurrency(item.labour_cost || 0)}</span
+														>{formatCurrencyValue(item.labour_cost || 0)}</span
 													>{/if}
 											</div>
 											<div class="rounded-sm border bg-background px-1.5 py-1 text-right">
@@ -1118,12 +1156,12 @@
 														/>{:else}<button
 															onclick={() => handlePaintClick(item.id!, item.paint_panels || null)}
 															class="font-mono-tabular w-full text-right text-xs font-medium hover:text-foreground/70"
-															>{formatCurrency(item.paint_cost || 0)}</button
+															>{formatCurrencyValue(item.paint_cost || 0)}</button
 														>{/if}{:else}<span
 														class="font-mono-tabular text-xs {isRemoved || isReversal
 															? 'text-foreground'
 															: 'text-muted-foreground'}"
-														>{formatCurrency(item.paint_cost || 0)}</span
+														>{formatCurrencyValue(item.paint_cost || 0)}</span
 													>{/if}
 											</div>
 											<div class="rounded-sm border bg-background px-1.5 py-1 text-right">
@@ -1146,12 +1184,12 @@
 															onclick={() =>
 																handleOutworkClick(item.id!, item.outwork_charge_nett || null)}
 															class="font-mono-tabular w-full text-right text-xs font-medium hover:text-foreground/70"
-															>{formatCurrency(item.outwork_charge_nett || 0)}</button
+															>{formatCurrencyValue(item.outwork_charge_nett || 0)}</button
 														>{/if}{:else}<span
 														class="font-mono-tabular text-xs {isRemoved || isReversal
 															? 'text-foreground'
 															: 'text-muted-foreground'}"
-														>{formatCurrency(item.outwork_charge_nett || 0)}</span
+														>{formatCurrencyValue(item.outwork_charge_nett || 0)}</span
 													>{/if}
 											</div>
 										</div>
@@ -1161,7 +1199,7 @@
 										class="font-mono-tabular px-3 py-2 text-right align-top font-medium {isRemoved ||
 										isReversal
 											? 'text-foreground'
-											: ''}">{formatCurrency(item.total)}</Table.Cell
+											: ''}">{formatCurrencyValue(item.total)}</Table.Cell
 									>
 									<Table.Cell class="px-2 py-2 align-top">
 										{#if isReversal}<Badge variant="secondary"
@@ -1234,8 +1272,49 @@
 			{/if}
 		</Card>
 
-		<!-- Combined Totals Summary (Delta vs Baseline) -->
-		<CombinedTotalsSummary {estimate} {additionals} {vehicleValues} {excessAmount} />
+		<!-- Bottom-sticky compact totals strip -->
+		<div class="sticky bottom-0 z-20 -mx-2 sm:-mx-3 mt-3 border-t border-border bg-card shadow-[0_-4px_12px_-6px_rgba(0,0,0,0.1)]">
+			<div class="px-3 sm:px-6 py-2.5">
+				<div class="flex flex-wrap items-center gap-x-5 gap-y-1.5 text-[13px]">
+					<span class="flex items-center gap-1.5">
+						<span class="text-muted-foreground uppercase text-[10.5px] font-semibold tracking-wide">Original</span>
+						<span class="font-mono-tabular">{formatCurrency(stripOriginalTotal())}</span>
+					</span>
+					<span class="flex items-center gap-1.5">
+						<span class="text-muted-foreground uppercase text-[10.5px] font-semibold tracking-wide">Removed</span>
+						<span class="font-mono-tabular text-destructive">−{formatCurrency(stripRemovedTotal())}</span>
+					</span>
+					<span class="flex items-center gap-1.5">
+						<span class="text-muted-foreground uppercase text-[10.5px] font-semibold tracking-wide">Added (Approved)</span>
+						<span class="font-mono-tabular text-success">+{formatCurrency(stripAddedItemsTotal())}</span>
+					</span>
+
+					<span class="ml-auto flex items-center gap-3">
+						<span class="flex items-center gap-2">
+							<span class="text-muted-foreground uppercase text-[10.5px] font-semibold tracking-wide">Combined</span>
+							<span class="font-mono-tabular text-base font-bold">{formatCurrency(stripCombinedTotal())}</span>
+						</span>
+						<Button size="sm" variant="outline" onclick={() => (totalsDetailsOpen = true)}>
+							<Info class="h-3.5 w-3.5 mr-1.5" />
+							Details
+						</Button>
+					</span>
+				</div>
+			</div>
+		</div>
+
+		<!-- Totals Details Dialog -->
+		<ResponsiveDialog.Root bind:open={totalsDetailsOpen}>
+			<ResponsiveDialog.Content class="sm:max-w-2xl">
+				<ResponsiveDialog.Header>
+					<ResponsiveDialog.Title>Additionals Totals</ResponsiveDialog.Title>
+					<ResponsiveDialog.Description>
+						Combined totals including original estimate, removed lines, and approved additions.
+					</ResponsiveDialog.Description>
+				</ResponsiveDialog.Header>
+				<CombinedTotalsSummary {estimate} {additionals} {vehicleValues} {excessAmount} />
+			</ResponsiveDialog.Content>
+		</ResponsiveDialog.Root>
 
 		<!-- Document Generation -->
 		<div class="grid gap-4 md:grid-cols-1">
