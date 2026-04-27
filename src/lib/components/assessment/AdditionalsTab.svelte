@@ -3,6 +3,7 @@
 	import { Button } from '$lib/components/ui/button';
 	import LoadingButton from '$lib/components/ui/button/LoadingButton.svelte';
 	import { Badge } from '$lib/components/ui/badge';
+	import * as Table from '$lib/components/ui/table';
 	import RatesAndRepairerConfiguration from './RatesAndRepairerConfiguration.svelte';
 	import QuickAddLineItem from './QuickAddLineItem.svelte';
 	import DeclineReasonModal from './DeclineReasonModal.svelte';
@@ -630,13 +631,13 @@
 			<p class="text-sm text-foreground">
 				<strong>Additionals:</strong>
 				{#if additionals.line_items.length === 0}
-					This estimate has been finalized. You can now add supplementary repairs,
-					replacement parts, or exclude items from the original estimate as needed.
-					Use the "Quick Add" form below to get started.
+					This estimate has been finalized. You can now add supplementary repairs, replacement
+					parts, or exclude items from the original estimate as needed. Use the "Quick Add" form
+					below to get started.
 				{:else}
-					Add new line items to this finalized estimate. Rates and repairer
-					are locked from the original estimate. You can exclude lines from the original estimate or replace
-					them with repair items.
+					Add new line items to this finalized estimate. Rates and repairer are locked from the
+					original estimate. You can exclude lines from the original estimate or replace them with
+					repair items.
 				{/if}
 			</p>
 		</Card>
@@ -809,7 +810,7 @@
 				<h3 class="text-lg font-semibold">Additional Line Items</h3>
 				<div class="flex flex-wrap items-center gap-1.5 sm:gap-2">
 					<Button
-						onclick={() => ratesOpen = true}
+						onclick={() => (ratesOpen = true)}
 						size="sm"
 						variant="outline"
 						title="Rates & repairer"
@@ -818,7 +819,7 @@
 						<Settings class="h-4 w-4" />
 					</Button>
 					<Button
-						onclick={() => quickAddOpen = true}
+						onclick={() => (quickAddOpen = true)}
 						size="sm"
 						variant="ghost"
 						title="Add line with photos"
@@ -851,9 +852,9 @@
 					</div>
 					<h3 class="mb-2 text-lg font-medium text-slate-900">No Additional Items</h3>
 					<p class="mb-4 max-w-md text-sm text-slate-600">
-						Additional work items can be added after the estimate is finalized.
-						Use the "Quick Add Line Item" form above to add new repairs,
-						parts, or outwork discovered after the initial assessment.
+						Additional work items can be added after the estimate is finalized. Use the "Quick Add
+						Line Item" form above to add new repairs, parts, or outwork discovered after the initial
+						assessment.
 					</p>
 					<p class="text-xs text-slate-500">
 						Items you add will appear here for approval or decline.
@@ -898,25 +899,37 @@
 					{/each}
 				</div>
 
-				<!-- Desktop: Table Layout -->
-				<div class="hidden overflow-x-auto md:block">
-					<table class="w-full text-sm">
-						<thead class="border-b">
-							<tr class="text-left">
-								<th class="pb-2 font-medium">Type</th>
-								<th class="pb-2 font-medium">Description</th>
-								<th class="pb-2 font-medium">Part Type</th>
-								<th class="pb-2 text-right font-medium">Part</th>
-								<th class="pb-2 text-right font-medium">S&A</th>
-								<th class="pb-2 text-right font-medium">Labour</th>
-								<th class="pb-2 text-right font-medium">Paint</th>
-								<th class="pb-2 text-right font-medium">Outwork</th>
-								<th class="pb-2 text-right font-medium">Total</th>
-								<th class="pb-2 font-medium">Status</th>
-								<th class="pb-2 font-medium">Actions</th>
-							</tr>
-						</thead>
-						<tbody>
+				<div class="hidden md:block">
+					<Table.Root class="table-fixed">
+						<Table.Header class="sticky top-0 z-10 bg-white">
+							<Table.Row class="border-b border-border hover:bg-transparent">
+								<Table.Head
+									class="w-[112px] px-2 text-[11.5px] font-medium tracking-wide text-muted-foreground uppercase"
+									>Type / Part</Table.Head
+								>
+								<Table.Head
+									class="px-3 text-[11.5px] font-medium tracking-wide text-muted-foreground uppercase"
+									>Description</Table.Head
+								>
+								<Table.Head
+									class="w-[455px] px-2 text-[11.5px] font-medium tracking-wide text-muted-foreground uppercase"
+									>Costs</Table.Head
+								>
+								<Table.Head
+									class="w-[118px] px-2 text-right text-[11.5px] font-medium tracking-wide text-muted-foreground uppercase"
+									>Total</Table.Head
+								>
+								<Table.Head
+									class="w-[112px] px-2 text-[11.5px] font-medium tracking-wide text-muted-foreground uppercase"
+									>State</Table.Head
+								>
+								<Table.Head
+									class="w-[116px] px-2 text-[11.5px] font-medium tracking-wide text-muted-foreground uppercase"
+									>Review</Table.Head
+								>
+							</Table.Row>
+						</Table.Header>
+						<Table.Body>
 							{#each additionals.line_items as item (item.id)}
 								{@const isRemoved = item.action === 'removed'}
 								{@const isReversal = item.action === 'reversal'}
@@ -929,9 +942,40 @@
 											? 'bg-muted'
 											: ''}
 								{@const StatusIcon = getStatusIcon(item.status)}
-								<tr class="border-b hover:bg-gray-50 {rowClass}">
-									<td class="py-2">{item.process_type}</td>
-									<td class="py-2">
+								<Table.Row class="hover:bg-gray-50 {rowClass}">
+									<Table.Cell class="px-2 py-2 align-top">
+										<div class="flex flex-col gap-1.5">
+											<span
+												class="inline-flex w-fit min-w-8 justify-center rounded bg-muted px-2 py-1 text-xs font-semibold text-muted-foreground"
+											>
+												{item.process_type}
+											</span>
+											{#if item.process_type === 'N'}
+												{#if !isRemoved && !isReversal && item.status === 'pending'}
+													<select
+														value={item.part_type || ''}
+														oninput={(e) => updateLocalPartType(item.id!, e.currentTarget.value)}
+														onblur={(e) =>
+															updatePending(item.id!, { part_type: e.currentTarget.value })}
+														class="w-fit rounded-sm border border-input bg-background px-1.5 py-0.5 text-[11px] font-semibold"
+													>
+														<option value="">-</option>
+														<option value="OEM">OEM</option>
+														<option value="ALT">ALT</option>
+														<option value="2ND">2ND</option>
+													</select>
+												{:else if item.part_type}
+													<Badge class="w-fit bg-gray-100 text-gray-800">{item.part_type}</Badge>
+												{:else}
+													<span class="text-xs text-muted-foreground">No part</span>
+												{/if}
+											{:else}
+												<span class="text-xs text-muted-foreground">No part</span>
+											{/if}
+										</div>
+									</Table.Cell>
+
+									<Table.Cell class="px-3 py-2 align-top">
 										<div>
 											{#if !isRemoved && !isReversal && item.status === 'pending'}
 												<Input
@@ -948,340 +992,244 @@
 														? 'text-red-600 line-through'
 														: isReversal || isReversed
 															? 'text-foreground'
-															: ''}
+															: ''}>{item.description}</span
 												>
-													{item.description}
-												</span>
 											{/if}
-											{#if isReversal && item.reversal_reason}
-												<p class="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
-													<RotateCcw class="h-3 w-3" />
-													Reversal: {item.reversal_reason}
-												</p>
-											{/if}
+											{#if isReversal && item.reversal_reason}<p
+													class="mt-1 flex items-center gap-1 text-xs text-muted-foreground"
+												>
+													<RotateCcw class="h-3 w-3" />Reversal: {item.reversal_reason}
+												</p>{/if}
 											{#if isReversed && item.id}
 												{@const reversalEntry = reversedBy().get(item.id)}
-												{#if reversalEntry?.reversal_reason}
-													<p class="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
-														<RotateCcw class="h-3 w-3" />
-														Reversed: {reversalEntry.reversal_reason}
-													</p>
-												{/if}
-											{/if}
-											{#if item.decline_reason}
-												<p class="mt-1 text-xs text-red-600">Declined: {item.decline_reason}</p>
-											{/if}
-										</div>
-									</td>
-									<td class="py-2">
-										{#if item.process_type === 'N'}
-											{#if !isRemoved && !isReversal && item.status === 'pending'}
-												<div class="flex items-center gap-2">
-													<select
-														value={item.part_type || ''}
-														oninput={(e) => updateLocalPartType(item.id!, e.currentTarget.value)}
-														onblur={(e) =>
-															updatePending(item.id!, { part_type: e.currentTarget.value })}
-														class="rounded border px-2 py-1 text-sm"
+												{#if reversalEntry?.reversal_reason}<p
+														class="mt-1 flex items-center gap-1 text-xs text-muted-foreground"
 													>
-														<option value="">—</option>
-														<option value="OEM">OEM</option>
-														<option value="ALT">ALT</option>
-														<option value="2ND">2ND</option>
-													</select>
-													{#if item.part_type}
-														{@const PTIcon =
-															item.part_type === 'OEM'
-																? ShieldCheck
-																: item.part_type === 'ALT'
-																	? Package
-																	: item.part_type === '2ND'
-																		? Recycle
-																		: null}
-														{#if PTIcon}
-															<Badge class="bg-gray-100 text-gray-800">
-																<PTIcon class="mr-1 h-3 w-3" />
-																{item.part_type}
-															</Badge>
-														{/if}
-													{/if}
+														<RotateCcw class="h-3 w-3" />Reversed: {reversalEntry.reversal_reason}
+													</p>{/if}
+											{/if}
+											{#if item.decline_reason}<p class="mt-1 text-xs text-red-600">
+													Declined: {item.decline_reason}
+												</p>{/if}
+										</div>
+									</Table.Cell>
+
+									<Table.Cell class="px-2 py-2 align-top">
+										<div class="grid grid-cols-5 gap-1">
+											<div class="rounded-sm border bg-background px-1.5 py-1 text-right">
+												<div class="text-[10px] tracking-wide text-muted-foreground uppercase">
+													Part
 												</div>
-											{:else if item.part_type}
-												{@const PTIcon =
-													item.part_type === 'OEM'
-														? ShieldCheck
-														: item.part_type === 'ALT'
-															? Package
-															: item.part_type === '2ND'
-																? Recycle
-																: null}
-												{#if PTIcon}
-													<Badge class="bg-gray-100 text-gray-800">
-														<PTIcon class="mr-1 h-3 w-3" />
-														{item.part_type}
-													</Badge>
-												{:else}
-													<span>—</span>
-												{/if}
-											{:else}
-												<span>—</span>
-											{/if}
-										{:else}
-											<span>—</span>
-										{/if}
-									</td>
-									<td class="py-2 text-right {isRemoved || isReversal ? 'text-foreground' : ''}">
-										{#if !isRemoved && !isReversal && item.status === 'pending' && item.process_type === 'N'}
-											{#if editingPartPrice === item.id}
-												<Input
-													type="number"
-													min="0"
-													step="0.01"
-													bind:value={tempPartPriceNett}
-													onkeydown={(e) => {
-														if (e.key === 'Enter') handlePartPriceSave(item.id!);
-														if (e.key === 'Escape') handlePartPriceCancel();
-													}}
-													onblur={() => handlePartPriceSave(item.id!)}
-													class="border-0 text-right text-sm focus-visible:ring-0 focus-visible:ring-offset-0"
-													autofocus
-												/>
-											{:else}
-												<button
-													onclick={() =>
-														handlePartPriceClick(item.id!, item.part_price_nett || null)}
-													class="w-full cursor-pointer text-right text-sm font-medium text-foreground hover:text-foreground"
-												>
-													{formatCurrency(item.part_price_nett || 0)}
-												</button>
-											{/if}
-										{:else}
-											{formatCurrency(item.part_price_nett || 0)}
-										{/if}
-									</td>
-									<td class="py-2 text-right {isRemoved || isReversal ? 'text-foreground' : ''}">
-										{#if !isRemoved && !isReversal && item.status === 'pending' && ['N', 'R', 'P', 'B'].includes(item.process_type)}
-											{#if editingSA === item.id}
-												<Input
-													type="number"
-													min="0"
-													step="0.25"
-													bind:value={tempSAHours}
-													onkeydown={(e) => {
-														if (e.key === 'Enter') handleSASave(item.id!);
-														if (e.key === 'Escape') handleSACancel();
-													}}
-													onblur={() => handleSASave(item.id!)}
-													class="border-0 text-right text-sm focus-visible:ring-0 focus-visible:ring-offset-0"
-													autofocus
-												/>
-											{:else}
-												<button
-													onclick={() => handleSAClick(item.id!, item.strip_assemble_hours || null)}
-													class="w-full cursor-pointer text-right text-sm font-medium text-foreground hover:text-foreground"
-												>
-													{formatCurrency(item.strip_assemble || 0)}
-												</button>
-											{/if}
-										{:else}
-											{formatCurrency(item.strip_assemble || 0)}
-										{/if}
-									</td>
-									<td class="py-2 text-right {isRemoved || isReversal ? 'text-foreground' : ''}">
-										{#if !isRemoved && !isReversal && item.status === 'pending' && ['N', 'R', 'A'].includes(item.process_type)}
-											{#if editingLabour === item.id}
-												<Input
-													type="number"
-													min="0"
-													step="0.5"
-													bind:value={tempLabourHours}
-													onkeydown={(e) => {
-														if (e.key === 'Enter') handleLabourSave(item.id!);
-														if (e.key === 'Escape') handleLabourCancel();
-													}}
-													onblur={() => handleLabourSave(item.id!)}
-													class="border-0 text-right text-sm focus-visible:ring-0 focus-visible:ring-offset-0"
-													autofocus
-												/>
-											{:else}
-												<button
-													onclick={() => handleLabourClick(item.id!, item.labour_hours || null)}
-													class="w-full cursor-pointer text-right text-sm font-medium text-foreground hover:text-foreground"
-												>
-													{formatCurrency(item.labour_cost || 0)}
-												</button>
-											{/if}
-										{:else}
-											{formatCurrency(item.labour_cost || 0)}
-										{/if}
-									</td>
-									<td class="py-2 text-right {isRemoved || isReversal ? 'text-foreground' : ''}">
-										{#if !isRemoved && !isReversal && item.status === 'pending' && ['N', 'R', 'P', 'B'].includes(item.process_type)}
-											{#if editingPaint === item.id}
-												<Input
-													type="number"
-													min="0"
-													step="0.5"
-													bind:value={tempPaintPanels}
-													onkeydown={(e) => {
-														if (e.key === 'Enter') handlePaintSave(item.id!);
-														if (e.key === 'Escape') handlePaintCancel();
-													}}
-													onblur={() => handlePaintSave(item.id!)}
-													class="border-0 text-right text-sm focus-visible:ring-0 focus-visible:ring-offset-0"
-													autofocus
-												/>
-											{:else}
-												<button
-													onclick={() => handlePaintClick(item.id!, item.paint_panels || null)}
-													class="w-full cursor-pointer text-right text-sm font-medium text-foreground hover:text-foreground"
-												>
-													{formatCurrency(item.paint_cost || 0)}
-												</button>
-											{/if}
-										{:else}
-											{formatCurrency(item.paint_cost || 0)}
-										{/if}
-									</td>
-									<td class="py-2 text-right {isRemoved || isReversal ? 'text-foreground' : ''}">
-										{#if !isRemoved && !isReversal && item.status === 'pending' && item.process_type === 'O'}
-											{#if editingOutwork === item.id}
-												<Input
-													type="number"
-													min="0"
-													step="0.01"
-													bind:value={tempOutworkNett}
-													onkeydown={(e) => {
-														if (e.key === 'Enter') handleOutworkSave(item.id!);
-														if (e.key === 'Escape') handleOutworkCancel();
-													}}
-													onblur={() => handleOutworkSave(item.id!)}
-													class="border-0 text-right text-sm focus-visible:ring-0 focus-visible:ring-offset-0"
-													autofocus
-												/>
-											{:else}
-												<button
-													onclick={() =>
-														handleOutworkClick(item.id!, item.outwork_charge_nett || null)}
-													class="w-full cursor-pointer text-right text-sm font-medium text-foreground hover:text-foreground"
-												>
-													{formatCurrency(item.outwork_charge_nett || 0)}
-												</button>
-											{/if}
-										{:else}
-											{formatCurrency(item.outwork_charge_nett || 0)}
-										{/if}
-									</td>
-									<td
-										class="py-2 text-right font-medium {isRemoved || isReversal
+												{#if !isRemoved && !isReversal && item.status === 'pending' && item.process_type === 'N'}{#if editingPartPrice === item.id}<Input
+															type="number"
+															min="0"
+															step="0.01"
+															bind:value={tempPartPriceNett}
+															onkeydown={(e) => {
+																if (e.key === 'Enter') handlePartPriceSave(item.id!);
+																if (e.key === 'Escape') handlePartPriceCancel();
+															}}
+															onblur={() => handlePartPriceSave(item.id!)}
+															class="h-7 border-0 p-0 text-right text-xs focus-visible:ring-0 focus-visible:ring-offset-0"
+															autofocus
+														/>{:else}<button
+															onclick={() =>
+																handlePartPriceClick(item.id!, item.part_price_nett || null)}
+															class="font-mono-tabular w-full text-right text-xs font-medium hover:text-foreground/70"
+															>{formatCurrency(item.part_price_nett || 0)}</button
+														>{/if}{:else}<span
+														class="font-mono-tabular text-xs {isRemoved || isReversal
+															? 'text-foreground'
+															: 'text-muted-foreground'}"
+														>{formatCurrency(item.part_price_nett || 0)}</span
+													>{/if}
+											</div>
+											<div class="rounded-sm border bg-background px-1.5 py-1 text-right">
+												<div class="text-[10px] tracking-wide text-muted-foreground uppercase">
+													S&A
+												</div>
+												{#if !isRemoved && !isReversal && item.status === 'pending' && ['N', 'R', 'P', 'B'].includes(item.process_type)}{#if editingSA === item.id}<Input
+															type="number"
+															min="0"
+															step="0.25"
+															bind:value={tempSAHours}
+															onkeydown={(e) => {
+																if (e.key === 'Enter') handleSASave(item.id!);
+																if (e.key === 'Escape') handleSACancel();
+															}}
+															onblur={() => handleSASave(item.id!)}
+															class="h-7 border-0 p-0 text-right text-xs focus-visible:ring-0 focus-visible:ring-offset-0"
+															autofocus
+														/>{:else}<button
+															onclick={() =>
+																handleSAClick(item.id!, item.strip_assemble_hours || null)}
+															class="font-mono-tabular w-full text-right text-xs font-medium hover:text-foreground/70"
+															>{formatCurrency(item.strip_assemble || 0)}</button
+														>{/if}{:else}<span
+														class="font-mono-tabular text-xs {isRemoved || isReversal
+															? 'text-foreground'
+															: 'text-muted-foreground'}"
+														>{formatCurrency(item.strip_assemble || 0)}</span
+													>{/if}
+											</div>
+											<div class="rounded-sm border bg-background px-1.5 py-1 text-right">
+												<div class="text-[10px] tracking-wide text-muted-foreground uppercase">
+													Lab
+												</div>
+												{#if !isRemoved && !isReversal && item.status === 'pending' && ['N', 'R', 'A'].includes(item.process_type)}{#if editingLabour === item.id}<Input
+															type="number"
+															min="0"
+															step="0.5"
+															bind:value={tempLabourHours}
+															onkeydown={(e) => {
+																if (e.key === 'Enter') handleLabourSave(item.id!);
+																if (e.key === 'Escape') handleLabourCancel();
+															}}
+															onblur={() => handleLabourSave(item.id!)}
+															class="h-7 border-0 p-0 text-right text-xs focus-visible:ring-0 focus-visible:ring-offset-0"
+															autofocus
+														/>{:else}<button
+															onclick={() => handleLabourClick(item.id!, item.labour_hours || null)}
+															class="font-mono-tabular w-full text-right text-xs font-medium hover:text-foreground/70"
+															>{formatCurrency(item.labour_cost || 0)}</button
+														>{/if}{:else}<span
+														class="font-mono-tabular text-xs {isRemoved || isReversal
+															? 'text-foreground'
+															: 'text-muted-foreground'}"
+														>{formatCurrency(item.labour_cost || 0)}</span
+													>{/if}
+											</div>
+											<div class="rounded-sm border bg-background px-1.5 py-1 text-right">
+												<div class="text-[10px] tracking-wide text-muted-foreground uppercase">
+													Paint
+												</div>
+												{#if !isRemoved && !isReversal && item.status === 'pending' && ['N', 'R', 'P', 'B'].includes(item.process_type)}{#if editingPaint === item.id}<Input
+															type="number"
+															min="0"
+															step="0.5"
+															bind:value={tempPaintPanels}
+															onkeydown={(e) => {
+																if (e.key === 'Enter') handlePaintSave(item.id!);
+																if (e.key === 'Escape') handlePaintCancel();
+															}}
+															onblur={() => handlePaintSave(item.id!)}
+															class="h-7 border-0 p-0 text-right text-xs focus-visible:ring-0 focus-visible:ring-offset-0"
+															autofocus
+														/>{:else}<button
+															onclick={() => handlePaintClick(item.id!, item.paint_panels || null)}
+															class="font-mono-tabular w-full text-right text-xs font-medium hover:text-foreground/70"
+															>{formatCurrency(item.paint_cost || 0)}</button
+														>{/if}{:else}<span
+														class="font-mono-tabular text-xs {isRemoved || isReversal
+															? 'text-foreground'
+															: 'text-muted-foreground'}"
+														>{formatCurrency(item.paint_cost || 0)}</span
+													>{/if}
+											</div>
+											<div class="rounded-sm border bg-background px-1.5 py-1 text-right">
+												<div class="text-[10px] tracking-wide text-muted-foreground uppercase">
+													Out
+												</div>
+												{#if !isRemoved && !isReversal && item.status === 'pending' && item.process_type === 'O'}{#if editingOutwork === item.id}<Input
+															type="number"
+															min="0"
+															step="0.01"
+															bind:value={tempOutworkNett}
+															onkeydown={(e) => {
+																if (e.key === 'Enter') handleOutworkSave(item.id!);
+																if (e.key === 'Escape') handleOutworkCancel();
+															}}
+															onblur={() => handleOutworkSave(item.id!)}
+															class="h-7 border-0 p-0 text-right text-xs focus-visible:ring-0 focus-visible:ring-offset-0"
+															autofocus
+														/>{:else}<button
+															onclick={() =>
+																handleOutworkClick(item.id!, item.outwork_charge_nett || null)}
+															class="font-mono-tabular w-full text-right text-xs font-medium hover:text-foreground/70"
+															>{formatCurrency(item.outwork_charge_nett || 0)}</button
+														>{/if}{:else}<span
+														class="font-mono-tabular text-xs {isRemoved || isReversal
+															? 'text-foreground'
+															: 'text-muted-foreground'}"
+														>{formatCurrency(item.outwork_charge_nett || 0)}</span
+													>{/if}
+											</div>
+										</div>
+									</Table.Cell>
+
+									<Table.Cell
+										class="font-mono-tabular px-3 py-2 text-right align-top font-medium {isRemoved ||
+										isReversal
 											? 'text-foreground'
-											: ''}">{formatCurrency(item.total)}</td
+											: ''}">{formatCurrency(item.total)}</Table.Cell
 									>
-									<td class="py-2">
-										{#if isReversal}
-											<Badge variant="secondary">
-												<RotateCcw class="mr-1 h-3 w-3" />
-												Reversal
-											</Badge>
-										{:else if isRemoved}
-											<Badge variant="destructive-soft">
-												<Trash2 class="mr-1 h-3 w-3" />
-												Removed
-											</Badge>
-										{:else if isReversed}
-											<Badge variant="secondary">
-												<RotateCcw class="mr-1 h-3 w-3" />
-												Reversed
-											</Badge>
-										{:else}
-											<Badge variant={getStatusBadgeVariant(item.status)}>
-												<StatusIcon class="mr-1 h-3 w-3" />
-												{item.status}
-											</Badge>
-										{/if}
-									</td>
-									<td class="py-2">
-										<div class="flex gap-1">
-											{#if item.action === 'reversal'}
-												<!-- Reversal entries are immutable and auto-approved -->
-												<span class="flex items-center gap-1 text-xs text-muted-foreground italic">
-													<RotateCcw class="h-3 w-3" />
-													Reversal
-												</span>
-											{:else if isReversed}
-												<!-- Reversed items: no actions available (already reversed) -->
-												<span class="flex items-center gap-1 text-xs text-muted-foreground italic">
-													<RotateCcw class="h-3 w-3" />
-													Reversed
-												</span>
+									<Table.Cell class="px-2 py-2 align-top">
+										{#if isReversal}<Badge variant="secondary"
+												><RotateCcw class="mr-1 h-3 w-3" />Reversal</Badge
+											>{:else if isRemoved}<Badge variant="destructive-soft"
+												><Trash2 class="mr-1 h-3 w-3" />Removed</Badge
+											>{:else if isReversed}<Badge variant="secondary"
+												><RotateCcw class="mr-1 h-3 w-3" />Reversed</Badge
+											>{:else}<Badge variant={getStatusBadgeVariant(item.status)}
+												><StatusIcon class="mr-1 h-3 w-3" />{item.status}</Badge
+											>{/if}
+									</Table.Cell>
+									<Table.Cell class="px-2 py-2 align-top">
+										<div class="flex flex-wrap gap-1">
+											{#if item.action === 'reversal'}<span
+													class="flex items-center gap-1 text-xs text-muted-foreground italic"
+													><RotateCcw class="h-3 w-3" />Reversal</span
+												>
+											{:else if isReversed}<span
+													class="flex items-center gap-1 text-xs text-muted-foreground italic"
+													><RotateCcw class="h-3 w-3" />Reversed</span
+												>
 											{:else if !isRemoved && item.status === 'pending' && item.id}
-												<!-- Pending items: can approve, decline, or delete -->
 												<Button
 													size="sm"
 													onclick={() => handleApprove(item.id!)}
 													class="h-7 px-2"
-													title="Approve"
-												>
-													<Check class="h-3 w-3" />
-												</Button>
-												<Button
+													title="Approve"><Check class="h-3 w-3" /></Button
+												><Button
 													size="sm"
 													variant="outline"
 													onclick={() => handleDeclineClick(item.id!)}
 													class="h-7 px-2"
-													title="Decline"
-												>
-													<X class="h-3 w-3" />
-												</Button>
-												<Button
+													title="Decline"><X class="h-3 w-3" /></Button
+												><Button
 													size="sm"
 													variant="ghost"
 													onclick={() => handleDelete(item.id!)}
 													class="h-7 px-2 text-red-600"
-													title="Delete"
+													title="Delete"><Trash2 class="h-3 w-3" /></Button
 												>
-													<Trash2 class="h-3 w-3" />
-												</Button>
-											{:else if !isRemoved && item.status === 'approved' && item.id}
-												<!-- Approved items: can reverse -->
-												<Button
+											{:else if !isRemoved && item.status === 'approved' && item.id}<Button
 													size="sm"
 													variant="outline"
 													onclick={() => handleReverseClick(item.id!)}
 													class="h-7 px-2 text-orange-600"
-													title="Reverse this approval"
+													title="Reverse this approval"><Undo2 class="h-3 w-3" /></Button
 												>
-													<Undo2 class="h-3 w-3" />
-												</Button>
-											{:else if !isRemoved && item.status === 'declined' && item.id}
-												<!-- Declined items: can reinstate -->
-												<Button
+											{:else if !isRemoved && item.status === 'declined' && item.id}<Button
 													size="sm"
 													variant="outline"
 													onclick={() => handleReinstateClick(item.id!)}
 													class="h-7 px-2 text-green-600"
-													title="Reinstate this declined item"
+													title="Reinstate this declined item"><RotateCcw class="h-3 w-3" /></Button
 												>
-													<RotateCcw class="h-3 w-3" />
-												</Button>
-											{:else if isRemoved && item.original_line_id}
-												<!-- Removed original lines: can reinstate -->
-												<Button
+											{:else if isRemoved && item.original_line_id}<Button
 													size="sm"
 													variant="outline"
 													onclick={() => handleReinstateOriginalClick(item.original_line_id!)}
 													class="h-7 px-2 text-green-600"
-													title="Reinstate original line"
-												>
-													<RotateCcw class="h-3 w-3" />
-												</Button>
-											{/if}
+													title="Reinstate original line"><RotateCcw class="h-3 w-3" /></Button
+												>{/if}
 										</div>
-									</td>
-								</tr>
+									</Table.Cell>
+								</Table.Row>
 							{/each}
-						</tbody>
-					</table>
+						</Table.Body>
+					</Table.Root>
 				</div>
 			{/if}
 		</Card>

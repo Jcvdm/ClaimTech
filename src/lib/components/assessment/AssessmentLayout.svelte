@@ -231,7 +231,10 @@
 				<div class="flex items-center gap-1.5 sm:gap-2">
 					<!-- Last saved indicator -->
 					{#if lastSaved}
-						<div class="hidden items-center gap-1 text-xs text-gray-500 sm:flex sm:text-sm" title="Last saved: {new Date(lastSaved).toLocaleTimeString()}">
+						<div
+							class="hidden items-center gap-1 text-xs text-gray-500 sm:flex sm:text-sm"
+							title="Last saved: {new Date(lastSaved).toLocaleTimeString()}"
+						>
 							<Clock class="h-3.5 w-3.5" />
 							<span class="hidden md:inline">Saved {new Date(lastSaved).toLocaleTimeString()}</span>
 						</div>
@@ -241,7 +244,7 @@
 					<Button
 						variant="ghost"
 						size="icon"
-						class="lg:hidden h-8 w-8"
+						class="h-8 w-8 lg:hidden"
 						onclick={() => (drawerOpen = true)}
 						aria-label="Open navigation"
 					>
@@ -263,7 +266,12 @@
 					</LoadingButton>
 
 					{#if onCancel && ['assessment_in_progress', 'estimate_review', 'estimate_sent'].includes(assessment.stage)}
-						<Button variant="destructive" onclick={onCancel} size="sm" class="h-8 px-2 sm:h-9 sm:px-3">
+						<Button
+							variant="destructive"
+							onclick={onCancel}
+							size="sm"
+							class="h-8 px-2 sm:h-9 sm:px-3"
+						>
 							<Trash2 class="h-4 w-4 sm:mr-1.5" />
 							<span class="hidden sm:inline">Cancel</span>
 						</Button>
@@ -279,15 +287,21 @@
 	</div>
 
 	<!-- Body: aside rail + main content -->
-	<div class="flex flex-1 min-h-0">
+	<div class="flex min-h-0 flex-1">
 		<!-- Desktop step rail (lg+) -->
-		<aside class="hidden lg:flex w-[232px] shrink-0 flex-col overflow-y-auto border-r border-sidebar-border bg-sidebar">
+		<aside
+			class="hidden w-[232px] shrink-0 flex-col overflow-y-auto border-r border-sidebar-border bg-sidebar lg:flex"
+		>
 			<StepRail {steps} currentStep={currentTab} onStepChange={handleTabClick} />
 		</aside>
 
 		<!-- Main content area -->
 		<main class="flex-1 overflow-y-auto p-2 pt-2 sm:p-3 sm:pt-3 md:p-4 lg:p-6 lg:pt-4">
-			<div class="mx-auto w-[98%] max-w-[1600px] sm:w-[95%] md:w-[92%] lg:w-[90%]">
+			<div
+				class={['estimate', 'additionals'].includes(currentTab)
+					? 'mx-auto w-full max-w-none'
+					: 'mx-auto w-[98%] max-w-[1600px] sm:w-[95%] md:w-[92%] lg:w-[90%]'}
+			>
 				{#if children}
 					{@render children()}
 				{/if}
@@ -297,7 +311,7 @@
 
 	<!-- Mobile drawer (Sheet) -->
 	<Sheet bind:open={drawerOpen}>
-		<SheetContent side="left" class="w-[280px] p-0 scroll-isolate">
+		<SheetContent side="left" class="scroll-isolate w-[280px] p-0">
 			<StepRail
 				{steps}
 				currentStep={currentTab}

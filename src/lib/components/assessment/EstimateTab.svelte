@@ -10,22 +10,45 @@
 	import RequiredFieldsWarning from './RequiredFieldsWarning.svelte';
 	import BettermentModal from './BettermentModal.svelte';
 	import LineItemCard from './LineItemCard.svelte';
-    import { Plus, Trash2, Check, CircleAlert, CircleCheck, CircleX, Info, Percent, ShieldCheck, Package, Recycle, RefreshCw, Camera, Settings } from 'lucide-svelte';
+	import {
+		Plus,
+		Trash2,
+		Check,
+		CircleAlert,
+		CircleCheck,
+		CircleX,
+		Info,
+		Percent,
+		ShieldCheck,
+		Package,
+		Recycle,
+		RefreshCw,
+		Camera,
+		Settings
+	} from 'lucide-svelte';
 	import { onDestroy, onMount } from 'svelte';
-import type {
-	Estimate,
-	EstimateLineItem,
-	EstimatePhoto,
-	VehicleValues,
-	VehicleIdentification,
-	AssessmentResultType,
-	ProcessType,
-	PartType
-} from '$lib/types/assessment';
-import type { VehicleDetails } from '$lib/utils/report-data-helpers';
-import type { Repairer } from '$lib/types/repairer';
-	import { getProcessTypeOptions, getProcessTypeConfig, getProcessTypeBadgeColor } from '$lib/constants/processTypes';
-	import { createEmptyLineItem, calculateLineItemTotal, calculateBetterment } from '$lib/utils/estimateCalculations';
+	import type {
+		Estimate,
+		EstimateLineItem,
+		EstimatePhoto,
+		VehicleValues,
+		VehicleIdentification,
+		AssessmentResultType,
+		ProcessType,
+		PartType
+	} from '$lib/types/assessment';
+	import type { VehicleDetails } from '$lib/utils/report-data-helpers';
+	import type { Repairer } from '$lib/types/repairer';
+	import {
+		getProcessTypeOptions,
+		getProcessTypeConfig,
+		getProcessTypeBadgeColor
+	} from '$lib/constants/processTypes';
+	import {
+		createEmptyLineItem,
+		calculateLineItemTotal,
+		calculateBetterment
+	} from '$lib/utils/estimateCalculations';
 	import {
 		calculateEstimateThreshold,
 		getThresholdColorClasses,
@@ -50,7 +73,10 @@ import type { Repairer } from '$lib/types/repairer';
 		excessAmount?: number | null; // Excess payment from request
 		onUpdateEstimate: (data: Partial<Estimate>) => void;
 		onAddLineItem: (item: EstimateLineItem) => Promise<EstimateLineItem>;
-		onUpdateLineItem: (itemId: string, data: Partial<EstimateLineItem>) => Promise<EstimateLineItem>;
+		onUpdateLineItem: (
+			itemId: string,
+			data: Partial<EstimateLineItem>
+		) => Promise<EstimateLineItem>;
 		onDeleteLineItem: (itemId: string) => Promise<void>;
 		onBulkDeleteLineItems: (itemIds: string[]) => Promise<void>;
 		onPhotosUpdate: () => void;
@@ -91,10 +117,13 @@ import type { Repairer } from '$lib/types/repairer';
 	const onRegisterSave = $derived(props.onRegisterSave);
 	const vehicleDetails = $derived(props.vehicleDetails);
 
-
 	// Option A: Full-tab local buffer (no per-field PATCH)
 	function deepClone<T>(obj: T): T {
-		try { return structuredClone(obj); } catch { return JSON.parse(JSON.stringify(obj)); }
+		try {
+			return structuredClone(obj);
+		} catch {
+			return JSON.parse(JSON.stringify(obj));
+		}
 	}
 
 	/**
@@ -138,7 +167,9 @@ import type { Repairer } from '$lib/types/repairer';
 		}
 	});
 
-	function markDirty() { dirty = true; }
+	function markDirty() {
+		dirty = true;
+	}
 
 	// Timeout handle for debounced saves
 	let saveTimeout: number | null = null;
@@ -238,12 +269,14 @@ import type { Repairer } from '$lib/types/repairer';
 		return items.filter((item) => item && item.id);
 	});
 
-
 	function updateLocalItem(itemId: string, patch: Partial<EstimateLineItem>) {
 		if (!localEstimate) return;
 		const idx = localEstimate.line_items.findIndex((i) => i.id === itemId);
 		if (idx === -1) return;
-		localEstimate.line_items[idx] = { ...localEstimate.line_items[idx], ...patch } as EstimateLineItem;
+		localEstimate.line_items[idx] = {
+			...localEstimate.line_items[idx],
+			...patch
+		} as EstimateLineItem;
 		// Recompute derived totals for display
 		const item = localEstimate.line_items[idx];
 		item.total = calculateLineItemTotal(item, localEstimate.labour_rate, localEstimate.paint_rate);
@@ -258,17 +291,13 @@ import type { Repairer } from '$lib/types/repairer';
 		const li = { ...item, id } as EstimateLineItem;
 
 		// Ensure total is present/consistent with current rates
-		li.total = calculateLineItemTotal(
-			li,
-			localEstimate.labour_rate,
-			localEstimate.paint_rate
-		);
+		li.total = calculateLineItemTotal(li, localEstimate.labour_rate, localEstimate.paint_rate);
 
 		localEstimate.line_items = [...localEstimate.line_items, li];
 		// Mark dirty - auto-save happens on tab change or explicit save
 		// This enables rapid line item entry without waiting for each save
 		markDirty();
-		scheduleSave();  // Queue debounced save as backup
+		scheduleSave(); // Queue debounced save as backup
 		console.log('[EstimateTab] Line item added, save scheduled', { id: li.id });
 	}
 
@@ -277,8 +306,6 @@ import type { Repairer } from '$lib/types/repairer';
 		localEstimate.line_items = localEstimate.line_items.filter((i) => !ids.includes(i.id!));
 		markDirty();
 	}
-
-
 
 	const onComplete = $derived(props.onComplete);
 
@@ -340,9 +367,10 @@ import type { Repairer } from '$lib/types/repairer';
 				bettermentDetails.push(`Outwork: ${percentages.betterment_outwork_percentage}%`);
 			}
 
-			const noteText = bettermentDetails.length > 0
-				? `${bettermentDetails.join(', ')}\nTotal Deduction: ${formatCurrency(item.betterment_total || 0)}`
-				: `No percentages applied\nTotal Deduction: ${formatCurrency(item.betterment_total || 0)}`;
+			const noteText =
+				bettermentDetails.length > 0
+					? `${bettermentDetails.join(', ')}\nTotal Deduction: ${formatCurrency(item.betterment_total || 0)}`
+					: `No percentages applied\nTotal Deduction: ${formatCurrency(item.betterment_total || 0)}`;
 
 			// Create betterment note (with deduplication)
 			await assessmentNotesService.createBettermentNote(
@@ -363,7 +391,7 @@ import type { Repairer } from '$lib/types/repairer';
 
 	// Show parts list as plain text in modal for easy copy/paste
 	function handleShowPartsListText() {
-		const partsOnly = localLineItems.filter(item => item.process_type === 'N');
+		const partsOnly = localLineItems.filter((item) => item.process_type === 'N');
 
 		if (partsOnly.length === 0) {
 			console.warn('No parts to export');
@@ -371,12 +399,14 @@ import type { Repairer } from '$lib/types/repairer';
 		}
 
 		// Prepare vehicle details from normalized vehicleDetails
-		const csvVehicleDetails = vehicleDetails ? {
-			vin_number: vehicleDetails.vin,
-			vehicle_year: vehicleDetails.year,
-			vehicle_make: vehicleDetails.make,
-			vehicle_model: vehicleDetails.model
-		} : undefined;
+		const csvVehicleDetails = vehicleDetails
+			? {
+					vin_number: vehicleDetails.vin,
+					vehicle_year: vehicleDetails.year,
+					vehicle_make: vehicleDetails.make,
+					vehicle_model: vehicleDetails.model
+				}
+			: undefined;
 
 		// Generate plain text
 		partsListText = generatePartsListText(partsOnly, csvVehicleDetails, {
@@ -387,7 +417,6 @@ import type { Repairer } from '$lib/types/repairer';
 
 		showPartsListModal = true;
 	}
-
 
 	// Copy parts list text to clipboard
 	async function handleCopyPartsListText() {
@@ -410,7 +439,6 @@ import type { Repairer } from '$lib/types/repairer';
 	let editingPaint = $state<string | null>(null);
 	let editingPartPrice = $state<string | null>(null);
 
-
 	let editingOutwork = $state<string | null>(null);
 	let tempSAHours = $state<number | null>(null);
 	let tempLabourHours = $state<number | null>(null);
@@ -429,9 +457,9 @@ import type { Repairer } from '$lib/types/repairer';
 	let skeletonOutworkNett = $state<number | null>(null);
 
 	// Which skeleton cost field (if any) is in edit mode
-	let skeletonEditingField = $state<
-		'partPrice' | 'sa' | 'labour' | 'paint' | 'outwork' | null
-	>(null);
+	let skeletonEditingField = $state<'partPrice' | 'sa' | 'labour' | 'paint' | 'outwork' | null>(
+		null
+	);
 
 	// Ref to description input for focus management
 	let skeletonDescInput = $state<HTMLInputElement | null>(null);
@@ -484,7 +512,9 @@ import type { Repairer } from '$lib/types/repairer';
 			if (partType === 'OEM') markupPercentage = localEstimate.oem_markup_percentage;
 			else if (partType === 'ALT') markupPercentage = localEstimate.alt_markup_percentage;
 			else if (partType === '2ND') markupPercentage = localEstimate.second_hand_markup_percentage;
-			newItem.part_price = Number((skeletonPartPriceNett * (1 + markupPercentage / 100)).toFixed(2));
+			newItem.part_price = Number(
+				(skeletonPartPriceNett * (1 + markupPercentage / 100)).toFixed(2)
+			);
 		}
 		if (skeletonSAHours != null) {
 			newItem.strip_assemble_hours = skeletonSAHours;
@@ -571,19 +601,17 @@ import type { Repairer } from '$lib/types/repairer';
 		}
 		selectedItems = new Set(selectedItems); // Trigger reactivity
 		selectAll = !selectAll;
-
-
 	}
 
 	async function handleBulkDelete() {
-		if (!confirm(`Delete ${selectedItems.size} selected item${selectedItems.size > 1 ? 's' : ''}?`)) return;
+		if (!confirm(`Delete ${selectedItems.size} selected item${selectedItems.size > 1 ? 's' : ''}?`))
+			return;
 		const ids = Array.from(selectedItems);
 		removeLocalLines(ids);
 		selectedItems.clear();
 		selectedItems = new Set(selectedItems);
 		selectAll = false;
 	}
-
 
 	// Click-to-edit S&A (hours input)
 	// S&A cost = hours × labour_rate
@@ -734,7 +762,7 @@ import type { Repairer } from '$lib/types/repairer';
 		if (!localEstimate) return;
 		localEstimate.assessment_result = result;
 		// Don't call markDirty() since we're saving immediately
-		saveAssessmentResult(result);  // Dedicated save without overlay
+		saveAssessmentResult(result); // Dedicated save without overlay
 	}
 
 	// Calculate category totals (nett for parts/outwork; show aggregate markup separately)
@@ -744,7 +772,7 @@ import type { Repairer } from '$lib/types/repairer';
 
 		const vis = localLineItems;
 
-		const effectivePct = (localEstimate?.sundries_percentage ?? estimate?.sundries_percentage ?? 1);
+		const effectivePct = localEstimate?.sundries_percentage ?? estimate?.sundries_percentage ?? 1;
 
 		const partsNett = vis
 			.filter((i: any) => i.process_type === 'N')
@@ -779,10 +807,12 @@ import type { Repairer } from '$lib/types/repairer';
 		const markupTotal = partsMarkup + outworkMarkup;
 
 		// Subtotal now includes betterment deduction
-        const subtotalExVat = partsNett + saTotal + labourTotal + paintTotal + outworkNett + markupTotal - bettermentTotal;
+		const subtotalExVat =
+			partsNett + saTotal + labourTotal + paintTotal + outworkNett + markupTotal - bettermentTotal;
 		const sundriesAmount = subtotalExVat * (effectivePct / 100);
-        const vatAmount = (subtotalExVat + sundriesAmount) * ((percentSource.vat_percentage || 0) / 100);
-        const totalIncVat = subtotalExVat + sundriesAmount + vatAmount;
+		const vatAmount =
+			(subtotalExVat + sundriesAmount) * ((percentSource.vat_percentage || 0) / 100);
+		const totalIncVat = subtotalExVat + sundriesAmount + vatAmount;
 		// Net amount payable after excess deduction
 		const netPayable = totalIncVat - excessAmount;
 		return {
@@ -807,7 +837,7 @@ import type { Repairer } from '$lib/types/repairer';
 	// Check if estimate is complete
 	const isComplete = $derived(() => {
 		const totals = categoryTotals();
-		return estimate !== null && (localLineItems.length > 0) && !!totals && (totals.totalIncVat > 0);
+		return estimate !== null && localLineItems.length > 0 && !!totals && totals.totalIncVat > 0;
 	});
 
 	// Calculate threshold for estimate total vs retail borderline
@@ -824,8 +854,6 @@ import type { Repairer } from '$lib/types/repairer';
 
 	// Validation for warning banner
 	const validation = $derived.by(() => {
-
-
 		return validateEstimate(estimate);
 	});
 
@@ -895,7 +923,7 @@ import type { Repairer } from '$lib/types/repairer';
 	function handleLocalUpdateRepairer(repairerId: string | null) {
 		if (!localEstimate) return;
 		localEstimate.repairer_id = repairerId;
-		saveRepairer(repairerId);  // Immediate save, no overlay
+		saveRepairer(repairerId); // Immediate save, no overlay
 	}
 
 	// Cleanup on component destroy
@@ -904,1013 +932,992 @@ import type { Repairer } from '$lib/types/repairer';
 			clearTimeout(saveTimeout);
 		}
 	});
-
 </script>
 
 <div class="relative" aria-busy={recalculating || saving}>
-    <div class={(recalculating || saving) ? 'space-y-6 blur-sm pointer-events-none' : 'space-y-6'}>
-	<!-- Warning Banner -->
+	<div class={recalculating || saving ? 'pointer-events-none space-y-6 blur-sm' : 'space-y-6'}>
+		<!-- Warning Banner -->
 
-	<RequiredFieldsWarning missingFields={validation.missingFields} />
-	{#if !estimate}
-		<Card class="p-6 border-2 border-dashed border-gray-300">
-			<p class="text-center text-gray-600">Loading estimate...</p>
-		</Card>
-	{:else}
-		<!-- Warranty Status Hint -->
-		{#if vehicleValues && warrantyInfo()}
-			{@const warranty = warrantyInfo()!}
-			{@const statusClasses = getWarrantyStatusClasses(warranty.color)}
-			<Card class="p-4 {statusClasses.bg} border {statusClasses.border}">
-				<div class="flex items-start gap-3">
-					<div class="mt-0.5">
-						{#if warranty.icon === 'check'}
-							<CircleCheck class="h-5 w-5 {statusClasses.text}" />
-						{:else if warranty.icon === 'x'}
-							<CircleX class="h-5 w-5 {statusClasses.text}" />
-
-						{:else if warranty.icon === 'info'}
-							<Info class="h-5 w-5 {statusClasses.text}" />
-						{:else}
-							<CircleAlert class="h-5 w-5 {statusClasses.text}" />
-						{/if}
-					</div>
-					<div class="flex-1">
-						<h4 class="text-sm font-semibold {statusClasses.text}">
-							Warranty Status: {warranty.label}
-						</h4>
-						{#if vehicleValues.warranty_start_date && vehicleValues.warranty_end_date}
-							<p class="mt-1 text-xs {statusClasses.text}">
-								Valid from {formatDate(vehicleValues.warranty_start_date)} to {formatDate(vehicleValues.warranty_end_date)}
-							</p>
-						{/if}
-						{#if vehicleValues.warranty_expiry_mileage}
-							<p class="mt-0.5 text-xs {statusClasses.text}">
-								Mileage limit: {vehicleValues.warranty_expiry_mileage === 'unlimited'
-									? 'Unlimited'
-									: `${parseInt(vehicleValues.warranty_expiry_mileage).toLocaleString()} km`}
-							</p>
-						{/if}
-					</div>
-				</div>
+		<RequiredFieldsWarning missingFields={validation.missingFields} />
+		{#if !estimate}
+			<Card class="border-2 border-dashed border-gray-300 p-6">
+				<p class="text-center text-gray-600">Loading estimate...</p>
 			</Card>
-		{/if}
-
-		<!-- Rates & Repairer Configuration Dialog -->
-		<ResponsiveDialog.Root bind:open={ratesOpen}>
-			<ResponsiveDialog.Content class="sm:max-w-3xl">
-				<ResponsiveDialog.Header>
-					<ResponsiveDialog.Title>Rates & Repairer Configuration</ResponsiveDialog.Title>
-					<ResponsiveDialog.Description>
-						Update the repairer, labour, paint, VAT, and markup rates used by this estimate.
-					</ResponsiveDialog.Description>
-				</ResponsiveDialog.Header>
-				<RatesAndRepairerConfiguration
-					repairerId={localEstimate ? localEstimate.repairer_id : estimate.repairer_id}
-					{repairers}
-					labourRate={localEstimate ? localEstimate.labour_rate : estimate.labour_rate}
-					paintRate={localEstimate ? localEstimate.paint_rate : estimate.paint_rate}
-					vatPercentage={localEstimate ? localEstimate.vat_percentage : estimate.vat_percentage}
-					oemMarkup={localEstimate ? localEstimate.oem_markup_percentage : estimate.oem_markup_percentage}
-					altMarkup={localEstimate ? localEstimate.alt_markup_percentage : estimate.alt_markup_percentage}
-					secondHandMarkup={localEstimate ? localEstimate.second_hand_markup_percentage : estimate.second_hand_markup_percentage}
-					outworkMarkup={localEstimate ? localEstimate.outwork_markup_percentage : estimate.outwork_markup_percentage}
-					onUpdateRates={handleLocalUpdateRates}
-					onUpdateRepairer={handleLocalUpdateRepairer}
-					{onRepairersUpdate}
-					disabled={saving || recalculating}
-					embedded={true}
-				/>
-			</ResponsiveDialog.Content>
-		</ResponsiveDialog.Root>
-
-		<!-- Quick Add Dialog -->
-		<ResponsiveDialog.Root bind:open={quickAddOpen}>
-			<ResponsiveDialog.Content class="sm:max-w-2xl">
-				<ResponsiveDialog.Header>
-					<ResponsiveDialog.Title>Add line item</ResponsiveDialog.Title>
-				</ResponsiveDialog.Header>
-				<QuickAddLineItem
-					labourRate={localEstimate ? localEstimate.labour_rate : estimate.labour_rate}
-					paintRate={localEstimate ? localEstimate.paint_rate : estimate.paint_rate}
-					oemMarkup={localEstimate ? localEstimate.oem_markup_percentage : estimate.oem_markup_percentage}
-					altMarkup={localEstimate ? localEstimate.alt_markup_percentage : estimate.alt_markup_percentage}
-					secondHandMarkup={localEstimate ? localEstimate.second_hand_markup_percentage : estimate.second_hand_markup_percentage}
-					outworkMarkup={localEstimate ? localEstimate.outwork_markup_percentage : estimate.outwork_markup_percentage}
-					onAddLineItem={(item) => { addLocalLine(item); quickAddOpen = false; }}
-					enablePhotos={true}
-					{assessmentId}
-					parentId={estimate.id}
-					photoCategory="estimate"
-					onPhotosUploaded={onPhotosUpdate}
-				/>
-			</ResponsiveDialog.Content>
-		</ResponsiveDialog.Root>
-
-		<!-- Line Items + Totals two-pane grid -->
-		<div class="lg:grid lg:grid-cols-[minmax(0,1fr)_340px] lg:gap-6 lg:items-start">
-		<!-- Line Items Section -->
-		<Card class="p-3 sm:p-6">
-			<!-- Header - Responsive -->
-			<div class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-				<h3 class="text-[11.5px] font-semibold uppercase tracking-wide text-muted-foreground">
-					Line Items
-					<span class="ml-2 font-mono-tabular text-muted-foreground text-xs">({localLineItems.length})</span>
-					{#if dirty}
-						<span class="ml-2 inline-flex items-center rounded-full bg-warning-soft px-2 py-0.5 text-xs font-medium text-warning border border-warning-border">
-							Unsaved
-						</span>
-					{/if}
-				</h3>
-				<div class="flex flex-wrap gap-2">
-					{#if dirty}
-						<Button onclick={saveAll} size="sm" disabled={saving} class="flex-1 sm:flex-none">
-							{saving ? 'Saving…' : 'Save'}
-						</Button>
-						<Button onclick={discardAll} size="sm" variant="outline" disabled={saving} class="flex-1 sm:flex-none">
-							Discard
-						</Button>
-					{/if}
-					<Button
-						onclick={() => ratesOpen = true}
-						size="sm"
-						variant="outline"
-						title="Rates & repairer"
-						aria-label="Rates & repairer"
-					>
-						<Settings class="h-4 w-4" />
-					</Button>
-					<!-- Parts List Button -->
-					<Button
-						onclick={handleShowPartsListText}
-						size="sm"
-						variant="outline"
-						title="Parts List (for ordering)"
-					>
-						<Package class="h-4 w-4" />
-					</Button>
-					{#if selectedItems.size > 0}
-						<Button onclick={handleBulkDelete} size="sm" variant="destructive">
-							<Trash2 class="h-4 w-4 sm:mr-2" />
-							<span class="hidden sm:inline">Delete ({selectedItems.size})</span>
-						</Button>
-					{/if}
-					<Button
-						onclick={() => quickAddOpen = true}
-						size="sm"
-						variant="ghost"
-						title="Add line with photos"
-						aria-label="Add line with photos"
-					>
-						<Camera class="h-4 w-4" />
-					</Button>
-				</div>
-			</div>
-
-			<!-- Mobile: Card Layout -->
-			<div class="space-y-3 md:hidden">
-				{#each localLineItems as item (item.id)}
-					<LineItemCard
-						{item}
-						labourRate={localEstimate?.labour_rate ?? estimate?.labour_rate ?? 0}
-						paintRate={localEstimate?.paint_rate ?? estimate?.paint_rate ?? 0}
-						selected={selectedItems.has(item.id!)}
-						onToggleSelect={() => handleToggleSelect(item.id!)}
-						onUpdateDescription={(value) => handleUpdateLineItem(item.id!, 'description', value)}
-						onUpdateProcessType={(value) => handleUpdateLineItem(item.id!, 'process_type', value)}
-						onUpdatePartType={(value) => handleUpdateLineItem(item.id!, 'part_type', value)}
-						onEditPartPrice={() => handlePartPriceClick(item.id!, item.part_price_nett || null)}
-						onEditSA={() => handleSAClick(item.id!, item.strip_assemble_hours || null)}
-						onEditLabour={() => handleLabourClick(item.id!, item.labour_hours || null)}
-						onEditPaint={() => handlePaintClick(item.id!, item.paint_panels || null)}
-						onEditOutwork={() => handleOutworkClick(item.id!, item.outwork_charge_nett || null)}
-						onEditBetterment={() => handleBettermentClick(item)}
-						onDelete={() => removeLocalLines([item.id!])}
-					/>
-				{/each}
-
-				<!-- Skeleton card (Phase 8e) - persistent add card -->
-				<div class="rounded-sm border bg-muted/20 p-3 space-y-3">
-					<p class="text-[11.5px] font-semibold uppercase tracking-wide text-muted-foreground">
-						New Line
-					</p>
-					<div class="grid grid-cols-2 gap-2">
-						<label class="block">
-							<span class="text-xs text-muted-foreground">Process</span>
-							<select
-								bind:value={skeletonProcessType}
-								class="mt-1 w-full rounded border border-input bg-background px-2 py-1 text-sm"
-								aria-label="New line process type"
-							>
-								{#each processTypeOptions as option}
-									<option value={option.value}>{option.value} - {option.label}</option>
-								{/each}
-							</select>
-						</label>
-						{#if skeletonProcessType === 'N'}
-							<label class="block">
-								<span class="text-xs text-muted-foreground">Part</span>
-								<select
-									bind:value={skeletonPartType}
-									class="mt-1 w-full rounded border border-input bg-background px-2 py-1 text-sm"
-									aria-label="New line part type"
-								>
-									<option value="OEM">OEM</option>
-									<option value="ALT">ALT</option>
-									<option value="2ND">2ND</option>
-								</select>
-							</label>
-						{/if}
-					</div>
-					<Input
-						bind:ref={skeletonDescInputMobile}
-						type="text"
-						placeholder="Description — type to add"
-						aria-label="New line description"
-						bind:value={skeletonDescription}
-						oninput={() => { if (skeletonMobileHint) skeletonMobileHint = ''; }}
-					/>
-					{#if skeletonMobileHint}
-						<p aria-live="polite" class="text-xs text-destructive">{skeletonMobileHint}</p>
-					{/if}
-					<Button
-						onclick={() => commitSkeleton({ refocus: true, mobile: true })}
-						size="sm"
-						class="w-full"
-					>
-						Save
-					</Button>
-				</div>
-			</div>
-
-			<!-- Desktop: Table Layout -->
-			<div class="hidden rounded-sm border overflow-x-auto md:block">
-				<Table.Root>
-					<Table.Header class="sticky top-0 z-10 bg-white">
-						<Table.Row class="hover:bg-transparent border-b border-border">
-							<Table.Head class="w-[40px] px-2">
-								<input
-									type="checkbox"
-									checked={selectAll}
-									onchange={handleSelectAll}
-									class="rounded border-gray-300 cursor-pointer"
-									aria-label="Select all items"
-								/>
-							</Table.Head>
-							<Table.Head class="w-[50px] px-2 uppercase tracking-wide text-[11.5px] font-medium text-muted-foreground">Type</Table.Head>
-							<Table.Head class="w-[60px] px-2 uppercase tracking-wide text-[11.5px] font-medium text-muted-foreground">Part</Table.Head>
-							<Table.Head class="min-w-[180px] flex-1 px-3 uppercase tracking-wide text-[11.5px] font-medium text-muted-foreground">Description</Table.Head>
-							<Table.Head class="w-[120px] text-right px-2 uppercase tracking-wide text-[11.5px] font-medium text-muted-foreground">Part Price</Table.Head>
-							<Table.Head class="w-[100px] text-right px-2 uppercase tracking-wide text-[11.5px] font-medium text-muted-foreground">S&A</Table.Head>
-							<Table.Head class="w-[120px] text-right px-2 uppercase tracking-wide text-[11.5px] font-medium text-muted-foreground">Labour</Table.Head>
-							<Table.Head class="w-[100px] text-right px-2 uppercase tracking-wide text-[11.5px] font-medium text-muted-foreground">Paint</Table.Head>
-							<Table.Head class="w-[120px] text-right px-2 uppercase tracking-wide text-[11.5px] font-medium text-muted-foreground">Outwork</Table.Head>
-							<Table.Head class="w-[40px] px-2 text-center uppercase tracking-wide text-[11.5px] font-medium text-muted-foreground" title="Betterment">%</Table.Head>
-							<Table.Head class="w-[140px] text-right px-2 uppercase tracking-wide text-[11.5px] font-medium text-muted-foreground">Total</Table.Head>
-							<Table.Head class="w-[60px] px-2"></Table.Head>
-						</Table.Row>
-					</Table.Header>
-					<Table.Body>
-						{#each localLineItems as item (item.id)}
-								<Table.Row class="hover:bg-muted/50">
-									<!-- Checkbox -->
-									<Table.Cell class="px-3 py-2">
-										<input
-											type="checkbox"
-											checked={selectedItems.has(item.id!)}
-											onchange={() => handleToggleSelect(item.id!)}
-											class="rounded border-gray-300 cursor-pointer"
-											aria-label="Select item"
-										/>
-									</Table.Cell>
-
-									<!-- Process Type - Compact Badge Display -->
-									<Table.Cell class="px-3 py-2">
-										<div class="relative group">
-											<select
-												value={item.process_type}
-												onchange={(e) =>
-													handleUpdateLineItem(item.id!, 'process_type', e.currentTarget.value)}
-												class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
-											>
-												{#each processTypeOptions as option}
-													<option value={option.value}>{option.value} - {option.label}</option>
-												{/each}
-											</select>
-
-											<!-- Visual Badge -->
-											<div class="flex items-center justify-center pointer-events-none">
-												<span class="px-2 py-1 text-xs font-semibold rounded {getProcessTypeBadgeColor(item.process_type)}">
-													{item.process_type}
-												</span>
-											</div>
-
-											<!-- Tooltip -->
-											<div class="absolute hidden group-hover:block bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 text-xs bg-gray-900 text-white rounded whitespace-nowrap z-20 pointer-events-none">
-												{getProcessTypeConfig(item.process_type).label}
-											</div>
-										</div>
-									</Table.Cell>
-
-									<!-- Part Type (N only) -->
-									<Table.Cell class="px-3 py-2">
-										{#if item.process_type === 'N'}
-											<div class="relative group">
-												<!-- Hidden select for functionality -->
-												<select
-													value={item.part_type || 'OEM'}
-													onchange={(e) =>
-														handleUpdateLineItem(item.id!, 'part_type', e.currentTarget.value)}
-													class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
-												>
-													<option value="OEM">OEM</option>
-													<option value="ALT">ALT</option>
-													<option value="2ND">2ND</option>
-												</select>
-
-												<!-- Visual Badge with Icon -->
-												<div class="flex items-center justify-center pointer-events-none">
-													{#if item.part_type === 'OEM'}
-														<div class="flex items-center gap-1 px-2 py-1 rounded-sm bg-muted text-muted-foreground border border-border">
-															<ShieldCheck class="h-3 w-3" />
-															<span class="text-xs font-semibold">OEM</span>
-														</div>
-													{:else if item.part_type === 'ALT'}
-														<div class="flex items-center gap-1 px-2 py-1 rounded-sm bg-success-soft text-success border border-success-border">
-															<Package class="h-3 w-3" />
-															<span class="text-xs font-semibold">ALT</span>
-														</div>
-													{:else if item.part_type === '2ND'}
-														<div class="flex items-center gap-1 px-2 py-1 rounded-sm bg-warning-soft text-warning border border-warning-border">
-															<Recycle class="h-3 w-3" />
-															<span class="text-xs font-semibold">2ND</span>
-														</div>
-													{:else}
-						<span class="text-xs text-muted-foreground">OEM</span>
-					{/if}
-					</div>
-				</div>
-				{:else}
-					<span class="text-gray-400 text-sm">-</span>
-				{/if}
-									</Table.Cell>
-
-									<!-- Description -->
-									<Table.Cell class="px-3 py-2">
-										<Input
-											type="text"
-											placeholder="Description"
-											value={item.description}
-											oninput={(e) =>
-												scheduleUpdate(item.id!, 'description', e.currentTarget.value)}
-											onblur={(e) => flushUpdate(item.id!, 'description', e.currentTarget.value)}
-											class="border-0 focus-visible:ring-0 focus-visible:ring-offset-0"
-										/>
-									</Table.Cell>
-
-									<!-- Part Price (N only) - Click to edit nett price -->
-									<Table.Cell class="text-right px-3 py-2">
-										{#if item.process_type === 'N'}
-											{#if editingPartPrice === item.id}
-												<div class="space-y-1">
-													<Input
-														type="number"
-														min="0"
-														step="0.01"
-														bind:value={tempPartPriceNett}
-														onkeydown={(e) => {
-															if (e.key === 'Enter') handlePartPriceSave(item.id!, item);
-															if (e.key === 'Escape') handlePartPriceCancel();
-														}}
-														onblur={() => handlePartPriceSave(item.id!, item)}
-														class="border-0 text-right text-sm focus-visible:ring-0 focus-visible:ring-offset-0 font-mono-tabular"
-														autofocus
-													/>
-													<p class="text-xs text-muted-foreground italic">Only input nett price</p>
-												</div>
-											{:else}
-												<button
-													onclick={() => handlePartPriceClick(item.id!, item.part_price_nett || null)}
-													class="text-sm font-medium text-foreground hover:text-foreground/70 cursor-pointer w-full text-right font-mono-tabular"
-													title="Click to edit nett price (selling price includes markup)"
-												>
-													{formatCurrency(item.part_price_nett || 0)}
-												</button>
-											{/if}
-										{:else}
-											<span class="text-gray-400 text-xs">-</span>
-										{/if}
-									</Table.Cell>
-
-									<!-- Strip & Assemble (N,R,P,B) - Click to edit hours -->
-									<Table.Cell class="text-right px-3 py-2">
-										{#if ['N', 'R', 'P', 'B'].includes(item.process_type)}
-											{#if editingSA === item.id}
-												<Input
-													type="number"
-													min="0"
-													step="0.25"
-													bind:value={tempSAHours}
-													onkeydown={(e) => {
-														if (e.key === 'Enter') handleSASave(item.id!);
-														if (e.key === 'Escape') handleSACancel();
-													}}
-													onblur={() => handleSASave(item.id!)}
-													class="border-0 text-right text-sm focus-visible:ring-0 focus-visible:ring-offset-0 font-mono-tabular"
-													autofocus
-												/>
-											{:else}
-												<button
-													onclick={() => handleSAClick(item.id!, item.strip_assemble_hours || null)}
-													class="text-sm font-medium text-foreground hover:text-foreground/70 cursor-pointer w-full text-right font-mono-tabular"
-													title="Click to edit hours (S&A = hours × labour rate)"
-												>
-													{formatCurrency(item.strip_assemble || 0)}
-												</button>
-											{/if}
-										{:else}
-											<span class="text-gray-400 text-xs">-</span>
-										{/if}
-									</Table.Cell>
-
-									<!-- Labour Cost (N,R,A) - Click to edit hours -->
-									<Table.Cell class="text-right px-3 py-2">
-										{#if ['N', 'R', 'A'].includes(item.process_type)}
-											{#if editingLabour === item.id}
-												<Input
-													type="number"
-													min="0"
-													step="0.5"
-													bind:value={tempLabourHours}
-													onkeydown={(e) => {
-														if (e.key === 'Enter') handleLabourSave(item.id!);
-														if (e.key === 'Escape') handleLabourCancel();
-													}}
-													onblur={() => handleLabourSave(item.id!)}
-													class="border-0 text-right text-sm focus-visible:ring-0 focus-visible:ring-offset-0 font-mono-tabular"
-													autofocus
-												/>
-											{:else}
-												<button
-													onclick={() => handleLabourClick(item.id!, item.labour_hours || null)}
-													class="text-sm font-medium text-foreground hover:text-foreground/70 cursor-pointer w-full text-right font-mono-tabular"
-													title="Click to edit hours (Labour = hours × labour rate)"
-												>
-													{formatCurrency(item.labour_cost || 0)}
-												</button>
-											{/if}
-										{:else}
-											<span class="text-gray-400 text-xs">-</span>
-										{/if}
-									</Table.Cell>
-
-									<!-- Paint Cost (N,R,P,B) - Click to edit panels -->
-									<Table.Cell class="text-right px-3 py-2">
-										{#if ['N', 'R', 'P', 'B'].includes(item.process_type)}
-											{#if editingPaint === item.id}
-												<Input
-													type="number"
-													min="0"
-													step="0.5"
-													bind:value={tempPaintPanels}
-													onkeydown={(e) => {
-														if (e.key === 'Enter') handlePaintSave(item.id!);
-														if (e.key === 'Escape') handlePaintCancel();
-													}}
-													onblur={() => handlePaintSave(item.id!)}
-													class="border-0 text-right text-sm focus-visible:ring-0 focus-visible:ring-offset-0 font-mono-tabular"
-													autofocus
-												/>
-											{:else}
-												<button
-													onclick={() => handlePaintClick(item.id!, item.paint_panels || null)}
-													class="text-sm font-medium text-foreground hover:text-foreground/70 cursor-pointer w-full text-right font-mono-tabular"
-													title="Click to edit panels (Paint = panels × paint rate)"
-												>
-													{formatCurrency(item.paint_cost || 0)}
-												</button>
-											{/if}
-										{:else}
-											<span class="text-gray-400 text-xs">-</span>
-										{/if}
-									</Table.Cell>
-
-									<!-- Outwork Charge (O only) - Click to edit nett price -->
-									<Table.Cell class="text-right px-3 py-2">
-										{#if item.process_type === 'O'}
-											{#if editingOutwork === item.id}
-												<div class="space-y-1">
-													<Input
-														type="number"
-														min="0"
-														step="0.01"
-														bind:value={tempOutworkNett}
-														onkeydown={(e) => {
-															if (e.key === 'Enter') handleOutworkSave(item.id!);
-															if (e.key === 'Escape') handleOutworkCancel();
-														}}
-														onblur={() => handleOutworkSave(item.id!)}
-														class="border-0 text-right text-sm focus-visible:ring-0 focus-visible:ring-offset-0 font-mono-tabular"
-														autofocus
-													/>
-													<p class="text-xs text-muted-foreground italic">Only input nett price</p>
-												</div>
-											{:else}
-												<button
-													onclick={() => handleOutworkClick(item.id!, item.outwork_charge_nett || null)}
-													class="text-sm font-medium text-foreground hover:text-foreground/70 cursor-pointer w-full text-right font-mono-tabular"
-													title="Click to edit nett price (selling price includes markup)"
-												>
-													{formatCurrency(item.outwork_charge_nett || 0)}
-												</button>
-											{/if}
-										{:else}
-											<span class="text-gray-400 text-xs">-</span>
-										{/if}
-									</Table.Cell>
-
-									<!-- Betterment Icon -->
-									<Table.Cell class="px-2 py-2 text-center">
-										<button
-											onclick={() => handleBettermentClick(item)}
-											class="p-1.5 rounded-sm transition-all {item.betterment_total && item.betterment_total > 0
-												? 'bg-warning-soft hover:bg-warning-soft/80 border border-warning-border'
-												: 'bg-muted hover:bg-muted/80 border border-border'}"
-											title="Set betterment percentages"
-										>
-											{#if item.betterment_total && item.betterment_total > 0}
-												<Percent class="h-4 w-4 text-warning font-bold" />
-											{:else}
-												<Percent class="h-4 w-4 text-gray-400" />
-											{/if}
-										</button>
-									</Table.Cell>
-
-									<!-- Total -->
-									<Table.Cell class="text-right px-3 py-2 font-bold font-mono-tabular">
-										{formatCurrency(item.total)}
-									</Table.Cell>
-
-									<!-- Actions -->
-									<Table.Cell class="text-center px-2 py-2">
-										<Button
-											variant="ghost"
-											size="sm"
-											onclick={() => removeLocalLines([item.id!])}
-											class="h-8 w-8 p-0 text-red-600 hover:bg-red-50 hover:text-red-700"
-										>
-											<Trash2 class="h-4 w-4" />
-										</Button>
-									</Table.Cell>
-								</Table.Row>
-							{/each}
-							<!-- Skeleton row (Phase 8e) - persistent add row -->
-							<Table.Row class="hover:bg-muted/20 bg-muted/20">
-								<!-- Checkbox (disabled) -->
-								<Table.Cell class="px-3 py-2">
-									<input
-										type="checkbox"
-										disabled
-										class="rounded border-gray-300 opacity-50 cursor-not-allowed"
-										aria-label="Skeleton row (not selectable)"
-										tabindex={-1}
-									/>
-								</Table.Cell>
-
-								<!-- Process Type -->
-								<Table.Cell class="px-3 py-2">
-									<div class="relative group">
-										<select
-											bind:value={skeletonProcessType}
-											class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
-											aria-label="New line process type"
-										>
-											{#each processTypeOptions as option}
-												<option value={option.value}>{option.value} - {option.label}</option>
-											{/each}
-										</select>
-										<div class="flex items-center justify-center pointer-events-none">
-											<span class="px-2 py-1 text-xs font-semibold rounded {getProcessTypeBadgeColor(skeletonProcessType)}">
-												{skeletonProcessType}
-											</span>
-										</div>
-										<div class="absolute hidden group-hover:block bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 text-xs bg-gray-900 text-white rounded whitespace-nowrap z-20 pointer-events-none">
-											{getProcessTypeConfig(skeletonProcessType).label}
-										</div>
-									</div>
-								</Table.Cell>
-
-								<!-- Part Type (N only) -->
-								<Table.Cell class="px-3 py-2">
-									{#if skeletonProcessType === 'N'}
-										<div class="relative group">
-											<select
-												bind:value={skeletonPartType}
-												class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
-												aria-label="New line part type"
-											>
-												<option value="OEM">OEM</option>
-												<option value="ALT">ALT</option>
-												<option value="2ND">2ND</option>
-											</select>
-											<div class="flex items-center justify-center pointer-events-none">
-												{#if skeletonPartType === 'OEM'}
-													<div class="flex items-center gap-1 px-2 py-1 rounded-sm bg-muted text-muted-foreground border border-border">
-														<ShieldCheck class="h-3 w-3" />
-														<span class="text-xs font-semibold">OEM</span>
-													</div>
-												{:else if skeletonPartType === 'ALT'}
-													<div class="flex items-center gap-1 px-2 py-1 rounded-sm bg-success-soft text-success border border-success-border">
-														<Package class="h-3 w-3" />
-														<span class="text-xs font-semibold">ALT</span>
-													</div>
-												{:else if skeletonPartType === '2ND'}
-													<div class="flex items-center gap-1 px-2 py-1 rounded-sm bg-warning-soft text-warning border border-warning-border">
-														<Recycle class="h-3 w-3" />
-														<span class="text-xs font-semibold">2ND</span>
-													</div>
-												{/if}
-											</div>
-										</div>
-									{:else}
-										<span class="text-muted-foreground text-sm">—</span>
-									{/if}
-								</Table.Cell>
-
-								<!-- Description -->
-								<Table.Cell class="px-3 py-2">
-									<Input
-										bind:ref={skeletonDescInput}
-										type="text"
-										placeholder="Description — type to add"
-										aria-label="New line description"
-										bind:value={skeletonDescription}
-										onblur={handleSkeletonDescriptionBlur}
-										onkeydown={(e) => {
-											if (e.key === 'Enter') {
-												e.currentTarget.blur();
-											}
-										}}
-										class="border-0 focus-visible:ring-0 focus-visible:ring-offset-0"
-									/>
-								</Table.Cell>
-
-								<!-- Part Price (N only) -->
-								<Table.Cell class="text-right px-3 py-2">
-									{#if skeletonProcessType === 'N'}
-										{#if skeletonEditingField === 'partPrice'}
-											<div class="space-y-1">
-												<Input
-													type="number"
-													min="0"
-													step="0.01"
-													bind:value={skeletonPartPriceNett}
-													onkeydown={(e) => {
-														if (e.key === 'Enter') handleSkeletonCostBlur();
-														if (e.key === 'Escape') { skeletonPartPriceNett = null; skeletonEditingField = null; }
-													}}
-													onblur={handleSkeletonCostBlur}
-													class="border-0 text-right text-sm focus-visible:ring-0 focus-visible:ring-offset-0 font-mono-tabular"
-													autofocus
-												/>
-												<p class="text-xs text-muted-foreground italic">Only input nett price</p>
-											</div>
-										{:else}
-											<button
-												onclick={() => (skeletonEditingField = 'partPrice')}
-												class="text-sm text-muted-foreground hover:text-foreground cursor-pointer w-full text-right font-mono-tabular"
-												title="Click to enter nett price"
-											>
-												{formatCurrency(0)}
-											</button>
-										{/if}
-									{:else}
-										<span class="text-muted-foreground text-xs">—</span>
-									{/if}
-								</Table.Cell>
-
-								<!-- S&A (N,R,P,B) -->
-								<Table.Cell class="text-right px-3 py-2">
-									{#if ['N', 'R', 'P', 'B'].includes(skeletonProcessType)}
-										{#if skeletonEditingField === 'sa'}
-											<Input
-												type="number"
-												min="0"
-												step="0.25"
-												bind:value={skeletonSAHours}
-												onkeydown={(e) => {
-													if (e.key === 'Enter') handleSkeletonCostBlur();
-													if (e.key === 'Escape') { skeletonSAHours = null; skeletonEditingField = null; }
-												}}
-												onblur={handleSkeletonCostBlur}
-												class="border-0 text-right text-sm focus-visible:ring-0 focus-visible:ring-offset-0 font-mono-tabular"
-												autofocus
-											/>
-										{:else}
-											<button
-												onclick={() => (skeletonEditingField = 'sa')}
-												class="text-sm text-muted-foreground hover:text-foreground cursor-pointer w-full text-right font-mono-tabular"
-												title="Click to enter hours"
-											>
-												{formatCurrency(0)}
-											</button>
-										{/if}
-									{:else}
-										<span class="text-muted-foreground text-xs">—</span>
-									{/if}
-								</Table.Cell>
-
-								<!-- Labour (N,R,A) -->
-								<Table.Cell class="text-right px-3 py-2">
-									{#if ['N', 'R', 'A'].includes(skeletonProcessType)}
-										{#if skeletonEditingField === 'labour'}
-											<Input
-												type="number"
-												min="0"
-												step="0.5"
-												bind:value={skeletonLabourHours}
-												onkeydown={(e) => {
-													if (e.key === 'Enter') handleSkeletonCostBlur();
-													if (e.key === 'Escape') { skeletonLabourHours = null; skeletonEditingField = null; }
-												}}
-												onblur={handleSkeletonCostBlur}
-												class="border-0 text-right text-sm focus-visible:ring-0 focus-visible:ring-offset-0 font-mono-tabular"
-												autofocus
-											/>
-										{:else}
-											<button
-												onclick={() => (skeletonEditingField = 'labour')}
-												class="text-sm text-muted-foreground hover:text-foreground cursor-pointer w-full text-right font-mono-tabular"
-												title="Click to enter hours"
-											>
-												{formatCurrency(0)}
-											</button>
-										{/if}
-									{:else}
-										<span class="text-muted-foreground text-xs">—</span>
-									{/if}
-								</Table.Cell>
-
-								<!-- Paint (N,R,P,B) -->
-								<Table.Cell class="text-right px-3 py-2">
-									{#if ['N', 'R', 'P', 'B'].includes(skeletonProcessType)}
-										{#if skeletonEditingField === 'paint'}
-											<Input
-												type="number"
-												min="0"
-												step="0.5"
-												bind:value={skeletonPaintPanels}
-												onkeydown={(e) => {
-													if (e.key === 'Enter') handleSkeletonCostBlur();
-													if (e.key === 'Escape') { skeletonPaintPanels = null; skeletonEditingField = null; }
-												}}
-												onblur={handleSkeletonCostBlur}
-												class="border-0 text-right text-sm focus-visible:ring-0 focus-visible:ring-offset-0 font-mono-tabular"
-												autofocus
-											/>
-										{:else}
-											<button
-												onclick={() => (skeletonEditingField = 'paint')}
-												class="text-sm text-muted-foreground hover:text-foreground cursor-pointer w-full text-right font-mono-tabular"
-												title="Click to enter panels"
-											>
-												{formatCurrency(0)}
-											</button>
-										{/if}
-									{:else}
-										<span class="text-muted-foreground text-xs">—</span>
-									{/if}
-								</Table.Cell>
-
-								<!-- Outwork (O only) -->
-								<Table.Cell class="text-right px-3 py-2">
-									{#if skeletonProcessType === 'O'}
-										{#if skeletonEditingField === 'outwork'}
-											<div class="space-y-1">
-												<Input
-													type="number"
-													min="0"
-													step="0.01"
-													bind:value={skeletonOutworkNett}
-													onkeydown={(e) => {
-														if (e.key === 'Enter') handleSkeletonCostBlur();
-														if (e.key === 'Escape') { skeletonOutworkNett = null; skeletonEditingField = null; }
-													}}
-													onblur={handleSkeletonCostBlur}
-													class="border-0 text-right text-sm focus-visible:ring-0 focus-visible:ring-offset-0 font-mono-tabular"
-													autofocus
-												/>
-												<p class="text-xs text-muted-foreground italic">Only input nett price</p>
-											</div>
-										{:else}
-											<button
-												onclick={() => (skeletonEditingField = 'outwork')}
-												class="text-sm text-muted-foreground hover:text-foreground cursor-pointer w-full text-right font-mono-tabular"
-												title="Click to enter nett price"
-											>
-												{formatCurrency(0)}
-											</button>
-										{/if}
-									{:else}
-										<span class="text-muted-foreground text-xs">—</span>
-									{/if}
-								</Table.Cell>
-
-								<!-- Betterment (N/A for new row) -->
-								<Table.Cell class="px-2 py-2 text-center">
-									<span class="text-muted-foreground text-sm">—</span>
-								</Table.Cell>
-
-								<!-- Total -->
-								<Table.Cell class="text-right px-3 py-2 font-mono-tabular text-muted-foreground">
-									{formatCurrency(0)}
-								</Table.Cell>
-
-								<!-- Actions (empty) -->
-								<Table.Cell class="px-2 py-2"></Table.Cell>
-							</Table.Row>
-					</Table.Body>
-				</Table.Root>
-			</div>
-		</Card>
-
-		<!-- Totals Summary -->
-		<div class="lg:sticky lg:top-24 lg:self-start mt-6 lg:mt-0">
-		<Card class="p-6">
-			<h3 class="mb-4 text-lg font-semibold text-gray-900">Totals Breakdown</h3>
-
-			{#if categoryTotals()}
-			{@const totals = categoryTotals()}
-				<div class="space-y-2">
-					<!-- Category Totals -->
-					<div class="flex items-center justify-between py-2">
-						<span class="text-sm text-muted-foreground">Parts Total</span>
-						<span class="text-sm font-medium font-mono-tabular">{formatCurrency(totals?.partsTotal || 0)}</span>
-					</div>
-
-					<div class="flex items-center justify-between py-2">
-						<span class="text-sm text-muted-foreground">Markup Total</span>
-						<span class="text-sm font-medium text-green-600 font-mono-tabular">{formatCurrency(totals?.markupTotal || 0)}</span>
-					</div>
-
-					<div class="flex items-center justify-between py-2">
-						<span class="text-sm text-muted-foreground">S&A Total</span>
-						<span class="text-sm font-medium font-mono-tabular">{formatCurrency(totals?.saTotal || 0)}</span>
-					</div>
-
-					<div class="flex items-center justify-between py-2">
-						<span class="text-sm text-muted-foreground">Labour Total</span>
-						<span class="text-sm font-medium font-mono-tabular">{formatCurrency(totals?.labourTotal || 0)}</span>
-					</div>
-
-					<div class="flex items-center justify-between py-2">
-						<span class="text-sm text-muted-foreground">Paint Total</span>
-						<span class="text-sm font-medium font-mono-tabular">{formatCurrency(totals?.paintTotal || 0)}</span>
-					</div>
-
-					<div class="flex items-center justify-between py-2 border-b">
-						<span class="text-sm text-muted-foreground">Outwork Total</span>
-						<span class="text-sm font-medium font-mono-tabular">{formatCurrency(totals?.outworkTotal || 0)}</span>
-					</div>
-
-					<!-- Betterment Deduction (NEW) -->
-					{#if totals?.bettermentTotal && totals.bettermentTotal > 0}
-						<div class="flex items-center justify-between py-2 border-t border-gray-200">
-							<span class="text-sm font-medium text-gray-900">Betterment Deduction</span>
-							<span class="text-sm font-bold text-red-600 font-mono-tabular">
-								-{formatCurrency(totals.bettermentTotal)}
-							</span>
-						</div>
-					{/if}
-
-					<!-- Subtotal -->
-                <div class="flex items-center justify-between py-2 border-b-2">
-                    <span class="text-base font-semibold text-gray-700">Subtotal (Ex VAT)</span>
-                    <span class="text-lg font-semibold font-mono-tabular">{formatCurrency(totals?.subtotalExVat || 0)}</span>
-                </div>
-
-                <div class="flex items-center justify-between py-2 border-b-2">
-					<span class="text-base font-semibold text-gray-700">Sundries ({Math.round(((totals?.sundriesPct ?? 1) * 100)) / 100}%)</span>
-					<span class="text-lg font-semibold font-mono-tabular">{formatCurrency(totals?.sundriesAmount || 0)}</span>
-                </div>
-
-					<!-- VAT -->
-					<div class="flex items-center justify-between py-2 border-b-2">
-                        <span class="text-base font-semibold text-gray-700">VAT ({totals?.vatPercentage ?? 0}%)</span>
-                        <span class="text-lg font-semibold font-mono-tabular">{formatCurrency(totals?.vatAmount || 0)}</span>
-					</div>
-
-					<!-- Excess Amount (if applicable) -->
-					{#if totals?.excessAmount && totals.excessAmount > 0}
-						<div class="flex items-center justify-between py-2 border-b-2">
-							<span class="text-base font-semibold text-orange-700">Less: Excess</span>
-							<span class="text-lg font-semibold text-orange-600 font-mono-tabular">-{formatCurrency(totals.excessAmount)}</span>
-						</div>
-					{/if}
-
-					<!-- Total with Color Coding -->
-					{#if thresholdResult()}
-						{@const threshold = thresholdResult()!}
-						{@const colorClasses = getThresholdColorClasses(threshold.color)}
-						<div class="pt-3 space-y-3">
-							<div class="flex items-center justify-between">
-								<span class="text-lg font-bold text-gray-900">Total (Inc VAT)</span>
-								<span
-									class="text-2xl font-bold font-mono-tabular {threshold.color === 'red'
-										? 'text-red-600'
-										: threshold.color === 'orange'
-											? 'text-orange-600'
-											: threshold.color === 'yellow'
-												? 'text-yellow-600'
-												: threshold.color === 'green'
-													? 'text-green-600'
-													: 'text-blue-600'}"
-								>
-									{formatCurrency(totals?.totalIncVat || 0)}
-								</span>
-							</div>
-
-							<!-- Threshold Warning/Info -->
-							{#if threshold.message}
-								<div
-									class="rounded-md border-2 p-3 {colorClasses.bg} {colorClasses.border}"
-								>
-									<div class="flex items-start gap-2">
-										{#if threshold.showWarning}
-											<CircleAlert class="mt-0.5 h-5 w-5 flex-shrink-0 {colorClasses.text}" />
-										{:else}
-											<Info class="mt-0.5 h-5 w-5 flex-shrink-0 {colorClasses.text}" />
-										{/if}
-										<div class="flex-1">
-											<p class="text-sm font-medium {colorClasses.text}">
-												{threshold.message}
-											</p>
-											{#if vehicleValues?.borderline_writeoff_retail}
-												<p class="mt-1 text-xs {colorClasses.text}">
-													Retail Borderline: {formatCurrency(
-														vehicleValues.borderline_writeoff_retail
-													)}
-												</p>
-											{/if}
-										</div>
-									</div>
-								</div>
+		{:else}
+			<!-- Warranty Status Hint -->
+			{#if vehicleValues && warrantyInfo()}
+				{@const warranty = warrantyInfo()!}
+				{@const statusClasses = getWarrantyStatusClasses(warranty.color)}
+				<Card class="p-4 {statusClasses.bg} border {statusClasses.border}">
+					<div class="flex items-start gap-3">
+						<div class="mt-0.5">
+							{#if warranty.icon === 'check'}
+								<CircleCheck class="h-5 w-5 {statusClasses.text}" />
+							{:else if warranty.icon === 'x'}
+								<CircleX class="h-5 w-5 {statusClasses.text}" />
+							{:else if warranty.icon === 'info'}
+								<Info class="h-5 w-5 {statusClasses.text}" />
+							{:else}
+								<CircleAlert class="h-5 w-5 {statusClasses.text}" />
 							{/if}
 						</div>
-					{:else}
-						<!-- Fallback if no threshold data -->
-						<div class="flex items-center justify-between pt-3">
-							<span class="text-lg font-bold text-gray-900">Total (Inc VAT)</span>
-							<span class="text-2xl font-bold text-blue-600 font-mono-tabular">{formatCurrency(totals?.totalIncVat || 0)}</span>
+						<div class="flex-1">
+							<h4 class="text-sm font-semibold {statusClasses.text}">
+								Warranty Status: {warranty.label}
+							</h4>
+							{#if vehicleValues.warranty_start_date && vehicleValues.warranty_end_date}
+								<p class="mt-1 text-xs {statusClasses.text}">
+									Valid from {formatDate(vehicleValues.warranty_start_date)} to {formatDate(
+										vehicleValues.warranty_end_date
+									)}
+								</p>
+							{/if}
+							{#if vehicleValues.warranty_expiry_mileage}
+								<p class="mt-0.5 text-xs {statusClasses.text}">
+									Mileage limit: {vehicleValues.warranty_expiry_mileage === 'unlimited'
+										? 'Unlimited'
+										: `${parseInt(vehicleValues.warranty_expiry_mileage).toLocaleString()} km`}
+								</p>
+							{/if}
 						</div>
-					{/if}
-
-					<!-- Net Payable (after excess deduction) -->
-					{#if totals?.excessAmount && totals.excessAmount > 0}
-						<div class="flex items-center justify-between pt-3 mt-2 border-t-2 border-green-200">
-							<span class="text-lg font-bold text-green-800">Net Amount Payable</span>
-							<span class="text-2xl font-bold text-green-600 font-mono-tabular">{formatCurrency(totals.netPayable)}</span>
-						</div>
-						<p class="text-xs text-muted-foreground mt-1">After excess deduction of {formatCurrency(totals.excessAmount)}</p>
-					{/if}
-				</div>
+					</div>
+				</Card>
 			{/if}
-		</Card>
-		</div>
-		</div>
 
-		<!-- Assessment Result Selector -->
-		<AssessmentResultSelector
-			assessmentResult={localEstimate ? localEstimate.assessment_result : estimate.assessment_result}
-			onUpdate={handleUpdateAssessmentResult}
-			disabled={!localEstimate || localLineItems.length === 0}
-		/>
+			<!-- Rates & Repairer Configuration Dialog -->
+			<ResponsiveDialog.Root bind:open={ratesOpen}>
+				<ResponsiveDialog.Content class="sm:max-w-3xl">
+					<ResponsiveDialog.Header>
+						<ResponsiveDialog.Title>Rates & Repairer Configuration</ResponsiveDialog.Title>
+						<ResponsiveDialog.Description>
+							Update the repairer, labour, paint, VAT, and markup rates used by this estimate.
+						</ResponsiveDialog.Description>
+					</ResponsiveDialog.Header>
+					<RatesAndRepairerConfiguration
+						repairerId={localEstimate ? localEstimate.repairer_id : estimate.repairer_id}
+						{repairers}
+						labourRate={localEstimate ? localEstimate.labour_rate : estimate.labour_rate}
+						paintRate={localEstimate ? localEstimate.paint_rate : estimate.paint_rate}
+						vatPercentage={localEstimate ? localEstimate.vat_percentage : estimate.vat_percentage}
+						oemMarkup={localEstimate
+							? localEstimate.oem_markup_percentage
+							: estimate.oem_markup_percentage}
+						altMarkup={localEstimate
+							? localEstimate.alt_markup_percentage
+							: estimate.alt_markup_percentage}
+						secondHandMarkup={localEstimate
+							? localEstimate.second_hand_markup_percentage
+							: estimate.second_hand_markup_percentage}
+						outworkMarkup={localEstimate
+							? localEstimate.outwork_markup_percentage
+							: estimate.outwork_markup_percentage}
+						onUpdateRates={handleLocalUpdateRates}
+						onUpdateRepairer={handleLocalUpdateRepairer}
+						{onRepairersUpdate}
+						disabled={saving || recalculating}
+						embedded={true}
+					/>
+				</ResponsiveDialog.Content>
+			</ResponsiveDialog.Root>
 
-		<!-- Incident Photos -->
-		<EstimatePhotosPanel
-			estimateId={estimate.id}
-			{assessmentId}
-			photos={estimatePhotos}
-			onUpdate={onPhotosUpdate}
-		/>
+			<!-- Quick Add Dialog -->
+			<ResponsiveDialog.Root bind:open={quickAddOpen}>
+				<ResponsiveDialog.Content class="sm:max-w-2xl">
+					<ResponsiveDialog.Header>
+						<ResponsiveDialog.Title>Add line item</ResponsiveDialog.Title>
+					</ResponsiveDialog.Header>
+					<QuickAddLineItem
+						labourRate={localEstimate ? localEstimate.labour_rate : estimate.labour_rate}
+						paintRate={localEstimate ? localEstimate.paint_rate : estimate.paint_rate}
+						oemMarkup={localEstimate
+							? localEstimate.oem_markup_percentage
+							: estimate.oem_markup_percentage}
+						altMarkup={localEstimate
+							? localEstimate.alt_markup_percentage
+							: estimate.alt_markup_percentage}
+						secondHandMarkup={localEstimate
+							? localEstimate.second_hand_markup_percentage
+							: estimate.second_hand_markup_percentage}
+						outworkMarkup={localEstimate
+							? localEstimate.outwork_markup_percentage
+							: estimate.outwork_markup_percentage}
+						onAddLineItem={(item) => {
+							addLocalLine(item);
+							quickAddOpen = false;
+						}}
+						enablePhotos={true}
+						{assessmentId}
+						parentId={estimate.id}
+						photoCategory="estimate"
+						onPhotosUploaded={onPhotosUpdate}
+					/>
+				</ResponsiveDialog.Content>
+			</ResponsiveDialog.Root>
 
-		<!-- Actions -->
-		<div class="flex justify-between">
-			<Button onclick={saveAll} size="sm" variant="outline" disabled={saving || !dirty}>
-				{saving ? 'Saving...' : 'Save Progress'}
-			</Button>
-			<Button onclick={onComplete} disabled={!isComplete}>
-				<Check class="mr-2 h-4 w-4" />
-				Complete Estimate
-			</Button>
-		</div>
+			<!-- Line Items + Totals two-pane grid -->
+			<div class="lg:grid lg:grid-cols-[minmax(0,1fr)_340px] lg:items-start lg:gap-6">
+				<!-- Line Items Section -->
+				<Card class="p-3 sm:p-6">
+					<!-- Header - Responsive -->
+					<div class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+						<h3 class="text-[11.5px] font-semibold tracking-wide text-muted-foreground uppercase">
+							Line Items
+							<span class="font-mono-tabular ml-2 text-xs text-muted-foreground"
+								>({localLineItems.length})</span
+							>
+							{#if dirty}
+								<span
+									class="ml-2 inline-flex items-center rounded-full border border-warning-border bg-warning-soft px-2 py-0.5 text-xs font-medium text-warning"
+								>
+									Unsaved
+								</span>
+							{/if}
+						</h3>
+						<div class="flex flex-wrap gap-2">
+							{#if dirty}
+								<Button onclick={saveAll} size="sm" disabled={saving} class="flex-1 sm:flex-none">
+									{saving ? 'Saving…' : 'Save'}
+								</Button>
+								<Button
+									onclick={discardAll}
+									size="sm"
+									variant="outline"
+									disabled={saving}
+									class="flex-1 sm:flex-none"
+								>
+									Discard
+								</Button>
+							{/if}
+							<Button
+								onclick={() => (ratesOpen = true)}
+								size="sm"
+								variant="outline"
+								title="Rates & repairer"
+								aria-label="Rates & repairer"
+							>
+								<Settings class="h-4 w-4" />
+							</Button>
+							<!-- Parts List Button -->
+							<Button
+								onclick={handleShowPartsListText}
+								size="sm"
+								variant="outline"
+								title="Parts List (for ordering)"
+							>
+								<Package class="h-4 w-4" />
+							</Button>
+							{#if selectedItems.size > 0}
+								<Button onclick={handleBulkDelete} size="sm" variant="destructive">
+									<Trash2 class="h-4 w-4 sm:mr-2" />
+									<span class="hidden sm:inline">Delete ({selectedItems.size})</span>
+								</Button>
+							{/if}
+							<Button
+								onclick={() => (quickAddOpen = true)}
+								size="sm"
+								variant="ghost"
+								title="Add line with photos"
+								aria-label="Add line with photos"
+							>
+								<Camera class="h-4 w-4" />
+							</Button>
+						</div>
+					</div>
+
+					<!-- Mobile: Card Layout -->
+					<div class="space-y-3 md:hidden">
+						{#each localLineItems as item (item.id)}
+							<LineItemCard
+								{item}
+								labourRate={localEstimate?.labour_rate ?? estimate?.labour_rate ?? 0}
+								paintRate={localEstimate?.paint_rate ?? estimate?.paint_rate ?? 0}
+								selected={selectedItems.has(item.id!)}
+								onToggleSelect={() => handleToggleSelect(item.id!)}
+								onUpdateDescription={(value) =>
+									handleUpdateLineItem(item.id!, 'description', value)}
+								onUpdateProcessType={(value) =>
+									handleUpdateLineItem(item.id!, 'process_type', value)}
+								onUpdatePartType={(value) => handleUpdateLineItem(item.id!, 'part_type', value)}
+								onEditPartPrice={() => handlePartPriceClick(item.id!, item.part_price_nett || null)}
+								onEditSA={() => handleSAClick(item.id!, item.strip_assemble_hours || null)}
+								onEditLabour={() => handleLabourClick(item.id!, item.labour_hours || null)}
+								onEditPaint={() => handlePaintClick(item.id!, item.paint_panels || null)}
+								onEditOutwork={() => handleOutworkClick(item.id!, item.outwork_charge_nett || null)}
+								onEditBetterment={() => handleBettermentClick(item)}
+								onDelete={() => removeLocalLines([item.id!])}
+							/>
+						{/each}
+
+						<!-- Skeleton card (Phase 8e) - persistent add card -->
+						<div class="space-y-3 rounded-sm border bg-muted/20 p-3">
+							<p class="text-[11.5px] font-semibold tracking-wide text-muted-foreground uppercase">
+								New Line
+							</p>
+							<div class="grid grid-cols-2 gap-2">
+								<label class="block">
+									<span class="text-xs text-muted-foreground">Process</span>
+									<select
+										bind:value={skeletonProcessType}
+										class="mt-1 w-full rounded border border-input bg-background px-2 py-1 text-sm"
+										aria-label="New line process type"
+									>
+										{#each processTypeOptions as option}
+											<option value={option.value}>{option.value} - {option.label}</option>
+										{/each}
+									</select>
+								</label>
+								{#if skeletonProcessType === 'N'}
+									<label class="block">
+										<span class="text-xs text-muted-foreground">Part</span>
+										<select
+											bind:value={skeletonPartType}
+											class="mt-1 w-full rounded border border-input bg-background px-2 py-1 text-sm"
+											aria-label="New line part type"
+										>
+											<option value="OEM">OEM</option>
+											<option value="ALT">ALT</option>
+											<option value="2ND">2ND</option>
+										</select>
+									</label>
+								{/if}
+							</div>
+							<Input
+								bind:ref={skeletonDescInputMobile}
+								type="text"
+								placeholder="Description — type to add"
+								aria-label="New line description"
+								bind:value={skeletonDescription}
+								oninput={() => {
+									if (skeletonMobileHint) skeletonMobileHint = '';
+								}}
+							/>
+							{#if skeletonMobileHint}
+								<p aria-live="polite" class="text-xs text-destructive">{skeletonMobileHint}</p>
+							{/if}
+							<Button
+								onclick={() => commitSkeleton({ refocus: true, mobile: true })}
+								size="sm"
+								class="w-full"
+							>
+								Save
+							</Button>
+						</div>
+					</div>
+
+					<!-- Desktop: Table Layout -->
+					<div class="hidden rounded-sm border md:block">
+						<Table.Root class="table-fixed">
+							<Table.Header class="sticky top-0 z-10 bg-white">
+								<Table.Row class="border-b border-border hover:bg-transparent">
+									<Table.Head class="w-[40px] px-2">
+										<input
+											type="checkbox"
+											checked={selectAll}
+											onchange={handleSelectAll}
+											class="cursor-pointer rounded border-gray-300"
+											aria-label="Select all items"
+										/>
+									</Table.Head>
+									<Table.Head
+										class="w-[112px] px-2 text-[11.5px] font-medium tracking-wide text-muted-foreground uppercase"
+										>Type / Part</Table.Head
+									>
+									<Table.Head
+										class="px-3 text-[11.5px] font-medium tracking-wide text-muted-foreground uppercase"
+										>Description</Table.Head
+									>
+									<Table.Head
+										class="w-[455px] px-2 text-[11.5px] font-medium tracking-wide text-muted-foreground uppercase"
+										>Costs</Table.Head
+									>
+									<Table.Head
+										class="w-[44px] px-2 text-center text-[11.5px] font-medium tracking-wide text-muted-foreground uppercase"
+										title="Betterment">%</Table.Head
+									>
+									<Table.Head
+										class="w-[118px] px-2 text-right text-[11.5px] font-medium tracking-wide text-muted-foreground uppercase"
+										>Total</Table.Head
+									>
+									<Table.Head class="w-[52px] px-2"></Table.Head>
+								</Table.Row>
+							</Table.Header>
+							<Table.Body>
+								{#each localLineItems as item (item.id)}
+									<Table.Row class="hover:bg-muted/50">
+										<Table.Cell class="px-3 py-2">
+											<input
+												type="checkbox"
+												checked={selectedItems.has(item.id!)}
+												onchange={() => handleToggleSelect(item.id!)}
+												class="cursor-pointer rounded border-gray-300"
+												aria-label="Select item"
+											/>
+										</Table.Cell>
+
+										<Table.Cell class="px-2 py-2 align-top">
+											<div class="flex flex-col gap-1.5">
+												<div class="group relative w-fit">
+													<select
+														value={item.process_type}
+														onchange={(e) =>
+															handleUpdateLineItem(item.id!, 'process_type', e.currentTarget.value)}
+														class="absolute inset-0 z-10 h-full w-full cursor-pointer opacity-0"
+													>
+														{#each processTypeOptions as option}
+															<option value={option.value}>{option.value} - {option.label}</option>
+														{/each}
+													</select>
+													<span
+														class="inline-flex min-w-8 justify-center rounded px-2 py-1 text-xs font-semibold {getProcessTypeBadgeColor(
+															item.process_type
+														)}"
+													>
+														{item.process_type}
+													</span>
+												</div>
+
+												{#if item.process_type === 'N'}
+													<div class="group relative w-fit">
+														<select
+															value={item.part_type || 'OEM'}
+															onchange={(e) =>
+																handleUpdateLineItem(item.id!, 'part_type', e.currentTarget.value)}
+															class="absolute inset-0 z-10 h-full w-full cursor-pointer opacity-0"
+														>
+															<option value="OEM">OEM</option>
+															<option value="ALT">ALT</option>
+															<option value="2ND">2ND</option>
+														</select>
+														<div
+															class="pointer-events-none inline-flex items-center gap-1 rounded-sm border px-1.5 py-0.5 text-[11px] font-semibold {item.part_type ===
+															'ALT'
+																? 'border-success-border bg-success-soft text-success'
+																: item.part_type === '2ND'
+																	? 'border-warning-border bg-warning-soft text-warning'
+																	: 'border-border bg-muted text-muted-foreground'}"
+														>
+															{#if item.part_type === 'ALT'}
+																<Package class="h-3 w-3" />
+															{:else if item.part_type === '2ND'}
+																<Recycle class="h-3 w-3" />
+															{:else}
+																<ShieldCheck class="h-3 w-3" />
+															{/if}
+															{item.part_type || 'OEM'}
+														</div>
+													</div>
+												{:else}
+													<span class="text-xs text-muted-foreground">No part</span>
+												{/if}
+											</div>
+										</Table.Cell>
+
+										<Table.Cell class="px-3 py-2 align-top">
+											<Input
+												type="text"
+												placeholder="Description"
+												value={item.description}
+												oninput={(e) =>
+													scheduleUpdate(item.id!, 'description', e.currentTarget.value)}
+												onblur={(e) => flushUpdate(item.id!, 'description', e.currentTarget.value)}
+												class="border-0 focus-visible:ring-0 focus-visible:ring-offset-0"
+											/>
+										</Table.Cell>
+
+										<Table.Cell class="px-2 py-2 align-top">
+											<div class="grid grid-cols-5 gap-1">
+												<div class="rounded-sm border bg-background px-1.5 py-1 text-right">
+													<div class="text-[10px] tracking-wide text-muted-foreground uppercase">
+														Part
+													</div>
+													{#if item.process_type === 'N'}
+														{#if editingPartPrice === item.id}
+															<Input
+																type="number"
+																min="0"
+																step="0.01"
+																bind:value={tempPartPriceNett}
+																onkeydown={(e) => {
+																	if (e.key === 'Enter') handlePartPriceSave(item.id!, item);
+																	if (e.key === 'Escape') handlePartPriceCancel();
+																}}
+																onblur={() => handlePartPriceSave(item.id!, item)}
+																class="font-mono-tabular h-7 border-0 p-0 text-right text-xs focus-visible:ring-0 focus-visible:ring-offset-0"
+																autofocus
+															/>
+														{:else}
+															<button
+																onclick={() =>
+																	handlePartPriceClick(item.id!, item.part_price_nett || null)}
+																class="font-mono-tabular w-full text-right text-xs font-medium hover:text-foreground/70"
+																title="Click to edit nett price"
+																>{formatCurrency(item.part_price_nett || 0)}</button
+															>
+														{/if}
+													{:else}<span class="text-xs text-muted-foreground">-</span>{/if}
+												</div>
+												<div class="rounded-sm border bg-background px-1.5 py-1 text-right">
+													<div class="text-[10px] tracking-wide text-muted-foreground uppercase">
+														S&A
+													</div>
+													{#if ['N', 'R', 'P', 'B'].includes(item.process_type)}
+														{#if editingSA === item.id}
+															<Input
+																type="number"
+																min="0"
+																step="0.25"
+																bind:value={tempSAHours}
+																onkeydown={(e) => {
+																	if (e.key === 'Enter') handleSASave(item.id!);
+																	if (e.key === 'Escape') handleSACancel();
+																}}
+																onblur={() => handleSASave(item.id!)}
+																class="font-mono-tabular h-7 border-0 p-0 text-right text-xs focus-visible:ring-0 focus-visible:ring-offset-0"
+																autofocus
+															/>
+														{:else}
+															<button
+																onclick={() =>
+																	handleSAClick(item.id!, item.strip_assemble_hours || null)}
+																class="font-mono-tabular w-full text-right text-xs font-medium hover:text-foreground/70"
+																>{formatCurrency(item.strip_assemble || 0)}</button
+															>
+														{/if}
+													{:else}<span class="text-xs text-muted-foreground">-</span>{/if}
+												</div>
+												<div class="rounded-sm border bg-background px-1.5 py-1 text-right">
+													<div class="text-[10px] tracking-wide text-muted-foreground uppercase">
+														Lab
+													</div>
+													{#if ['N', 'R', 'A'].includes(item.process_type)}
+														{#if editingLabour === item.id}
+															<Input
+																type="number"
+																min="0"
+																step="0.5"
+																bind:value={tempLabourHours}
+																onkeydown={(e) => {
+																	if (e.key === 'Enter') handleLabourSave(item.id!);
+																	if (e.key === 'Escape') handleLabourCancel();
+																}}
+																onblur={() => handleLabourSave(item.id!)}
+																class="font-mono-tabular h-7 border-0 p-0 text-right text-xs focus-visible:ring-0 focus-visible:ring-offset-0"
+																autofocus
+															/>
+														{:else}
+															<button
+																onclick={() =>
+																	handleLabourClick(item.id!, item.labour_hours || null)}
+																class="font-mono-tabular w-full text-right text-xs font-medium hover:text-foreground/70"
+																>{formatCurrency(item.labour_cost || 0)}</button
+															>
+														{/if}
+													{:else}<span class="text-xs text-muted-foreground">-</span>{/if}
+												</div>
+												<div class="rounded-sm border bg-background px-1.5 py-1 text-right">
+													<div class="text-[10px] tracking-wide text-muted-foreground uppercase">
+														Paint
+													</div>
+													{#if ['N', 'R', 'P', 'B'].includes(item.process_type)}
+														{#if editingPaint === item.id}
+															<Input
+																type="number"
+																min="0"
+																step="0.5"
+																bind:value={tempPaintPanels}
+																onkeydown={(e) => {
+																	if (e.key === 'Enter') handlePaintSave(item.id!);
+																	if (e.key === 'Escape') handlePaintCancel();
+																}}
+																onblur={() => handlePaintSave(item.id!)}
+																class="font-mono-tabular h-7 border-0 p-0 text-right text-xs focus-visible:ring-0 focus-visible:ring-offset-0"
+																autofocus
+															/>
+														{:else}
+															<button
+																onclick={() =>
+																	handlePaintClick(item.id!, item.paint_panels || null)}
+																class="font-mono-tabular w-full text-right text-xs font-medium hover:text-foreground/70"
+																>{formatCurrency(item.paint_cost || 0)}</button
+															>
+														{/if}
+													{:else}<span class="text-xs text-muted-foreground">-</span>{/if}
+												</div>
+												<div class="rounded-sm border bg-background px-1.5 py-1 text-right">
+													<div class="text-[10px] tracking-wide text-muted-foreground uppercase">
+														Out
+													</div>
+													{#if item.process_type === 'O'}
+														{#if editingOutwork === item.id}
+															<Input
+																type="number"
+																min="0"
+																step="0.01"
+																bind:value={tempOutworkNett}
+																onkeydown={(e) => {
+																	if (e.key === 'Enter') handleOutworkSave(item.id!);
+																	if (e.key === 'Escape') handleOutworkCancel();
+																}}
+																onblur={() => handleOutworkSave(item.id!)}
+																class="font-mono-tabular h-7 border-0 p-0 text-right text-xs focus-visible:ring-0 focus-visible:ring-offset-0"
+																autofocus
+															/>
+														{:else}
+															<button
+																onclick={() =>
+																	handleOutworkClick(item.id!, item.outwork_charge_nett || null)}
+																class="font-mono-tabular w-full text-right text-xs font-medium hover:text-foreground/70"
+																>{formatCurrency(item.outwork_charge_nett || 0)}</button
+															>
+														{/if}
+													{:else}<span class="text-xs text-muted-foreground">-</span>{/if}
+												</div>
+											</div>
+										</Table.Cell>
+
+										<Table.Cell class="px-2 py-2 text-center align-top">
+											<button
+												onclick={() => handleBettermentClick(item)}
+												class="rounded-sm p-1.5 transition-all {item.betterment_total &&
+												item.betterment_total > 0
+													? 'border border-warning-border bg-warning-soft hover:bg-warning-soft/80'
+													: 'border border-border bg-muted hover:bg-muted/80'}"
+												title="Set betterment percentages"
+											>
+												{#if item.betterment_total && item.betterment_total > 0}<Percent
+														class="h-4 w-4 font-bold text-warning"
+													/>{:else}<Percent class="h-4 w-4 text-gray-400" />{/if}
+											</button>
+										</Table.Cell>
+										<Table.Cell class="font-mono-tabular px-3 py-2 text-right align-top font-bold"
+											>{formatCurrency(item.total)}</Table.Cell
+										>
+										<Table.Cell class="px-2 py-2 text-center align-top">
+											<Button
+												variant="ghost"
+												size="sm"
+												onclick={() => removeLocalLines([item.id!])}
+												class="h-8 w-8 p-0 text-red-600 hover:bg-red-50 hover:text-red-700"
+												><Trash2 class="h-4 w-4" /></Button
+											>
+										</Table.Cell>
+									</Table.Row>
+								{/each}
+								<!-- Skeleton row (Phase 8e) - persistent add row -->
+								<Table.Row class="bg-muted/20 hover:bg-muted/20">
+									<Table.Cell class="px-3 py-2"
+										><input
+											type="checkbox"
+											disabled
+											class="cursor-not-allowed rounded border-gray-300 opacity-50"
+											aria-label="Skeleton row (not selectable)"
+											tabindex={-1}
+										/></Table.Cell
+									>
+									<Table.Cell class="px-2 py-2 align-top">
+										<div class="flex flex-col gap-1.5">
+											<div class="group relative w-fit">
+												<select
+													bind:value={skeletonProcessType}
+													class="absolute inset-0 z-10 h-full w-full cursor-pointer opacity-0"
+													aria-label="New line process type"
+													>{#each processTypeOptions as option}<option value={option.value}
+															>{option.value} - {option.label}</option
+														>{/each}</select
+												>
+												<span
+													class="inline-flex min-w-8 justify-center rounded px-2 py-1 text-xs font-semibold {getProcessTypeBadgeColor(
+														skeletonProcessType
+													)}">{skeletonProcessType}</span
+												>
+											</div>
+											{#if skeletonProcessType === 'N'}
+												<div class="group relative w-fit">
+													<select
+														bind:value={skeletonPartType}
+														class="absolute inset-0 z-10 h-full w-full cursor-pointer opacity-0"
+														aria-label="New line part type"
+														><option value="OEM">OEM</option><option value="ALT">ALT</option><option
+															value="2ND">2ND</option
+														></select
+													>
+													<span
+														class="inline-flex items-center gap-1 rounded-sm border border-border bg-muted px-1.5 py-0.5 text-[11px] font-semibold text-muted-foreground"
+														>{skeletonPartType}</span
+													>
+												</div>
+											{:else}<span class="text-xs text-muted-foreground">No part</span>{/if}
+										</div>
+									</Table.Cell>
+									<Table.Cell class="px-3 py-2 align-top"
+										><Input
+											bind:ref={skeletonDescInput}
+											type="text"
+											placeholder="Description - type to add"
+											aria-label="New line description"
+											bind:value={skeletonDescription}
+											onblur={handleSkeletonDescriptionBlur}
+											onkeydown={(e) => {
+												if (e.key === 'Enter') e.currentTarget.blur();
+											}}
+											class="border-0 focus-visible:ring-0 focus-visible:ring-offset-0"
+										/></Table.Cell
+									>
+									<Table.Cell class="px-2 py-2 align-top">
+										<div class="grid grid-cols-5 gap-1">
+											<div class="rounded-sm border bg-background px-1.5 py-1 text-right">
+												<div class="text-[10px] tracking-wide text-muted-foreground uppercase">
+													Part
+												</div>
+												{#if skeletonProcessType === 'N'}{#if skeletonEditingField === 'partPrice'}<Input
+															type="number"
+															min="0"
+															step="0.01"
+															bind:value={skeletonPartPriceNett}
+															onkeydown={(e) => {
+																if (e.key === 'Enter') handleSkeletonCostBlur();
+																if (e.key === 'Escape') {
+																	skeletonPartPriceNett = null;
+																	skeletonEditingField = null;
+																}
+															}}
+															onblur={handleSkeletonCostBlur}
+															class="font-mono-tabular h-7 border-0 p-0 text-right text-xs focus-visible:ring-0 focus-visible:ring-offset-0"
+															autofocus
+														/>{:else}<button
+															onclick={() => (skeletonEditingField = 'partPrice')}
+															class="font-mono-tabular w-full text-right text-xs text-muted-foreground hover:text-foreground"
+															>{formatCurrency(0)}</button
+														>{/if}{:else}<span class="text-xs text-muted-foreground">-</span>{/if}
+											</div>
+											<div class="rounded-sm border bg-background px-1.5 py-1 text-right">
+												<div class="text-[10px] tracking-wide text-muted-foreground uppercase">
+													S&A
+												</div>
+												{#if ['N', 'R', 'P', 'B'].includes(skeletonProcessType)}{#if skeletonEditingField === 'sa'}<Input
+															type="number"
+															min="0"
+															step="0.25"
+															bind:value={skeletonSAHours}
+															onkeydown={(e) => {
+																if (e.key === 'Enter') handleSkeletonCostBlur();
+																if (e.key === 'Escape') {
+																	skeletonSAHours = null;
+																	skeletonEditingField = null;
+																}
+															}}
+															onblur={handleSkeletonCostBlur}
+															class="font-mono-tabular h-7 border-0 p-0 text-right text-xs focus-visible:ring-0 focus-visible:ring-offset-0"
+															autofocus
+														/>{:else}<button
+															onclick={() => (skeletonEditingField = 'sa')}
+															class="font-mono-tabular w-full text-right text-xs text-muted-foreground hover:text-foreground"
+															>{formatCurrency(0)}</button
+														>{/if}{:else}<span class="text-xs text-muted-foreground">-</span>{/if}
+											</div>
+											<div class="rounded-sm border bg-background px-1.5 py-1 text-right">
+												<div class="text-[10px] tracking-wide text-muted-foreground uppercase">
+													Lab
+												</div>
+												{#if ['N', 'R', 'A'].includes(skeletonProcessType)}{#if skeletonEditingField === 'labour'}<Input
+															type="number"
+															min="0"
+															step="0.5"
+															bind:value={skeletonLabourHours}
+															onkeydown={(e) => {
+																if (e.key === 'Enter') handleSkeletonCostBlur();
+																if (e.key === 'Escape') {
+																	skeletonLabourHours = null;
+																	skeletonEditingField = null;
+																}
+															}}
+															onblur={handleSkeletonCostBlur}
+															class="font-mono-tabular h-7 border-0 p-0 text-right text-xs focus-visible:ring-0 focus-visible:ring-offset-0"
+															autofocus
+														/>{:else}<button
+															onclick={() => (skeletonEditingField = 'labour')}
+															class="font-mono-tabular w-full text-right text-xs text-muted-foreground hover:text-foreground"
+															>{formatCurrency(0)}</button
+														>{/if}{:else}<span class="text-xs text-muted-foreground">-</span>{/if}
+											</div>
+											<div class="rounded-sm border bg-background px-1.5 py-1 text-right">
+												<div class="text-[10px] tracking-wide text-muted-foreground uppercase">
+													Paint
+												</div>
+												{#if ['N', 'R', 'P', 'B'].includes(skeletonProcessType)}{#if skeletonEditingField === 'paint'}<Input
+															type="number"
+															min="0"
+															step="0.5"
+															bind:value={skeletonPaintPanels}
+															onkeydown={(e) => {
+																if (e.key === 'Enter') handleSkeletonCostBlur();
+																if (e.key === 'Escape') {
+																	skeletonPaintPanels = null;
+																	skeletonEditingField = null;
+																}
+															}}
+															onblur={handleSkeletonCostBlur}
+															class="font-mono-tabular h-7 border-0 p-0 text-right text-xs focus-visible:ring-0 focus-visible:ring-offset-0"
+															autofocus
+														/>{:else}<button
+															onclick={() => (skeletonEditingField = 'paint')}
+															class="font-mono-tabular w-full text-right text-xs text-muted-foreground hover:text-foreground"
+															>{formatCurrency(0)}</button
+														>{/if}{:else}<span class="text-xs text-muted-foreground">-</span>{/if}
+											</div>
+											<div class="rounded-sm border bg-background px-1.5 py-1 text-right">
+												<div class="text-[10px] tracking-wide text-muted-foreground uppercase">
+													Out
+												</div>
+												{#if skeletonProcessType === 'O'}{#if skeletonEditingField === 'outwork'}<Input
+															type="number"
+															min="0"
+															step="0.01"
+															bind:value={skeletonOutworkNett}
+															onkeydown={(e) => {
+																if (e.key === 'Enter') handleSkeletonCostBlur();
+																if (e.key === 'Escape') {
+																	skeletonOutworkNett = null;
+																	skeletonEditingField = null;
+																}
+															}}
+															onblur={handleSkeletonCostBlur}
+															class="font-mono-tabular h-7 border-0 p-0 text-right text-xs focus-visible:ring-0 focus-visible:ring-offset-0"
+															autofocus
+														/>{:else}<button
+															onclick={() => (skeletonEditingField = 'outwork')}
+															class="font-mono-tabular w-full text-right text-xs text-muted-foreground hover:text-foreground"
+															>{formatCurrency(0)}</button
+														>{/if}{:else}<span class="text-xs text-muted-foreground">-</span>{/if}
+											</div>
+										</div>
+									</Table.Cell>
+									<Table.Cell class="px-2 py-2 text-center"
+										><span class="text-sm text-muted-foreground">-</span></Table.Cell
+									>
+									<Table.Cell class="font-mono-tabular px-3 py-2 text-right text-muted-foreground"
+										>{formatCurrency(0)}</Table.Cell
+									>
+									<Table.Cell class="px-2 py-2"></Table.Cell>
+								</Table.Row>
+							</Table.Body>
+						</Table.Root>
+					</div>
+				</Card>
+
+				<!-- Totals Summary -->
+				<div class="mt-6 lg:sticky lg:top-24 lg:mt-0 lg:self-start">
+					<Card class="p-6">
+						<h3 class="mb-4 text-lg font-semibold text-gray-900">Totals Breakdown</h3>
+
+						{#if categoryTotals()}
+							{@const totals = categoryTotals()}
+							<div class="space-y-2">
+								<!-- Category Totals -->
+								<div class="flex items-center justify-between py-2">
+									<span class="text-sm text-muted-foreground">Parts Total</span>
+									<span class="font-mono-tabular text-sm font-medium"
+										>{formatCurrency(totals?.partsTotal || 0)}</span
+									>
+								</div>
+
+								<div class="flex items-center justify-between py-2">
+									<span class="text-sm text-muted-foreground">Markup Total</span>
+									<span class="font-mono-tabular text-sm font-medium text-green-600"
+										>{formatCurrency(totals?.markupTotal || 0)}</span
+									>
+								</div>
+
+								<div class="flex items-center justify-between py-2">
+									<span class="text-sm text-muted-foreground">S&A Total</span>
+									<span class="font-mono-tabular text-sm font-medium"
+										>{formatCurrency(totals?.saTotal || 0)}</span
+									>
+								</div>
+
+								<div class="flex items-center justify-between py-2">
+									<span class="text-sm text-muted-foreground">Labour Total</span>
+									<span class="font-mono-tabular text-sm font-medium"
+										>{formatCurrency(totals?.labourTotal || 0)}</span
+									>
+								</div>
+
+								<div class="flex items-center justify-between py-2">
+									<span class="text-sm text-muted-foreground">Paint Total</span>
+									<span class="font-mono-tabular text-sm font-medium"
+										>{formatCurrency(totals?.paintTotal || 0)}</span
+									>
+								</div>
+
+								<div class="flex items-center justify-between border-b py-2">
+									<span class="text-sm text-muted-foreground">Outwork Total</span>
+									<span class="font-mono-tabular text-sm font-medium"
+										>{formatCurrency(totals?.outworkTotal || 0)}</span
+									>
+								</div>
+
+								<!-- Betterment Deduction (NEW) -->
+								{#if totals?.bettermentTotal && totals.bettermentTotal > 0}
+									<div class="flex items-center justify-between border-t border-gray-200 py-2">
+										<span class="text-sm font-medium text-gray-900">Betterment Deduction</span>
+										<span class="font-mono-tabular text-sm font-bold text-red-600">
+											-{formatCurrency(totals.bettermentTotal)}
+										</span>
+									</div>
+								{/if}
+
+								<!-- Subtotal -->
+								<div class="flex items-center justify-between border-b-2 py-2">
+									<span class="text-base font-semibold text-gray-700">Subtotal (Ex VAT)</span>
+									<span class="font-mono-tabular text-lg font-semibold"
+										>{formatCurrency(totals?.subtotalExVat || 0)}</span
+									>
+								</div>
+
+								<div class="flex items-center justify-between border-b-2 py-2">
+									<span class="text-base font-semibold text-gray-700"
+										>Sundries ({Math.round((totals?.sundriesPct ?? 1) * 100) / 100}%)</span
+									>
+									<span class="font-mono-tabular text-lg font-semibold"
+										>{formatCurrency(totals?.sundriesAmount || 0)}</span
+									>
+								</div>
+
+								<!-- VAT -->
+								<div class="flex items-center justify-between border-b-2 py-2">
+									<span class="text-base font-semibold text-gray-700"
+										>VAT ({totals?.vatPercentage ?? 0}%)</span
+									>
+									<span class="font-mono-tabular text-lg font-semibold"
+										>{formatCurrency(totals?.vatAmount || 0)}</span
+									>
+								</div>
+
+								<!-- Excess Amount (if applicable) -->
+								{#if totals?.excessAmount && totals.excessAmount > 0}
+									<div class="flex items-center justify-between border-b-2 py-2">
+										<span class="text-base font-semibold text-orange-700">Less: Excess</span>
+										<span class="font-mono-tabular text-lg font-semibold text-orange-600"
+											>-{formatCurrency(totals.excessAmount)}</span
+										>
+									</div>
+								{/if}
+
+								<!-- Total with Color Coding -->
+								{#if thresholdResult()}
+									{@const threshold = thresholdResult()!}
+									{@const colorClasses = getThresholdColorClasses(threshold.color)}
+									<div class="space-y-3 pt-3">
+										<div class="flex items-center justify-between">
+											<span class="text-lg font-bold text-gray-900">Total (Inc VAT)</span>
+											<span
+												class="font-mono-tabular text-2xl font-bold {threshold.color === 'red'
+													? 'text-red-600'
+													: threshold.color === 'orange'
+														? 'text-orange-600'
+														: threshold.color === 'yellow'
+															? 'text-yellow-600'
+															: threshold.color === 'green'
+																? 'text-green-600'
+																: 'text-blue-600'}"
+											>
+												{formatCurrency(totals?.totalIncVat || 0)}
+											</span>
+										</div>
+
+										<!-- Threshold Warning/Info -->
+										{#if threshold.message}
+											<div class="rounded-md border-2 p-3 {colorClasses.bg} {colorClasses.border}">
+												<div class="flex items-start gap-2">
+													{#if threshold.showWarning}
+														<CircleAlert class="mt-0.5 h-5 w-5 flex-shrink-0 {colorClasses.text}" />
+													{:else}
+														<Info class="mt-0.5 h-5 w-5 flex-shrink-0 {colorClasses.text}" />
+													{/if}
+													<div class="flex-1">
+														<p class="text-sm font-medium {colorClasses.text}">
+															{threshold.message}
+														</p>
+														{#if vehicleValues?.borderline_writeoff_retail}
+															<p class="mt-1 text-xs {colorClasses.text}">
+																Retail Borderline: {formatCurrency(
+																	vehicleValues.borderline_writeoff_retail
+																)}
+															</p>
+														{/if}
+													</div>
+												</div>
+											</div>
+										{/if}
+									</div>
+								{:else}
+									<!-- Fallback if no threshold data -->
+									<div class="flex items-center justify-between pt-3">
+										<span class="text-lg font-bold text-gray-900">Total (Inc VAT)</span>
+										<span class="font-mono-tabular text-2xl font-bold text-blue-600"
+											>{formatCurrency(totals?.totalIncVat || 0)}</span
+										>
+									</div>
+								{/if}
+
+								<!-- Net Payable (after excess deduction) -->
+								{#if totals?.excessAmount && totals.excessAmount > 0}
+									<div
+										class="mt-2 flex items-center justify-between border-t-2 border-green-200 pt-3"
+									>
+										<span class="text-lg font-bold text-green-800">Net Amount Payable</span>
+										<span class="font-mono-tabular text-2xl font-bold text-green-600"
+											>{formatCurrency(totals.netPayable)}</span
+										>
+									</div>
+									<p class="mt-1 text-xs text-muted-foreground">
+										After excess deduction of {formatCurrency(totals.excessAmount)}
+									</p>
+								{/if}
+							</div>
+						{/if}
+					</Card>
+				</div>
+			</div>
+
+			<!-- Assessment Result Selector -->
+			<AssessmentResultSelector
+				assessmentResult={localEstimate
+					? localEstimate.assessment_result
+					: estimate.assessment_result}
+				onUpdate={handleUpdateAssessmentResult}
+				disabled={!localEstimate || localLineItems.length === 0}
+			/>
+
+			<!-- Incident Photos -->
+			<EstimatePhotosPanel
+				estimateId={estimate.id}
+				{assessmentId}
+				photos={estimatePhotos}
+				onUpdate={onPhotosUpdate}
+			/>
+
+			<!-- Actions -->
+			<div class="flex justify-between">
+				<Button onclick={saveAll} size="sm" variant="outline" disabled={saving || !dirty}>
+					{saving ? 'Saving...' : 'Save Progress'}
+				</Button>
+				<Button onclick={onComplete} disabled={!isComplete}>
+					<Check class="mr-2 h-4 w-4" />
+					Complete Estimate
+				</Button>
+			</div>
 		{/if}
 	</div>
 	{#if recalculating || saving}
-		<div class="absolute inset-0 z-50 flex items-center justify-center bg-white/40 backdrop-blur-sm">
-			<div class="flex items-center gap-3 px-4 py-3 rounded-lg bg-white shadow border">
+		<div
+			class="absolute inset-0 z-50 flex items-center justify-center bg-white/40 backdrop-blur-sm"
+		>
+			<div class="flex items-center gap-3 rounded-lg border bg-white px-4 py-3 shadow">
 				<RefreshCw class="h-6 w-6 animate-spin text-blue-600" />
-				<span class="text-sm font-medium text-gray-700">{saving ? 'Saving…' : 'Recalculating…'}</span>
+				<span class="text-sm font-medium text-gray-700"
+					>{saving ? 'Saving…' : 'Recalculating…'}</span
+				>
 			</div>
 		</div>
 	{/if}
@@ -1940,17 +1947,14 @@ import type { Repairer } from '$lib/types/repairer';
 		<div class="space-y-4">
 			<!-- Text Display Area -->
 			<div class="relative">
-				<pre class="bg-gray-50 border border-gray-200 rounded-lg p-4 text-sm font-mono overflow-x-auto whitespace-pre-wrap">{partsListText}</pre>
+				<pre
+					class="overflow-x-auto rounded-lg border border-gray-200 bg-gray-50 p-4 font-mono text-sm whitespace-pre-wrap">{partsListText}</pre>
 			</div>
 
 			<!-- Action Buttons -->
 			<div class="flex justify-end gap-2">
-				<Button variant="outline" onclick={() => showPartsListModal = false}>
-					Close
-				</Button>
-				<Button onclick={handleCopyPartsListText}>
-					Copy to Clipboard
-				</Button>
+				<Button variant="outline" onclick={() => (showPartsListModal = false)}>Close</Button>
+				<Button onclick={handleCopyPartsListText}>Copy to Clipboard</Button>
 			</div>
 		</div>
 	</Dialog.Content>
