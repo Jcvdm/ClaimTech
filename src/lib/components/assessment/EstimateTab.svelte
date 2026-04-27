@@ -1497,7 +1497,7 @@
 												variant="ghost"
 												size="sm"
 												onclick={() => removeLocalLines([item.id!])}
-												class="h-8 w-8 p-0 text-red-600 hover:bg-red-50 hover:text-red-700"
+												class="h-8 w-8 p-0 text-destructive hover:bg-destructive/10 hover:text-destructive"
 												><Trash2 class="h-4 w-4" /></Button
 											>
 										</Table.Cell>
@@ -1914,7 +1914,7 @@
 			class="absolute inset-0 z-50 flex items-center justify-center bg-white/40 backdrop-blur-sm"
 		>
 			<div class="flex items-center gap-3 rounded-lg border bg-white px-4 py-3 shadow">
-				<RefreshCw class="h-6 w-6 animate-spin text-blue-600" />
+				<RefreshCw class="h-6 w-6 animate-spin text-muted-foreground" />
 				<span class="text-sm font-medium text-gray-700"
 					>{saving ? 'Saving…' : 'Recalculating…'}</span
 				>

@@ -989,7 +989,7 @@
 											{:else}
 												<span
 													class={isRemoved
-														? 'text-red-600 line-through'
+														? 'text-destructive line-through'
 														: isReversal || isReversed
 															? 'text-foreground'
 															: ''}>{item.description}</span
@@ -1008,7 +1008,7 @@
 														<RotateCcw class="h-3 w-3" />Reversed: {reversalEntry.reversal_reason}
 													</p>{/if}
 											{/if}
-											{#if item.decline_reason}<p class="mt-1 text-xs text-red-600">
+											{#if item.decline_reason}<p class="mt-1 text-xs text-destructive">
 													Declined: {item.decline_reason}
 												</p>{/if}
 										</div>
@@ -1200,28 +1200,28 @@
 													size="sm"
 													variant="ghost"
 													onclick={() => handleDelete(item.id!)}
-													class="h-7 px-2 text-red-600"
+													class="h-7 px-2 text-destructive hover:bg-destructive/10"
 													title="Delete"><Trash2 class="h-3 w-3" /></Button
 												>
 											{:else if !isRemoved && item.status === 'approved' && item.id}<Button
 													size="sm"
 													variant="outline"
 													onclick={() => handleReverseClick(item.id!)}
-													class="h-7 px-2 text-orange-600"
+													class="h-7 px-2 text-warning hover:bg-warning/10"
 													title="Reverse this approval"><Undo2 class="h-3 w-3" /></Button
 												>
 											{:else if !isRemoved && item.status === 'declined' && item.id}<Button
 													size="sm"
 													variant="outline"
 													onclick={() => handleReinstateClick(item.id!)}
-													class="h-7 px-2 text-green-600"
+													class="h-7 px-2 text-success hover:bg-success/10"
 													title="Reinstate this declined item"><RotateCcw class="h-3 w-3" /></Button
 												>
 											{:else if isRemoved && item.original_line_id}<Button
 													size="sm"
 													variant="outline"
 													onclick={() => handleReinstateOriginalClick(item.original_line_id!)}
-													class="h-7 px-2 text-green-600"
+													class="h-7 px-2 text-success hover:bg-success/10"
 													title="Reinstate original line"><RotateCcw class="h-3 w-3" /></Button
 												>{/if}
 										</div>
