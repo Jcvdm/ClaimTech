@@ -847,7 +847,7 @@
 		return calculateEstimateThreshold(estimate.total, vehicleValues.borderline_writeoff_retail);
 	});
 
-	// Threshold color class for the bottom sticky strip Net Payable
+	// Threshold color class for the bottom sticky strip Total
 	const thresholdColorClass = $derived.by(() => {
 		const threshold = thresholdResult();
 		if (!threshold) return 'text-blue-600';
@@ -1752,15 +1752,9 @@
 							</span>
 
 							<span class="ml-auto flex items-center gap-3">
-								{#if totals?.excessAmount && totals.excessAmount > 0}
-									<span class="flex items-center gap-1.5">
-										<span class="text-muted-foreground uppercase text-[10.5px] font-semibold tracking-wide">Less Excess</span>
-										<span class="font-mono-tabular text-warning">−{formatCurrency(totals.excessAmount)}</span>
-									</span>
-								{/if}
 								<span class="flex items-center gap-2">
-									<span class="text-muted-foreground uppercase text-[10.5px] font-semibold tracking-wide">Net Payable</span>
-									<span class="font-mono-tabular text-base font-bold {thresholdColorClass}">{formatCurrency(totals?.netPayable || 0)}</span>
+									<span class="text-muted-foreground uppercase text-[10.5px] font-semibold tracking-wide">Total</span>
+									<span class="font-mono-tabular text-base font-bold {thresholdColorClass}">{formatCurrency(totals?.totalIncVat || 0)}</span>
 								</span>
 								<Button size="sm" variant="outline" onclick={() => (totalsDetailsOpen = true)}>
 									<Info class="h-3.5 w-3.5 mr-1.5" />
