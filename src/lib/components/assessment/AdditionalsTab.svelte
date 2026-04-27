@@ -12,6 +12,7 @@
 	import AdditionalsPhotosPanel from './AdditionalsPhotosPanel.svelte';
 	import DocumentCard from './DocumentCard.svelte';
 	import AdditionalLineItemCard from './AdditionalLineItemCard.svelte';
+	import * as ResponsiveDialog from '$lib/components/ui/responsive-dialog';
 	import {
 		Check,
 		X,
@@ -25,7 +26,9 @@
 		Package,
 		Recycle,
 		FileText,
-		Plus
+		Plus,
+		Camera,
+		Settings
 	} from 'lucide-svelte';
 	import { Input } from '$lib/components/ui/input';
 	import type {
@@ -96,6 +99,8 @@
 	let showReversalModal = $state(false);
 	let reversalAction = $state<'reverse' | 'reinstate' | 'reinstate-original' | null>(null);
 	let reversalTargetId = $state<string | null>(null);
+	let ratesOpen = $state(false);
+	let quickAddOpen = $state(false);
 
 	let editingSA = $state<string | null>(null);
 	let editingLabour = $state<string | null>(null);
@@ -745,44 +750,82 @@
 			onRemoveOriginal={handleRemoveOriginal}
 		/>
 
-		<!-- Rates Display (Read-only) -->
-		<RatesAndRepairerConfiguration
-			repairerId={additionals.repairer_id}
-			{repairers}
-			labourRate={additionals.labour_rate}
-			paintRate={additionals.paint_rate}
-			vatPercentage={additionals.vat_percentage}
-			oemMarkup={additionals.oem_markup_percentage}
-			altMarkup={additionals.alt_markup_percentage}
-			secondHandMarkup={additionals.second_hand_markup_percentage}
-			outworkMarkup={additionals.outwork_markup_percentage}
-			onUpdateRates={() => {}}
-			onUpdateRepairer={() => {}}
-			onRepairersUpdate={() => {}}
-			disabled={true}
-		/>
+		<!-- Rates Display Dialog (Read-only) -->
+		<ResponsiveDialog.Root bind:open={ratesOpen}>
+			<ResponsiveDialog.Content class="sm:max-w-3xl">
+				<ResponsiveDialog.Header>
+					<ResponsiveDialog.Title>Rates & Repairer Configuration</ResponsiveDialog.Title>
+					<ResponsiveDialog.Description>
+						View the locked rates and repairer used for these additionals.
+					</ResponsiveDialog.Description>
+				</ResponsiveDialog.Header>
+				<RatesAndRepairerConfiguration
+					repairerId={additionals.repairer_id}
+					{repairers}
+					labourRate={additionals.labour_rate}
+					paintRate={additionals.paint_rate}
+					vatPercentage={additionals.vat_percentage}
+					oemMarkup={additionals.oem_markup_percentage}
+					altMarkup={additionals.alt_markup_percentage}
+					secondHandMarkup={additionals.second_hand_markup_percentage}
+					outworkMarkup={additionals.outwork_markup_percentage}
+					onUpdateRates={() => {}}
+					onUpdateRepairer={() => {}}
+					onRepairersUpdate={() => {}}
+					disabled={true}
+					embedded={true}
+				/>
+			</ResponsiveDialog.Content>
+		</ResponsiveDialog.Root>
 
-		<!-- Quick Add Line Item -->
-		<QuickAddLineItem
-			labourRate={additionals.labour_rate}
-			paintRate={additionals.paint_rate}
-			oemMarkup={additionals.oem_markup_percentage}
-			altMarkup={additionals.alt_markup_percentage}
-			secondHandMarkup={additionals.second_hand_markup_percentage}
-			outworkMarkup={additionals.outwork_markup_percentage}
-			onAddLineItem={handleAddLineItem}
-			enablePhotos={true}
-			{assessmentId}
-			parentId={additionals.id}
-			photoCategory="additionals"
-			onPhotosUploaded={handlePhotosUpdate}
-		/>
+		<!-- Quick Add Line Item Dialog -->
+		<ResponsiveDialog.Root bind:open={quickAddOpen}>
+			<ResponsiveDialog.Content class="sm:max-w-2xl">
+				<ResponsiveDialog.Header>
+					<ResponsiveDialog.Title>Add additional line item</ResponsiveDialog.Title>
+				</ResponsiveDialog.Header>
+				<QuickAddLineItem
+					labourRate={additionals.labour_rate}
+					paintRate={additionals.paint_rate}
+					oemMarkup={additionals.oem_markup_percentage}
+					altMarkup={additionals.alt_markup_percentage}
+					secondHandMarkup={additionals.second_hand_markup_percentage}
+					outworkMarkup={additionals.outwork_markup_percentage}
+					onAddLineItem={(item) => {
+						void handleAddLineItem(item).then(() => (quickAddOpen = false));
+					}}
+					enablePhotos={true}
+					{assessmentId}
+					parentId={additionals.id}
+					photoCategory="additionals"
+					onPhotosUploaded={handlePhotosUpdate}
+				/>
+			</ResponsiveDialog.Content>
+		</ResponsiveDialog.Root>
 
 		<!-- Line Items Table -->
 		<Card class="p-4 md:p-6">
 			<div class="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
 				<h3 class="text-lg font-semibold">Additional Line Items</h3>
-				<div class="flex flex-wrap gap-1.5 sm:gap-2">
+				<div class="flex flex-wrap items-center gap-1.5 sm:gap-2">
+					<Button
+						onclick={() => ratesOpen = true}
+						size="sm"
+						variant="outline"
+						title="Rates & repairer"
+						aria-label="Rates & repairer"
+					>
+						<Settings class="h-4 w-4" />
+					</Button>
+					<Button
+						onclick={() => quickAddOpen = true}
+						size="sm"
+						variant="ghost"
+						title="Add line with photos"
+						aria-label="Add line with photos"
+					>
+						<Camera class="h-4 w-4" />
+					</Button>
 					<Badge variant="warning" class="text-xs">
 						{statusCounts().pending} Pending
 					</Badge>

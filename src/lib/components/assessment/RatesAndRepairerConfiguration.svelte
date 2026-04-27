@@ -32,6 +32,7 @@
 		onUpdateRepairer: (repairerId: string | null) => void;
 		onRepairersUpdate: () => void;
 		disabled?: boolean;
+		embedded?: boolean;
 	}
 
 	let {
@@ -47,7 +48,8 @@
 		onUpdateRates,
 		onUpdateRepairer,
 		onRepairersUpdate,
-		disabled = false
+		disabled = false,
+		embedded = false
 	}: Props = $props();
 
 	let localRepairerId = $state(repairerId || '');
@@ -243,36 +245,8 @@
 	);
 </script>
 
-<Card class="border-border bg-muted">
-	<button
-		onclick={() => (isExpanded = !isExpanded)}
-		class="flex w-full items-center justify-between p-4 text-left hover:bg-accent transition-colors"
-		type="button"
-	>
-		<div class="flex items-center gap-3">
-			<Settings class="h-5 w-5 text-muted-foreground" />
-			<div>
-				<h3 class="text-base font-semibold text-gray-900">Rates & Repairer Configuration</h3>
-				<p class="text-sm text-gray-600">
-					Repairer: {selectedRepairerName}
-				</p>
-				<p class="text-sm text-gray-600">
-					Labour: {formatCurrency(labourRate)}/hr • Paint: {formatCurrency(paintRate)}/panel • VAT: {vatPercentage}%
-				</p>
-				<p class="text-xs text-gray-500 mt-1">
-					Markup: OEM {oemMarkup}% • ALT {altMarkup}% • 2ND {secondHandMarkup}% • Outwork {outworkMarkup}%
-				</p>
-			</div>
-		</div>
-		{#if isExpanded}
-			<ChevronUp class="h-5 w-5 text-gray-500" />
-		{:else}
-			<ChevronDown class="h-5 w-5 text-gray-500" />
-		{/if}
-	</button>
-
-	{#if isExpanded}
-		<div class="border-t border-border p-4 space-y-4">
+{#snippet configurationContent()}
+<div class={embedded ? 'space-y-4' : 'border-t border-border p-4 space-y-4'}>
 			<!-- Auto-populate notification -->
 			{#if showAutoPopulateNotification}
 				<div class="flex items-center gap-2 p-3 bg-success-soft border border-success-border rounded-md">
@@ -302,7 +276,7 @@
 						/>
 					</div>
 					<div class="flex items-end">
-						<Button type="button" variant="outline" onclick={() => (showQuickAddModal = true)}>
+						<Button type="button" variant="outline" onclick={() => (showQuickAddModal = true)} disabled={disabled}>
 							<Plus class="mr-2 h-4 w-4" />
 							Quick Add
 						</Button>
@@ -390,7 +364,7 @@
 			<div class="border-t border-gray-200 pt-4">
 				<h4 class="text-sm font-semibold text-gray-900 mb-3">Markup Percentages</h4>
 				<p class="text-xs text-gray-600 mb-4">
-					Markup is applied to nett prices. Selling Price = Nett Price × (1 + Markup%)
+					Markup is applied to nett prices. Selling Price = Nett Price x (1 + Markup%)
 				</p>
 				<div class="grid grid-cols-1 md:grid-cols-4 gap-4">
 					<!-- OEM Markup -->
@@ -513,15 +487,51 @@
 			<div class="text-xs text-gray-600 bg-white p-3 rounded border border-gray-200">
 				<p class="font-medium mb-1">How rates work:</p>
 				<ul class="list-disc list-inside space-y-1">
-					<li>Labour: Enter hours (e.g., 1.5) × Labour Rate = Labour Cost</li>
-					<li>Paint: Enter panels (e.g., 2) × Paint Rate = Paint Cost</li>
+					<li>Labour: Enter hours (e.g., 1.5) x Labour Rate = Labour Cost</li>
+					<li>Paint: Enter panels (e.g., 2) x Paint Rate = Paint Cost</li>
 					<li>VAT: Applied to subtotal to calculate final total</li>
 					<li>Changing rates will recalculate all existing line items</li>
 				</ul>
 			</div>
+	</div>
+{/snippet}
+
+{#if embedded}
+	{@render configurationContent()}
+{:else}
+<Card class="border-border bg-muted">
+	<button
+		onclick={() => (isExpanded = !isExpanded)}
+		class="flex w-full items-center justify-between p-4 text-left hover:bg-accent transition-colors"
+		type="button"
+	>
+		<div class="flex items-center gap-3">
+			<Settings class="h-5 w-5 text-muted-foreground" />
+			<div>
+				<h3 class="text-base font-semibold text-gray-900">Rates & Repairer Configuration</h3>
+				<p class="text-sm text-gray-600">
+					Repairer: {selectedRepairerName}
+				</p>
+				<p class="text-sm text-gray-600">
+					Labour: {formatCurrency(labourRate)}/hr • Paint: {formatCurrency(paintRate)}/panel • VAT: {vatPercentage}%
+				</p>
+				<p class="text-xs text-gray-500 mt-1">
+					Markup: OEM {oemMarkup}% • ALT {altMarkup}% • 2ND {secondHandMarkup}% • Outwork {outworkMarkup}%
+				</p>
+			</div>
 		</div>
+		{#if isExpanded}
+			<ChevronUp class="h-5 w-5 text-gray-500" />
+		{:else}
+			<ChevronDown class="h-5 w-5 text-gray-500" />
+		{/if}
+	</button>
+
+	{#if isExpanded}
+		{@render configurationContent()}
 	{/if}
 </Card>
+{/if}
 
 <!-- Quick Add Repairer Modal -->
 <Dialog.Root open={showQuickAddModal} onOpenChange={(open) => !open && closeQuickAddModal()}>

@@ -10,7 +10,7 @@
 	import RequiredFieldsWarning from './RequiredFieldsWarning.svelte';
 	import BettermentModal from './BettermentModal.svelte';
 	import LineItemCard from './LineItemCard.svelte';
-    import { Plus, Trash2, Check, CircleAlert, CircleCheck, CircleX, Info, Percent, ShieldCheck, Package, Recycle, RefreshCw, Camera } from 'lucide-svelte';
+    import { Plus, Trash2, Check, CircleAlert, CircleCheck, CircleX, Info, Percent, ShieldCheck, Package, Recycle, RefreshCw, Camera, Settings } from 'lucide-svelte';
 	import { onDestroy, onMount } from 'svelte';
 import type {
 	Estimate,
@@ -117,6 +117,7 @@ import type { Repairer } from '$lib/types/repairer';
 	let saveInFlight = $state(false); // Track when save is happening to prevent race conditions
 	let recalculating = $state(false);
 	let quickAddOpen = $state(false);
+	let ratesOpen = $state(false);
 
 	// Parts list modal state
 	let showPartsListModal = $state(false);
@@ -955,22 +956,33 @@ import type { Repairer } from '$lib/types/repairer';
 			</Card>
 		{/if}
 
-		<!-- Rates & Repairer Configuration -->
-		<RatesAndRepairerConfiguration
-			repairerId={localEstimate ? localEstimate.repairer_id : estimate.repairer_id}
-			{repairers}
-			labourRate={localEstimate ? localEstimate.labour_rate : estimate.labour_rate}
-			paintRate={localEstimate ? localEstimate.paint_rate : estimate.paint_rate}
-			vatPercentage={localEstimate ? localEstimate.vat_percentage : estimate.vat_percentage}
-			oemMarkup={localEstimate ? localEstimate.oem_markup_percentage : estimate.oem_markup_percentage}
-			altMarkup={localEstimate ? localEstimate.alt_markup_percentage : estimate.alt_markup_percentage}
-			secondHandMarkup={localEstimate ? localEstimate.second_hand_markup_percentage : estimate.second_hand_markup_percentage}
-			outworkMarkup={localEstimate ? localEstimate.outwork_markup_percentage : estimate.outwork_markup_percentage}
-			onUpdateRates={handleLocalUpdateRates}
-			onUpdateRepairer={handleLocalUpdateRepairer}
-			{onRepairersUpdate}
-			disabled={saving || recalculating}
-		/>
+		<!-- Rates & Repairer Configuration Dialog -->
+		<ResponsiveDialog.Root bind:open={ratesOpen}>
+			<ResponsiveDialog.Content class="sm:max-w-3xl">
+				<ResponsiveDialog.Header>
+					<ResponsiveDialog.Title>Rates & Repairer Configuration</ResponsiveDialog.Title>
+					<ResponsiveDialog.Description>
+						Update the repairer, labour, paint, VAT, and markup rates used by this estimate.
+					</ResponsiveDialog.Description>
+				</ResponsiveDialog.Header>
+				<RatesAndRepairerConfiguration
+					repairerId={localEstimate ? localEstimate.repairer_id : estimate.repairer_id}
+					{repairers}
+					labourRate={localEstimate ? localEstimate.labour_rate : estimate.labour_rate}
+					paintRate={localEstimate ? localEstimate.paint_rate : estimate.paint_rate}
+					vatPercentage={localEstimate ? localEstimate.vat_percentage : estimate.vat_percentage}
+					oemMarkup={localEstimate ? localEstimate.oem_markup_percentage : estimate.oem_markup_percentage}
+					altMarkup={localEstimate ? localEstimate.alt_markup_percentage : estimate.alt_markup_percentage}
+					secondHandMarkup={localEstimate ? localEstimate.second_hand_markup_percentage : estimate.second_hand_markup_percentage}
+					outworkMarkup={localEstimate ? localEstimate.outwork_markup_percentage : estimate.outwork_markup_percentage}
+					onUpdateRates={handleLocalUpdateRates}
+					onUpdateRepairer={handleLocalUpdateRepairer}
+					{onRepairersUpdate}
+					disabled={saving || recalculating}
+					embedded={true}
+				/>
+			</ResponsiveDialog.Content>
+		</ResponsiveDialog.Root>
 
 		<!-- Quick Add Dialog -->
 		<ResponsiveDialog.Root bind:open={quickAddOpen}>
@@ -1019,6 +1031,15 @@ import type { Repairer } from '$lib/types/repairer';
 							Discard
 						</Button>
 					{/if}
+					<Button
+						onclick={() => ratesOpen = true}
+						size="sm"
+						variant="outline"
+						title="Rates & repairer"
+						aria-label="Rates & repairer"
+					>
+						<Settings class="h-4 w-4" />
+					</Button>
 					<!-- Parts List Button -->
 					<Button
 						onclick={handleShowPartsListText}
