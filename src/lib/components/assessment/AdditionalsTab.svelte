@@ -854,7 +854,8 @@
 						title="Rates & repairer"
 						aria-label="Rates & repairer"
 					>
-						<Settings class="h-4 w-4" />
+						<Settings class="h-4 w-4 sm:mr-1.5" />
+						<span class="hidden sm:inline">Rates</span>
 					</Button>
 					<Button
 						onclick={() => (quickAddOpen = true)}
@@ -863,7 +864,8 @@
 						title="Add line with photos"
 						aria-label="Add line with photos"
 					>
-						<Camera class="h-4 w-4" />
+						<Camera class="h-4 w-4 sm:mr-1.5" />
+						<span class="hidden sm:inline">Add line</span>
 					</Button>
 					<Badge variant="warning" class="text-xs">
 						{statusCounts().pending} Pending
