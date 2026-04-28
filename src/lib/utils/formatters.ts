@@ -135,6 +135,24 @@ export function formatCurrencyValue(value: number | null | undefined): string {
 }
 
 /**
+ * Parse a locale-formatted number string back to a numeric value.
+ * Handles ZA-style "1 500,00" (space thousands, comma decimal) AND
+ * plain "1500", "1500.00", "1,500.00" — strips spaces, normalizes
+ * commas to periods, parses.
+ *
+ * Returns null for empty / invalid input.
+ */
+export function parseLocaleNumber(s: string | null | undefined): number | null {
+	if (s === null || s === undefined) return null;
+	const trimmed = String(s).trim();
+	if (!trimmed) return null;
+	// Strip spaces (locale thousands sep), normalize comma → period
+	const normalized = trimmed.replace(/\s/g, '').replace(',', '.');
+	const n = parseFloat(normalized);
+	return Number.isFinite(n) ? n : null;
+}
+
+/**
  * Format vehicle display with year, make, and model
  * @param year - Vehicle year or null/undefined
  * @param make - Vehicle make or null/undefined

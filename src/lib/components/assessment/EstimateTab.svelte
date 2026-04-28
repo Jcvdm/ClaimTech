@@ -56,7 +56,7 @@
 		formatWarrantyStatus,
 		getWarrantyStatusClasses
 	} from '$lib/utils/estimateThresholds';
-	import { formatCurrency, formatCurrencyValue, formatDate } from '$lib/utils/formatters';
+	import { formatCurrency, formatCurrencyValue, formatDate, parseLocaleNumber } from '$lib/utils/formatters';
 	import { validateEstimate, type TabValidation } from '$lib/utils/validation';
 	import { assessmentNotesService } from '$lib/services/assessment-notes.service';
 	import { generatePartsListText } from '$lib/utils/csv-generator';
@@ -467,10 +467,9 @@
 	let skeletonPaintPanels = $state<number | null>(null);
 	let skeletonOutworkNett = $state<number | null>(null);
 
-	// Which skeleton cost field (if any) is in edit mode
-	let skeletonEditingField = $state<'partPrice' | 'sa' | 'labour' | 'paint' | 'outwork' | null>(
-		null
-	);
+	// Captures the pre-edit value of whichever cost cell currently holds focus.
+	// Used to support Escape→revert (cell restores this value, then blurs).
+	let originalCostValue = $state('');
 
 	// Ref to description input for focus management
 	let skeletonDescInput = $state<HTMLTextAreaElement | null>(null); // B1: Textarea ref
@@ -486,7 +485,6 @@
 		skeletonLabourHours = null;
 		skeletonPaintPanels = null;
 		skeletonOutworkNett = null;
-		skeletonEditingField = null;
 	}
 
 	function skeletonHasContent(): boolean {
@@ -565,14 +563,6 @@
 	function handleSkeletonDescriptionBlur() {
 		// Commit only when there's actual content
 		if (skeletonDescription.trim() !== '' || skeletonHasContent()) {
-			commitSkeleton({ refocus: true });
-		}
-	}
-
-	function handleSkeletonCostBlur() {
-		// Any cost field blur/Enter triggers commit
-		skeletonEditingField = null;
-		if (skeletonHasContent()) {
 			commitSkeleton({ refocus: true });
 		}
 	}
@@ -759,6 +749,68 @@
 	function handleOutworkCancel() {
 		editingOutwork = null;
 		tempOutworkNett = null;
+	}
+
+	// ---- Always-edit commit functions (replace click-to-edit save handlers for desktop table) ----
+
+	function commitPartPrice(itemId: string, value: number | null) {
+		if (!localEstimate) return;
+		const item = localEstimate.line_items.find((i) => i.id === itemId);
+		if (!item) return;
+		const newNett = value ?? 0;
+		if ((item.part_price_nett ?? 0) === newNett) return; // unchanged → no-op
+		let markupPercentage = 0;
+		if (item.part_type === 'OEM') markupPercentage = localEstimate.oem_markup_percentage;
+		else if (item.part_type === 'ALT') markupPercentage = localEstimate.alt_markup_percentage;
+		else if (item.part_type === '2ND') markupPercentage = localEstimate.second_hand_markup_percentage;
+		const newSelling = Number((newNett * (1 + markupPercentage / 100)).toFixed(2));
+		updateLocalItem(itemId, { part_price_nett: newNett, part_price: newSelling });
+		scheduleSave();
+	}
+
+	function commitSA(itemId: string, hours: number | null) {
+		if (!localEstimate) return;
+		const item = localEstimate.line_items.find((i) => i.id === itemId);
+		if (!item) return;
+		const newHours = hours ?? 0;
+		if ((item.strip_assemble_hours ?? 0) === newHours) return; // unchanged → no-op
+		const saCost = newHours * localEstimate.labour_rate;
+		updateLocalItem(itemId, { strip_assemble_hours: newHours, strip_assemble: saCost });
+		scheduleSave();
+	}
+
+	function commitLabour(itemId: string, hours: number | null) {
+		if (!localEstimate) return;
+		const item = localEstimate.line_items.find((i) => i.id === itemId);
+		if (!item) return;
+		const newHours = hours ?? 0;
+		if ((item.labour_hours ?? 0) === newHours) return; // unchanged → no-op
+		const labourCost = newHours * localEstimate.labour_rate;
+		updateLocalItem(itemId, { labour_hours: newHours, labour_cost: labourCost });
+		scheduleSave();
+	}
+
+	function commitPaint(itemId: string, panels: number | null) {
+		if (!localEstimate) return;
+		const item = localEstimate.line_items.find((i) => i.id === itemId);
+		if (!item) return;
+		const newPanels = panels ?? 0;
+		if ((item.paint_panels ?? 0) === newPanels) return; // unchanged → no-op
+		const paintCost = newPanels * localEstimate.paint_rate;
+		updateLocalItem(itemId, { paint_panels: newPanels, paint_cost: paintCost });
+		scheduleSave();
+	}
+
+	function commitOutwork(itemId: string, nett: number | null) {
+		if (!localEstimate) return;
+		const item = localEstimate.line_items.find((i) => i.id === itemId);
+		if (!item) return;
+		const newNett = nett ?? 0;
+		if ((item.outwork_charge_nett ?? 0) === newNett) return; // unchanged → no-op
+		const markupPercentage = localEstimate.outwork_markup_percentage;
+		const sellingPrice = Number((newNett * (1 + markupPercentage / 100)).toFixed(2));
+		updateLocalItem(itemId, { outwork_charge_nett: newNett, outwork_charge: sellingPrice });
+		scheduleSave();
 	}
 
 	async function saveAssessmentResult(result: AssessmentResultType | null) {
@@ -1364,146 +1416,123 @@
 														Part
 													</div>
 													{#if item.process_type === 'N'}
-														{#if editingPartPrice === item.id}
-															<Input
-																type="number"
-																min="0"
-																step="0.01"
-																bind:value={tempPartPriceNett}
-																onkeydown={(e) => {
-																	if (e.key === 'Enter') e.currentTarget.blur(); // A3: Enter triggers blur (single save path)
-																	if (e.key === 'Escape') handlePartPriceCancel();
-																}}
-																onblur={() => handlePartPriceSave(item.id!, item)}
-																class="font-mono-tabular h-7 border-0 p-0 text-right text-xs focus-visible:ring-0 focus-visible:ring-offset-0"
-																autofocus
-															/>
-														{:else}
-															<button
-																onclick={() =>
-																	handlePartPriceClick(item.id!, item.part_price_nett || null)}
-																class="font-mono-tabular w-full text-right text-xs font-medium hover:text-foreground/70"
-																title="Click to edit nett price"
-																>{formatCurrencyValue(item.part_price_nett || 0)}</button
-															>
-														{/if}
-													{:else}<span class="text-xs text-muted-foreground">-</span>{/if}
+														<Input
+															type="text"
+															inputmode="decimal"
+															value={formatCurrencyValue(item.part_price_nett ?? 0)}
+															onfocus={(e) => { originalCostValue = (e.currentTarget as HTMLInputElement).value; (e.currentTarget as HTMLInputElement).select(); }}
+															onblur={(e) => commitPartPrice(item.id!, parseLocaleNumber((e.currentTarget as HTMLInputElement).value))}
+															onkeydown={(e) => {
+																if (e.key === 'Enter') (e.currentTarget as HTMLInputElement).blur();
+																if (e.key === 'Escape') {
+																	(e.currentTarget as HTMLInputElement).value = originalCostValue;
+																	(e.currentTarget as HTMLInputElement).blur();
+																}
+															}}
+															class="font-mono-tabular h-7 border-0 p-0 text-right text-xs focus-visible:ring-0 focus-visible:ring-offset-0"
+														/>
+													{:else}
+														<span class="text-xs text-muted-foreground">-</span>
+													{/if}
 												</div>
 												<div class="rounded-sm border bg-background px-1.5 py-1 text-right">
 													<div class="text-[10px] tracking-wide text-muted-foreground uppercase">
 														S&A
 													</div>
 													{#if ['N', 'R', 'P', 'B'].includes(item.process_type)}
-														{#if editingSA === item.id}
-															<Input
-																type="number"
-																min="0"
-																step="0.25"
-																bind:value={tempSAHours}
-																onkeydown={(e) => {
-																	if (e.key === 'Enter') e.currentTarget.blur(); // A3: Enter triggers blur (single save path)
-																	if (e.key === 'Escape') handleSACancel();
-																}}
-																onblur={() => handleSASave(item.id!)}
-																class="font-mono-tabular h-7 border-0 p-0 text-right text-xs focus-visible:ring-0 focus-visible:ring-offset-0"
-																autofocus
-															/>
-														{:else}
-															<button
-																onclick={() =>
-																	handleSAClick(item.id!, item.strip_assemble_hours || null)}
-																class="font-mono-tabular w-full text-right text-xs font-medium hover:text-foreground/70"
-																>{formatCurrencyValue(item.strip_assemble || 0)}</button
-															>
-														{/if}
-													{:else}<span class="text-xs text-muted-foreground">-</span>{/if}
+														<Input
+															type="text"
+															inputmode="decimal"
+															value={String(item.strip_assemble_hours ?? '')}
+															onfocus={(e) => { originalCostValue = (e.currentTarget as HTMLInputElement).value; (e.currentTarget as HTMLInputElement).select(); }}
+															onblur={(e) => commitSA(item.id!, parseLocaleNumber((e.currentTarget as HTMLInputElement).value))}
+															onkeydown={(e) => {
+																if (e.key === 'Enter') (e.currentTarget as HTMLInputElement).blur();
+																if (e.key === 'Escape') {
+																	(e.currentTarget as HTMLInputElement).value = originalCostValue;
+																	(e.currentTarget as HTMLInputElement).blur();
+																}
+															}}
+															placeholder="0"
+															class="font-mono-tabular h-7 border-0 p-0 text-right text-xs focus-visible:ring-0 focus-visible:ring-offset-0"
+														/>
+													{:else}
+														<span class="text-xs text-muted-foreground">-</span>
+													{/if}
 												</div>
 												<div class="rounded-sm border bg-background px-1.5 py-1 text-right">
 													<div class="text-[10px] tracking-wide text-muted-foreground uppercase">
 														Lab
 													</div>
 													{#if ['N', 'R', 'A'].includes(item.process_type)}
-														{#if editingLabour === item.id}
-															<Input
-																type="number"
-																min="0"
-																step="0.5"
-																bind:value={tempLabourHours}
-																onkeydown={(e) => {
-																	if (e.key === 'Enter') e.currentTarget.blur(); // A3: Enter triggers blur (single save path)
-																	if (e.key === 'Escape') handleLabourCancel();
-																}}
-																onblur={() => handleLabourSave(item.id!)}
-																class="font-mono-tabular h-7 border-0 p-0 text-right text-xs focus-visible:ring-0 focus-visible:ring-offset-0"
-																autofocus
-															/>
-														{:else}
-															<button
-																onclick={() =>
-																	handleLabourClick(item.id!, item.labour_hours || null)}
-																class="font-mono-tabular w-full text-right text-xs font-medium hover:text-foreground/70"
-																>{formatCurrencyValue(item.labour_cost || 0)}</button
-															>
-														{/if}
-													{:else}<span class="text-xs text-muted-foreground">-</span>{/if}
+														<Input
+															type="text"
+															inputmode="decimal"
+															value={String(item.labour_hours ?? '')}
+															onfocus={(e) => { originalCostValue = (e.currentTarget as HTMLInputElement).value; (e.currentTarget as HTMLInputElement).select(); }}
+															onblur={(e) => commitLabour(item.id!, parseLocaleNumber((e.currentTarget as HTMLInputElement).value))}
+															onkeydown={(e) => {
+																if (e.key === 'Enter') (e.currentTarget as HTMLInputElement).blur();
+																if (e.key === 'Escape') {
+																	(e.currentTarget as HTMLInputElement).value = originalCostValue;
+																	(e.currentTarget as HTMLInputElement).blur();
+																}
+															}}
+															placeholder="0"
+															class="font-mono-tabular h-7 border-0 p-0 text-right text-xs focus-visible:ring-0 focus-visible:ring-offset-0"
+														/>
+													{:else}
+														<span class="text-xs text-muted-foreground">-</span>
+													{/if}
 												</div>
 												<div class="rounded-sm border bg-background px-1.5 py-1 text-right">
 													<div class="text-[10px] tracking-wide text-muted-foreground uppercase">
 														Paint
 													</div>
 													{#if ['N', 'R', 'P', 'B'].includes(item.process_type)}
-														{#if editingPaint === item.id}
-															<Input
-																type="number"
-																min="0"
-																step="0.5"
-																bind:value={tempPaintPanels}
-																onkeydown={(e) => {
-																	if (e.key === 'Enter') e.currentTarget.blur(); // A3: Enter triggers blur (single save path)
-																	if (e.key === 'Escape') handlePaintCancel();
-																}}
-																onblur={() => handlePaintSave(item.id!)}
-																class="font-mono-tabular h-7 border-0 p-0 text-right text-xs focus-visible:ring-0 focus-visible:ring-offset-0"
-																autofocus
-															/>
-														{:else}
-															<button
-																onclick={() =>
-																	handlePaintClick(item.id!, item.paint_panels || null)}
-																class="font-mono-tabular w-full text-right text-xs font-medium hover:text-foreground/70"
-																>{formatCurrencyValue(item.paint_cost || 0)}</button
-															>
-														{/if}
-													{:else}<span class="text-xs text-muted-foreground">-</span>{/if}
+														<Input
+															type="text"
+															inputmode="decimal"
+															value={String(item.paint_panels ?? '')}
+															onfocus={(e) => { originalCostValue = (e.currentTarget as HTMLInputElement).value; (e.currentTarget as HTMLInputElement).select(); }}
+															onblur={(e) => commitPaint(item.id!, parseLocaleNumber((e.currentTarget as HTMLInputElement).value))}
+															onkeydown={(e) => {
+																if (e.key === 'Enter') (e.currentTarget as HTMLInputElement).blur();
+																if (e.key === 'Escape') {
+																	(e.currentTarget as HTMLInputElement).value = originalCostValue;
+																	(e.currentTarget as HTMLInputElement).blur();
+																}
+															}}
+															placeholder="0"
+															class="font-mono-tabular h-7 border-0 p-0 text-right text-xs focus-visible:ring-0 focus-visible:ring-offset-0"
+														/>
+													{:else}
+														<span class="text-xs text-muted-foreground">-</span>
+													{/if}
 												</div>
 												<div class="rounded-sm border bg-background px-1.5 py-1 text-right">
 													<div class="text-[10px] tracking-wide text-muted-foreground uppercase">
 														Out
 													</div>
 													{#if item.process_type === 'O'}
-														{#if editingOutwork === item.id}
-															<Input
-																type="number"
-																min="0"
-																step="0.01"
-																bind:value={tempOutworkNett}
-																onkeydown={(e) => {
-																	if (e.key === 'Enter') e.currentTarget.blur(); // A3: Enter triggers blur (single save path)
-																	if (e.key === 'Escape') handleOutworkCancel();
-																}}
-																onblur={() => handleOutworkSave(item.id!)}
-																class="font-mono-tabular h-7 border-0 p-0 text-right text-xs focus-visible:ring-0 focus-visible:ring-offset-0"
-																autofocus
-															/>
-														{:else}
-															<button
-																onclick={() =>
-																	handleOutworkClick(item.id!, item.outwork_charge_nett || null)}
-																class="font-mono-tabular w-full text-right text-xs font-medium hover:text-foreground/70"
-																>{formatCurrencyValue(item.outwork_charge_nett || 0)}</button
-															>
-														{/if}
-													{:else}<span class="text-xs text-muted-foreground">-</span>{/if}
+														<Input
+															type="text"
+															inputmode="decimal"
+															value={formatCurrencyValue(item.outwork_charge_nett ?? 0)}
+															onfocus={(e) => { originalCostValue = (e.currentTarget as HTMLInputElement).value; (e.currentTarget as HTMLInputElement).select(); }}
+															onblur={(e) => commitOutwork(item.id!, parseLocaleNumber((e.currentTarget as HTMLInputElement).value))}
+															onkeydown={(e) => {
+																if (e.key === 'Enter') (e.currentTarget as HTMLInputElement).blur();
+																if (e.key === 'Escape') {
+																	(e.currentTarget as HTMLInputElement).value = originalCostValue;
+																	(e.currentTarget as HTMLInputElement).blur();
+																}
+															}}
+															class="font-mono-tabular h-7 border-0 p-0 text-right text-xs focus-visible:ring-0 focus-visible:ring-offset-0"
+														/>
+													{:else}
+														<span class="text-xs text-muted-foreground">-</span>
+													{/if}
 												</div>
 											</div>
 										</Table.Cell>
@@ -1602,126 +1631,126 @@
 												<div class="text-[10px] tracking-wide text-muted-foreground uppercase">
 													Part
 												</div>
-												{#if skeletonProcessType === 'N'}{#if skeletonEditingField === 'partPrice'}<Input
-															type="number"
-															min="0"
-															step="0.01"
-															bind:value={skeletonPartPriceNett}
-															onkeydown={(e) => {
-																if (e.key === 'Enter') handleSkeletonCostBlur();
-																if (e.key === 'Escape') {
-																	skeletonPartPriceNett = null;
-																	skeletonEditingField = null;
-																}
-															}}
-															onblur={handleSkeletonCostBlur}
-															class="font-mono-tabular h-7 border-0 p-0 text-right text-xs focus-visible:ring-0 focus-visible:ring-offset-0"
-															autofocus
-														/>{:else}<button
-															onclick={() => (skeletonEditingField = 'partPrice')}
-															class="font-mono-tabular w-full text-right text-xs text-muted-foreground hover:text-foreground"
-															>{formatCurrencyValue(0)}</button
-														>{/if}{:else}<span class="text-xs text-muted-foreground">-</span>{/if}
+												{#if skeletonProcessType === 'N'}
+													<Input
+														type="text"
+														inputmode="decimal"
+														value={skeletonPartPriceNett !== null ? formatCurrencyValue(skeletonPartPriceNett) : ''}
+														onfocus={(e) => { originalCostValue = (e.currentTarget as HTMLInputElement).value; (e.currentTarget as HTMLInputElement).select(); }}
+														onblur={(e) => { skeletonPartPriceNett = parseLocaleNumber((e.currentTarget as HTMLInputElement).value); }}
+														onkeydown={(e) => {
+															if (e.key === 'Enter') (e.currentTarget as HTMLInputElement).blur();
+															if (e.key === 'Escape') {
+																(e.currentTarget as HTMLInputElement).value = originalCostValue;
+																(e.currentTarget as HTMLInputElement).blur();
+															}
+														}}
+														placeholder="0,00"
+														class="font-mono-tabular h-7 border-0 p-0 text-right text-xs focus-visible:ring-0 focus-visible:ring-offset-0"
+													/>
+												{:else}
+													<span class="text-muted-foreground text-xs">-</span>
+												{/if}
 											</div>
 											<div class="rounded-sm border bg-background px-1.5 py-1 text-right">
 												<div class="text-[10px] tracking-wide text-muted-foreground uppercase">
 													S&A
 												</div>
-												{#if ['N', 'R', 'P', 'B'].includes(skeletonProcessType)}{#if skeletonEditingField === 'sa'}<Input
-															type="number"
-															min="0"
-															step="0.25"
-															bind:value={skeletonSAHours}
-															onkeydown={(e) => {
-																if (e.key === 'Enter') handleSkeletonCostBlur();
-																if (e.key === 'Escape') {
-																	skeletonSAHours = null;
-																	skeletonEditingField = null;
-																}
-															}}
-															onblur={handleSkeletonCostBlur}
-															class="font-mono-tabular h-7 border-0 p-0 text-right text-xs focus-visible:ring-0 focus-visible:ring-offset-0"
-															autofocus
-														/>{:else}<button
-															onclick={() => (skeletonEditingField = 'sa')}
-															class="font-mono-tabular w-full text-right text-xs text-muted-foreground hover:text-foreground"
-															>{formatCurrencyValue(0)}</button
-														>{/if}{:else}<span class="text-xs text-muted-foreground">-</span>{/if}
+												{#if ['N', 'R', 'P', 'B'].includes(skeletonProcessType)}
+													<Input
+														type="text"
+														inputmode="decimal"
+														value={skeletonSAHours !== null ? String(skeletonSAHours) : ''}
+														onfocus={(e) => { originalCostValue = (e.currentTarget as HTMLInputElement).value; (e.currentTarget as HTMLInputElement).select(); }}
+														onblur={(e) => { skeletonSAHours = parseLocaleNumber((e.currentTarget as HTMLInputElement).value); }}
+														onkeydown={(e) => {
+															if (e.key === 'Enter') (e.currentTarget as HTMLInputElement).blur();
+															if (e.key === 'Escape') {
+																(e.currentTarget as HTMLInputElement).value = originalCostValue;
+																(e.currentTarget as HTMLInputElement).blur();
+															}
+														}}
+														placeholder="0"
+														class="font-mono-tabular h-7 border-0 p-0 text-right text-xs focus-visible:ring-0 focus-visible:ring-offset-0"
+													/>
+												{:else}
+													<span class="text-muted-foreground text-xs">-</span>
+												{/if}
 											</div>
 											<div class="rounded-sm border bg-background px-1.5 py-1 text-right">
 												<div class="text-[10px] tracking-wide text-muted-foreground uppercase">
 													Lab
 												</div>
-												{#if ['N', 'R', 'A'].includes(skeletonProcessType)}{#if skeletonEditingField === 'labour'}<Input
-															type="number"
-															min="0"
-															step="0.5"
-															bind:value={skeletonLabourHours}
-															onkeydown={(e) => {
-																if (e.key === 'Enter') handleSkeletonCostBlur();
-																if (e.key === 'Escape') {
-																	skeletonLabourHours = null;
-																	skeletonEditingField = null;
-																}
-															}}
-															onblur={handleSkeletonCostBlur}
-															class="font-mono-tabular h-7 border-0 p-0 text-right text-xs focus-visible:ring-0 focus-visible:ring-offset-0"
-															autofocus
-														/>{:else}<button
-															onclick={() => (skeletonEditingField = 'labour')}
-															class="font-mono-tabular w-full text-right text-xs text-muted-foreground hover:text-foreground"
-															>{formatCurrencyValue(0)}</button
-														>{/if}{:else}<span class="text-xs text-muted-foreground">-</span>{/if}
+												{#if ['N', 'R', 'A'].includes(skeletonProcessType)}
+													<Input
+														type="text"
+														inputmode="decimal"
+														value={skeletonLabourHours !== null ? String(skeletonLabourHours) : ''}
+														onfocus={(e) => { originalCostValue = (e.currentTarget as HTMLInputElement).value; (e.currentTarget as HTMLInputElement).select(); }}
+														onblur={(e) => { skeletonLabourHours = parseLocaleNumber((e.currentTarget as HTMLInputElement).value); }}
+														onkeydown={(e) => {
+															if (e.key === 'Enter') (e.currentTarget as HTMLInputElement).blur();
+															if (e.key === 'Escape') {
+																(e.currentTarget as HTMLInputElement).value = originalCostValue;
+																(e.currentTarget as HTMLInputElement).blur();
+															}
+														}}
+														placeholder="0"
+														class="font-mono-tabular h-7 border-0 p-0 text-right text-xs focus-visible:ring-0 focus-visible:ring-offset-0"
+													/>
+												{:else}
+													<span class="text-muted-foreground text-xs">-</span>
+												{/if}
 											</div>
 											<div class="rounded-sm border bg-background px-1.5 py-1 text-right">
 												<div class="text-[10px] tracking-wide text-muted-foreground uppercase">
 													Paint
 												</div>
-												{#if ['N', 'R', 'P', 'B'].includes(skeletonProcessType)}{#if skeletonEditingField === 'paint'}<Input
-															type="number"
-															min="0"
-															step="0.5"
-															bind:value={skeletonPaintPanels}
-															onkeydown={(e) => {
-																if (e.key === 'Enter') handleSkeletonCostBlur();
-																if (e.key === 'Escape') {
-																	skeletonPaintPanels = null;
-																	skeletonEditingField = null;
-																}
-															}}
-															onblur={handleSkeletonCostBlur}
-															class="font-mono-tabular h-7 border-0 p-0 text-right text-xs focus-visible:ring-0 focus-visible:ring-offset-0"
-															autofocus
-														/>{:else}<button
-															onclick={() => (skeletonEditingField = 'paint')}
-															class="font-mono-tabular w-full text-right text-xs text-muted-foreground hover:text-foreground"
-															>{formatCurrencyValue(0)}</button
-														>{/if}{:else}<span class="text-xs text-muted-foreground">-</span>{/if}
+												{#if ['N', 'R', 'P', 'B'].includes(skeletonProcessType)}
+													<Input
+														type="text"
+														inputmode="decimal"
+														value={skeletonPaintPanels !== null ? String(skeletonPaintPanels) : ''}
+														onfocus={(e) => { originalCostValue = (e.currentTarget as HTMLInputElement).value; (e.currentTarget as HTMLInputElement).select(); }}
+														onblur={(e) => { skeletonPaintPanels = parseLocaleNumber((e.currentTarget as HTMLInputElement).value); }}
+														onkeydown={(e) => {
+															if (e.key === 'Enter') (e.currentTarget as HTMLInputElement).blur();
+															if (e.key === 'Escape') {
+																(e.currentTarget as HTMLInputElement).value = originalCostValue;
+																(e.currentTarget as HTMLInputElement).blur();
+															}
+														}}
+														placeholder="0"
+														class="font-mono-tabular h-7 border-0 p-0 text-right text-xs focus-visible:ring-0 focus-visible:ring-offset-0"
+													/>
+												{:else}
+													<span class="text-muted-foreground text-xs">-</span>
+												{/if}
 											</div>
 											<div class="rounded-sm border bg-background px-1.5 py-1 text-right">
 												<div class="text-[10px] tracking-wide text-muted-foreground uppercase">
 													Out
 												</div>
-												{#if skeletonProcessType === 'O'}{#if skeletonEditingField === 'outwork'}<Input
-															type="number"
-															min="0"
-															step="0.01"
-															bind:value={skeletonOutworkNett}
-															onkeydown={(e) => {
-																if (e.key === 'Enter') handleSkeletonCostBlur();
-																if (e.key === 'Escape') {
-																	skeletonOutworkNett = null;
-																	skeletonEditingField = null;
-																}
-															}}
-															onblur={handleSkeletonCostBlur}
-															class="font-mono-tabular h-7 border-0 p-0 text-right text-xs focus-visible:ring-0 focus-visible:ring-offset-0"
-															autofocus
-														/>{:else}<button
-															onclick={() => (skeletonEditingField = 'outwork')}
-															class="font-mono-tabular w-full text-right text-xs text-muted-foreground hover:text-foreground"
-															>{formatCurrencyValue(0)}</button
-														>{/if}{:else}<span class="text-xs text-muted-foreground">-</span>{/if}
+												{#if skeletonProcessType === 'O'}
+													<Input
+														type="text"
+														inputmode="decimal"
+														value={skeletonOutworkNett !== null ? formatCurrencyValue(skeletonOutworkNett) : ''}
+														onfocus={(e) => { originalCostValue = (e.currentTarget as HTMLInputElement).value; (e.currentTarget as HTMLInputElement).select(); }}
+														onblur={(e) => { skeletonOutworkNett = parseLocaleNumber((e.currentTarget as HTMLInputElement).value); }}
+														onkeydown={(e) => {
+															if (e.key === 'Enter') (e.currentTarget as HTMLInputElement).blur();
+															if (e.key === 'Escape') {
+																(e.currentTarget as HTMLInputElement).value = originalCostValue;
+																(e.currentTarget as HTMLInputElement).blur();
+															}
+														}}
+														placeholder="0,00"
+														class="font-mono-tabular h-7 border-0 p-0 text-right text-xs focus-visible:ring-0 focus-visible:ring-offset-0"
+													/>
+												{:else}
+													<span class="text-muted-foreground text-xs">-</span>
+												{/if}
 											</div>
 										</div>
 									</Table.Cell>
