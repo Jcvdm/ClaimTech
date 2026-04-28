@@ -48,7 +48,7 @@
 	import { additionalsPhotosService } from '$lib/services/additionals-photos.service';
 	import { documentGenerationService } from '$lib/services/document-generation.service';
 	import { validateAdditionals, type TabValidation } from '$lib/utils/validation';
-	import { formatCurrency, formatCurrencyValue } from '$lib/utils/formatters';
+	import { formatCurrency, formatCurrencyValue, parseLocaleNumber } from '$lib/utils/formatters';
 
 	interface Props {
 		assessmentId: string;
@@ -163,6 +163,10 @@
 	let tempPartPriceNett = $state<number | null>(null);
 	let tempOutworkNett = $state<number | null>(null);
 
+	// Captures the pre-edit value of whichever cost cell currently holds focus.
+	// Used to support Escape→revert (cell restores this value, then blurs).
+	let originalCostValue = $state('');
+
 	// Document generation state
 	let generationStatus = $state<DocumentGenerationStatus>({
 		report_generated: false,
@@ -204,6 +208,48 @@
 			additionals = updated;
 			await onUpdate();
 		});
+	}
+
+	// ---- Always-edit commit functions (replace click-to-edit save handlers for desktop table) ----
+
+	async function commitPartPrice(itemId: string, value: number | null) {
+		const newNett = value ?? 0;
+		const item = additionals?.line_items.find((i) => i.id === itemId);
+		if (!item) return;
+		if ((item.part_price_nett ?? 0) === newNett) return; // unchanged → no-op
+		await updatePending(itemId, { part_price_nett: newNett });
+	}
+
+	async function commitSA(itemId: string, hours: number | null) {
+		const newHours = hours ?? 0;
+		const item = additionals?.line_items.find((i) => i.id === itemId);
+		if (!item) return;
+		if ((item.strip_assemble_hours ?? 0) === newHours) return; // unchanged → no-op
+		await updatePending(itemId, { strip_assemble_hours: newHours });
+	}
+
+	async function commitLabour(itemId: string, hours: number | null) {
+		const newHours = hours ?? 0;
+		const item = additionals?.line_items.find((i) => i.id === itemId);
+		if (!item) return;
+		if ((item.labour_hours ?? 0) === newHours) return; // unchanged → no-op
+		await updatePending(itemId, { labour_hours: newHours });
+	}
+
+	async function commitPaint(itemId: string, panels: number | null) {
+		const newPanels = panels ?? 0;
+		const item = additionals?.line_items.find((i) => i.id === itemId);
+		if (!item) return;
+		if ((item.paint_panels ?? 0) === newPanels) return; // unchanged → no-op
+		await updatePending(itemId, { paint_panels: newPanels });
+	}
+
+	async function commitOutwork(itemId: string, nett: number | null) {
+		const newNett = nett ?? 0;
+		const item = additionals?.line_items.find((i) => i.id === itemId);
+		if (!item) return;
+		if ((item.outwork_charge_nett ?? 0) === newNett) return; // unchanged → no-op
+		await updatePending(itemId, { outwork_charge_nett: newNett });
 	}
 
 	function handleSAClick(id: string, currentHours: number | null) {
@@ -1068,24 +1114,21 @@
 												<div class="text-[10px] tracking-wide text-muted-foreground uppercase">
 													Part
 												</div>
-												{#if !isRemoved && !isReversal && item.status === 'pending' && item.process_type === 'N'}{#if editingPartPrice === item.id}<Input
-															type="number"
-															min="0"
-															step="0.01"
-															bind:value={tempPartPriceNett}
-															onkeydown={(e) => {
-																if (e.key === 'Enter') e.currentTarget.blur(); // A4: Enter triggers blur (single save path)
-																if (e.key === 'Escape') handlePartPriceCancel();
-															}}
-															onblur={() => handlePartPriceSave(item.id!)}
-															class="h-7 border-0 p-0 text-right text-xs focus-visible:ring-0 focus-visible:ring-offset-0"
-															autofocus
-														/>{:else}<button
-															onclick={() =>
-																handlePartPriceClick(item.id!, item.part_price_nett || null)}
-															class="font-mono-tabular w-full text-right text-xs font-medium hover:text-foreground/70"
-															>{formatCurrencyValue(item.part_price_nett || 0)}</button
-														>{/if}{:else}<span
+												{#if !isRemoved && !isReversal && item.status === 'pending' && item.process_type === 'N'}<Input
+														type="text"
+														inputmode="decimal"
+														value={formatCurrencyValue(item.part_price_nett ?? 0)}
+														onfocus={(e) => { originalCostValue = (e.currentTarget as HTMLInputElement).value; (e.currentTarget as HTMLInputElement).select(); }}
+														onblur={(e) => commitPartPrice(item.id!, parseLocaleNumber((e.currentTarget as HTMLInputElement).value))}
+														onkeydown={(e) => {
+															if (e.key === 'Enter') (e.currentTarget as HTMLInputElement).blur();
+															if (e.key === 'Escape') {
+																(e.currentTarget as HTMLInputElement).value = originalCostValue;
+																(e.currentTarget as HTMLInputElement).blur();
+															}
+														}}
+														class="font-mono-tabular h-7 border-0 p-0 text-right text-xs focus-visible:ring-0 focus-visible:ring-offset-0"
+													/>{:else}<span
 														class="font-mono-tabular text-xs {isRemoved || isReversal
 															? 'text-foreground'
 															: 'text-muted-foreground'}"
@@ -1096,24 +1139,22 @@
 												<div class="text-[10px] tracking-wide text-muted-foreground uppercase">
 													S&A
 												</div>
-												{#if !isRemoved && !isReversal && item.status === 'pending' && ['N', 'R', 'P', 'B'].includes(item.process_type)}{#if editingSA === item.id}<Input
-															type="number"
-															min="0"
-															step="0.25"
-															bind:value={tempSAHours}
-															onkeydown={(e) => {
-																if (e.key === 'Enter') e.currentTarget.blur(); // A4: Enter triggers blur (single save path)
-																if (e.key === 'Escape') handleSACancel();
-															}}
-															onblur={() => handleSASave(item.id!)}
-															class="h-7 border-0 p-0 text-right text-xs focus-visible:ring-0 focus-visible:ring-offset-0"
-															autofocus
-														/>{:else}<button
-															onclick={() =>
-																handleSAClick(item.id!, item.strip_assemble_hours || null)}
-															class="font-mono-tabular w-full text-right text-xs font-medium hover:text-foreground/70"
-															>{formatCurrencyValue(item.strip_assemble || 0)}</button
-														>{/if}{:else}<span
+												{#if !isRemoved && !isReversal && item.status === 'pending' && ['N', 'R', 'P', 'B'].includes(item.process_type)}<Input
+														type="text"
+														inputmode="decimal"
+														value={String(item.strip_assemble_hours ?? '')}
+														onfocus={(e) => { originalCostValue = (e.currentTarget as HTMLInputElement).value; (e.currentTarget as HTMLInputElement).select(); }}
+														onblur={(e) => commitSA(item.id!, parseLocaleNumber((e.currentTarget as HTMLInputElement).value))}
+														onkeydown={(e) => {
+															if (e.key === 'Enter') (e.currentTarget as HTMLInputElement).blur();
+															if (e.key === 'Escape') {
+																(e.currentTarget as HTMLInputElement).value = originalCostValue;
+																(e.currentTarget as HTMLInputElement).blur();
+															}
+														}}
+														placeholder="0"
+														class="font-mono-tabular h-7 border-0 p-0 text-right text-xs focus-visible:ring-0 focus-visible:ring-offset-0"
+													/>{:else}<span
 														class="font-mono-tabular text-xs {isRemoved || isReversal
 															? 'text-foreground'
 															: 'text-muted-foreground'}"
@@ -1124,23 +1165,22 @@
 												<div class="text-[10px] tracking-wide text-muted-foreground uppercase">
 													Lab
 												</div>
-												{#if !isRemoved && !isReversal && item.status === 'pending' && ['N', 'R', 'A'].includes(item.process_type)}{#if editingLabour === item.id}<Input
-															type="number"
-															min="0"
-															step="0.5"
-															bind:value={tempLabourHours}
-															onkeydown={(e) => {
-																if (e.key === 'Enter') e.currentTarget.blur(); // A4: Enter triggers blur (single save path)
-																if (e.key === 'Escape') handleLabourCancel();
-															}}
-															onblur={() => handleLabourSave(item.id!)}
-															class="h-7 border-0 p-0 text-right text-xs focus-visible:ring-0 focus-visible:ring-offset-0"
-															autofocus
-														/>{:else}<button
-															onclick={() => handleLabourClick(item.id!, item.labour_hours || null)}
-															class="font-mono-tabular w-full text-right text-xs font-medium hover:text-foreground/70"
-															>{formatCurrencyValue(item.labour_cost || 0)}</button
-														>{/if}{:else}<span
+												{#if !isRemoved && !isReversal && item.status === 'pending' && ['N', 'R', 'A'].includes(item.process_type)}<Input
+														type="text"
+														inputmode="decimal"
+														value={String(item.labour_hours ?? '')}
+														onfocus={(e) => { originalCostValue = (e.currentTarget as HTMLInputElement).value; (e.currentTarget as HTMLInputElement).select(); }}
+														onblur={(e) => commitLabour(item.id!, parseLocaleNumber((e.currentTarget as HTMLInputElement).value))}
+														onkeydown={(e) => {
+															if (e.key === 'Enter') (e.currentTarget as HTMLInputElement).blur();
+															if (e.key === 'Escape') {
+																(e.currentTarget as HTMLInputElement).value = originalCostValue;
+																(e.currentTarget as HTMLInputElement).blur();
+															}
+														}}
+														placeholder="0"
+														class="font-mono-tabular h-7 border-0 p-0 text-right text-xs focus-visible:ring-0 focus-visible:ring-offset-0"
+													/>{:else}<span
 														class="font-mono-tabular text-xs {isRemoved || isReversal
 															? 'text-foreground'
 															: 'text-muted-foreground'}"
@@ -1151,23 +1191,22 @@
 												<div class="text-[10px] tracking-wide text-muted-foreground uppercase">
 													Paint
 												</div>
-												{#if !isRemoved && !isReversal && item.status === 'pending' && ['N', 'R', 'P', 'B'].includes(item.process_type)}{#if editingPaint === item.id}<Input
-															type="number"
-															min="0"
-															step="0.5"
-															bind:value={tempPaintPanels}
-															onkeydown={(e) => {
-																if (e.key === 'Enter') e.currentTarget.blur(); // A4: Enter triggers blur (single save path)
-																if (e.key === 'Escape') handlePaintCancel();
-															}}
-															onblur={() => handlePaintSave(item.id!)}
-															class="h-7 border-0 p-0 text-right text-xs focus-visible:ring-0 focus-visible:ring-offset-0"
-															autofocus
-														/>{:else}<button
-															onclick={() => handlePaintClick(item.id!, item.paint_panels || null)}
-															class="font-mono-tabular w-full text-right text-xs font-medium hover:text-foreground/70"
-															>{formatCurrencyValue(item.paint_cost || 0)}</button
-														>{/if}{:else}<span
+												{#if !isRemoved && !isReversal && item.status === 'pending' && ['N', 'R', 'P', 'B'].includes(item.process_type)}<Input
+														type="text"
+														inputmode="decimal"
+														value={String(item.paint_panels ?? '')}
+														onfocus={(e) => { originalCostValue = (e.currentTarget as HTMLInputElement).value; (e.currentTarget as HTMLInputElement).select(); }}
+														onblur={(e) => commitPaint(item.id!, parseLocaleNumber((e.currentTarget as HTMLInputElement).value))}
+														onkeydown={(e) => {
+															if (e.key === 'Enter') (e.currentTarget as HTMLInputElement).blur();
+															if (e.key === 'Escape') {
+																(e.currentTarget as HTMLInputElement).value = originalCostValue;
+																(e.currentTarget as HTMLInputElement).blur();
+															}
+														}}
+														placeholder="0"
+														class="font-mono-tabular h-7 border-0 p-0 text-right text-xs focus-visible:ring-0 focus-visible:ring-offset-0"
+													/>{:else}<span
 														class="font-mono-tabular text-xs {isRemoved || isReversal
 															? 'text-foreground'
 															: 'text-muted-foreground'}"
@@ -1178,24 +1217,21 @@
 												<div class="text-[10px] tracking-wide text-muted-foreground uppercase">
 													Out
 												</div>
-												{#if !isRemoved && !isReversal && item.status === 'pending' && item.process_type === 'O'}{#if editingOutwork === item.id}<Input
-															type="number"
-															min="0"
-															step="0.01"
-															bind:value={tempOutworkNett}
-															onkeydown={(e) => {
-																if (e.key === 'Enter') e.currentTarget.blur(); // A4: Enter triggers blur (single save path)
-																if (e.key === 'Escape') handleOutworkCancel();
-															}}
-															onblur={() => handleOutworkSave(item.id!)}
-															class="h-7 border-0 p-0 text-right text-xs focus-visible:ring-0 focus-visible:ring-offset-0"
-															autofocus
-														/>{:else}<button
-															onclick={() =>
-																handleOutworkClick(item.id!, item.outwork_charge_nett || null)}
-															class="font-mono-tabular w-full text-right text-xs font-medium hover:text-foreground/70"
-															>{formatCurrencyValue(item.outwork_charge_nett || 0)}</button
-														>{/if}{:else}<span
+												{#if !isRemoved && !isReversal && item.status === 'pending' && item.process_type === 'O'}<Input
+														type="text"
+														inputmode="decimal"
+														value={formatCurrencyValue(item.outwork_charge_nett ?? 0)}
+														onfocus={(e) => { originalCostValue = (e.currentTarget as HTMLInputElement).value; (e.currentTarget as HTMLInputElement).select(); }}
+														onblur={(e) => commitOutwork(item.id!, parseLocaleNumber((e.currentTarget as HTMLInputElement).value))}
+														onkeydown={(e) => {
+															if (e.key === 'Enter') (e.currentTarget as HTMLInputElement).blur();
+															if (e.key === 'Escape') {
+																(e.currentTarget as HTMLInputElement).value = originalCostValue;
+																(e.currentTarget as HTMLInputElement).blur();
+															}
+														}}
+														class="font-mono-tabular h-7 border-0 p-0 text-right text-xs focus-visible:ring-0 focus-visible:ring-offset-0"
+													/>{:else}<span
 														class="font-mono-tabular text-xs {isRemoved || isReversal
 															? 'text-foreground'
 															: 'text-muted-foreground'}"
