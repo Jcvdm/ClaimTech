@@ -38,6 +38,7 @@
 		parseLocaleNumber
 	} from '$lib/utils/formatters';
 	import { validatePreIncidentEstimate, type TabValidation } from '$lib/utils/validation';
+	import CostCell from './CostCell.svelte';
 
 	interface Props {
 		estimate: PreIncidentEstimate | null;
@@ -1125,145 +1126,75 @@
 											<div class="text-[10px] uppercase tracking-wide text-muted-foreground">
 												Part
 											</div>
-											{#if item.process_type === 'N'}
-												{#if editingPartPrice === item.id}
-													<Input
-														type="text"
-														inputmode="decimal"
-														bind:value={tempPartPriceNett}
-														onkeydown={(e) => handleInputKeydown(e, 'part')}
-														onblur={() => commitPartPrice(item.id!, item)}
-														class="h-7 border-0 p-0 text-right text-xs font-mono-tabular focus-visible:ring-0 focus-visible:ring-offset-0"
-														autofocus
-													/>
-												{:else}
-													<button
-														type="button"
-														onclick={() => handlePartPriceClick(item.id!, item.part_price_nett || null)}
-														class="block w-full truncate text-right text-xs font-mono-tabular font-medium text-foreground hover:text-foreground/70"
-													>
-														{formatCurrencyValue(item.part_price || 0)}
-													</button>
-												{/if}
-											{:else}
-												<span class="text-xs text-muted-foreground">-</span>
-											{/if}
+											<CostCell
+												editing={editingPartPrice === item.id}
+												display={formatCurrencyValue(item.part_price ?? 0)}
+												inputValue={String(item.part_price_nett ?? '')}
+												visible={item.process_type === 'N'}
+												onEnterEdit={() => handlePartPriceClick(item.id!, item.part_price_nett ?? null)}
+												onCommit={(raw) => { tempPartPriceNett = raw; commitPartPrice(item.id!, item); }}
+												onCancel={() => handleCancelEdit('part')}
+											/>
 										</div>
 
 										<div class="rounded-sm border bg-background px-1.5 py-1 text-right">
 											<div class="text-[10px] uppercase tracking-wide text-muted-foreground">
 												S&A
 											</div>
-											{#if isApplicable(item.process_type, 'sa')}
-												{#if editingSA === item.id}
-													<Input
-														type="text"
-														inputmode="decimal"
-														bind:value={tempSAHours}
-														onkeydown={(e) => handleInputKeydown(e, 'sa')}
-														onblur={() => commitSA(item.id!)}
-														class="h-7 border-0 p-0 text-right text-xs font-mono-tabular focus-visible:ring-0 focus-visible:ring-offset-0"
-														autofocus
-													/>
-												{:else}
-													<button
-														type="button"
-														onclick={() => handleSAClick(item.id!, item.strip_assemble_hours || null)}
-														class="block w-full truncate text-right text-xs font-mono-tabular font-medium text-foreground hover:text-foreground/70"
-													>
-														{formatCurrencyValue(item.strip_assemble || 0)}
-													</button>
-												{/if}
-											{:else}
-												<span class="text-xs text-muted-foreground">-</span>
-											{/if}
+											<CostCell
+												editing={editingSA === item.id}
+												display={formatCurrencyValue(item.strip_assemble ?? 0)}
+												inputValue={String(item.strip_assemble_hours ?? '')}
+												visible={isApplicable(item.process_type, 'sa')}
+												onEnterEdit={() => handleSAClick(item.id!, item.strip_assemble_hours ?? null)}
+												onCommit={(raw) => { tempSAHours = raw; commitSA(item.id!); }}
+												onCancel={() => handleCancelEdit('sa')}
+											/>
 										</div>
 
 										<div class="rounded-sm border bg-background px-1.5 py-1 text-right">
 											<div class="text-[10px] uppercase tracking-wide text-muted-foreground">
 												Labour
 											</div>
-											{#if isApplicable(item.process_type, 'labour')}
-												{#if editingLabour === item.id}
-													<Input
-														type="text"
-														inputmode="decimal"
-														bind:value={tempLabourHours}
-														onkeydown={(e) => handleInputKeydown(e, 'labour')}
-														onblur={() => commitLabour(item.id!)}
-														class="h-7 border-0 p-0 text-right text-xs font-mono-tabular focus-visible:ring-0 focus-visible:ring-offset-0"
-														autofocus
-													/>
-												{:else}
-													<button
-														type="button"
-														onclick={() => handleLabourClick(item.id!, item.labour_hours || null)}
-														class="block w-full truncate text-right text-xs font-mono-tabular font-medium text-foreground hover:text-foreground/70"
-													>
-														{formatCurrencyValue(item.labour_cost || 0)}
-													</button>
-												{/if}
-											{:else}
-												<span class="text-xs text-muted-foreground">-</span>
-											{/if}
+											<CostCell
+												editing={editingLabour === item.id}
+												display={formatCurrencyValue(item.labour_cost ?? 0)}
+												inputValue={String(item.labour_hours ?? '')}
+												visible={isApplicable(item.process_type, 'labour')}
+												onEnterEdit={() => handleLabourClick(item.id!, item.labour_hours ?? null)}
+												onCommit={(raw) => { tempLabourHours = raw; commitLabour(item.id!); }}
+												onCancel={() => handleCancelEdit('labour')}
+											/>
 										</div>
 
 										<div class="rounded-sm border bg-background px-1.5 py-1 text-right">
 											<div class="text-[10px] uppercase tracking-wide text-muted-foreground">
 												Paint
 											</div>
-											{#if isApplicable(item.process_type, 'paint')}
-												{#if editingPaint === item.id}
-													<Input
-														type="text"
-														inputmode="decimal"
-														bind:value={tempPaintPanels}
-														onkeydown={(e) => handleInputKeydown(e, 'paint')}
-														onblur={() => commitPaint(item.id!)}
-														class="h-7 border-0 p-0 text-right text-xs font-mono-tabular focus-visible:ring-0 focus-visible:ring-offset-0"
-														autofocus
-													/>
-												{:else}
-													<button
-														type="button"
-														onclick={() => handlePaintClick(item.id!, item.paint_panels || null)}
-														class="block w-full truncate text-right text-xs font-mono-tabular font-medium text-foreground hover:text-foreground/70"
-													>
-														{formatCurrencyValue(item.paint_cost || 0)}
-													</button>
-												{/if}
-											{:else}
-												<span class="text-xs text-muted-foreground">-</span>
-											{/if}
+											<CostCell
+												editing={editingPaint === item.id}
+												display={formatCurrencyValue(item.paint_cost ?? 0)}
+												inputValue={String(item.paint_panels ?? '')}
+												visible={isApplicable(item.process_type, 'paint')}
+												onEnterEdit={() => handlePaintClick(item.id!, item.paint_panels ?? null)}
+												onCommit={(raw) => { tempPaintPanels = raw; commitPaint(item.id!); }}
+												onCancel={() => handleCancelEdit('paint')}
+											/>
 										</div>
 
 										<div class="rounded-sm border bg-background px-1.5 py-1 text-right">
 											<div class="text-[10px] uppercase tracking-wide text-muted-foreground">
 												Outwork
 											</div>
-											{#if isApplicable(item.process_type, 'outwork')}
-												{#if editingOutwork === item.id}
-													<Input
-														type="text"
-														inputmode="decimal"
-														bind:value={tempOutworkNett}
-														onkeydown={(e) => handleInputKeydown(e, 'outwork')}
-														onblur={() => commitOutwork(item.id!)}
-														class="h-7 border-0 p-0 text-right text-xs font-mono-tabular focus-visible:ring-0 focus-visible:ring-offset-0"
-														autofocus
-													/>
-												{:else}
-													<button
-														type="button"
-														onclick={() => handleOutworkClick(item.id!, item.outwork_charge_nett || null)}
-														class="block w-full truncate text-right text-xs font-mono-tabular font-medium text-foreground hover:text-foreground/70"
-													>
-														{formatCurrencyValue(item.outwork_charge || 0)}
-													</button>
-												{/if}
-											{:else}
-												<span class="text-xs text-muted-foreground">-</span>
-											{/if}
+											<CostCell
+												editing={editingOutwork === item.id}
+												display={formatCurrencyValue(item.outwork_charge ?? 0)}
+												inputValue={String(item.outwork_charge_nett ?? '')}
+												visible={isApplicable(item.process_type, 'outwork')}
+												onEnterEdit={() => handleOutworkClick(item.id!, item.outwork_charge_nett ?? null)}
+												onCommit={(raw) => { tempOutworkNett = raw; commitOutwork(item.id!); }}
+												onCancel={() => handleCancelEdit('outwork')}
+											/>
 										</div>
 									</div>
 								</Table.Cell>
