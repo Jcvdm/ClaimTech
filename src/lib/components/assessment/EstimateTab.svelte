@@ -1283,7 +1283,7 @@
 										>Description</Table.Head
 									>
 									<Table.Head
-										class="w-[340px] px-2 text-[11.5px] font-medium tracking-wide text-muted-foreground uppercase"
+										class="w-[420px] px-2 text-[11.5px] font-medium tracking-wide text-muted-foreground uppercase"
 										>Costs</Table.Head
 									>
 									<Table.Head
@@ -1291,7 +1291,7 @@
 										title="Betterment">%</Table.Head
 									>
 									<Table.Head
-										class="w-[88px] px-2 text-right text-[11.5px] font-medium tracking-wide text-muted-foreground uppercase"
+										class="w-[112px] px-2 text-right text-[11.5px] font-medium tracking-wide text-muted-foreground uppercase"
 										>Total</Table.Head
 									>
 									<Table.Head class="w-[44px] px-2"></Table.Head>
@@ -1404,7 +1404,7 @@
 															<button
 																onclick={() => handlePartPriceClick(item.id!, item.part_price_nett ?? null)}
 																onfocus={() => handlePartPriceClick(item.id!, item.part_price_nett ?? null)}
-																class="font-mono-tabular w-full text-right text-xs font-medium hover:text-foreground/70"
+																class="font-mono-tabular block w-full truncate text-right text-xs font-medium hover:text-foreground/70"
 																title="Click or Tab to edit nett price"
 															>
 																{formatCurrencyValue(item.part_price_nett ?? 0)}
@@ -1437,7 +1437,7 @@
 															<button
 																onclick={() => handleSAClick(item.id!, item.strip_assemble_hours ?? null)}
 																onfocus={() => handleSAClick(item.id!, item.strip_assemble_hours ?? null)}
-																class="font-mono-tabular w-full text-right text-xs font-medium hover:text-foreground/70"
+																class="font-mono-tabular block w-full truncate text-right text-xs font-medium hover:text-foreground/70"
 																title="Click or Tab to edit S&A hours"
 															>
 																{formatCurrencyValue(item.strip_assemble ?? 0)}
@@ -1470,7 +1470,7 @@
 															<button
 																onclick={() => handleLabourClick(item.id!, item.labour_hours ?? null)}
 																onfocus={() => handleLabourClick(item.id!, item.labour_hours ?? null)}
-																class="font-mono-tabular w-full text-right text-xs font-medium hover:text-foreground/70"
+																class="font-mono-tabular block w-full truncate text-right text-xs font-medium hover:text-foreground/70"
 																title="Click or Tab to edit labour hours"
 															>
 																{formatCurrencyValue(item.labour_cost ?? 0)}
@@ -1503,7 +1503,7 @@
 															<button
 																onclick={() => handlePaintClick(item.id!, item.paint_panels ?? null)}
 																onfocus={() => handlePaintClick(item.id!, item.paint_panels ?? null)}
-																class="font-mono-tabular w-full text-right text-xs font-medium hover:text-foreground/70"
+																class="font-mono-tabular block w-full truncate text-right text-xs font-medium hover:text-foreground/70"
 																title="Click or Tab to edit paint panels"
 															>
 																{formatCurrencyValue(item.paint_cost ?? 0)}
@@ -1536,7 +1536,7 @@
 															<button
 																onclick={() => handleOutworkClick(item.id!, item.outwork_charge_nett ?? null)}
 																onfocus={() => handleOutworkClick(item.id!, item.outwork_charge_nett ?? null)}
-																class="font-mono-tabular w-full text-right text-xs font-medium hover:text-foreground/70"
+																class="font-mono-tabular block w-full truncate text-right text-xs font-medium hover:text-foreground/70"
 																title="Click or Tab to edit outwork nett"
 															>
 																{formatCurrencyValue(item.outwork_charge_nett ?? 0)}
