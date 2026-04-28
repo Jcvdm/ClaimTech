@@ -851,10 +851,12 @@
 		const netPayable = totalIncVat - excessAmount;
 		return {
 			partsTotal: partsNett,
+			partsMarkup,
 			saTotal,
 			labourTotal,
 			paintTotal,
 			outworkTotal: outworkNett,
+			outworkMarkup,
 			markupTotal,
 			bettermentTotal,
 			subtotalExVat,
@@ -1807,6 +1809,10 @@
 								<span class="font-mono-tabular">{formatCurrency(totals?.paintTotal || 0)}</span>
 							</span>
 							<span class="flex items-center gap-1.5">
+								<span class="text-muted-foreground uppercase text-[10.5px] font-semibold tracking-wide">Outwork</span>
+								<span class="font-mono-tabular">{formatCurrency(totals?.outworkTotal || 0)}</span>
+							</span>
+							<span class="flex items-center gap-1.5">
 								<span class="text-muted-foreground uppercase text-[10.5px] font-semibold tracking-wide">VAT</span>
 								<span class="font-mono-tabular">{formatCurrency(totals?.vatAmount || 0)}</span>
 							</span>
@@ -1848,9 +1854,9 @@
 								</div>
 
 								<div class="flex items-center justify-between py-2">
-									<span class="text-sm text-muted-foreground">Markup Total</span>
+									<span class="text-sm text-muted-foreground">Parts Markup</span>
 									<span class="font-mono-tabular text-sm font-medium text-green-600"
-										>{formatCurrency(totals?.markupTotal || 0)}</span
+										>{formatCurrency(totals?.partsMarkup || 0)}</span
 									>
 								</div>
 
@@ -1875,10 +1881,17 @@
 									>
 								</div>
 
-								<div class="flex items-center justify-between border-b py-2">
+								<div class="flex items-center justify-between py-2">
 									<span class="text-sm text-muted-foreground">Outwork Total</span>
 									<span class="font-mono-tabular text-sm font-medium"
 										>{formatCurrency(totals?.outworkTotal || 0)}</span
+									>
+								</div>
+
+								<div class="flex items-center justify-between border-b py-2">
+									<span class="text-sm text-muted-foreground">Outwork Markup</span>
+									<span class="font-mono-tabular text-sm font-medium text-green-600"
+										>{formatCurrency(totals?.outworkMarkup || 0)}</span
 									>
 								</div>
 
