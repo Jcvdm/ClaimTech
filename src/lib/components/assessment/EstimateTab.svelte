@@ -48,7 +48,8 @@
 	import {
 		createEmptyLineItem,
 		calculateLineItemTotal,
-		calculateBetterment
+		calculateBetterment,
+		computeCategoryTotals
 	} from '$lib/utils/estimateCalculations';
 	import {
 		calculateEstimateThreshold,
@@ -803,71 +804,24 @@
 	// Now includes betterment deduction
 	const categoryTotals = $derived(() => {
 		if (!estimate) return null;
-
-		const vis = localLineItems;
-
-		const effectivePct = localEstimate?.sundries_percentage ?? estimate?.sundries_percentage ?? 1;
-
-		const partsNett = vis
-			.filter((i: any) => i.process_type === 'N')
-			.reduce((sum: number, i: any) => sum + (i.part_price_nett || 0), 0);
-
-		const saTotal = vis.reduce((sum: number, i: any) => sum + (i.strip_assemble || 0), 0);
-		const labourTotal = vis.reduce((sum: number, i: any) => sum + (i.labour_cost || 0), 0);
-		const paintTotal = vis.reduce((sum: number, i: any) => sum + (i.paint_cost || 0), 0);
-
-		const outworkNett = vis
-			.filter((i: any) => i.process_type === 'O')
-			.reduce((sum: number, i: any) => sum + (i.outwork_charge_nett || 0), 0);
-
-		// Calculate total betterment deduction
-		const bettermentTotal = vis.reduce((sum: number, i: any) => sum + (i.betterment_total || 0), 0);
-
-		// Aggregate markup (parts by type + outwork)
-		let partsMarkup = 0;
 		const percentSource = localEstimate ?? estimate;
-		for (const i of vis) {
-			if (i.process_type === 'N') {
-				const nett = i.part_price_nett || 0;
-				let m = 0;
-				if (i.part_type === 'OEM') m = percentSource.oem_markup_percentage;
-				else if (i.part_type === 'ALT') m = percentSource.alt_markup_percentage;
-				else if (i.part_type === '2ND') m = percentSource.second_hand_markup_percentage;
-				partsMarkup += nett * (m / 100);
+		return computeCategoryTotals(
+			localLineItems,
+			{
+				labour_rate: percentSource.labour_rate ?? 0,
+				paint_rate: percentSource.paint_rate ?? 0,
+				oem_markup_percentage: percentSource.oem_markup_percentage ?? 0,
+				alt_markup_percentage: percentSource.alt_markup_percentage ?? 0,
+				second_hand_markup_percentage: percentSource.second_hand_markup_percentage ?? 0,
+				outwork_markup_percentage: percentSource.outwork_markup_percentage ?? 0,
+				vat_percentage: percentSource.vat_percentage ?? 0,
+				sundries_percentage: percentSource.sundries_percentage ?? 1
+			},
+			{
+				includeBetterment: true,
+				excessAmount: excessAmount ?? 0
 			}
-		}
-
-		const outworkMarkup = outworkNett * (percentSource.outwork_markup_percentage / 100);
-		const markupTotal = partsMarkup + outworkMarkup;
-
-		// Subtotal now includes betterment deduction
-		const subtotalExVat =
-			partsNett + saTotal + labourTotal + paintTotal + outworkNett + markupTotal - bettermentTotal;
-		const sundriesAmount = subtotalExVat * (effectivePct / 100);
-		const vatAmount =
-			(subtotalExVat + sundriesAmount) * ((percentSource.vat_percentage || 0) / 100);
-		const totalIncVat = subtotalExVat + sundriesAmount + vatAmount;
-		// Net amount payable after excess deduction
-		const netPayable = totalIncVat - excessAmount;
-		return {
-			partsTotal: partsNett,
-			partsMarkup,
-			saTotal,
-			labourTotal,
-			paintTotal,
-			outworkTotal: outworkNett,
-			outworkMarkup,
-			markupTotal,
-			bettermentTotal,
-			subtotalExVat,
-			sundriesAmount,
-			sundriesPct: effectivePct,
-			vatPercentage: percentSource.vat_percentage || 0,
-			vatAmount,
-			totalIncVat,
-			excessAmount,
-			netPayable
-		};
+		);
 	});
 
 	// Check if estimate is complete
