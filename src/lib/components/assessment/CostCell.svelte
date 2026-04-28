@@ -72,7 +72,7 @@
 </script>
 
 {#if !visible}
-	<span class="text-gray-400">-</span>
+	<span class="text-xs text-muted-foreground">-</span>
 {:else if editing}
 	<Input
 		bind:ref={inputEl}
@@ -81,7 +81,10 @@
 		inputmode="decimal"
 		onkeydown={handleKeydown}
 		onblur={handleBlur}
-		class={cn('h-7 text-xs px-1', className)}
+		class={cn(
+			'font-mono-tabular h-7 border-0 p-0 text-right text-xs focus-visible:ring-0 focus-visible:ring-offset-0',
+			className
+		)}
 	/>
 {:else}
 	<button
@@ -89,10 +92,10 @@
 		onfocus={onEnterEdit}
 		onclick={onEnterEdit}
 		class={cn(
-			'w-full h-7 text-xs text-right px-1 hover:bg-gray-50 truncate',
+			'font-mono-tabular block w-full truncate text-right text-xs font-medium hover:text-foreground/70',
 			className
 		)}
 	>
-		{display}{#if unit}<span class="text-[10px] text-gray-500 ml-1">{unit}</span>{/if}
+		{display}{#if unit}<span class="text-[10px] text-muted-foreground ml-1">{unit}</span>{/if}
 	</button>
 {/if}
