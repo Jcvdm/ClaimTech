@@ -624,16 +624,12 @@
 	}
 
 	async function handleSASave(itemId: string) {
-		if (tempSAHours !== null && localEstimate) {
-			const saCost = tempSAHours * localEstimate.labour_rate;
-			updateLocalItem(itemId, {
-				strip_assemble_hours: tempSAHours,
-				strip_assemble: saCost
-			});
-			scheduleSave();
+		if (tempSAHours !== null) {
+			const valueToSave = tempSAHours;
+			editingSA = null;
+			tempSAHours = null;
+			commitSA(itemId, valueToSave);
 		}
-		editingSA = null;
-		tempSAHours = null;
 	}
 
 	function handleSACancel() {
@@ -650,16 +646,12 @@
 	}
 
 	async function handleLabourSave(itemId: string) {
-		if (tempLabourHours !== null && localEstimate) {
-			const labourCost = tempLabourHours * localEstimate.labour_rate;
-			updateLocalItem(itemId, {
-				labour_hours: tempLabourHours,
-				labour_cost: labourCost
-			});
-			scheduleSave();
+		if (tempLabourHours !== null) {
+			const valueToSave = tempLabourHours;
+			editingLabour = null;
+			tempLabourHours = null;
+			commitLabour(itemId, valueToSave);
 		}
-		editingLabour = null;
-		tempLabourHours = null;
 	}
 
 	function handleLabourCancel() {
@@ -674,16 +666,12 @@
 	}
 
 	async function handlePaintSave(itemId: string) {
-		if (tempPaintPanels !== null && localEstimate) {
-			const paintCost = tempPaintPanels * localEstimate.paint_rate;
-			updateLocalItem(itemId, {
-				paint_panels: tempPaintPanels,
-				paint_cost: paintCost
-			});
-			scheduleSave();
+		if (tempPaintPanels !== null) {
+			const valueToSave = tempPaintPanels;
+			editingPaint = null;
+			tempPaintPanels = null;
+			commitPaint(itemId, valueToSave);
 		}
-		editingPaint = null;
-		tempPaintPanels = null;
 	}
 
 	function handlePaintCancel() {
@@ -698,25 +686,13 @@
 		tempPartPriceNett = currentNettPrice;
 	}
 
-	async function handlePartPriceSave(itemId: string, item: EstimateLineItem) {
-		if (tempPartPriceNett !== null && estimate) {
-			// Get markup percentage based on part type
-			let markupPercentage = 0;
-			if (item.part_type === 'OEM') markupPercentage = estimate.oem_markup_percentage;
-			else if (item.part_type === 'ALT') markupPercentage = estimate.alt_markup_percentage;
-			else if (item.part_type === '2ND') markupPercentage = estimate.second_hand_markup_percentage;
-
-			// Calculate selling price with markup
-			const sellingPrice = tempPartPriceNett * (1 + markupPercentage / 100);
-
-			updateLocalItem(itemId, {
-				part_price_nett: tempPartPriceNett,
-				part_price: Number(sellingPrice.toFixed(2))
-			});
-			scheduleSave();
+	async function handlePartPriceSave(itemId: string, _item: EstimateLineItem) {
+		if (tempPartPriceNett !== null) {
+			const valueToSave = tempPartPriceNett;
+			editingPartPrice = null;
+			tempPartPriceNett = null;
+			commitPartPrice(itemId, valueToSave);
 		}
-		editingPartPrice = null;
-		tempPartPriceNett = null;
 	}
 
 	function handlePartPriceCancel() {
@@ -732,18 +708,12 @@
 	}
 
 	async function handleOutworkSave(itemId: string) {
-		if (tempOutworkNett !== null && estimate) {
-			const markupPercentage = estimate.outwork_markup_percentage;
-			const sellingPrice = tempOutworkNett * (1 + markupPercentage / 100);
-
-			updateLocalItem(itemId, {
-				outwork_charge_nett: tempOutworkNett,
-				outwork_charge: Number(sellingPrice.toFixed(2))
-			});
-			scheduleSave();
+		if (tempOutworkNett !== null) {
+			const valueToSave = tempOutworkNett;
+			editingOutwork = null;
+			tempOutworkNett = null;
+			commitOutwork(itemId, valueToSave);
 		}
-		editingOutwork = null;
-		tempOutworkNett = null;
 	}
 
 	function handleOutworkCancel() {
@@ -1416,21 +1386,30 @@
 														Part
 													</div>
 													{#if item.process_type === 'N'}
-														<Input
-															type="text"
-															inputmode="decimal"
-															value={formatCurrencyValue(item.part_price_nett ?? 0)}
-															onfocus={(e) => { originalCostValue = (e.currentTarget as HTMLInputElement).value; (e.currentTarget as HTMLInputElement).select(); }}
-															onblur={(e) => commitPartPrice(item.id!, parseLocaleNumber((e.currentTarget as HTMLInputElement).value))}
-															onkeydown={(e) => {
-																if (e.key === 'Enter') (e.currentTarget as HTMLInputElement).blur();
-																if (e.key === 'Escape') {
-																	(e.currentTarget as HTMLInputElement).value = originalCostValue;
-																	(e.currentTarget as HTMLInputElement).blur();
-																}
-															}}
-															class="font-mono-tabular h-7 border-0 p-0 text-right text-xs focus-visible:ring-0 focus-visible:ring-offset-0"
-														/>
+														{#if editingPartPrice === item.id}
+															<Input
+																type="number"
+																min="0"
+																step="0.01"
+																bind:value={tempPartPriceNett}
+																onkeydown={(e) => {
+																	if (e.key === 'Enter') (e.currentTarget as HTMLInputElement).blur();
+																	if (e.key === 'Escape') handlePartPriceCancel();
+																}}
+																onblur={() => handlePartPriceSave(item.id!, item)}
+																autofocus
+																class="font-mono-tabular h-7 border-0 p-0 text-right text-xs focus-visible:ring-0 focus-visible:ring-offset-0"
+															/>
+														{:else}
+															<button
+																onclick={() => handlePartPriceClick(item.id!, item.part_price_nett ?? null)}
+																onfocus={() => handlePartPriceClick(item.id!, item.part_price_nett ?? null)}
+																class="font-mono-tabular w-full text-right text-xs font-medium hover:text-foreground/70"
+																title="Click or Tab to edit nett price"
+															>
+																{formatCurrencyValue(item.part_price_nett ?? 0)}
+															</button>
+														{/if}
 													{:else}
 														<span class="text-xs text-muted-foreground">-</span>
 													{/if}
@@ -1440,22 +1419,30 @@
 														S&A
 													</div>
 													{#if ['N', 'R', 'P', 'B'].includes(item.process_type)}
-														<Input
-															type="text"
-															inputmode="decimal"
-															value={String(item.strip_assemble_hours ?? '')}
-															onfocus={(e) => { originalCostValue = (e.currentTarget as HTMLInputElement).value; (e.currentTarget as HTMLInputElement).select(); }}
-															onblur={(e) => commitSA(item.id!, parseLocaleNumber((e.currentTarget as HTMLInputElement).value))}
-															onkeydown={(e) => {
-																if (e.key === 'Enter') (e.currentTarget as HTMLInputElement).blur();
-																if (e.key === 'Escape') {
-																	(e.currentTarget as HTMLInputElement).value = originalCostValue;
-																	(e.currentTarget as HTMLInputElement).blur();
-																}
-															}}
-															placeholder="0"
-															class="font-mono-tabular h-7 border-0 p-0 text-right text-xs focus-visible:ring-0 focus-visible:ring-offset-0"
-														/>
+														{#if editingSA === item.id}
+															<Input
+																type="number"
+																min="0"
+																step="0.01"
+																bind:value={tempSAHours}
+																onkeydown={(e) => {
+																	if (e.key === 'Enter') (e.currentTarget as HTMLInputElement).blur();
+																	if (e.key === 'Escape') handleSACancel();
+																}}
+																onblur={() => handleSASave(item.id!)}
+																autofocus
+																class="font-mono-tabular h-7 border-0 p-0 text-right text-xs focus-visible:ring-0 focus-visible:ring-offset-0"
+															/>
+														{:else}
+															<button
+																onclick={() => handleSAClick(item.id!, item.strip_assemble_hours ?? null)}
+																onfocus={() => handleSAClick(item.id!, item.strip_assemble_hours ?? null)}
+																class="font-mono-tabular w-full text-right text-xs font-medium hover:text-foreground/70"
+																title="Click or Tab to edit S&A hours"
+															>
+																{formatCurrencyValue(item.strip_assemble ?? 0)}
+															</button>
+														{/if}
 													{:else}
 														<span class="text-xs text-muted-foreground">-</span>
 													{/if}
@@ -1465,22 +1452,30 @@
 														Lab
 													</div>
 													{#if ['N', 'R', 'A'].includes(item.process_type)}
-														<Input
-															type="text"
-															inputmode="decimal"
-															value={String(item.labour_hours ?? '')}
-															onfocus={(e) => { originalCostValue = (e.currentTarget as HTMLInputElement).value; (e.currentTarget as HTMLInputElement).select(); }}
-															onblur={(e) => commitLabour(item.id!, parseLocaleNumber((e.currentTarget as HTMLInputElement).value))}
-															onkeydown={(e) => {
-																if (e.key === 'Enter') (e.currentTarget as HTMLInputElement).blur();
-																if (e.key === 'Escape') {
-																	(e.currentTarget as HTMLInputElement).value = originalCostValue;
-																	(e.currentTarget as HTMLInputElement).blur();
-																}
-															}}
-															placeholder="0"
-															class="font-mono-tabular h-7 border-0 p-0 text-right text-xs focus-visible:ring-0 focus-visible:ring-offset-0"
-														/>
+														{#if editingLabour === item.id}
+															<Input
+																type="number"
+																min="0"
+																step="0.01"
+																bind:value={tempLabourHours}
+																onkeydown={(e) => {
+																	if (e.key === 'Enter') (e.currentTarget as HTMLInputElement).blur();
+																	if (e.key === 'Escape') handleLabourCancel();
+																}}
+																onblur={() => handleLabourSave(item.id!)}
+																autofocus
+																class="font-mono-tabular h-7 border-0 p-0 text-right text-xs focus-visible:ring-0 focus-visible:ring-offset-0"
+															/>
+														{:else}
+															<button
+																onclick={() => handleLabourClick(item.id!, item.labour_hours ?? null)}
+																onfocus={() => handleLabourClick(item.id!, item.labour_hours ?? null)}
+																class="font-mono-tabular w-full text-right text-xs font-medium hover:text-foreground/70"
+																title="Click or Tab to edit labour hours"
+															>
+																{formatCurrencyValue(item.labour_cost ?? 0)}
+															</button>
+														{/if}
 													{:else}
 														<span class="text-xs text-muted-foreground">-</span>
 													{/if}
@@ -1490,22 +1485,30 @@
 														Paint
 													</div>
 													{#if ['N', 'R', 'P', 'B'].includes(item.process_type)}
-														<Input
-															type="text"
-															inputmode="decimal"
-															value={String(item.paint_panels ?? '')}
-															onfocus={(e) => { originalCostValue = (e.currentTarget as HTMLInputElement).value; (e.currentTarget as HTMLInputElement).select(); }}
-															onblur={(e) => commitPaint(item.id!, parseLocaleNumber((e.currentTarget as HTMLInputElement).value))}
-															onkeydown={(e) => {
-																if (e.key === 'Enter') (e.currentTarget as HTMLInputElement).blur();
-																if (e.key === 'Escape') {
-																	(e.currentTarget as HTMLInputElement).value = originalCostValue;
-																	(e.currentTarget as HTMLInputElement).blur();
-																}
-															}}
-															placeholder="0"
-															class="font-mono-tabular h-7 border-0 p-0 text-right text-xs focus-visible:ring-0 focus-visible:ring-offset-0"
-														/>
+														{#if editingPaint === item.id}
+															<Input
+																type="number"
+																min="0"
+																step="0.01"
+																bind:value={tempPaintPanels}
+																onkeydown={(e) => {
+																	if (e.key === 'Enter') (e.currentTarget as HTMLInputElement).blur();
+																	if (e.key === 'Escape') handlePaintCancel();
+																}}
+																onblur={() => handlePaintSave(item.id!)}
+																autofocus
+																class="font-mono-tabular h-7 border-0 p-0 text-right text-xs focus-visible:ring-0 focus-visible:ring-offset-0"
+															/>
+														{:else}
+															<button
+																onclick={() => handlePaintClick(item.id!, item.paint_panels ?? null)}
+																onfocus={() => handlePaintClick(item.id!, item.paint_panels ?? null)}
+																class="font-mono-tabular w-full text-right text-xs font-medium hover:text-foreground/70"
+																title="Click or Tab to edit paint panels"
+															>
+																{formatCurrencyValue(item.paint_cost ?? 0)}
+															</button>
+														{/if}
 													{:else}
 														<span class="text-xs text-muted-foreground">-</span>
 													{/if}
@@ -1515,21 +1518,30 @@
 														Out
 													</div>
 													{#if item.process_type === 'O'}
-														<Input
-															type="text"
-															inputmode="decimal"
-															value={formatCurrencyValue(item.outwork_charge_nett ?? 0)}
-															onfocus={(e) => { originalCostValue = (e.currentTarget as HTMLInputElement).value; (e.currentTarget as HTMLInputElement).select(); }}
-															onblur={(e) => commitOutwork(item.id!, parseLocaleNumber((e.currentTarget as HTMLInputElement).value))}
-															onkeydown={(e) => {
-																if (e.key === 'Enter') (e.currentTarget as HTMLInputElement).blur();
-																if (e.key === 'Escape') {
-																	(e.currentTarget as HTMLInputElement).value = originalCostValue;
-																	(e.currentTarget as HTMLInputElement).blur();
-																}
-															}}
-															class="font-mono-tabular h-7 border-0 p-0 text-right text-xs focus-visible:ring-0 focus-visible:ring-offset-0"
-														/>
+														{#if editingOutwork === item.id}
+															<Input
+																type="number"
+																min="0"
+																step="0.01"
+																bind:value={tempOutworkNett}
+																onkeydown={(e) => {
+																	if (e.key === 'Enter') (e.currentTarget as HTMLInputElement).blur();
+																	if (e.key === 'Escape') handleOutworkCancel();
+																}}
+																onblur={() => handleOutworkSave(item.id!)}
+																autofocus
+																class="font-mono-tabular h-7 border-0 p-0 text-right text-xs focus-visible:ring-0 focus-visible:ring-offset-0"
+															/>
+														{:else}
+															<button
+																onclick={() => handleOutworkClick(item.id!, item.outwork_charge_nett ?? null)}
+																onfocus={() => handleOutworkClick(item.id!, item.outwork_charge_nett ?? null)}
+																class="font-mono-tabular w-full text-right text-xs font-medium hover:text-foreground/70"
+																title="Click or Tab to edit outwork nett"
+															>
+																{formatCurrencyValue(item.outwork_charge_nett ?? 0)}
+															</button>
+														{/if}
 													{:else}
 														<span class="text-xs text-muted-foreground">-</span>
 													{/if}
