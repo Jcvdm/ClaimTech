@@ -1283,7 +1283,7 @@
 										>Description</Table.Head
 									>
 									<Table.Head
-										class="w-[420px] px-2 text-[11.5px] font-medium tracking-wide text-muted-foreground uppercase"
+										class="w-[440px] px-2 text-[11.5px] font-medium tracking-wide text-muted-foreground uppercase"
 										>Costs</Table.Head
 									>
 									<Table.Head
@@ -1380,7 +1380,7 @@
 										</Table.Cell>
 
 										<Table.Cell class="px-2 py-2 align-top">
-											<div class="grid grid-cols-5 gap-1">
+											<div class="grid grid-cols-[112px_66px_66px_82px_98px] gap-1">
 												<div class="rounded-sm border bg-background px-1.5 py-1 text-right">
 													<div class="text-[10px] tracking-wide text-muted-foreground uppercase">
 														Part
@@ -1638,7 +1638,7 @@
 										></textarea></Table.Cell
 									>
 									<Table.Cell class="px-2 py-2 align-top">
-										<div class="grid grid-cols-5 gap-1">
+										<div class="grid grid-cols-[112px_66px_66px_82px_98px] gap-1">
 											<div class="rounded-sm border bg-background px-1.5 py-1 text-right">
 												<div class="text-[10px] tracking-wide text-muted-foreground uppercase">
 													Part
