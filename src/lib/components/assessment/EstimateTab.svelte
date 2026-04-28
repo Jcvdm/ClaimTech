@@ -51,6 +51,7 @@
 		calculateBetterment,
 		computeCategoryTotals
 	} from '$lib/utils/estimateCalculations';
+	import TotalsBreakdownDialog, { type BreakdownRow } from '$lib/components/assessment/TotalsBreakdownDialog.svelte';
 	import {
 		calculateEstimateThreshold,
 		getThresholdColorClasses,
@@ -822,6 +823,75 @@
 				excessAmount: excessAmount ?? 0
 			}
 		);
+	});
+
+	// Build breakdown rows for <TotalsBreakdownDialog>
+	const breakdownRows = $derived.by((): BreakdownRow[] => {
+		const totals = categoryTotals();
+		if (!totals) return [];
+		const rows: BreakdownRow[] = [
+			{ label: 'Parts Total', value: totals.partsTotal, border: 'bottom' },
+			{ label: 'Parts Markup', value: totals.partsMarkup, color: 'success', border: 'bottom' },
+			{ label: 'S&A Total', value: totals.saTotal, border: 'bottom' },
+			{ label: 'Labour Total', value: totals.labourTotal, border: 'bottom' },
+			{ label: 'Paint Total', value: totals.paintTotal, border: 'bottom' },
+			{ label: 'Outwork Total', value: totals.outworkTotal, border: 'bottom' },
+			{ label: 'Outwork Markup', value: totals.outworkMarkup, color: 'success', border: 'bottom' }
+		];
+		if (totals.bettermentTotal && totals.bettermentTotal > 0) {
+			rows.push({
+				label: 'Betterment Deduction',
+				value: `-${formatCurrency(totals.bettermentTotal)}`,
+				color: 'destructive',
+				emphasis: 'bold',
+				border: 'top'
+			});
+		}
+		rows.push({ label: 'Subtotal (Ex VAT)', value: totals.subtotalExVat, emphasis: 'subtotal' });
+		rows.push({
+			label: `Sundries (${Math.round((totals.sundriesPct ?? 1) * 100) / 100}%)`,
+			value: totals.sundriesAmount,
+			emphasis: 'subtotal'
+		});
+		rows.push({
+			label: `VAT (${totals.vatPercentage ?? 0}%)`,
+			value: totals.vatAmount,
+			emphasis: 'subtotal'
+		});
+		if (totals.excessAmount && totals.excessAmount > 0) {
+			rows.push({
+				label: 'Less: Excess',
+				value: `-${formatCurrency(totals.excessAmount)}`,
+				color: 'warning',
+				emphasis: 'subtotal'
+			});
+		}
+		// Map threshold color to BreakdownRow color token
+		const threshold = thresholdResult();
+		let totalIncColor: BreakdownRow['color'] = 'default';
+		if (threshold) {
+			totalIncColor =
+				threshold.color === 'red'
+					? 'destructive'
+					: threshold.color === 'orange' || threshold.color === 'yellow'
+						? 'warning'
+						: 'success';
+		}
+		rows.push({
+			label: 'Total (Inc VAT)',
+			value: totals.totalIncVat,
+			emphasis: 'total',
+			color: totalIncColor
+		});
+		if (totals.excessAmount && totals.excessAmount > 0) {
+			rows.push({
+				label: 'Net Amount Payable',
+				value: totals.netPayable,
+				color: 'success',
+				emphasis: 'total'
+			});
+		}
+		return rows;
 	});
 
 	// Check if estimate is complete
@@ -1787,191 +1857,36 @@
 			</div>
 
 			<!-- Totals Details Dialog -->
-			<ResponsiveDialog.Root bind:open={totalsDetailsOpen}>
-				<ResponsiveDialog.Content class="sm:max-w-2xl">
-					<ResponsiveDialog.Header>
-						<ResponsiveDialog.Title>Totals Breakdown</ResponsiveDialog.Title>
-						<ResponsiveDialog.Description>
-							Full breakdown including threshold check and assessment result.
-						</ResponsiveDialog.Description>
-					</ResponsiveDialog.Header>
-					{#if categoryTotals()}
-						{@const totals = categoryTotals()}
-						<div class="p-6">
-							<div class="space-y-2">
-								<!-- Category Totals -->
-								<div class="flex items-center justify-between py-2">
-									<span class="text-sm text-muted-foreground">Parts Total</span>
-									<span class="font-mono-tabular text-sm font-medium"
-										>{formatCurrency(totals?.partsTotal || 0)}</span
-									>
-								</div>
+			<TotalsBreakdownDialog
+				rows={breakdownRows}
+				title="Totals Breakdown"
+				description="Full breakdown including threshold check and assessment result."
+				bind:open={totalsDetailsOpen}
+				onOpenChange={(open) => (totalsDetailsOpen = open)}
+			/>
 
-								<div class="flex items-center justify-between py-2">
-									<span class="text-sm text-muted-foreground">Parts Markup</span>
-									<span class="font-mono-tabular text-sm font-medium text-green-600"
-										>{formatCurrency(totals?.partsMarkup || 0)}</span
-									>
-								</div>
-
-								<div class="flex items-center justify-between py-2">
-									<span class="text-sm text-muted-foreground">S&A Total</span>
-									<span class="font-mono-tabular text-sm font-medium"
-										>{formatCurrency(totals?.saTotal || 0)}</span
-									>
-								</div>
-
-								<div class="flex items-center justify-between py-2">
-									<span class="text-sm text-muted-foreground">Labour Total</span>
-									<span class="font-mono-tabular text-sm font-medium"
-										>{formatCurrency(totals?.labourTotal || 0)}</span
-									>
-								</div>
-
-								<div class="flex items-center justify-between py-2">
-									<span class="text-sm text-muted-foreground">Paint Total</span>
-									<span class="font-mono-tabular text-sm font-medium"
-										>{formatCurrency(totals?.paintTotal || 0)}</span
-									>
-								</div>
-
-								<div class="flex items-center justify-between py-2">
-									<span class="text-sm text-muted-foreground">Outwork Total</span>
-									<span class="font-mono-tabular text-sm font-medium"
-										>{formatCurrency(totals?.outworkTotal || 0)}</span
-									>
-								</div>
-
-								<div class="flex items-center justify-between border-b py-2">
-									<span class="text-sm text-muted-foreground">Outwork Markup</span>
-									<span class="font-mono-tabular text-sm font-medium text-green-600"
-										>{formatCurrency(totals?.outworkMarkup || 0)}</span
-									>
-								</div>
-
-								<!-- Betterment Deduction (NEW) -->
-								{#if totals?.bettermentTotal && totals.bettermentTotal > 0}
-									<div class="flex items-center justify-between border-t border-gray-200 py-2">
-										<span class="text-sm font-medium text-gray-900">Betterment Deduction</span>
-										<span class="font-mono-tabular text-sm font-bold text-red-600">
-											-{formatCurrency(totals.bettermentTotal)}
-										</span>
-									</div>
-								{/if}
-
-								<!-- Subtotal -->
-								<div class="flex items-center justify-between border-b-2 py-2">
-									<span class="text-base font-semibold text-gray-700">Subtotal (Ex VAT)</span>
-									<span class="font-mono-tabular text-lg font-semibold"
-										>{formatCurrency(totals?.subtotalExVat || 0)}</span
-									>
-								</div>
-
-								<div class="flex items-center justify-between border-b-2 py-2">
-									<span class="text-base font-semibold text-gray-700"
-										>Sundries ({Math.round((totals?.sundriesPct ?? 1) * 100) / 100}%)</span
-									>
-									<span class="font-mono-tabular text-lg font-semibold"
-										>{formatCurrency(totals?.sundriesAmount || 0)}</span
-									>
-								</div>
-
-								<!-- VAT -->
-								<div class="flex items-center justify-between border-b-2 py-2">
-									<span class="text-base font-semibold text-gray-700"
-										>VAT ({totals?.vatPercentage ?? 0}%)</span
-									>
-									<span class="font-mono-tabular text-lg font-semibold"
-										>{formatCurrency(totals?.vatAmount || 0)}</span
-									>
-								</div>
-
-								<!-- Excess Amount (if applicable) -->
-								{#if totals?.excessAmount && totals.excessAmount > 0}
-									<div class="flex items-center justify-between border-b-2 py-2">
-										<span class="text-base font-semibold text-orange-700">Less: Excess</span>
-										<span class="font-mono-tabular text-lg font-semibold text-orange-600"
-											>-{formatCurrency(totals.excessAmount)}</span
-										>
-									</div>
-								{/if}
-
-								<!-- Total with Color Coding -->
-								{#if thresholdResult()}
-									{@const threshold = thresholdResult()!}
-									{@const colorClasses = getThresholdColorClasses(threshold.color)}
-									<div class="space-y-3 pt-3">
-										<div class="flex items-center justify-between">
-											<span class="text-lg font-bold text-gray-900">Total (Inc VAT)</span>
-											<span
-												class="font-mono-tabular text-2xl font-bold {threshold.color === 'red'
-													? 'text-red-600'
-													: threshold.color === 'orange'
-														? 'text-orange-600'
-														: threshold.color === 'yellow'
-															? 'text-yellow-600'
-															: threshold.color === 'green'
-																? 'text-green-600'
-																: 'text-blue-600'}"
-											>
-												{formatCurrency(totals?.totalIncVat || 0)}
-											</span>
-										</div>
-
-										<!-- Threshold Warning/Info -->
-										{#if threshold.message}
-											<div class="rounded-md border-2 p-3 {colorClasses.bg} {colorClasses.border}">
-												<div class="flex items-start gap-2">
-													{#if threshold.showWarning}
-														<CircleAlert class="mt-0.5 h-5 w-5 flex-shrink-0 {colorClasses.text}" />
-													{:else}
-														<Info class="mt-0.5 h-5 w-5 flex-shrink-0 {colorClasses.text}" />
-													{/if}
-													<div class="flex-1">
-														<p class="text-sm font-medium {colorClasses.text}">
-															{threshold.message}
-														</p>
-														{#if vehicleValues?.borderline_writeoff_retail}
-															<p class="mt-1 text-xs {colorClasses.text}">
-																Retail Borderline: {formatCurrency(
-																	vehicleValues.borderline_writeoff_retail
-																)}
-															</p>
-														{/if}
-													</div>
-												</div>
-											</div>
-										{/if}
-									</div>
-								{:else}
-									<!-- Fallback if no threshold data -->
-									<div class="flex items-center justify-between pt-3">
-										<span class="text-lg font-bold text-gray-900">Total (Inc VAT)</span>
-										<span class="font-mono-tabular text-2xl font-bold text-blue-600"
-											>{formatCurrency(totals?.totalIncVat || 0)}</span
-										>
-									</div>
-								{/if}
-
-								<!-- Net Payable (after excess deduction) -->
-								{#if totals?.excessAmount && totals.excessAmount > 0}
-									<div
-										class="mt-2 flex items-center justify-between border-t-2 border-green-200 pt-3"
-									>
-										<span class="text-lg font-bold text-green-800">Net Amount Payable</span>
-										<span class="font-mono-tabular text-2xl font-bold text-green-600"
-											>{formatCurrency(totals.netPayable)}</span
-										>
-									</div>
-									<p class="mt-1 text-xs text-muted-foreground">
-										After excess deduction of {formatCurrency(totals.excessAmount)}
-									</p>
-								{/if}
-							</div>
+			<!-- Threshold message banner (moved outside dialog — Option A) -->
+			{#if thresholdResult()?.message}
+				{@const threshold = thresholdResult()!}
+				{@const colorClasses = getThresholdColorClasses(threshold.color)}
+				<div class="rounded-md border-2 p-3 {colorClasses.bg} {colorClasses.border}">
+					<div class="flex items-start gap-2">
+						{#if threshold.showWarning}
+							<CircleAlert class="mt-0.5 h-5 w-5 flex-shrink-0 {colorClasses.text}" />
+						{:else}
+							<Info class="mt-0.5 h-5 w-5 flex-shrink-0 {colorClasses.text}" />
+						{/if}
+						<div class="flex-1">
+							<p class="text-sm font-medium {colorClasses.text}">{threshold.message}</p>
+							{#if vehicleValues?.borderline_writeoff_retail}
+								<p class="mt-1 text-xs {colorClasses.text}">
+									Retail Borderline: {formatCurrency(vehicleValues.borderline_writeoff_retail)}
+								</p>
+							{/if}
 						</div>
-					{/if}
-				</ResponsiveDialog.Content>
-			</ResponsiveDialog.Root>
+					</div>
+				</div>
+			{/if}
 
 			<!-- Assessment Result Selector -->
 			<AssessmentResultSelector

@@ -30,6 +30,7 @@
 		createEmptyLineItem,
 		computeCategoryTotals
 	} from '$lib/utils/estimateCalculations';
+	import TotalsBreakdownDialog, { type BreakdownRow } from '$lib/components/assessment/TotalsBreakdownDialog.svelte';
 	import {
 		formatCurrency,
 		formatCurrencyValue,
@@ -699,6 +700,28 @@
 				excessAmount: 0 // PreIncident has no excess
 			}
 		);
+	});
+
+	// Build breakdown rows for <TotalsBreakdownDialog>
+	const breakdownRows = $derived.by((): BreakdownRow[] => {
+		const totals = categoryTotals();
+		if (!totals) return [];
+		return [
+			{ label: 'Parts Total', value: totals.partsTotal, border: 'bottom' },
+			{ label: 'Parts Markup', value: totals.partsMarkup, color: 'success', border: 'bottom' },
+			{ label: 'S&A Total', value: totals.saTotal, border: 'bottom' },
+			{ label: 'Labour Total', value: totals.labourTotal, border: 'bottom' },
+			{ label: 'Paint Total', value: totals.paintTotal, border: 'bottom' },
+			{ label: 'Outwork Total', value: totals.outworkTotal, border: 'bottom' },
+			{ label: 'Outwork Markup', value: totals.outworkMarkup, color: 'success', border: 'bottom' },
+			{ label: 'Subtotal', value: totals.subtotalExVat, emphasis: 'subtotal' },
+			{
+				label: `VAT (${localEstimate?.vat_percentage ?? 0}%)`,
+				value: totals.vatAmount,
+				emphasis: 'subtotal'
+			},
+			{ label: 'Total', value: totals.totalIncVat, emphasis: 'total' }
+		];
 	});
 
 	const validation = $derived.by(() => validatePreIncidentEstimate(localEstimate));
@@ -1460,59 +1483,13 @@
 			</div>
 		</div>
 
-		<ResponsiveDialog.Root bind:open={totalsDetailsOpen}>
-			<ResponsiveDialog.Content class="sm:max-w-2xl">
-				<ResponsiveDialog.Header>
-					<ResponsiveDialog.Title>Totals Breakdown</ResponsiveDialog.Title>
-					<ResponsiveDialog.Description>Derived from the local line items and rates.</ResponsiveDialog.Description>
-				</ResponsiveDialog.Header>
-				{#if categoryTotals()}
-					{@const totals = categoryTotals()}
-					<div class="space-y-2 p-6">
-						<div class="flex items-center justify-between border-b py-2">
-							<span class="text-sm text-muted-foreground">Parts Total</span>
-							<span class="font-mono-tabular text-sm font-medium">{formatCurrency(totals?.partsTotal || 0)}</span>
-						</div>
-						<div class="flex items-center justify-between border-b py-2">
-							<span class="text-sm text-muted-foreground">Parts Markup</span>
-							<span class="font-mono-tabular text-sm font-medium text-green-600">{formatCurrency(totals?.partsMarkup || 0)}</span>
-						</div>
-						<div class="flex items-center justify-between border-b py-2">
-							<span class="text-sm text-muted-foreground">S&A Total</span>
-							<span class="font-mono-tabular text-sm font-medium">{formatCurrency(totals?.saTotal || 0)}</span>
-						</div>
-						<div class="flex items-center justify-between border-b py-2">
-							<span class="text-sm text-muted-foreground">Labour Total</span>
-							<span class="font-mono-tabular text-sm font-medium">{formatCurrency(totals?.labourTotal || 0)}</span>
-						</div>
-						<div class="flex items-center justify-between border-b py-2">
-							<span class="text-sm text-muted-foreground">Paint Total</span>
-							<span class="font-mono-tabular text-sm font-medium">{formatCurrency(totals?.paintTotal || 0)}</span>
-						</div>
-						<div class="flex items-center justify-between border-b py-2">
-							<span class="text-sm text-muted-foreground">Outwork Total</span>
-							<span class="font-mono-tabular text-sm font-medium">{formatCurrency(totals?.outworkTotal || 0)}</span>
-						</div>
-						<div class="flex items-center justify-between border-b py-2">
-							<span class="text-sm text-muted-foreground">Outwork Markup</span>
-							<span class="font-mono-tabular text-sm font-medium text-green-600">{formatCurrency(totals?.outworkMarkup || 0)}</span>
-						</div>
-						<div class="flex items-center justify-between border-b py-2">
-							<span class="text-sm text-muted-foreground">Subtotal</span>
-							<span class="font-mono-tabular text-sm font-medium">{formatCurrency(totals?.subtotalExVat || 0)}</span>
-						</div>
-						<div class="flex items-center justify-between border-b py-2">
-							<span class="text-sm text-muted-foreground">VAT ({localEstimate.vat_percentage}%)</span>
-							<span class="font-mono-tabular text-sm font-medium">{formatCurrency(totals?.vatAmount || 0)}</span>
-						</div>
-						<div class="flex items-center justify-between py-2">
-							<span class="text-base font-semibold text-gray-900">Total</span>
-							<span class="font-mono-tabular text-lg font-bold">{formatCurrency(totals?.totalIncVat || 0)}</span>
-						</div>
-					</div>
-				{/if}
-			</ResponsiveDialog.Content>
-		</ResponsiveDialog.Root>
+		<TotalsBreakdownDialog
+			rows={breakdownRows}
+			title="Totals Breakdown"
+			description="Derived from the local line items and rates."
+			bind:open={totalsDetailsOpen}
+			onOpenChange={(open) => (totalsDetailsOpen = open)}
+		/>
 
 		<PreIncidentPhotosPanel
 			estimateId={localEstimate.id}
