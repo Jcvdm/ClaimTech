@@ -31,6 +31,7 @@
 		computeCategoryTotals
 	} from '$lib/utils/estimateCalculations';
 	import TotalsBreakdownDialog, { type BreakdownRow } from '$lib/components/assessment/TotalsBreakdownDialog.svelte';
+	import TotalsStrip, { type StripField } from '$lib/components/assessment/TotalsStrip.svelte';
 	import {
 		formatCurrency,
 		formatCurrencyValue,
@@ -721,6 +722,20 @@
 				emphasis: 'subtotal'
 			},
 			{ label: 'Total', value: totals.totalIncVat, emphasis: 'total' }
+		];
+	});
+
+	const stripFields = $derived.by((): StripField[] => {
+		const totals = categoryTotals();
+		if (!totals) return [];
+		return [
+			{ label: 'Parts', value: totals.partsTotal },
+			{ label: 'Markup', value: totals.markupTotal },
+			{ label: 'S&A', value: totals.saTotal },
+			{ label: 'Labour', value: totals.labourTotal },
+			{ label: 'Paint', value: totals.paintTotal },
+			{ label: 'Outwork', value: totals.outworkTotal },
+			{ label: 'VAT', value: totals.vatAmount }
 		];
 	});
 
@@ -1426,62 +1441,18 @@
 			</div>
 		</Card>
 
-		<div class="sticky bottom-0 z-20 -mx-2 mt-3 border-t border-border bg-card shadow-[0_-4px_12px_-6px_rgba(0,0,0,0.1)] sm:-mx-3">
-			<div class="px-3 py-2.5 sm:px-6">
-				<div class="flex flex-wrap items-center gap-x-5 gap-y-1.5 text-[13px]">
-					{#if categoryTotals()}
-						{@const totals = categoryTotals()}
-						<span class="flex items-center gap-1.5">
-							<span class="text-[10.5px] font-semibold uppercase tracking-wide text-muted-foreground">Parts</span>
-							<span class="font-mono-tabular">{formatCurrency(totals?.partsTotal || 0)}</span>
-						</span>
-						<span class="flex items-center gap-1.5">
-							<span class="text-[10.5px] font-semibold uppercase tracking-wide text-muted-foreground">Markup</span>
-							<span class="font-mono-tabular">{formatCurrency(totals?.markupTotal || 0)}</span>
-						</span>
-						<span class="flex items-center gap-1.5">
-							<span class="text-[10.5px] font-semibold uppercase tracking-wide text-muted-foreground">S&A</span>
-							<span class="font-mono-tabular">{formatCurrency(totals?.saTotal || 0)}</span>
-						</span>
-						<span class="flex items-center gap-1.5">
-							<span class="text-[10.5px] font-semibold uppercase tracking-wide text-muted-foreground">Labour</span>
-							<span class="font-mono-tabular">{formatCurrency(totals?.labourTotal || 0)}</span>
-						</span>
-						<span class="flex items-center gap-1.5">
-							<span class="text-[10.5px] font-semibold uppercase tracking-wide text-muted-foreground">Paint</span>
-							<span class="font-mono-tabular">{formatCurrency(totals?.paintTotal || 0)}</span>
-						</span>
-						<span class="flex items-center gap-1.5">
-							<span class="text-[10.5px] font-semibold uppercase tracking-wide text-muted-foreground">Outwork</span>
-							<span class="font-mono-tabular">{formatCurrency(totals?.outworkTotal || 0)}</span>
-						</span>
-						<span class="flex items-center gap-1.5">
-							<span class="text-[10.5px] font-semibold uppercase tracking-wide text-muted-foreground">VAT</span>
-							<span class="font-mono-tabular">{formatCurrency(totals?.vatAmount || 0)}</span>
-						</span>
-						<span class="ml-auto flex items-center gap-3">
-							<span class="flex items-center gap-2">
-								<span class="text-[10.5px] font-semibold uppercase tracking-wide text-muted-foreground">Total</span>
-								<span class="font-mono-tabular text-base font-bold">{formatCurrency(totals?.totalIncVat || 0)}</span>
-							</span>
-							<Button size="sm" variant="outline" onclick={() => (totalsDetailsOpen = true)}>
-								Details
-							</Button>
-						</span>
-					{/if}
-					<div class="flex items-center gap-2">
-						<SaveIndicator {saving} saved={justSaved} />
-						<Button onclick={saveNow} size="sm" variant="outline" disabled={!dirty || saving}>
-							Save Progress
-						</Button>
-						<Button onclick={handleCompleteClick} size="sm" disabled={!validation.isComplete || saving}>
-							<Check class="mr-2 h-4 w-4" />
-							Complete Pre-Incident Estimate
-						</Button>
-					</div>
-				</div>
-			</div>
-		</div>
+		<TotalsStrip
+			fields={stripFields}
+			totalValue={categoryTotals()?.totalIncVat}
+			onDetailsClick={() => (totalsDetailsOpen = true)}
+			{saving}
+			saved={justSaved}
+			onSaveClick={saveNow}
+			saveDisabled={!dirty || saving}
+			onCompleteClick={handleCompleteClick}
+			completeDisabled={!validation.isComplete || saving}
+			completeLabel="Complete Pre-Incident Estimate"
+		/>
 
 		<TotalsBreakdownDialog
 			rows={breakdownRows}

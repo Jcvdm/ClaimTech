@@ -52,6 +52,7 @@
 		computeCategoryTotals
 	} from '$lib/utils/estimateCalculations';
 	import TotalsBreakdownDialog, { type BreakdownRow } from '$lib/components/assessment/TotalsBreakdownDialog.svelte';
+	import TotalsStrip, { type StripField } from '$lib/components/assessment/TotalsStrip.svelte';
 	import {
 		calculateEstimateThreshold,
 		getThresholdColorClasses,
@@ -892,6 +893,20 @@
 			});
 		}
 		return rows;
+	});
+
+	const stripFields = $derived.by((): StripField[] => {
+		const totals = categoryTotals();
+		if (!totals) return [];
+		return [
+			{ label: 'Parts', value: totals.partsTotal },
+			{ label: 'Markup', value: totals.markupTotal },
+			{ label: 'S&A', value: totals.saTotal },
+			{ label: 'Labour', value: totals.labourTotal },
+			{ label: 'Paint', value: totals.paintTotal },
+			{ label: 'Outwork', value: totals.outworkTotal },
+			{ label: 'VAT', value: totals.vatAmount }
+		];
 	});
 
 	// Check if estimate is complete
@@ -1807,54 +1822,12 @@
 
 			<!-- Bottom-sticky compact totals strip -->
 
-			<div class="sticky bottom-0 z-20 -mx-2 sm:-mx-3 mt-3 border-t border-border bg-card shadow-[0_-4px_12px_-6px_rgba(0,0,0,0.1)]">
-				<div class="px-3 sm:px-6 py-2.5">
-					<div class="flex flex-wrap items-center gap-x-5 gap-y-1.5 text-[13px]">
-						{#if categoryTotals()}
-							{@const totals = categoryTotals()}
-							<span class="flex items-center gap-1.5">
-								<span class="text-muted-foreground uppercase text-[10.5px] font-semibold tracking-wide">Parts</span>
-								<span class="font-mono-tabular">{formatCurrency(totals?.partsTotal || 0)}</span>
-							</span>
-							<span class="flex items-center gap-1.5">
-								<span class="text-muted-foreground uppercase text-[10.5px] font-semibold tracking-wide">Markup</span>
-								<span class="font-mono-tabular">{formatCurrency(totals?.markupTotal || 0)}</span>
-							</span>
-							<span class="flex items-center gap-1.5">
-								<span class="text-muted-foreground uppercase text-[10.5px] font-semibold tracking-wide">S&A</span>
-								<span class="font-mono-tabular">{formatCurrency(totals?.saTotal || 0)}</span>
-							</span>
-							<span class="flex items-center gap-1.5">
-								<span class="text-muted-foreground uppercase text-[10.5px] font-semibold tracking-wide">Labour</span>
-								<span class="font-mono-tabular">{formatCurrency(totals?.labourTotal || 0)}</span>
-							</span>
-							<span class="flex items-center gap-1.5">
-								<span class="text-muted-foreground uppercase text-[10.5px] font-semibold tracking-wide">Paint</span>
-								<span class="font-mono-tabular">{formatCurrency(totals?.paintTotal || 0)}</span>
-							</span>
-							<span class="flex items-center gap-1.5">
-								<span class="text-muted-foreground uppercase text-[10.5px] font-semibold tracking-wide">Outwork</span>
-								<span class="font-mono-tabular">{formatCurrency(totals?.outworkTotal || 0)}</span>
-							</span>
-							<span class="flex items-center gap-1.5">
-								<span class="text-muted-foreground uppercase text-[10.5px] font-semibold tracking-wide">VAT</span>
-								<span class="font-mono-tabular">{formatCurrency(totals?.vatAmount || 0)}</span>
-							</span>
-
-							<span class="ml-auto flex items-center gap-3">
-								<span class="flex items-center gap-2">
-									<span class="text-muted-foreground uppercase text-[10.5px] font-semibold tracking-wide">Total</span>
-									<span class="font-mono-tabular text-base font-bold {thresholdColorClass}">{formatCurrency(totals?.totalIncVat || 0)}</span>
-								</span>
-								<Button size="sm" variant="outline" onclick={() => (totalsDetailsOpen = true)}>
-									<Info class="h-3.5 w-3.5 mr-1.5" />
-									Details
-								</Button>
-							</span>
-						{/if}
-					</div>
-				</div>
-			</div>
+			<TotalsStrip
+				fields={stripFields}
+				totalValue={categoryTotals()?.totalIncVat}
+				totalColorClass={thresholdColorClass}
+				onDetailsClick={() => (totalsDetailsOpen = true)}
+			/>
 
 			<!-- Totals Details Dialog -->
 			<TotalsBreakdownDialog
