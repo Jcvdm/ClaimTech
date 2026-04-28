@@ -276,6 +276,145 @@ export function createEmptyLineItem(processType: ProcessType): Partial<EstimateL
 	};
 }
 
+// ---------------------------------------------------------------------------
+// computeCategoryTotals — single source of truth for per-category totals
+// ---------------------------------------------------------------------------
+
+export interface CategoryTotalsRates {
+	labour_rate: number;
+	paint_rate: number;
+	oem_markup_percentage: number;
+	alt_markup_percentage: number;
+	second_hand_markup_percentage: number;
+	outwork_markup_percentage: number;
+	vat_percentage: number;
+	sundries_percentage?: number; // defaults to 0 if undefined
+}
+
+export interface CategoryTotalsOptions {
+	/**
+	 * Whether to include betterment_total deduction in subtotal.
+	 * EstimateTab=true, PreIncident=false. Default false.
+	 */
+	includeBetterment?: boolean;
+	/** Excess amount to subtract from totalIncVat for netPayable. Default 0. */
+	excessAmount?: number;
+}
+
+export interface CategoryTotalsResult {
+	partsTotal: number; // = partsNett (NETT, no markup)
+	partsMarkup: number; // aggregate parts markup (per-item: nett × per-type markup%)
+	saTotal: number;
+	labourTotal: number;
+	paintTotal: number;
+	outworkTotal: number; // = outworkNett (NETT, no markup)
+	outworkMarkup: number; // aggregate outwork markup (outworkNett × outwork_markup%)
+	markupTotal: number; // partsMarkup + outworkMarkup
+	bettermentTotal: number; // 0 if includeBetterment=false
+	subtotalExVat: number; // partsNett + saTotal + labourTotal + paintTotal + outworkNett + markupTotal - bettermentTotal
+	sundriesAmount: number;
+	sundriesPct: number; // the percentage actually applied
+	vatPercentage: number;
+	vatAmount: number;
+	totalIncVat: number;
+	excessAmount: number;
+	netPayable: number; // totalIncVat - excessAmount
+}
+
+/**
+ * Compute aggregate category totals for an estimate's line items.
+ * Single source of truth for the per-category math used by EstimateTab and
+ * PreIncidentEstimateTab. AdditionalsTab uses a different totals shape.
+ *
+ * Math semantics (matches the legacy categoryTotals derived in EstimateTab):
+ * - Row totals stay NETT (no markup baked in)
+ * - Markup is aggregated at the category level: partsMarkup = sum(per-item nett × per-type markup%);
+ *   outworkMarkup = outworkNett × outwork_markup%
+ * - subtotalExVat includes both partsNett+outworkNett AND markupTotal (so the markup
+ *   gets added once at the aggregate; row totals do not double-count)
+ */
+export function computeCategoryTotals(
+	lineItems: EstimateLineItem[],
+	rates: CategoryTotalsRates,
+	options: CategoryTotalsOptions = {}
+): CategoryTotalsResult {
+	const includeBetterment = options.includeBetterment ?? false;
+	const excess = options.excessAmount ?? 0;
+	const sundriesPct = rates.sundries_percentage ?? 0;
+
+	// Parts nett (type N only)
+	const partsNett = lineItems
+		.filter((i) => i.process_type === 'N')
+		.reduce((sum, i) => sum + (i.part_price_nett || 0), 0);
+
+	// Labour components
+	const saTotal = lineItems.reduce((sum, i) => sum + (i.strip_assemble || 0), 0);
+	const labourTotal = lineItems.reduce((sum, i) => sum + (i.labour_cost || 0), 0);
+	const paintTotal = lineItems.reduce((sum, i) => sum + (i.paint_cost || 0), 0);
+
+	// Outwork nett (type O only)
+	const outworkNett = lineItems
+		.filter((i) => i.process_type === 'O')
+		.reduce((sum, i) => sum + (i.outwork_charge_nett || 0), 0);
+
+	// Betterment deduction (only when requested)
+	const bettermentTotal = includeBetterment
+		? lineItems.reduce((sum, i) => sum + (i.betterment_total || 0), 0)
+		: 0;
+
+	// Aggregate parts markup — per-item: nett × per-type markup%
+	let partsMarkup = 0;
+	for (const i of lineItems) {
+		if (i.process_type === 'N') {
+			const nett = i.part_price_nett || 0;
+			let m = 0;
+			if (i.part_type === 'OEM') m = rates.oem_markup_percentage;
+			else if (i.part_type === 'ALT') m = rates.alt_markup_percentage;
+			else if (i.part_type === '2ND') m = rates.second_hand_markup_percentage;
+			partsMarkup += nett * (m / 100);
+		}
+	}
+
+	// Aggregate outwork markup — applied on total outwork nett
+	const outworkMarkup = outworkNett * (rates.outwork_markup_percentage / 100);
+	const markupTotal = partsMarkup + outworkMarkup;
+
+	// Subtotal ex-VAT (includes markup, deducts betterment)
+	const subtotalExVat =
+		partsNett + saTotal + labourTotal + paintTotal + outworkNett + markupTotal - bettermentTotal;
+
+	// Sundries
+	const sundriesAmount = subtotalExVat * (sundriesPct / 100);
+
+	// VAT on (subtotalExVat + sundries)
+	const vatPercentage = rates.vat_percentage || 0;
+	const vatAmount = (subtotalExVat + sundriesAmount) * (vatPercentage / 100);
+
+	// Final totals
+	const totalIncVat = subtotalExVat + sundriesAmount + vatAmount;
+	const netPayable = totalIncVat - excess;
+
+	return {
+		partsTotal: partsNett,
+		partsMarkup,
+		saTotal,
+		labourTotal,
+		paintTotal,
+		outworkTotal: outworkNett,
+		outworkMarkup,
+		markupTotal,
+		bettermentTotal,
+		subtotalExVat,
+		sundriesAmount,
+		sundriesPct,
+		vatPercentage,
+		vatAmount,
+		totalIncVat,
+		excessAmount: excess,
+		netPayable
+	};
+}
+
 /**
  * Format process type label for display
  */
