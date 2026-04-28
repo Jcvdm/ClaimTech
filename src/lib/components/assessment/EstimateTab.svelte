@@ -62,6 +62,7 @@
 	import { generatePartsListText } from '$lib/utils/csv-generator';
 	import * as Dialog from '$lib/components/ui/dialog';
 	import * as ResponsiveDialog from '$lib/components/ui/responsive-dialog';
+	import { SaveIndicator } from '$lib/components/ui/save-indicator';
 
 	interface Props {
 		estimate: Estimate | null;
@@ -146,6 +147,8 @@
 	let saving = $state(false);
 	let saveInFlight = $state(false); // Track when save is happening to prevent race conditions
 	let recalculating = $state(false);
+	let justSaved = $state(false);
+	let justSavedTimeout: number | null = null;
 	let quickAddOpen = $state(false);
 	let ratesOpen = $state(false);
 	let totalsDetailsOpen = $state(false);
@@ -229,6 +232,12 @@
 				assessment_result: localEstimate.assessment_result
 			});
 			dirty = false;
+			justSaved = true;
+			if (justSavedTimeout) clearTimeout(justSavedTimeout);
+			justSavedTimeout = window.setTimeout(() => {
+				justSaved = false;
+				justSavedTimeout = null;
+			}, 2000);
 			console.log('[EstimateTab] Save successful');
 		} catch (error) {
 			console.error('[EstimateTab] Save failed:', error);
@@ -951,11 +960,15 @@
 		if (saveTimeout) {
 			clearTimeout(saveTimeout);
 		}
+		if (justSavedTimeout) {
+			clearTimeout(justSavedTimeout);
+			justSavedTimeout = null;
+		}
 	});
 </script>
 
 <div class="relative" aria-busy={recalculating || saving}>
-	<div class={recalculating || saving ? 'pointer-events-none space-y-6 blur-sm' : 'space-y-6'}>
+	<div class={recalculating ? 'pointer-events-none space-y-6 blur-sm' : 'space-y-6'}>
 		<!-- Warning Banner -->
 
 		<RequiredFieldsWarning missingFields={validation.missingFields} />
@@ -1090,6 +1103,7 @@
 									Unsaved
 								</span>
 							{/if}
+							<SaveIndicator {saving} saved={justSaved} class="ml-2" />
 						</h3>
 						<div class="flex flex-wrap gap-2">
 							{#if dirty}
@@ -1980,15 +1994,13 @@
 			</div>
 		{/if}
 	</div>
-	{#if recalculating || saving}
+	{#if recalculating}
 		<div
 			class="absolute inset-0 z-50 flex items-center justify-center bg-white/40 backdrop-blur-sm"
 		>
 			<div class="flex items-center gap-3 rounded-lg border bg-white px-4 py-3 shadow">
 				<RefreshCw class="h-6 w-6 animate-spin text-muted-foreground" />
-				<span class="text-sm font-medium text-gray-700"
-					>{saving ? 'Saving…' : 'Recalculating…'}</span
-				>
+				<span class="text-sm font-medium text-gray-700">Recalculating…</span>
 			</div>
 		</div>
 	{/if}
