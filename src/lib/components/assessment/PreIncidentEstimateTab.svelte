@@ -27,7 +27,8 @@
 		calculateLabourCost,
 		calculatePaintCost,
 		calculateOutworkSellingPrice,
-		createEmptyLineItem
+		createEmptyLineItem,
+		computeCategoryTotals
 	} from '$lib/utils/estimateCalculations';
 	import {
 		formatCurrency,
@@ -175,9 +176,9 @@
 				alt_markup_percentage: localEstimate.alt_markup_percentage,
 				second_hand_markup_percentage: localEstimate.second_hand_markup_percentage,
 				outwork_markup_percentage: localEstimate.outwork_markup_percentage,
-				subtotal: totals?.subtotal ?? 0,
+				subtotal: totals?.subtotalExVat ?? 0,
 				vat_amount: totals?.vatAmount ?? 0,
-				total: totals?.total ?? 0
+				total: totals?.totalIncVat ?? 0
 			});
 			if (dirtyRevision === revisionAtStart) {
 				dirty = false;
@@ -681,47 +682,23 @@
 
 	const categoryTotals = $derived(() => {
 		if (!localEstimate) return null;
-
-		const estimateForTotals = localEstimate;
-		const lineItems = localLineItems();
-
-		const partsTotal = lineItems
-			.filter((item) => item.process_type === 'N')
-			.reduce((sum, item) => sum + (item.part_price_nett || 0), 0);
-		const saTotal = lineItems.reduce((sum, item) => sum + (item.strip_assemble || 0), 0);
-		const labourTotal = lineItems.reduce((sum, item) => sum + (item.labour_cost || 0), 0);
-		const paintTotal = lineItems.reduce((sum, item) => sum + (item.paint_cost || 0), 0);
-		const outworkTotal = lineItems
-			.filter((item) => item.process_type === 'O')
-			.reduce((sum, item) => sum + (item.outwork_charge_nett || 0), 0);
-		const partsMarkup = lineItems.reduce((sum, item) => {
-			if (item.process_type !== 'N') return sum;
-			const nett = item.part_price_nett || 0;
-			const markupPercentage = getPartMarkup(item.part_type);
-			return sum + (calculatePartSellingPrice(nett, markupPercentage) - nett);
-		}, 0);
-		const outworkMarkup = lineItems.reduce((sum, item) => {
-			if (item.process_type !== 'O') return sum;
-			const nett = item.outwork_charge_nett || 0;
-			return sum + (calculateOutworkSellingPrice(nett, estimateForTotals.outwork_markup_percentage) - nett);
-		}, 0);
-		const markupTotal = partsMarkup + outworkMarkup;
-		const bettermentTotal = lineItems.reduce((sum, item) => sum + (item.betterment_total || 0), 0);
-		const subtotal = partsTotal + saTotal + labourTotal + paintTotal + outworkTotal + markupTotal - bettermentTotal;
-		const vatAmount = Number(((subtotal * (estimateForTotals.vat_percentage || 0)) / 100).toFixed(2));
-		const total = Number((subtotal + vatAmount).toFixed(2));
-
-		return {
-			partsTotal,
-			saTotal,
-			labourTotal,
-			paintTotal,
-			outworkTotal,
-			markupTotal,
-			subtotal,
-			vatAmount,
-			total
-		};
+		return computeCategoryTotals(
+			localLineItems(),
+			{
+				labour_rate: localEstimate.labour_rate ?? 0,
+				paint_rate: localEstimate.paint_rate ?? 0,
+				oem_markup_percentage: localEstimate.oem_markup_percentage ?? 0,
+				alt_markup_percentage: localEstimate.alt_markup_percentage ?? 0,
+				second_hand_markup_percentage: localEstimate.second_hand_markup_percentage ?? 0,
+				outwork_markup_percentage: localEstimate.outwork_markup_percentage ?? 0,
+				vat_percentage: localEstimate.vat_percentage ?? 0,
+				sundries_percentage: 0 // PreIncident has no sundries
+			},
+			{
+				includeBetterment: false, // PreIncident has no betterment
+				excessAmount: 0 // PreIncident has no excess
+			}
+		);
 	});
 
 	const validation = $derived.by(() => validatePreIncidentEstimate(localEstimate));
@@ -999,7 +976,7 @@
 
 							<div class="flex items-center justify-between gap-3">
 								<div class="text-sm font-mono-tabular text-muted-foreground">
-									{formatCurrencyValue(categoryTotals()?.subtotal ?? 0)}
+									{formatCurrencyValue(categoryTotals()?.subtotalExVat ?? 0)}
 								</div>
 								<Button onclick={handleAddSkeletonLine} size="sm">
 									<Plus class="mr-2 h-4 w-4" />
@@ -1410,7 +1387,7 @@
 
 										<div class="flex items-center justify-between gap-3">
 											<div class="text-sm font-mono-tabular text-muted-foreground">
-												{formatCurrencyValue(categoryTotals()?.subtotal ?? 0)}
+												{formatCurrencyValue(categoryTotals()?.subtotalExVat ?? 0)}
 											</div>
 											<Button onclick={handleAddSkeletonLine} size="sm">
 												<Plus class="mr-2 h-4 w-4" />
@@ -1462,7 +1439,7 @@
 						<span class="ml-auto flex items-center gap-3">
 							<span class="flex items-center gap-2">
 								<span class="text-[10.5px] font-semibold uppercase tracking-wide text-muted-foreground">Total</span>
-								<span class="font-mono-tabular text-base font-bold">{formatCurrency(totals?.total || 0)}</span>
+								<span class="font-mono-tabular text-base font-bold">{formatCurrency(totals?.totalIncVat || 0)}</span>
 							</span>
 							<Button size="sm" variant="outline" onclick={() => (totalsDetailsOpen = true)}>
 								Details
@@ -1497,8 +1474,8 @@
 							<span class="font-mono-tabular text-sm font-medium">{formatCurrency(totals?.partsTotal || 0)}</span>
 						</div>
 						<div class="flex items-center justify-between border-b py-2">
-							<span class="text-sm text-muted-foreground">Markup Total</span>
-							<span class="font-mono-tabular text-sm font-medium">{formatCurrency(totals?.markupTotal || 0)}</span>
+							<span class="text-sm text-muted-foreground">Parts Markup</span>
+							<span class="font-mono-tabular text-sm font-medium text-green-600">{formatCurrency(totals?.partsMarkup || 0)}</span>
 						</div>
 						<div class="flex items-center justify-between border-b py-2">
 							<span class="text-sm text-muted-foreground">S&A Total</span>
@@ -1517,8 +1494,12 @@
 							<span class="font-mono-tabular text-sm font-medium">{formatCurrency(totals?.outworkTotal || 0)}</span>
 						</div>
 						<div class="flex items-center justify-between border-b py-2">
+							<span class="text-sm text-muted-foreground">Outwork Markup</span>
+							<span class="font-mono-tabular text-sm font-medium text-green-600">{formatCurrency(totals?.outworkMarkup || 0)}</span>
+						</div>
+						<div class="flex items-center justify-between border-b py-2">
 							<span class="text-sm text-muted-foreground">Subtotal</span>
-							<span class="font-mono-tabular text-sm font-medium">{formatCurrency(totals?.subtotal || 0)}</span>
+							<span class="font-mono-tabular text-sm font-medium">{formatCurrency(totals?.subtotalExVat || 0)}</span>
 						</div>
 						<div class="flex items-center justify-between border-b py-2">
 							<span class="text-sm text-muted-foreground">VAT ({localEstimate.vat_percentage}%)</span>
@@ -1526,7 +1507,7 @@
 						</div>
 						<div class="flex items-center justify-between py-2">
 							<span class="text-base font-semibold text-gray-900">Total</span>
-							<span class="font-mono-tabular text-lg font-bold">{formatCurrency(totals?.total || 0)}</span>
+							<span class="font-mono-tabular text-lg font-bold">{formatCurrency(totals?.totalIncVat || 0)}</span>
 						</div>
 					</div>
 				{/if}
