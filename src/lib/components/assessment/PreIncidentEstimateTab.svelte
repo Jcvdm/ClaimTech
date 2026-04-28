@@ -1,22 +1,39 @@
 <script lang="ts">
+	import { onDestroy, onMount } from 'svelte';
 	import { Card } from '$lib/components/ui/card';
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
 	import * as Table from '$lib/components/ui/table';
+	import * as ResponsiveDialog from '$lib/components/ui/responsive-dialog';
+	import { SaveIndicator } from '$lib/components/ui/save-indicator';
 	import RatesConfiguration from './RatesConfiguration.svelte';
 	import QuickAddLineItem from './QuickAddLineItem.svelte';
 	import PreIncidentPhotosPanel from './PreIncidentPhotosPanel.svelte';
 	import RequiredFieldsWarning from './RequiredFieldsWarning.svelte';
-	import { Plus, Trash2, Check } from 'lucide-svelte';
+	import LineItemCard from './LineItemCard.svelte';
+	import { Plus, Trash2, Check, Camera, Settings } from 'lucide-svelte';
 	import type {
 		PreIncidentEstimate,
 		EstimateLineItem,
-		PreIncidentEstimatePhoto
+		PreIncidentEstimatePhoto,
+		ProcessType,
+		PartType
 	} from '$lib/types/assessment';
-	import LineItemCard from './LineItemCard.svelte';
 	import { getProcessTypeOptions } from '$lib/constants/processTypes';
-	import { createEmptyLineItem, calculateLineItemTotal } from '$lib/utils/estimateCalculations';
-	import { formatCurrency } from '$lib/utils/formatters';
+	import {
+		calculateLineItemTotal,
+		calculatePartSellingPrice,
+		calculateSACost,
+		calculateLabourCost,
+		calculatePaintCost,
+		calculateOutworkSellingPrice,
+		createEmptyLineItem
+	} from '$lib/utils/estimateCalculations';
+	import {
+		formatCurrency,
+		formatCurrencyValue,
+		parseLocaleNumber
+	} from '$lib/utils/formatters';
 	import { validatePreIncidentEstimate, type TabValidation } from '$lib/utils/validation';
 
 	interface Props {
@@ -35,12 +52,10 @@
 			outworkMarkup: number
 		) => void;
 		onComplete: () => void;
-		onRegisterSave?: (saveFn: () => Promise<void>) => void; // Expose save function to parent
+		onRegisterSave?: (saveFn: () => Promise<void>) => void;
 		onValidationUpdate?: (validation: TabValidation) => void;
 	}
 
-	// Make props reactive using $derived pattern
-	// This ensures component reacts to parent prop updates without re-mount
 	let props: Props = $props();
 
 	const estimate = $derived(props.estimate);
@@ -48,58 +63,109 @@
 	const estimatePhotos = $derived(props.estimatePhotos);
 	const onUpdateEstimate = $derived(props.onUpdateEstimate);
 	const onPhotosUpdate = $derived(props.onPhotosUpdate);
-	const onUpdateRates = $derived(props.onUpdateRates);
 	const onComplete = $derived(props.onComplete);
 	const onRegisterSave = $derived(props.onRegisterSave);
 	const onValidationUpdate = $derived(props.onValidationUpdate);
 
 	const processTypeOptions = getProcessTypeOptions();
 
-	// Local buffer pattern (same as EstimateTab)
 	function deepClone<T>(obj: T): T {
-		try { return structuredClone(obj); } catch { return JSON.parse(JSON.stringify(obj)); }
+		try {
+			return structuredClone(obj);
+		} catch {
+			return JSON.parse(JSON.stringify(obj));
+		}
 	}
 
-	/**
-	 * Ensure all line items have unique IDs
-	 * This handles legacy data that was saved without IDs
-	 */
 	function ensureLineItemIds(items: any[]): EstimateLineItem[] {
 		return (items ?? []).map((item) => {
-			if (item && item.id) {
-				return item;
-			}
-			// Generate ID for items without one (legacy data)
+			if (item && item.id) return item;
 			return { ...(item || {}), id: crypto.randomUUID() } as EstimateLineItem;
 		});
 	}
 
+	function getPartMarkup(partType: PartType | null | undefined): number {
+		if (!localEstimate) return 0;
+		if (partType === 'ALT') return localEstimate.alt_markup_percentage || 0;
+		if (partType === '2ND') return localEstimate.second_hand_markup_percentage || 0;
+		return localEstimate.oem_markup_percentage || 0;
+	}
+
 	let localEstimate = $state<PreIncidentEstimate | null>(null);
 	let dirty = $state(false);
+	let saveInFlight = $state(false);
 	let saving = $state(false);
+	let saveTimeout: ReturnType<typeof setTimeout> | null = null;
+	let currentSavePromise: Promise<void> | null = null;
+	let justSaved = $state(false);
+	let justSavedTimeout: ReturnType<typeof setTimeout> | null = null;
+	let ratesOpen = $state(false);
+	let quickAddOpen = $state(false);
+	let totalsDetailsOpen = $state(false);
+	let dirtyRevision = 0;
 
-	$effect(() => {
-		// When parent estimate changes and we are not dirty, resync local buffer
-		if (!dirty) {
-			if (estimate) {
-				const cloned = deepClone(estimate);
-				// Normalize line items to ensure all have IDs (handles legacy data)
-				cloned.line_items = ensureLineItemIds(cloned.line_items);
-				localEstimate = cloned;
-			} else {
-				localEstimate = null;
-			}
+	let selectedItems = $state<Set<string>>(new Set());
+	let selectAll = $state(false);
+
+	let editingSA = $state<string | null>(null);
+	let editingLabour = $state<string | null>(null);
+	let editingPaint = $state<string | null>(null);
+	let editingPartPrice = $state<string | null>(null);
+	let editingOutwork = $state<string | null>(null);
+	let tempSAHours = $state('');
+	let tempLabourHours = $state('');
+	let tempPaintPanels = $state('');
+	let tempPartPriceNett = $state('');
+	let tempOutworkNett = $state('');
+
+	let skeletonProcessType = $state<ProcessType>('N');
+	let skeletonPartType = $state<PartType>('OEM');
+	let skeletonDescription = $state('');
+	let skeletonPartPriceNett = $state('');
+	let skeletonSAHours = $state('');
+	let skeletonLabourHours = $state('');
+	let skeletonPaintPanels = $state('');
+	let skeletonOutworkNett = $state('');
+
+	function clearSavedState() {
+		justSaved = false;
+		if (justSavedTimeout) {
+			clearTimeout(justSavedTimeout);
+			justSavedTimeout = null;
 		}
-	});
+	}
 
 	function markDirty() {
 		dirty = true;
+		dirtyRevision += 1;
+		clearSavedState();
+	}
+
+	function syncSelectAll() {
+		selectAll = selectedItems.size > 0 && selectedItems.size === localLineItems().length;
+	}
+
+	function scheduleSave() {
+		if (saveTimeout) {
+			clearTimeout(saveTimeout);
+		}
+		saveTimeout = setTimeout(() => {
+			void saveNow();
+		}, 1000);
 	}
 
 	async function saveAll() {
-		if (!localEstimate) return;
+		if (!localEstimate || !dirty || saveInFlight) return;
+
+		const revisionAtStart = dirtyRevision;
+		saveInFlight = true;
 		saving = true;
+		let resolveCurrentSave!: () => void;
+		currentSavePromise = new Promise<void>((resolve) => {
+			resolveCurrentSave = resolve;
+		});
 		try {
+			const totals = categoryTotals();
 			await onUpdateEstimate({
 				line_items: localEstimate.line_items,
 				labour_rate: localEstimate.labour_rate,
@@ -108,120 +174,394 @@
 				oem_markup_percentage: localEstimate.oem_markup_percentage,
 				alt_markup_percentage: localEstimate.alt_markup_percentage,
 				second_hand_markup_percentage: localEstimate.second_hand_markup_percentage,
-				outwork_markup_percentage: localEstimate.outwork_markup_percentage
+				outwork_markup_percentage: localEstimate.outwork_markup_percentage,
+				subtotal: totals?.subtotal ?? 0,
+				vat_amount: totals?.vatAmount ?? 0,
+				total: totals?.total ?? 0
 			});
-			dirty = false;
+			if (dirtyRevision === revisionAtStart) {
+				dirty = false;
+				justSaved = true;
+				if (justSavedTimeout) clearTimeout(justSavedTimeout);
+				justSavedTimeout = setTimeout(() => {
+					justSaved = false;
+					justSavedTimeout = null;
+				}, 2000);
+			}
 		} finally {
+			resolveCurrentSave();
+			currentSavePromise = null;
 			saving = false;
+			saveInFlight = false;
+		}
+
+		if (dirtyRevision !== revisionAtStart) {
+			scheduleSave();
 		}
 	}
 
-	// Register save function with parent on mount
+	async function saveNow() {
+		if (saveTimeout) {
+			clearTimeout(saveTimeout);
+			saveTimeout = null;
+		}
+		while (saveInFlight && currentSavePromise) {
+			await currentSavePromise;
+		}
+		await saveAll();
+	}
+
+	onMount(() => {
+		const stableSave = async () => {
+			await saveNow();
+		};
+
+		onRegisterSave?.(stableSave);
+	});
+
+	onDestroy(() => {
+		if (saveTimeout) clearTimeout(saveTimeout);
+		if (justSavedTimeout) clearTimeout(justSavedTimeout);
+	});
+
 	$effect(() => {
-		if (onRegisterSave) {
-			onRegisterSave(saveAll);
+		if (!dirty && !saveInFlight) {
+			if (estimate) {
+				const cloned = deepClone(estimate);
+				cloned.line_items = ensureLineItemIds(cloned.line_items);
+				localEstimate = cloned;
+				syncSelectAll();
+			} else {
+				localEstimate = null;
+			}
 		}
 	});
 
-	function discardAll() {
-		localEstimate = estimate ? deepClone(estimate) : null;
-		dirty = false;
-	}
-
-	// Convenience getter for local line items
-	// Filter out any items without IDs as a defensive fallback
-	const localLineItems = $derived(() => {
-		if (!localEstimate) return [];
-		return (localEstimate.line_items || []).filter((item) => item && item.id);
-	});
-
-	// State for multi-select functionality
-	let selectedItems = $state<Set<string>>(new Set());
-	let selectAll = $state(false);
-
-	// State for click-to-edit functionality
-	let editingSA = $state<string | null>(null);
-	let editingLabour = $state<string | null>(null);
-	let editingPaint = $state<string | null>(null);
-	let editingPartPrice = $state<string | null>(null);
-	let editingOutwork = $state<string | null>(null);
-	let tempSAHours = $state<number | null>(null);
-	let tempLabourHours = $state<number | null>(null);
-	let tempPaintPanels = $state<number | null>(null);
-	let tempPartPriceNett = $state<number | null>(null);
-	let tempOutworkNett = $state<number | null>(null);
-
-	function handleAddEmptyLineItem() {
-		if (!localEstimate) return;
-		const newItem = createEmptyLineItem('N') as EstimateLineItem;
-		newItem.id = crypto.randomUUID();
-		localEstimate.line_items = [...localEstimate.line_items, newItem];
-		markDirty();
-	}
-
-	/**
-	 * Add a line item with values (used by QuickAddLineItem component)
-	 * Similar to EstimateTab's addLocalLine() function
-	 */
-	function addLocalLine(item: Partial<EstimateLineItem>) {
-		if (!localEstimate) return;
-
-		// Ensure every new item has a unique id (generate if missing)
-		const id = item.id ?? crypto.randomUUID();
-		const li = { ...item, id } as EstimateLineItem;
-
-		// Ensure total is present/consistent with current rates
-		li.total = calculateLineItemTotal(
-			li,
-			localEstimate.labour_rate,
-			localEstimate.paint_rate
-		);
-
-		localEstimate.line_items = [...localEstimate.line_items, li];
-		markDirty();
-	}
-
-	function handleUpdateLineItem(itemId: string, field: keyof EstimateLineItem, value: any) {
+	function setLineItem(itemId: string, patch: Partial<EstimateLineItem>) {
 		if (!localEstimate) return;
 		const idx = localEstimate.line_items.findIndex((item) => item.id === itemId);
 		if (idx === -1) return;
 
-		const updated = { ...localEstimate.line_items[idx], [field]: value };
-		// Recalculate total for this line item
+		const updated = {
+			...localEstimate.line_items[idx],
+			...patch
+		} as EstimateLineItem;
+
+		updated.total = calculateLineItemTotal(updated, localEstimate.labour_rate, localEstimate.paint_rate);
+		localEstimate.line_items[idx] = updated;
+		localEstimate.line_items = [...localEstimate.line_items];
+		markDirty();
+		scheduleSave();
+	}
+
+	function updateProcessType(itemId: string, item: EstimateLineItem, value: ProcessType) {
+		const patch: Partial<EstimateLineItem> = {
+			process_type: value
+		};
+
+		if (value === 'N') {
+			patch.part_type = item.part_type || 'OEM';
+		} else {
+			patch.part_type = undefined;
+			patch.part_price_nett = undefined;
+			patch.part_price = undefined;
+		}
+
+		if (!['N', 'R', 'P', 'B'].includes(value)) {
+			patch.strip_assemble_hours = undefined;
+			patch.strip_assemble = undefined;
+		}
+
+		if (!['N', 'R', 'A'].includes(value)) {
+			patch.labour_hours = undefined;
+			patch.labour_cost = undefined;
+		}
+
+		if (!['N', 'R', 'P', 'B'].includes(value)) {
+			patch.paint_panels = undefined;
+			patch.paint_cost = undefined;
+		}
+
+		if (value !== 'O') {
+			patch.outwork_charge_nett = undefined;
+			patch.outwork_charge = undefined;
+		}
+
+		setLineItem(itemId, patch);
+	}
+
+	function updatePartType(itemId: string, item: EstimateLineItem, value: PartType) {
+		if (!localEstimate || item.process_type !== 'N') return;
+		const partPriceNett = item.part_price_nett ?? null;
+		const partPrice = calculatePartSellingPrice(partPriceNett, getPartMarkup(value));
+		setLineItem(itemId, {
+			part_type: value,
+			part_price: partPriceNett != null ? partPrice : undefined
+		});
+	}
+
+	function updateDescription(itemId: string, value: string) {
+		setLineItem(itemId, { description: value });
+	}
+
+	function commitSA(itemId: string) {
+		if (!localEstimate) return;
+		const hours = parseLocaleNumber(tempSAHours);
+		setLineItem(itemId, {
+			strip_assemble_hours: hours,
+			strip_assemble: hours != null ? calculateSACost(hours, localEstimate.labour_rate) : undefined
+		});
+		editingSA = null;
+		tempSAHours = '';
+	}
+
+	function commitLabour(itemId: string) {
+		if (!localEstimate) return;
+		const hours = parseLocaleNumber(tempLabourHours);
+		setLineItem(itemId, {
+			labour_hours: hours,
+			labour_cost: hours != null ? calculateLabourCost(hours, localEstimate.labour_rate) : undefined
+		});
+		editingLabour = null;
+		tempLabourHours = '';
+	}
+
+	function commitPaint(itemId: string) {
+		if (!localEstimate) return;
+		const panels = parseLocaleNumber(tempPaintPanels);
+		setLineItem(itemId, {
+			paint_panels: panels,
+			paint_cost: panels != null ? calculatePaintCost(panels, localEstimate.paint_rate) : undefined
+		});
+		editingPaint = null;
+		tempPaintPanels = '';
+	}
+
+	function commitPartPrice(itemId: string, item: EstimateLineItem) {
+		if (!localEstimate) return;
+		const nett = parseLocaleNumber(tempPartPriceNett);
+		const markup = getPartMarkup(item.part_type);
+		setLineItem(itemId, {
+			part_price_nett: nett,
+			part_price: nett != null ? calculatePartSellingPrice(nett, markup) : undefined
+		});
+		editingPartPrice = null;
+		tempPartPriceNett = '';
+	}
+
+	function commitOutwork(itemId: string) {
+		if (!localEstimate) return;
+		const nett = parseLocaleNumber(tempOutworkNett);
+		setLineItem(itemId, {
+			outwork_charge_nett: nett,
+			outwork_charge: nett != null ? calculateOutworkSellingPrice(nett, localEstimate.outwork_markup_percentage) : undefined
+		});
+		editingOutwork = null;
+		tempOutworkNett = '';
+	}
+
+	function handleSAClick(itemId: string, currentHours: number | null) {
+		editingSA = itemId;
+		tempSAHours = currentHours != null ? String(currentHours) : '';
+	}
+
+	function handleLabourClick(itemId: string, currentHours: number | null) {
+		editingLabour = itemId;
+		tempLabourHours = currentHours != null ? String(currentHours) : '';
+	}
+
+	function handlePaintClick(itemId: string, currentPanels: number | null) {
+		editingPaint = itemId;
+		tempPaintPanels = currentPanels != null ? String(currentPanels) : '';
+	}
+
+	function handlePartPriceClick(itemId: string, currentNettPrice: number | null) {
+		editingPartPrice = itemId;
+		tempPartPriceNett = currentNettPrice != null ? formatCurrencyValue(currentNettPrice) : '';
+	}
+
+	function handleOutworkClick(itemId: string, currentNettPrice: number | null) {
+		editingOutwork = itemId;
+		tempOutworkNett = currentNettPrice != null ? formatCurrencyValue(currentNettPrice) : '';
+	}
+
+	function handleCancelEdit(field: 'sa' | 'labour' | 'paint' | 'part' | 'outwork') {
+		if (field === 'sa') {
+			editingSA = null;
+			tempSAHours = '';
+		} else if (field === 'labour') {
+			editingLabour = null;
+			tempLabourHours = '';
+		} else if (field === 'paint') {
+			editingPaint = null;
+			tempPaintPanels = '';
+		} else if (field === 'part') {
+			editingPartPrice = null;
+			tempPartPriceNett = '';
+		} else {
+			editingOutwork = null;
+			tempOutworkNett = '';
+		}
+	}
+
+	function handleInputKeydown(e: KeyboardEvent, field: 'sa' | 'labour' | 'paint' | 'part' | 'outwork') {
+		if (e.key === 'Enter') {
+			(e.currentTarget as HTMLInputElement).blur();
+		}
+
+		if (e.key === 'Escape') {
+			handleCancelEdit(field);
+		}
+	}
+
+	function recalculateItemForRates(item: EstimateLineItem): EstimateLineItem {
+		const updated = { ...item };
+
+		if (updated.process_type === 'N') {
+			updated.part_price = calculatePartSellingPrice(updated.part_price_nett, getPartMarkup(updated.part_type));
+		} else {
+			updated.part_type = undefined;
+			updated.part_price_nett = undefined;
+			updated.part_price = undefined;
+		}
+
+		if (['N', 'R', 'P', 'B'].includes(updated.process_type)) {
+			updated.strip_assemble = calculateSACost(updated.strip_assemble_hours, localEstimate?.labour_rate || 0);
+			updated.paint_cost = calculatePaintCost(updated.paint_panels, localEstimate?.paint_rate || 0);
+		} else {
+			updated.strip_assemble_hours = undefined;
+			updated.strip_assemble = undefined;
+			updated.paint_panels = undefined;
+			updated.paint_cost = undefined;
+		}
+
+		if (['N', 'R', 'A'].includes(updated.process_type)) {
+			updated.labour_cost = calculateLabourCost(updated.labour_hours, localEstimate?.labour_rate || 0);
+		} else {
+			updated.labour_hours = undefined;
+			updated.labour_cost = undefined;
+		}
+
+		if (updated.process_type === 'O') {
+			updated.outwork_charge = calculateOutworkSellingPrice(
+				updated.outwork_charge_nett,
+				localEstimate?.outwork_markup_percentage || 0
+			);
+		} else {
+			updated.outwork_charge_nett = undefined;
+			updated.outwork_charge = undefined;
+		}
+
 		updated.total = calculateLineItemTotal(
 			updated,
-			localEstimate.labour_rate,
-			localEstimate.paint_rate
+			localEstimate?.labour_rate || 0,
+			localEstimate?.paint_rate || 0
 		);
 
-		localEstimate.line_items[idx] = updated;
-		localEstimate.line_items = [...localEstimate.line_items]; // Trigger reactivity
+		return updated;
+	}
+
+	function handleRatesUpdate(
+		labourRate: number,
+		paintRate: number,
+		vatPercentage: number,
+		oemMarkup: number,
+		altMarkup: number,
+		secondHandMarkup: number,
+		outworkMarkup: number
+	) {
+		if (!localEstimate) return;
+
+		localEstimate.labour_rate = labourRate;
+		localEstimate.paint_rate = paintRate;
+		localEstimate.vat_percentage = vatPercentage;
+		localEstimate.oem_markup_percentage = oemMarkup;
+		localEstimate.alt_markup_percentage = altMarkup;
+		localEstimate.second_hand_markup_percentage = secondHandMarkup;
+		localEstimate.outwork_markup_percentage = outworkMarkup;
+		localEstimate.line_items = localEstimate.line_items.map((item) => recalculateItemForRates(item));
+		localEstimate.line_items = [...localEstimate.line_items];
 		markDirty();
+		scheduleSave();
+		ratesOpen = false;
+	}
+
+	function addLineItem(item: Partial<EstimateLineItem>) {
+		if (!localEstimate) return;
+
+		const newItem = createEmptyLineItem(item.process_type || 'N') as EstimateLineItem;
+		newItem.id = item.id ?? crypto.randomUUID();
+		newItem.process_type = item.process_type || 'N';
+		newItem.part_type = item.part_type ?? (newItem.process_type === 'N' ? 'OEM' : undefined);
+		newItem.description = item.description || '';
+
+		if (item.part_price_nett != null) {
+			newItem.part_price_nett = item.part_price_nett;
+			newItem.part_price = calculatePartSellingPrice(
+				item.part_price_nett,
+				getPartMarkup(newItem.part_type)
+			);
+		}
+
+		if (item.strip_assemble_hours != null) {
+			newItem.strip_assemble_hours = item.strip_assemble_hours;
+			newItem.strip_assemble = calculateSACost(item.strip_assemble_hours, localEstimate.labour_rate);
+		}
+
+		if (item.labour_hours != null) {
+			newItem.labour_hours = item.labour_hours;
+			newItem.labour_cost = calculateLabourCost(item.labour_hours, localEstimate.labour_rate);
+		}
+
+		if (item.paint_panels != null) {
+			newItem.paint_panels = item.paint_panels;
+			newItem.paint_cost = calculatePaintCost(item.paint_panels, localEstimate.paint_rate);
+		}
+
+		if (item.outwork_charge_nett != null) {
+			newItem.outwork_charge_nett = item.outwork_charge_nett;
+			newItem.outwork_charge = calculateOutworkSellingPrice(
+				item.outwork_charge_nett,
+				localEstimate.outwork_markup_percentage
+			);
+		}
+
+		newItem.total = calculateLineItemTotal(newItem, localEstimate.labour_rate, localEstimate.paint_rate);
+		localEstimate.line_items = [...localEstimate.line_items, newItem];
+		syncSelectAll();
+		markDirty();
+		scheduleSave();
 	}
 
 	function handleDeleteLineItem(itemId: string) {
 		if (!localEstimate) return;
 		localEstimate.line_items = localEstimate.line_items.filter((item) => item.id !== itemId);
+		selectedItems.delete(itemId);
+		selectedItems = new Set(selectedItems);
+		syncSelectAll();
 		markDirty();
+		scheduleSave();
 	}
 
 	function handleBulkDeleteLineItems(itemIds: string[]) {
 		if (!localEstimate) return;
-		const idsSet = new Set(itemIds);
-		localEstimate.line_items = localEstimate.line_items.filter((item) => !idsSet.has(item.id!));
+		const ids = new Set(itemIds);
+		localEstimate.line_items = localEstimate.line_items.filter((item) => !ids.has(item.id!));
+		selectedItems.clear();
+		selectedItems = new Set(selectedItems);
+		syncSelectAll();
 		markDirty();
+		scheduleSave();
 	}
 
-
-	// Multi-select handlers
 	function handleToggleSelect(itemId: string) {
 		if (selectedItems.has(itemId)) {
 			selectedItems.delete(itemId);
 		} else {
 			selectedItems.add(itemId);
 		}
-		selectedItems = new Set(selectedItems); // Trigger reactivity
-		selectAll = selectedItems.size === localLineItems().length;
+		selectedItems = new Set(selectedItems);
+		syncSelectAll();
 	}
 
 	function handleSelectAll() {
@@ -232,161 +572,144 @@
 				if (item.id) selectedItems.add(item.id);
 			});
 		}
-		selectedItems = new Set(selectedItems); // Trigger reactivity
-		selectAll = !selectAll;
+		selectedItems = new Set(selectedItems);
+		syncSelectAll();
 	}
 
 	function handleBulkDelete() {
 		if (!confirm(`Delete ${selectedItems.size} selected item${selectedItems.size > 1 ? 's' : ''}?`))
 			return;
-
-		// Convert Set to Array and call bulk delete handler
-		const itemIdsArray = Array.from(selectedItems);
-		handleBulkDeleteLineItems(itemIdsArray);
-
-		selectedItems.clear();
-		selectedItems = new Set(selectedItems); // Trigger reactivity
-		selectAll = false;
+		handleBulkDeleteLineItems(Array.from(selectedItems));
 	}
 
-	// Click-to-edit S&A (hours input)
-	// S&A cost = hours × labour_rate
-	function handleSAClick(itemId: string, currentHours: number | null) {
-		editingSA = itemId;
-		// Use stored hours directly instead of recalculating from cost
-		tempSAHours = currentHours;
+	function handleQuickAddLineItem(item: EstimateLineItem) {
+		addLineItem(item);
+		quickAddOpen = false;
 	}
 
-	function handleSASave(itemId: string) {
-		if (tempSAHours !== null && localEstimate) {
-			const saCost = tempSAHours * localEstimate.labour_rate;
-			handleUpdateLineItem(itemId, 'strip_assemble_hours', tempSAHours);
-			handleUpdateLineItem(itemId, 'strip_assemble', saCost);
+	function handleAddSkeletonLine() {
+		if (!localEstimate) return;
+		if (skeletonDescription.trim() === '') return;
+
+		const newItem = createEmptyLineItem(skeletonProcessType) as EstimateLineItem;
+		newItem.id = crypto.randomUUID();
+		newItem.process_type = skeletonProcessType;
+		newItem.part_type = skeletonProcessType === 'N' ? skeletonPartType : undefined;
+		newItem.description = skeletonDescription.trim();
+
+		const partPriceNett = parseLocaleNumber(skeletonPartPriceNett);
+		const saHours = parseLocaleNumber(skeletonSAHours);
+		const labourHours = parseLocaleNumber(skeletonLabourHours);
+		const paintPanels = parseLocaleNumber(skeletonPaintPanels);
+		const outworkNett = parseLocaleNumber(skeletonOutworkNett);
+
+		if (partPriceNett != null) {
+			newItem.part_price_nett = partPriceNett;
+			newItem.part_price = calculatePartSellingPrice(partPriceNett, getPartMarkup(newItem.part_type));
 		}
-		editingSA = null;
-		tempSAHours = null;
-	}
 
-	function handleSACancel() {
-		editingSA = null;
-		tempSAHours = null;
-	}
-
-	// Click-to-edit Labour (hours input)
-	// Labour cost = hours × labour_rate
-	function handleLabourClick(itemId: string, currentHours: number | null) {
-		editingLabour = itemId;
-		// Use stored hours directly instead of recalculating from cost
-		tempLabourHours = currentHours;
-	}
-
-	function handleLabourSave(itemId: string) {
-		if (tempLabourHours !== null && localEstimate) {
-			const labourCost = tempLabourHours * localEstimate.labour_rate;
-			handleUpdateLineItem(itemId, 'labour_hours', tempLabourHours);
-			handleUpdateLineItem(itemId, 'labour_cost', labourCost);
+		if (saHours != null) {
+			newItem.strip_assemble_hours = saHours;
+			newItem.strip_assemble = calculateSACost(saHours, localEstimate.labour_rate);
 		}
-		editingLabour = null;
-		tempLabourHours = null;
-	}
 
-	function handleLabourCancel() {
-		editingLabour = null;
-		tempLabourHours = null;
-	}
-
-	// Click-to-edit Paint (panels input)
-	function handlePaintClick(itemId: string, currentPanels: number | null) {
-		editingPaint = itemId;
-		tempPaintPanels = currentPanels;
-	}
-
-	function handlePaintSave(itemId: string) {
-		if (tempPaintPanels !== null && localEstimate) {
-			const paintCost = tempPaintPanels * localEstimate.paint_rate;
-			handleUpdateLineItem(itemId, 'paint_panels', tempPaintPanels);
-			handleUpdateLineItem(itemId, 'paint_cost', paintCost);
+		if (labourHours != null) {
+			newItem.labour_hours = labourHours;
+			newItem.labour_cost = calculateLabourCost(labourHours, localEstimate.labour_rate);
 		}
-		editingPaint = null;
-		tempPaintPanels = null;
-	}
 
-	function handlePaintCancel() {
-		editingPaint = null;
-		tempPaintPanels = null;
-	}
-
-	// Click-to-edit Part Price (nett price input)
-	// Selling price = nett price × (1 + markup%)
-	function handlePartPriceClick(itemId: string, currentNettPrice: number | null) {
-		editingPartPrice = itemId;
-		tempPartPriceNett = currentNettPrice;
-	}
-
-	function handlePartPriceSave(itemId: string, item: EstimateLineItem) {
-		if (tempPartPriceNett !== null && localEstimate) {
-			// Get markup percentage based on part type
-			let markupPercentage = 0;
-			if (item.part_type === 'OEM') markupPercentage = localEstimate.oem_markup_percentage;
-			else if (item.part_type === 'ALT') markupPercentage = localEstimate.alt_markup_percentage;
-			else if (item.part_type === '2ND') markupPercentage = localEstimate.second_hand_markup_percentage;
-
-			// Calculate selling price with markup
-			const sellingPrice = tempPartPriceNett * (1 + markupPercentage / 100);
-
-			handleUpdateLineItem(itemId, 'part_price_nett', tempPartPriceNett);
-			handleUpdateLineItem(itemId, 'part_price', Number(sellingPrice.toFixed(2)));
+		if (paintPanels != null) {
+			newItem.paint_panels = paintPanels;
+			newItem.paint_cost = calculatePaintCost(paintPanels, localEstimate.paint_rate);
 		}
-		editingPartPrice = null;
-		tempPartPriceNett = null;
-	}
 
-	function handlePartPriceCancel() {
-		editingPartPrice = null;
-		tempPartPriceNett = null;
-	}
-
-	// Click-to-edit Outwork (nett price input)
-	// Outwork selling price = nett price × (1 + markup%)
-	function handleOutworkClick(itemId: string, currentNettPrice: number | null) {
-		editingOutwork = itemId;
-		tempOutworkNett = currentNettPrice;
-	}
-
-	function handleOutworkSave(itemId: string) {
-		if (tempOutworkNett !== null && localEstimate) {
-			const markupPercentage = localEstimate.outwork_markup_percentage;
-			const sellingPrice = tempOutworkNett * (1 + markupPercentage / 100);
-
-			handleUpdateLineItem(itemId, 'outwork_charge_nett', tempOutworkNett);
-			handleUpdateLineItem(itemId, 'outwork_charge', Number(sellingPrice.toFixed(2)));
+		if (outworkNett != null) {
+			newItem.outwork_charge_nett = outworkNett;
+			newItem.outwork_charge = calculateOutworkSellingPrice(
+				outworkNett,
+				localEstimate.outwork_markup_percentage
+			);
 		}
-		editingOutwork = null;
-		tempOutworkNett = null;
+
+		newItem.total = calculateLineItemTotal(newItem, localEstimate.labour_rate, localEstimate.paint_rate);
+		localEstimate.line_items = [...localEstimate.line_items, newItem];
+		syncSelectAll();
+		markDirty();
+		scheduleSave();
+		resetSkeleton();
 	}
 
-	function handleOutworkCancel() {
-		editingOutwork = null;
-		tempOutworkNett = null;
+	function resetSkeleton() {
+		skeletonProcessType = 'N';
+		skeletonPartType = 'OEM';
+		skeletonDescription = '';
+		skeletonPartPriceNett = '';
+		skeletonSAHours = '';
+		skeletonLabourHours = '';
+		skeletonPaintPanels = '';
+		skeletonOutworkNett = '';
 	}
 
-	// Calculate category totals
+	function handleSkeletonProcessTypeChange(value: ProcessType) {
+		skeletonProcessType = value;
+		if (value === 'N') {
+			skeletonPartType = 'OEM';
+		} else {
+			skeletonPartPriceNett = '';
+			skeletonPartType = 'OEM';
+		}
+		if (!['N', 'R', 'P', 'B'].includes(value)) skeletonSAHours = '';
+		if (!['N', 'R', 'A'].includes(value)) skeletonLabourHours = '';
+		if (!['N', 'R', 'P', 'B'].includes(value)) skeletonPaintPanels = '';
+		if (value !== 'O') skeletonOutworkNett = '';
+	}
+
+	function normalizeMoneyInput(value: string) {
+		const parsed = parseLocaleNumber(value);
+		return parsed != null ? formatCurrencyValue(parsed) : '';
+	}
+
+	function normalizeNumericInput(value: string) {
+		const parsed = parseLocaleNumber(value);
+		return parsed != null ? String(parsed) : '';
+	}
+
+	const localLineItems = $derived(() => {
+		if (!localEstimate) return [];
+		return (localEstimate.line_items || []).filter((item) => item && item.id);
+	});
+
 	const categoryTotals = $derived(() => {
 		if (!localEstimate) return null;
 
-		const partsTotal = localEstimate.line_items.reduce((sum, item) => sum + (item.part_price || 0), 0);
-		const saTotal = localEstimate.line_items.reduce((sum, item) => sum + (item.strip_assemble || 0), 0);
-		const labourTotal = localEstimate.line_items.reduce((sum, item) => sum + (item.labour_cost || 0), 0);
-		const paintTotal = localEstimate.line_items.reduce((sum, item) => sum + (item.paint_cost || 0), 0);
-		const outworkTotal = localEstimate.line_items.reduce((sum, item) => sum + (item.outwork_charge || 0), 0);
+		const estimateForTotals = localEstimate;
+		const lineItems = localLineItems();
 
-		// Calculate total markup (difference between selling price and nett price)
-		const markupTotal = localEstimate.line_items.reduce((sum, item) => {
-			if (item.part_price && item.part_price_nett) {
-				return sum + (item.part_price - item.part_price_nett);
-			}
-			return sum;
+		const partsTotal = lineItems
+			.filter((item) => item.process_type === 'N')
+			.reduce((sum, item) => sum + (item.part_price_nett || 0), 0);
+		const saTotal = lineItems.reduce((sum, item) => sum + (item.strip_assemble || 0), 0);
+		const labourTotal = lineItems.reduce((sum, item) => sum + (item.labour_cost || 0), 0);
+		const paintTotal = lineItems.reduce((sum, item) => sum + (item.paint_cost || 0), 0);
+		const outworkTotal = lineItems
+			.filter((item) => item.process_type === 'O')
+			.reduce((sum, item) => sum + (item.outwork_charge_nett || 0), 0);
+		const partsMarkup = lineItems.reduce((sum, item) => {
+			if (item.process_type !== 'N') return sum;
+			const nett = item.part_price_nett || 0;
+			const markupPercentage = getPartMarkup(item.part_type);
+			return sum + (calculatePartSellingPrice(nett, markupPercentage) - nett);
 		}, 0);
+		const outworkMarkup = lineItems.reduce((sum, item) => {
+			if (item.process_type !== 'O') return sum;
+			const nett = item.outwork_charge_nett || 0;
+			return sum + (calculateOutworkSellingPrice(nett, estimateForTotals.outwork_markup_percentage) - nett);
+		}, 0);
+		const markupTotal = partsMarkup + outworkMarkup;
+		const bettermentTotal = lineItems.reduce((sum, item) => sum + (item.betterment_total || 0), 0);
+		const subtotal = partsTotal + saTotal + labourTotal + paintTotal + outworkTotal + markupTotal - bettermentTotal;
+		const vatAmount = Number(((subtotal * (estimateForTotals.vat_percentage || 0)) / 100).toFixed(2));
+		const total = Number((subtotal + vatAmount).toFixed(2));
 
 		return {
 			partsTotal,
@@ -394,483 +717,827 @@
 			labourTotal,
 			paintTotal,
 			outworkTotal,
-			markupTotal
+			markupTotal,
+			subtotal,
+			vatAmount,
+			total
 		};
 	});
 
-	// Check if estimate is complete
-	const isComplete = $derived(
-		localEstimate !== null &&
-		localEstimate.line_items.length > 0 &&
-		localEstimate.total > 0
-	);
+	const validation = $derived.by(() => validatePreIncidentEstimate(localEstimate));
 
-	// Validation for warning banner
-	const validation = $derived.by(() => {
-		return validatePreIncidentEstimate(localEstimate);
-	});
-
-	// Report validation to parent for immediate badge updates
 	let lastValidationKey = '';
-
 	$effect(() => {
-		// Create stable key for semantic comparison
 		const key = `${validation.isComplete}|${validation.missingFields.join(',')}`;
-
-		// Only report if validation actually changed
 		if (onValidationUpdate && key !== lastValidationKey) {
 			lastValidationKey = key;
 			onValidationUpdate(validation);
 		}
 	});
+
+	function isApplicable(processType: ProcessType, field: 'sa' | 'labour' | 'paint' | 'part' | 'outwork') {
+		if (field === 'part') return processType === 'N';
+		if (field === 'sa') return ['N', 'R', 'P', 'B'].includes(processType);
+		if (field === 'labour') return ['N', 'R', 'A'].includes(processType);
+		if (field === 'paint') return ['N', 'R', 'P', 'B'].includes(processType);
+		return processType === 'O';
+	}
+
+	async function handleCompleteClick() {
+		try {
+			await saveNow();
+			onComplete();
+		} catch (error) {
+			console.error('Failed to save pre-incident estimate before completion:', error);
+		}
+	}
 </script>
 
-<div class="space-y-6">
-	<!-- Warning Banner -->
-	<RequiredFieldsWarning missingFields={validation.missingFields} />
-	{#if !localEstimate}
-		<Card class="p-6 border-2 border-dashed border-gray-300">
-			<p class="text-center text-gray-600">Loading pre-incident estimate...</p>
-		</Card>
-	{:else}
-		<!-- Rates Configuration -->
-		<RatesConfiguration
-			labourRate={localEstimate.labour_rate}
-			paintRate={localEstimate.paint_rate}
-			vatPercentage={localEstimate.vat_percentage}
-			oemMarkup={localEstimate.oem_markup_percentage}
-			altMarkup={localEstimate.alt_markup_percentage}
-			secondHandMarkup={localEstimate.second_hand_markup_percentage}
-			outworkMarkup={localEstimate.outwork_markup_percentage}
-			onUpdateRates={onUpdateRates}
-		/>
+	<div class="space-y-6">
+		<RequiredFieldsWarning missingFields={validation.missingFields} />
 
-		<!-- Quick Add Form -->
-		<QuickAddLineItem
-			labourRate={localEstimate.labour_rate}
-			paintRate={localEstimate.paint_rate}
-			oemMarkup={localEstimate.oem_markup_percentage}
-			altMarkup={localEstimate.alt_markup_percentage}
-			secondHandMarkup={localEstimate.second_hand_markup_percentage}
-			outworkMarkup={localEstimate.outwork_markup_percentage}
-			onAddLineItem={(item) => { addLocalLine(item); }}
-			enablePhotos={true}
-			{assessmentId}
-			parentId={estimate?.id}
-			photoCategory="pre-incident"
-			onPhotosUploaded={onPhotosUpdate}
-		/>
+		{#if !localEstimate}
+			<Card class="border-dashed border-border bg-muted/20 p-6">
+				<p class="text-center text-sm text-muted-foreground">Loading pre-incident estimate...</p>
+			</Card>
+		{:else}
+		<ResponsiveDialog.Root bind:open={ratesOpen}>
+			<ResponsiveDialog.Content class="sm:max-w-3xl">
+				<ResponsiveDialog.Header>
+					<ResponsiveDialog.Title>Rates</ResponsiveDialog.Title>
+					<ResponsiveDialog.Description>Pre-incident rates only.</ResponsiveDialog.Description>
+				</ResponsiveDialog.Header>
+				<RatesConfiguration
+					labourRate={localEstimate.labour_rate}
+					paintRate={localEstimate.paint_rate}
+					vatPercentage={localEstimate.vat_percentage}
+					oemMarkup={localEstimate.oem_markup_percentage}
+					altMarkup={localEstimate.alt_markup_percentage}
+					secondHandMarkup={localEstimate.second_hand_markup_percentage}
+					outworkMarkup={localEstimate.outwork_markup_percentage}
+					onUpdateRates={handleRatesUpdate}
+					disabled={saving || saveInFlight}
+				/>
+			</ResponsiveDialog.Content>
+		</ResponsiveDialog.Root>
 
-		<!-- Line Items Table -->
-		<Card class="p-6">
-			<div class="mb-4 flex items-center justify-between">
-				<h3 class="text-lg font-semibold text-gray-900">Line Items</h3>
-				<div class="flex gap-2">
-					{#if dirty}
-						<Button onclick={saveAll} size="sm" disabled={saving}>
-							{saving ? 'Saving…' : 'Save Changes'}
-						</Button>
-						<Button onclick={discardAll} size="sm" variant="outline" disabled={saving}>
-							Discard
-						</Button>
-					{/if}
-					{#if selectedItems.size > 0}
-						<Button onclick={handleBulkDelete} size="sm" variant="destructive">
-							<Trash2 class="mr-2 h-4 w-4" />
-							Delete Selected ({selectedItems.size})
-						</Button>
-					{/if}
-					<Button onclick={handleAddEmptyLineItem} size="sm" variant="outline">
-						<Plus class="mr-2 h-4 w-4" />
-						Add Empty Row
-					</Button>
-				</div>
-			</div>
+		<ResponsiveDialog.Root bind:open={quickAddOpen}>
+			<ResponsiveDialog.Content class="sm:max-w-2xl">
+				<ResponsiveDialog.Header>
+					<ResponsiveDialog.Title>Add line item</ResponsiveDialog.Title>
+					<ResponsiveDialog.Description>
+						Pre-incident photo capture stays enabled for this entry flow.
+					</ResponsiveDialog.Description>
+				</ResponsiveDialog.Header>
+				<QuickAddLineItem
+					labourRate={localEstimate.labour_rate}
+					paintRate={localEstimate.paint_rate}
+					oemMarkup={localEstimate.oem_markup_percentage}
+					altMarkup={localEstimate.alt_markup_percentage}
+					secondHandMarkup={localEstimate.second_hand_markup_percentage}
+					outworkMarkup={localEstimate.outwork_markup_percentage}
+					onAddLineItem={handleQuickAddLineItem}
+					enablePhotos={true}
+					{assessmentId}
+					parentId={estimate?.id}
+					photoCategory="pre-incident"
+					onPhotosUploaded={onPhotosUpdate}
+				/>
+			</ResponsiveDialog.Content>
+		</ResponsiveDialog.Root>
 
-			<!-- Mobile: Card Layout -->
-			<div class="md:hidden space-y-3">
-				{#if localLineItems().length === 0}
-					<div class="flex flex-col items-center justify-center py-12 text-center">
-						<p class="text-muted-foreground">No line items added.</p>
-						<p class="text-sm text-muted-foreground">Use "Quick Add" above or tap "Add Empty Row".</p>
+			<Card class="p-0">
+				<div class="flex flex-col gap-3 border-b border-border px-3 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-4">
+					<div class="min-w-0">
+						<div class="flex items-center gap-2">
+							<h3 class="text-[11.5px] font-semibold uppercase tracking-wide text-muted-foreground">
+								Line Items
+							</h3>
+							<SaveIndicator {saving} saved={justSaved} class="ml-1" />
+						</div>
+						<p class="text-xs text-muted-foreground">
+							Rates only. No repairer, betterment, or assessment result.
+						</p>
 					</div>
-				{:else}
-					{#each localLineItems() as item (item.id)}
-						<LineItemCard
-							{item}
-							labourRate={localEstimate?.labour_rate ?? 0}
-							paintRate={localEstimate?.paint_rate ?? 0}
-							selected={selectedItems.has(item.id!)}
-							onToggleSelect={() => handleToggleSelect(item.id!)}
-							onUpdateDescription={(value) => handleUpdateLineItem(item.id!, 'description', value)}
-							onUpdateProcessType={(value) => handleUpdateLineItem(item.id!, 'process_type', value)}
-							onUpdatePartType={(value) => handleUpdateLineItem(item.id!, 'part_type', value)}
-							onEditPartPrice={() => handlePartPriceClick(item.id!, item.part_price_nett || null)}
-							onEditSA={() => handleSAClick(item.id!, item.strip_assemble_hours || null)}
-							onEditLabour={() => handleLabourClick(item.id!, item.labour_hours || null)}
-							onEditPaint={() => handlePaintClick(item.id!, item.paint_panels || null)}
-							onEditOutwork={() => handleOutworkClick(item.id!, item.outwork_charge_nett || null)}
-							onEditBetterment={() => {}}
-							onDelete={() => handleDeleteLineItem(item.id!)}
-							showBetterment={false}
-						/>
-					{/each}
+
+					<div class="flex flex-wrap items-center justify-end gap-2">
+						{#if selectedItems.size > 0}
+							<Button onclick={handleBulkDelete} size="sm" variant="destructive">
+								<Trash2 class="h-4 w-4 sm:mr-2" />
+								<span class="hidden sm:inline">Delete Selected ({selectedItems.size})</span>
+							</Button>
+						{/if}
+						<Button onclick={() => (ratesOpen = true)} size="sm" variant="outline">
+							<Settings class="h-4 w-4 sm:mr-1.5" />
+							<span class="hidden sm:inline">Rates</span>
+						</Button>
+						<Button onclick={() => (quickAddOpen = true)} size="sm">
+							<Camera class="h-4 w-4 sm:mr-1.5" />
+							<span class="hidden sm:inline">Add line / camera</span>
+						</Button>
+					</div>
+				</div>
+
+				<div class="space-y-3 md:hidden p-3">
+					{#if localLineItems().length === 0}
+						<div class="rounded-sm border border-dashed border-border bg-muted/20 px-4 py-6 text-center">
+							<p class="text-sm text-muted-foreground">No line items yet.</p>
+					</div>
 				{/if}
+
+				{#each localLineItems() as item (item.id)}
+					<LineItemCard
+						{item}
+						labourRate={localEstimate.labour_rate}
+						paintRate={localEstimate.paint_rate}
+						selected={selectedItems.has(item.id!)}
+						onToggleSelect={() => handleToggleSelect(item.id!)}
+						onUpdateDescription={(value) => updateDescription(item.id!, value)}
+						onUpdateProcessType={(value) => updateProcessType(item.id!, item, value as ProcessType)}
+						onUpdatePartType={(value) => updatePartType(item.id!, item, value as PartType)}
+						onEditPartPrice={() => handlePartPriceClick(item.id!, item.part_price_nett || null)}
+						onEditSA={() => handleSAClick(item.id!, item.strip_assemble_hours || null)}
+						onEditLabour={() => handleLabourClick(item.id!, item.labour_hours || null)}
+						onEditPaint={() => handlePaintClick(item.id!, item.paint_panels || null)}
+						onEditOutwork={() => handleOutworkClick(item.id!, item.outwork_charge_nett || null)}
+						onEditBetterment={() => {}}
+						onDelete={() => handleDeleteLineItem(item.id!)}
+						showBetterment={false}
+					/>
+				{/each}
+
+				<Card class="space-y-3 rounded-sm border border-dashed border-border bg-muted/20 p-3">
+					<div class="space-y-3">
+						<div class="flex items-center justify-between">
+							<h4 class="text-[11.5px] font-semibold uppercase tracking-wide text-muted-foreground">
+								Add line item
+							</h4>
+							<Button variant="ghost" size="sm" onclick={resetSkeleton}>
+								<span class="text-xs">Clear</span>
+							</Button>
+						</div>
+
+						<div class="grid gap-3">
+							<div>
+								<label class="mb-1 block text-xs font-medium text-muted-foreground">Process Type</label>
+								<select
+									value={skeletonProcessType}
+									onchange={(e) => handleSkeletonProcessTypeChange(e.currentTarget.value as ProcessType)}
+									class="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
+								>
+									{#each processTypeOptions as option}
+										<option value={option.value}>
+											{option.value} - {option.label}
+										</option>
+									{/each}
+								</select>
+							</div>
+
+							{#if skeletonProcessType === 'N'}
+								<div>
+									<label class="mb-1 block text-xs font-medium text-muted-foreground">Part Type</label>
+									<select
+										value={skeletonPartType}
+										onchange={(e) => (skeletonPartType = e.currentTarget.value as PartType)}
+										class="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
+									>
+										<option value="OEM">OEM</option>
+										<option value="ALT">ALT</option>
+										<option value="2ND">2ND</option>
+									</select>
+								</div>
+							{/if}
+
+							<div>
+								<label class="mb-1 block text-xs font-medium text-muted-foreground">Description</label>
+								<textarea
+									bind:value={skeletonDescription}
+									rows="2"
+									class="flex w-full resize-none rounded-md border-0 bg-background px-0 py-0 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0 whitespace-pre-wrap break-words disabled:cursor-not-allowed disabled:opacity-50"
+								></textarea>
+							</div>
+
+							<div class="grid grid-cols-2 gap-1.5 xl:grid-cols-4">
+								<div class="rounded-sm border border-border bg-background p-1.5">
+									<div class="mb-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+										Part
+									</div>
+									<Input
+										type="text"
+										inputmode="decimal"
+										value={skeletonPartPriceNett}
+										oninput={(e) => (skeletonPartPriceNett = e.currentTarget.value)}
+										onblur={(e) => (skeletonPartPriceNett = normalizeMoneyInput(e.currentTarget.value))}
+										class="h-8 text-right text-sm font-mono-tabular"
+										placeholder="0.00"
+										disabled={skeletonProcessType !== 'N'}
+									/>
+								</div>
+								<div class="rounded-sm border border-border bg-background p-1.5">
+									<div class="mb-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+										S&A
+									</div>
+									<Input
+										type="text"
+										inputmode="decimal"
+										value={skeletonSAHours}
+										oninput={(e) => (skeletonSAHours = e.currentTarget.value)}
+										onblur={(e) => (skeletonSAHours = normalizeNumericInput(e.currentTarget.value))}
+										class="h-8 text-right text-sm font-mono-tabular"
+										placeholder="0"
+										disabled={!['N', 'R', 'P', 'B'].includes(skeletonProcessType)}
+									/>
+								</div>
+								<div class="rounded-sm border border-border bg-background p-1.5">
+									<div class="mb-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+										Labour
+									</div>
+									<Input
+										type="text"
+										inputmode="decimal"
+										value={skeletonLabourHours}
+										oninput={(e) => (skeletonLabourHours = e.currentTarget.value)}
+										onblur={(e) => (skeletonLabourHours = normalizeNumericInput(e.currentTarget.value))}
+										class="h-8 text-right text-sm font-mono-tabular"
+										placeholder="0"
+										disabled={!['N', 'R', 'A'].includes(skeletonProcessType)}
+									/>
+								</div>
+								<div class="rounded-sm border border-border bg-background p-1.5">
+									<div class="mb-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+										Paint
+									</div>
+									<Input
+										type="text"
+										inputmode="decimal"
+										value={skeletonPaintPanels}
+										oninput={(e) => (skeletonPaintPanels = e.currentTarget.value)}
+										onblur={(e) => (skeletonPaintPanels = normalizeNumericInput(e.currentTarget.value))}
+										class="h-8 text-right text-sm font-mono-tabular"
+										placeholder="0"
+										disabled={!['N', 'R', 'P', 'B'].includes(skeletonProcessType)}
+									/>
+								</div>
+							</div>
+
+							{#if skeletonProcessType === 'O'}
+								<div class="rounded-sm border border-border bg-background p-1.5 xl:col-span-4">
+									<div class="mb-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+										Outwork
+									</div>
+									<Input
+										type="text"
+										inputmode="decimal"
+										value={skeletonOutworkNett}
+										oninput={(e) => (skeletonOutworkNett = e.currentTarget.value)}
+										onblur={(e) => (skeletonOutworkNett = normalizeMoneyInput(e.currentTarget.value))}
+										class="h-8 text-right text-sm font-mono-tabular"
+										placeholder="0.00"
+									/>
+								</div>
+							{/if}
+
+							<div class="flex items-center justify-between gap-3">
+								<div class="text-sm font-mono-tabular text-muted-foreground">
+									{formatCurrencyValue(categoryTotals()?.subtotal ?? 0)}
+								</div>
+								<Button onclick={handleAddSkeletonLine} size="sm">
+									<Plus class="mr-2 h-4 w-4" />
+									Add line
+								</Button>
+							</div>
+						</div>
+					</div>
+				</Card>
 			</div>
 
-			<!-- Desktop: Table Layout -->
-			<div class="hidden md:block rounded-sm border overflow-x-auto">
-				<Table.Root>
-					<Table.Header>
-						<Table.Row class="hover:bg-transparent">
-							<Table.Head class="w-[50px] px-3">
-								<input
-									type="checkbox"
-									checked={selectAll}
-									onchange={handleSelectAll}
-									class="rounded border-gray-300 cursor-pointer"
-									aria-label="Select all items"
-								/>
+			<div class="hidden md:block">
+				<Table.Root class="table-fixed">
+					<Table.Header class="sticky top-0 z-10 bg-background">
+						<Table.Row class="border-b border-border hover:bg-transparent">
+							<Table.Head class="w-14 px-2 text-[11.5px] font-medium uppercase tracking-wide text-muted-foreground">
 							</Table.Head>
-							<Table.Head class="w-[120px] px-3 uppercase tracking-wide text-[11.5px] font-medium text-muted-foreground">Process Type</Table.Head>
-							<Table.Head class="w-[100px] px-3 uppercase tracking-wide text-[11.5px] font-medium text-muted-foreground">Part Type</Table.Head>
-							<Table.Head class="min-w-[200px] px-3 uppercase tracking-wide text-[11.5px] font-medium text-muted-foreground">Description</Table.Head>
-							<Table.Head class="w-[140px] text-right px-3 uppercase tracking-wide text-[11.5px] font-medium text-muted-foreground">Part Price</Table.Head>
-							<Table.Head class="w-[140px] text-right px-3 uppercase tracking-wide text-[11.5px] font-medium text-muted-foreground">S&A</Table.Head>
-							<Table.Head class="w-[150px] text-right px-3 uppercase tracking-wide text-[11.5px] font-medium text-muted-foreground">Labour</Table.Head>
-							<Table.Head class="w-[150px] text-right px-3 uppercase tracking-wide text-[11.5px] font-medium text-muted-foreground">Paint</Table.Head>
-							<Table.Head class="w-[150px] text-right px-3 uppercase tracking-wide text-[11.5px] font-medium text-muted-foreground">Outwork</Table.Head>
-							<Table.Head class="w-[160px] text-right px-3 uppercase tracking-wide text-[11.5px] font-medium text-muted-foreground">Total</Table.Head>
-							<Table.Head class="w-[70px] px-2"></Table.Head>
+							<Table.Head class="w-[112px] px-2 text-[11.5px] font-medium uppercase tracking-wide text-muted-foreground">
+								Type / Part
+							</Table.Head>
+							<Table.Head class="px-3 text-[11.5px] font-medium uppercase tracking-wide text-muted-foreground">
+								Description
+							</Table.Head>
+							<Table.Head class="w-[440px] px-2 text-[11.5px] font-medium uppercase tracking-wide text-muted-foreground">
+								Costs
+							</Table.Head>
+							<Table.Head class="w-28 px-2 text-right text-[11.5px] font-medium uppercase tracking-wide text-muted-foreground">
+								Total
+							</Table.Head>
+							<Table.Head class="w-20 px-2 text-right text-[11.5px] font-medium uppercase tracking-wide text-muted-foreground">
+								Actions
+							</Table.Head>
 						</Table.Row>
 					</Table.Header>
+
 					<Table.Body>
 						{#if localLineItems().length === 0}
-							<Table.Row class="hover:bg-transparent">
-								<Table.Cell colspan={11} class="h-24 text-center text-muted-foreground">
-									No line items added. Use "Quick Add" above or click "Add Empty Row".
+							<Table.Row>
+								<Table.Cell colspan={6} class="py-8 text-center text-sm text-muted-foreground">
+									No line items yet. Use the add row below or the Add line / camera button.
 								</Table.Cell>
 							</Table.Row>
-						{:else}
-							{#each localLineItems() as item (item.id)}
-								<Table.Row class="hover:bg-muted/50">
-									<!-- Checkbox -->
-									<Table.Cell class="px-3 py-2">
-										<input
-											type="checkbox"
-											checked={selectedItems.has(item.id!)}
-											onchange={() => handleToggleSelect(item.id!)}
-											class="rounded border-gray-300 cursor-pointer"
-											aria-label="Select item"
-										/>
-									</Table.Cell>
+						{/if}
 
-									<!-- Process Type -->
-									<Table.Cell class="px-3 py-2">
+						{#each localLineItems() as item (item.id)}
+							<Table.Row class="align-top hover:bg-muted/40">
+								<Table.Cell class="px-2 py-2">
+									<input
+										type="checkbox"
+										checked={selectedItems.has(item.id!)}
+										onchange={() => handleToggleSelect(item.id!)}
+										class="h-4 w-4 rounded border-border"
+										aria-label="Select item"
+									/>
+								</Table.Cell>
+
+								<Table.Cell class="px-2 py-2">
+									<div class="space-y-2">
 										<select
 											value={item.process_type}
 											onchange={(e) =>
-												handleUpdateLineItem(item.id!, 'process_type', e.currentTarget.value)}
-											class="w-full rounded-md border-0 bg-transparent px-2 py-1 text-sm focus:outline-none focus:ring-0"
+												updateProcessType(item.id!, item, e.currentTarget.value as ProcessType)}
+											class="w-full rounded-md border border-border bg-background px-2 py-1.5 text-sm"
 										>
 											{#each processTypeOptions as option}
-												<option value={option.value}>{option.value}-{option.label}</option>
+												<option value={option.value}>
+													{option.value} - {option.label}
+												</option>
 											{/each}
 										</select>
-									</Table.Cell>
 
-									<!-- Part Type (N only) -->
-									<Table.Cell class="px-3 py-2">
 										{#if item.process_type === 'N'}
 											<select
 												value={item.part_type || 'OEM'}
 												onchange={(e) =>
-													handleUpdateLineItem(item.id!, 'part_type', e.currentTarget.value)}
-												class="w-full rounded-md border-0 bg-transparent px-2 py-1 text-sm focus:outline-none focus:ring-0"
+													updatePartType(item.id!, item, e.currentTarget.value as PartType)}
+												class="w-full rounded-md border border-border bg-background px-2 py-1.5 text-sm"
 											>
 												<option value="OEM">OEM</option>
 												<option value="ALT">ALT</option>
 												<option value="2ND">2ND</option>
 											</select>
 										{:else}
-											<span class="text-muted-foreground text-sm">-</span>
+											<div class="rounded-md border border-dashed border-border px-2 py-1.5 text-sm text-muted-foreground">
+												-
+											</div>
 										{/if}
-									</Table.Cell>
+									</div>
+								</Table.Cell>
 
-									<!-- Description -->
-									<Table.Cell class="px-3 py-2">
-										<Input
-											type="text"
-											placeholder="Description"
-											value={item.description}
-											oninput={(e) =>
-												handleUpdateLineItem(item.id!, 'description', e.currentTarget.value)}
-											class="border-0 focus-visible:ring-0 focus-visible:ring-offset-0"
-										/>
-									</Table.Cell>
+								<Table.Cell class="px-3 py-2 align-top">
+									<textarea
+										rows="2"
+										value={item.description}
+										oninput={(e) => updateDescription(item.id!, e.currentTarget.value)}
+										onblur={(e) => {
+											updateDescription(item.id!, e.currentTarget.value);
+											void saveNow();
+										}}
+										class="flex w-full resize-none rounded-md border-0 bg-background px-0 py-0 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0 whitespace-pre-wrap break-words disabled:cursor-not-allowed disabled:opacity-50"
+										placeholder="Description"
+									></textarea>
+								</Table.Cell>
 
-									<!-- Part Price (N only) - Click to edit nett price -->
-									<Table.Cell class="text-right px-3 py-2">
-										{#if item.process_type === 'N'}
-											{#if editingPartPrice === item.id}
-												<div class="space-y-1">
+								<Table.Cell class="px-2 py-2 align-top">
+									<div class="grid grid-cols-[112px_66px_66px_82px_98px] gap-1">
+										<div class="rounded-sm border bg-background px-1.5 py-1 text-right">
+											<div class="text-[10px] uppercase tracking-wide text-muted-foreground">
+												Part
+											</div>
+											{#if item.process_type === 'N'}
+												{#if editingPartPrice === item.id}
 													<Input
-														type="number"
-														min="0"
-														step="0.01"
+														type="text"
+														inputmode="decimal"
 														bind:value={tempPartPriceNett}
-														onkeydown={(e) => {
-															if (e.key === 'Enter') handlePartPriceSave(item.id!, item);
-															if (e.key === 'Escape') handlePartPriceCancel();
-														}}
-														onblur={() => handlePartPriceSave(item.id!, item)}
-														class="border-0 text-right text-sm focus-visible:ring-0 focus-visible:ring-offset-0 font-mono-tabular"
+														onkeydown={(e) => handleInputKeydown(e, 'part')}
+														onblur={() => commitPartPrice(item.id!, item)}
+														class="h-7 border-0 p-0 text-right text-xs font-mono-tabular focus-visible:ring-0 focus-visible:ring-offset-0"
 														autofocus
 													/>
-													<p class="text-xs text-muted-foreground italic">Only input nett price</p>
-												</div>
+												{:else}
+													<button
+														type="button"
+														onclick={() => handlePartPriceClick(item.id!, item.part_price_nett || null)}
+														class="block w-full truncate text-right text-xs font-mono-tabular font-medium text-foreground hover:text-foreground/70"
+													>
+														{formatCurrencyValue(item.part_price || 0)}
+													</button>
+												{/if}
 											{:else}
-												<button
-													onclick={() => handlePartPriceClick(item.id!, item.part_price_nett || null)}
-													class="text-sm text-foreground hover:text-foreground/70 cursor-pointer w-full text-right font-mono-tabular font-medium"
-													title="Click to edit nett price (selling price includes markup)"
-												>
-													{formatCurrency(item.part_price || 0)}
-												</button>
+												<span class="text-xs text-muted-foreground">-</span>
 											{/if}
-										{:else}
-											<span class="text-muted-foreground text-xs">-</span>
-										{/if}
-									</Table.Cell>
+										</div>
 
-									<!-- Strip & Assemble (N,R,P,B) - Click to edit hours -->
-									<Table.Cell class="text-right px-3 py-2">
-										{#if ['N', 'R', 'P', 'B'].includes(item.process_type)}
-											{#if editingSA === item.id}
-												<Input
-													type="number"
-													min="0"
-													step="0.25"
-													bind:value={tempSAHours}
-													onkeydown={(e) => {
-														if (e.key === 'Enter') handleSASave(item.id!);
-														if (e.key === 'Escape') handleSACancel();
-													}}
-													onblur={() => handleSASave(item.id!)}
-													class="border-0 text-right text-sm focus-visible:ring-0 focus-visible:ring-offset-0 font-mono-tabular"
-													autofocus
-												/>
-											{:else}
-												<button
-													onclick={() => handleSAClick(item.id!, item.strip_assemble_hours || null)}
-													class="text-sm text-foreground hover:text-foreground/70 cursor-pointer w-full text-right font-mono-tabular font-medium"
-													title="Click to edit hours (S&A = hours × labour rate)"
-												>
-													{formatCurrency(item.strip_assemble || 0)}
-												</button>
-											{/if}
-										{:else}
-											<span class="text-muted-foreground text-xs">-</span>
-										{/if}
-									</Table.Cell>
-
-									<!-- Labour Cost (N,R,A) - Click to edit hours -->
-									<Table.Cell class="text-right px-3 py-2">
-										{#if ['N', 'R', 'A'].includes(item.process_type)}
-											{#if editingLabour === item.id}
-												<Input
-													type="number"
-													min="0"
-													step="0.5"
-													bind:value={tempLabourHours}
-													onkeydown={(e) => {
-														if (e.key === 'Enter') handleLabourSave(item.id!);
-														if (e.key === 'Escape') handleLabourCancel();
-													}}
-													onblur={() => handleLabourSave(item.id!)}
-													class="border-0 text-right text-sm focus-visible:ring-0 focus-visible:ring-offset-0 font-mono-tabular"
-													autofocus
-												/>
-											{:else}
-												<button
-													onclick={() => handleLabourClick(item.id!, item.labour_hours || null)}
-													class="text-sm text-foreground hover:text-foreground/70 cursor-pointer w-full text-right font-mono-tabular font-medium"
-													title="Click to edit hours (Labour = hours × labour rate)"
-												>
-													{formatCurrency(item.labour_cost || 0)}
-												</button>
-											{/if}
-										{:else}
-											<span class="text-muted-foreground text-xs">-</span>
-										{/if}
-									</Table.Cell>
-
-									<!-- Paint Cost (N,R,P,B) - Click to edit panels -->
-									<Table.Cell class="text-right px-3 py-2">
-										{#if ['N', 'R', 'P', 'B'].includes(item.process_type)}
-											{#if editingPaint === item.id}
-												<Input
-													type="number"
-													min="0"
-													step="0.5"
-													bind:value={tempPaintPanels}
-													onkeydown={(e) => {
-														if (e.key === 'Enter') handlePaintSave(item.id!);
-														if (e.key === 'Escape') handlePaintCancel();
-													}}
-													onblur={() => handlePaintSave(item.id!)}
-													class="border-0 text-right text-sm focus-visible:ring-0 focus-visible:ring-offset-0 font-mono-tabular"
-													autofocus
-												/>
-											{:else}
-												<button
-													onclick={() => handlePaintClick(item.id!, item.paint_panels || null)}
-													class="text-sm text-foreground hover:text-foreground/70 cursor-pointer w-full text-right font-mono-tabular font-medium"
-													title="Click to edit panels (Paint = panels × paint rate)"
-												>
-													{formatCurrency(item.paint_cost || 0)}
-												</button>
-											{/if}
-										{:else}
-											<span class="text-muted-foreground text-xs">-</span>
-										{/if}
-									</Table.Cell>
-
-									<!-- Outwork Charge (O only) - Click to edit nett price -->
-									<Table.Cell class="text-right px-3 py-2">
-										{#if item.process_type === 'O'}
-											{#if editingOutwork === item.id}
-												<div class="space-y-1">
+										<div class="rounded-sm border bg-background px-1.5 py-1 text-right">
+											<div class="text-[10px] uppercase tracking-wide text-muted-foreground">
+												S&A
+											</div>
+											{#if isApplicable(item.process_type, 'sa')}
+												{#if editingSA === item.id}
 													<Input
-														type="number"
-														min="0"
-														step="0.01"
-														bind:value={tempOutworkNett}
-														onkeydown={(e) => {
-															if (e.key === 'Enter') handleOutworkSave(item.id!);
-															if (e.key === 'Escape') handleOutworkCancel();
-														}}
-														onblur={() => handleOutworkSave(item.id!)}
-														class="border-0 text-right text-sm focus-visible:ring-0 focus-visible:ring-offset-0 font-mono-tabular"
+														type="text"
+														inputmode="decimal"
+														bind:value={tempSAHours}
+														onkeydown={(e) => handleInputKeydown(e, 'sa')}
+														onblur={() => commitSA(item.id!)}
+														class="h-7 border-0 p-0 text-right text-xs font-mono-tabular focus-visible:ring-0 focus-visible:ring-offset-0"
 														autofocus
 													/>
-													<p class="text-xs text-muted-foreground italic">Only input nett price</p>
-												</div>
+												{:else}
+													<button
+														type="button"
+														onclick={() => handleSAClick(item.id!, item.strip_assemble_hours || null)}
+														class="block w-full truncate text-right text-xs font-mono-tabular font-medium text-foreground hover:text-foreground/70"
+													>
+														{formatCurrencyValue(item.strip_assemble || 0)}
+													</button>
+												{/if}
 											{:else}
-												<button
-													onclick={() => handleOutworkClick(item.id!, item.outwork_charge_nett || null)}
-													class="text-sm text-foreground hover:text-foreground/70 cursor-pointer w-full text-right font-mono-tabular font-medium"
-													title="Click to edit nett price (selling price includes markup)"
-												>
-													{formatCurrency(item.outwork_charge || 0)}
-												</button>
+												<span class="text-xs text-muted-foreground">-</span>
 											{/if}
-										{:else}
-											<span class="text-muted-foreground text-xs">-</span>
-										{/if}
-									</Table.Cell>
+										</div>
 
-									<!-- Total -->
-									<Table.Cell class="text-right px-3 py-2 font-bold font-mono-tabular">
-										{formatCurrency(item.total)}
-									</Table.Cell>
+										<div class="rounded-sm border bg-background px-1.5 py-1 text-right">
+											<div class="text-[10px] uppercase tracking-wide text-muted-foreground">
+												Labour
+											</div>
+											{#if isApplicable(item.process_type, 'labour')}
+												{#if editingLabour === item.id}
+													<Input
+														type="text"
+														inputmode="decimal"
+														bind:value={tempLabourHours}
+														onkeydown={(e) => handleInputKeydown(e, 'labour')}
+														onblur={() => commitLabour(item.id!)}
+														class="h-7 border-0 p-0 text-right text-xs font-mono-tabular focus-visible:ring-0 focus-visible:ring-offset-0"
+														autofocus
+													/>
+												{:else}
+													<button
+														type="button"
+														onclick={() => handleLabourClick(item.id!, item.labour_hours || null)}
+														class="block w-full truncate text-right text-xs font-mono-tabular font-medium text-foreground hover:text-foreground/70"
+													>
+														{formatCurrencyValue(item.labour_cost || 0)}
+													</button>
+												{/if}
+											{:else}
+												<span class="text-xs text-muted-foreground">-</span>
+											{/if}
+										</div>
 
-									<!-- Actions -->
-									<Table.Cell class="text-center px-2 py-2">
-										<Button
-											variant="ghost"
-											size="sm"
-											onclick={() => handleDeleteLineItem(item.id!)}
-											class="h-8 w-8 p-0 text-red-600 hover:bg-red-50 hover:text-red-700"
-										>
-											<Trash2 class="h-4 w-4" />
+										<div class="rounded-sm border bg-background px-1.5 py-1 text-right">
+											<div class="text-[10px] uppercase tracking-wide text-muted-foreground">
+												Paint
+											</div>
+											{#if isApplicable(item.process_type, 'paint')}
+												{#if editingPaint === item.id}
+													<Input
+														type="text"
+														inputmode="decimal"
+														bind:value={tempPaintPanels}
+														onkeydown={(e) => handleInputKeydown(e, 'paint')}
+														onblur={() => commitPaint(item.id!)}
+														class="h-7 border-0 p-0 text-right text-xs font-mono-tabular focus-visible:ring-0 focus-visible:ring-offset-0"
+														autofocus
+													/>
+												{:else}
+													<button
+														type="button"
+														onclick={() => handlePaintClick(item.id!, item.paint_panels || null)}
+														class="block w-full truncate text-right text-xs font-mono-tabular font-medium text-foreground hover:text-foreground/70"
+													>
+														{formatCurrencyValue(item.paint_cost || 0)}
+													</button>
+												{/if}
+											{:else}
+												<span class="text-xs text-muted-foreground">-</span>
+											{/if}
+										</div>
+
+										<div class="rounded-sm border bg-background px-1.5 py-1 text-right">
+											<div class="text-[10px] uppercase tracking-wide text-muted-foreground">
+												Outwork
+											</div>
+											{#if isApplicable(item.process_type, 'outwork')}
+												{#if editingOutwork === item.id}
+													<Input
+														type="text"
+														inputmode="decimal"
+														bind:value={tempOutworkNett}
+														onkeydown={(e) => handleInputKeydown(e, 'outwork')}
+														onblur={() => commitOutwork(item.id!)}
+														class="h-7 border-0 p-0 text-right text-xs font-mono-tabular focus-visible:ring-0 focus-visible:ring-offset-0"
+														autofocus
+													/>
+												{:else}
+													<button
+														type="button"
+														onclick={() => handleOutworkClick(item.id!, item.outwork_charge_nett || null)}
+														class="block w-full truncate text-right text-xs font-mono-tabular font-medium text-foreground hover:text-foreground/70"
+													>
+														{formatCurrencyValue(item.outwork_charge || 0)}
+													</button>
+												{/if}
+											{:else}
+												<span class="text-xs text-muted-foreground">-</span>
+											{/if}
+										</div>
+									</div>
+								</Table.Cell>
+
+								<Table.Cell class="px-2 py-2 text-right font-mono-tabular text-sm font-semibold">
+									{formatCurrencyValue(item.total || 0)}
+								</Table.Cell>
+
+								<Table.Cell class="px-2 py-2 text-right">
+									<Button
+										variant="ghost"
+										size="sm"
+										onclick={() => handleDeleteLineItem(item.id!)}
+										class="h-8 w-8 p-0 text-red-600 hover:bg-red-50 hover:text-red-700"
+									>
+										<Trash2 class="h-4 w-4" />
+									</Button>
+								</Table.Cell>
+							</Table.Row>
+						{/each}
+
+						<Table.Row>
+							<Table.Cell colspan={6} class="bg-muted/20 p-3">
+								<div class="rounded-sm border border-dashed border-border bg-background/70 p-3">
+									<div class="flex items-center justify-between gap-3 pb-3">
+										<div>
+											<h4 class="text-[11.5px] font-semibold uppercase tracking-wide text-muted-foreground">
+												Add line item
+											</h4>
+											<p class="text-xs text-muted-foreground">Persistent inline entry row.</p>
+										</div>
+										<Button variant="ghost" size="sm" onclick={resetSkeleton}>
+											<span class="text-xs">Clear</span>
 										</Button>
-									</Table.Cell>
-								</Table.Row>
-							{/each}
-						{/if}
+									</div>
+
+									<div class="grid gap-3 xl:grid-cols-[150px_110px_minmax(0,1fr)_minmax(0,1.2fr)_auto]">
+										<div class="space-y-1">
+											<label class="block text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+												Process
+											</label>
+											<select
+												value={skeletonProcessType}
+												onchange={(e) =>
+													handleSkeletonProcessTypeChange(e.currentTarget.value as ProcessType)}
+												class="w-full rounded-md border border-border bg-background px-2 py-2 text-sm"
+											>
+												{#each processTypeOptions as option}
+													<option value={option.value}>
+														{option.value} - {option.label}
+													</option>
+												{/each}
+											</select>
+										</div>
+
+										{#if skeletonProcessType === 'N'}
+											<div class="space-y-1">
+												<label class="block text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+													Part
+												</label>
+												<select
+													value={skeletonPartType}
+													onchange={(e) => (skeletonPartType = e.currentTarget.value as PartType)}
+													class="w-full rounded-md border border-border bg-background px-2 py-2 text-sm"
+												>
+													<option value="OEM">OEM</option>
+													<option value="ALT">ALT</option>
+													<option value="2ND">2ND</option>
+												</select>
+											</div>
+										{/if}
+
+										<div class="space-y-1">
+											<label class="block text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+												Description
+											</label>
+											<textarea
+												bind:value={skeletonDescription}
+												rows="2"
+												class="flex w-full resize-none rounded-md border-0 bg-background px-0 py-0 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0 whitespace-pre-wrap break-words disabled:cursor-not-allowed disabled:opacity-50"
+												placeholder="Description"
+											></textarea>
+										</div>
+
+										<div class="grid grid-cols-2 gap-1.5 xl:grid-cols-4">
+											<div class="rounded-sm border border-border bg-background p-1.5">
+												<div class="mb-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+													Part
+												</div>
+												<Input
+													type="text"
+													inputmode="decimal"
+													bind:value={skeletonPartPriceNett}
+													onblur={(e) => (skeletonPartPriceNett = normalizeMoneyInput(e.currentTarget.value))}
+													class="h-8 text-right text-sm font-mono-tabular"
+													placeholder="0.00"
+													disabled={skeletonProcessType !== 'N'}
+												/>
+											</div>
+											<div class="rounded-sm border border-border bg-background p-1.5">
+												<div class="mb-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+													S&A
+												</div>
+												<Input
+													type="text"
+													inputmode="decimal"
+													bind:value={skeletonSAHours}
+													onblur={(e) => (skeletonSAHours = normalizeNumericInput(e.currentTarget.value))}
+													class="h-8 text-right text-sm font-mono-tabular"
+													placeholder="0"
+													disabled={!['N', 'R', 'P', 'B'].includes(skeletonProcessType)}
+												/>
+											</div>
+											<div class="rounded-sm border border-border bg-background p-1.5">
+												<div class="mb-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+													Labour
+												</div>
+												<Input
+													type="text"
+													inputmode="decimal"
+													bind:value={skeletonLabourHours}
+													onblur={(e) => (skeletonLabourHours = normalizeNumericInput(e.currentTarget.value))}
+													class="h-8 text-right text-sm font-mono-tabular"
+													placeholder="0"
+													disabled={!['N', 'R', 'A'].includes(skeletonProcessType)}
+												/>
+											</div>
+											<div class="rounded-sm border border-border bg-background p-1.5">
+												<div class="mb-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+													Paint
+												</div>
+												<Input
+													type="text"
+													inputmode="decimal"
+													bind:value={skeletonPaintPanels}
+													onblur={(e) => (skeletonPaintPanels = normalizeNumericInput(e.currentTarget.value))}
+													class="h-8 text-right text-sm font-mono-tabular"
+													placeholder="0"
+													disabled={!['N', 'R', 'P', 'B'].includes(skeletonProcessType)}
+												/>
+											</div>
+										</div>
+
+										{#if skeletonProcessType === 'O'}
+											<div class="space-y-1 xl:col-span-4">
+												<label class="block text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+													Outwork
+												</label>
+												<Input
+													type="text"
+													inputmode="decimal"
+													bind:value={skeletonOutworkNett}
+													onblur={(e) => (skeletonOutworkNett = normalizeMoneyInput(e.currentTarget.value))}
+													class="h-8 text-right text-sm font-mono-tabular"
+													placeholder="0.00"
+												/>
+											</div>
+										{/if}
+
+										<div class="flex items-center justify-between gap-3">
+											<div class="text-sm font-mono-tabular text-muted-foreground">
+												{formatCurrencyValue(categoryTotals()?.subtotal ?? 0)}
+											</div>
+											<Button onclick={handleAddSkeletonLine} size="sm">
+												<Plus class="mr-2 h-4 w-4" />
+												Add line
+											</Button>
+										</div>
+									</div>
+								</div>
+							</Table.Cell>
+						</Table.Row>
 					</Table.Body>
 				</Table.Root>
 			</div>
 		</Card>
 
-		<!-- Totals Summary -->
-		<Card class="p-6">
-			<h3 class="mb-4 text-lg font-semibold text-gray-900">Totals Breakdown</h3>
-
-			{#if categoryTotals()}
-			{@const totals = categoryTotals()}
-				<div class="space-y-2">
-					<!-- Category Totals -->
-					<div class="flex items-center justify-between py-2">
-						<span class="text-sm text-gray-600">Parts Total</span>
-						<span class="text-sm font-medium font-mono-tabular">{formatCurrency(totals?.partsTotal || 0)}</span>
-					</div>
-
-					<div class="flex items-center justify-between py-2">
-						<span class="text-sm text-gray-600">Markup Total</span>
-						<span class="text-sm font-medium text-green-600 font-mono-tabular">{formatCurrency(totals?.markupTotal || 0)}</span>
-					</div>
-
-					<div class="flex items-center justify-between py-2">
-						<span class="text-sm text-gray-600">S&A Total</span>
-						<span class="text-sm font-medium font-mono-tabular">{formatCurrency(totals?.saTotal || 0)}</span>
-					</div>
-
-					<div class="flex items-center justify-between py-2">
-						<span class="text-sm text-gray-600">Labour Total</span>
-						<span class="text-sm font-medium font-mono-tabular">{formatCurrency(totals?.labourTotal || 0)}</span>
-					</div>
-
-					<div class="flex items-center justify-between py-2">
-						<span class="text-sm text-gray-600">Paint Total</span>
-						<span class="text-sm font-medium font-mono-tabular">{formatCurrency(totals?.paintTotal || 0)}</span>
-					</div>
-
-					<div class="flex items-center justify-between py-2 border-b">
-						<span class="text-sm text-gray-600">Outwork Total</span>
-						<span class="text-sm font-medium font-mono-tabular">{formatCurrency(totals?.outworkTotal || 0)}</span>
-					</div>
-
-					<!-- Subtotal -->
-					<div class="flex items-center justify-between py-2 border-b-2">
-						<span class="text-base font-semibold text-gray-700">Subtotal (Ex VAT)</span>
-						<span class="text-lg font-semibold font-mono-tabular">{formatCurrency(localEstimate.subtotal)}</span>
-					</div>
-
-					<!-- VAT -->
-					<div class="flex items-center justify-between py-2 border-b-2">
-						<span class="text-base font-semibold text-gray-700">VAT ({localEstimate.vat_percentage}%)</span>
-						<span class="text-lg font-semibold font-mono-tabular">{formatCurrency(localEstimate.vat_amount)}</span>
-					</div>
-
-					<!-- Total -->
-					<div class="flex items-center justify-between pt-3">
-						<span class="text-lg font-bold text-gray-900">Total (Inc VAT)</span>
-						<span class="text-2xl font-bold text-foreground font-mono-tabular">{formatCurrency(localEstimate.total)}</span>
+		<div class="sticky bottom-0 z-20 -mx-2 mt-3 border-t border-border bg-card shadow-[0_-4px_12px_-6px_rgba(0,0,0,0.1)] sm:-mx-3">
+			<div class="px-3 py-2.5 sm:px-6">
+				<div class="flex flex-wrap items-center gap-x-5 gap-y-1.5 text-[13px]">
+					{#if categoryTotals()}
+						{@const totals = categoryTotals()}
+						<span class="flex items-center gap-1.5">
+							<span class="text-[10.5px] font-semibold uppercase tracking-wide text-muted-foreground">Parts</span>
+							<span class="font-mono-tabular">{formatCurrency(totals?.partsTotal || 0)}</span>
+						</span>
+						<span class="flex items-center gap-1.5">
+							<span class="text-[10.5px] font-semibold uppercase tracking-wide text-muted-foreground">Markup</span>
+							<span class="font-mono-tabular">{formatCurrency(totals?.markupTotal || 0)}</span>
+						</span>
+						<span class="flex items-center gap-1.5">
+							<span class="text-[10.5px] font-semibold uppercase tracking-wide text-muted-foreground">S&A</span>
+							<span class="font-mono-tabular">{formatCurrency(totals?.saTotal || 0)}</span>
+						</span>
+						<span class="flex items-center gap-1.5">
+							<span class="text-[10.5px] font-semibold uppercase tracking-wide text-muted-foreground">Labour</span>
+							<span class="font-mono-tabular">{formatCurrency(totals?.labourTotal || 0)}</span>
+						</span>
+						<span class="flex items-center gap-1.5">
+							<span class="text-[10.5px] font-semibold uppercase tracking-wide text-muted-foreground">Paint</span>
+							<span class="font-mono-tabular">{formatCurrency(totals?.paintTotal || 0)}</span>
+						</span>
+						<span class="flex items-center gap-1.5">
+							<span class="text-[10.5px] font-semibold uppercase tracking-wide text-muted-foreground">Outwork</span>
+							<span class="font-mono-tabular">{formatCurrency(totals?.outworkTotal || 0)}</span>
+						</span>
+						<span class="flex items-center gap-1.5">
+							<span class="text-[10.5px] font-semibold uppercase tracking-wide text-muted-foreground">VAT</span>
+							<span class="font-mono-tabular">{formatCurrency(totals?.vatAmount || 0)}</span>
+						</span>
+						<span class="ml-auto flex items-center gap-3">
+							<span class="flex items-center gap-2">
+								<span class="text-[10.5px] font-semibold uppercase tracking-wide text-muted-foreground">Total</span>
+								<span class="font-mono-tabular text-base font-bold">{formatCurrency(totals?.total || 0)}</span>
+							</span>
+							<Button size="sm" variant="outline" onclick={() => (totalsDetailsOpen = true)}>
+								Details
+							</Button>
+						</span>
+					{/if}
+					<div class="flex items-center gap-2">
+						<SaveIndicator {saving} saved={justSaved} />
+						<Button onclick={saveNow} size="sm" variant="outline" disabled={!dirty || saving}>
+							Save Progress
+						</Button>
+						<Button onclick={handleCompleteClick} size="sm" disabled={!validation.isComplete || saving}>
+							<Check class="mr-2 h-4 w-4" />
+							Complete Pre-Incident Estimate
+						</Button>
 					</div>
 				</div>
-			{/if}
-		</Card>
+			</div>
+		</div>
 
-		<!-- Pre-Incident Damage Photos -->
+		<ResponsiveDialog.Root bind:open={totalsDetailsOpen}>
+			<ResponsiveDialog.Content class="sm:max-w-2xl">
+				<ResponsiveDialog.Header>
+					<ResponsiveDialog.Title>Totals Breakdown</ResponsiveDialog.Title>
+					<ResponsiveDialog.Description>Derived from the local line items and rates.</ResponsiveDialog.Description>
+				</ResponsiveDialog.Header>
+				{#if categoryTotals()}
+					{@const totals = categoryTotals()}
+					<div class="space-y-2 p-6">
+						<div class="flex items-center justify-between border-b py-2">
+							<span class="text-sm text-muted-foreground">Parts Total</span>
+							<span class="font-mono-tabular text-sm font-medium">{formatCurrency(totals?.partsTotal || 0)}</span>
+						</div>
+						<div class="flex items-center justify-between border-b py-2">
+							<span class="text-sm text-muted-foreground">Markup Total</span>
+							<span class="font-mono-tabular text-sm font-medium">{formatCurrency(totals?.markupTotal || 0)}</span>
+						</div>
+						<div class="flex items-center justify-between border-b py-2">
+							<span class="text-sm text-muted-foreground">S&A Total</span>
+							<span class="font-mono-tabular text-sm font-medium">{formatCurrency(totals?.saTotal || 0)}</span>
+						</div>
+						<div class="flex items-center justify-between border-b py-2">
+							<span class="text-sm text-muted-foreground">Labour Total</span>
+							<span class="font-mono-tabular text-sm font-medium">{formatCurrency(totals?.labourTotal || 0)}</span>
+						</div>
+						<div class="flex items-center justify-between border-b py-2">
+							<span class="text-sm text-muted-foreground">Paint Total</span>
+							<span class="font-mono-tabular text-sm font-medium">{formatCurrency(totals?.paintTotal || 0)}</span>
+						</div>
+						<div class="flex items-center justify-between border-b py-2">
+							<span class="text-sm text-muted-foreground">Outwork Total</span>
+							<span class="font-mono-tabular text-sm font-medium">{formatCurrency(totals?.outworkTotal || 0)}</span>
+						</div>
+						<div class="flex items-center justify-between border-b py-2">
+							<span class="text-sm text-muted-foreground">Subtotal</span>
+							<span class="font-mono-tabular text-sm font-medium">{formatCurrency(totals?.subtotal || 0)}</span>
+						</div>
+						<div class="flex items-center justify-between border-b py-2">
+							<span class="text-sm text-muted-foreground">VAT ({localEstimate.vat_percentage}%)</span>
+							<span class="font-mono-tabular text-sm font-medium">{formatCurrency(totals?.vatAmount || 0)}</span>
+						</div>
+						<div class="flex items-center justify-between py-2">
+							<span class="text-base font-semibold text-gray-900">Total</span>
+							<span class="font-mono-tabular text-lg font-bold">{formatCurrency(totals?.total || 0)}</span>
+						</div>
+					</div>
+				{/if}
+			</ResponsiveDialog.Content>
+		</ResponsiveDialog.Root>
+
 		<PreIncidentPhotosPanel
 			estimateId={localEstimate.id}
 			{assessmentId}
 			photos={estimatePhotos}
 			onUpdate={onPhotosUpdate}
 		/>
-
-		<!-- Actions -->
-		<div class="flex justify-between">
-			<Button onclick={saveAll} size="sm" disabled={saving || !dirty}>
-				{saving ? 'Saving…' : 'Save Progress'}
-			</Button>
-			<Button onclick={onComplete} disabled={!isComplete || dirty}>
-				<Check class="mr-2 h-4 w-4" />
-				Complete Pre-Incident Estimate
-			</Button>
-		</div>
 	{/if}
 </div>
-

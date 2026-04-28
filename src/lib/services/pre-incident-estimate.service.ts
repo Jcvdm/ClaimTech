@@ -9,13 +9,72 @@ import type { ServiceClient } from '$lib/types/service';
 import { auditService } from './audit.service';
 import {
 	calculateLineItemTotal,
-	calculateSubtotal,
 	calculateVAT,
 	calculateTotal,
 	recalculateAllLineItems,
+	calculatePartSellingPrice,
+	calculateOutworkSellingPrice,
+	calculateSACost,
 	calculateLabourCost,
 	calculatePaintCost
 } from '$lib/utils/estimateCalculations';
+
+function calculatePreIncidentTotals(
+	lineItems: EstimateLineItem[],
+	labourRate: number,
+	paintRate: number,
+	vatPercentage: number,
+	oemMarkupPercentage: number,
+	altMarkupPercentage: number,
+	secondHandMarkupPercentage: number,
+	outworkMarkupPercentage: number
+) {
+	const partsTotal = lineItems
+		.filter((item) => item.process_type === 'N')
+		.reduce((sum, item) => sum + (item.part_price_nett || 0), 0);
+	const saTotal = lineItems.reduce(
+		(sum, item) => sum + (item.strip_assemble ?? calculateSACost(item.strip_assemble_hours, labourRate)),
+		0
+	);
+	const labourTotal = lineItems.reduce(
+		(sum, item) => sum + (item.labour_cost ?? calculateLabourCost(item.labour_hours, labourRate)),
+		0
+	);
+	const paintTotal = lineItems.reduce(
+		(sum, item) => sum + (item.paint_cost ?? calculatePaintCost(item.paint_panels, paintRate)),
+		0
+	);
+	const outworkTotal = lineItems
+		.filter((item) => item.process_type === 'O')
+		.reduce((sum, item) => sum + (item.outwork_charge_nett || 0), 0);
+	const partsMarkup = lineItems.reduce((sum, item) => {
+		if (item.process_type !== 'N') return sum;
+		const nett = item.part_price_nett || 0;
+		const markupPercentage =
+			item.part_type === 'ALT'
+				? altMarkupPercentage
+				: item.part_type === '2ND'
+					? secondHandMarkupPercentage
+					: oemMarkupPercentage;
+		return sum + (calculatePartSellingPrice(nett, markupPercentage) - nett);
+	}, 0);
+	const outworkMarkup = lineItems.reduce((sum, item) => {
+		if (item.process_type !== 'O') return sum;
+		const nett = item.outwork_charge_nett || 0;
+		return sum + (calculateOutworkSellingPrice(nett, outworkMarkupPercentage) - nett);
+	}, 0);
+	const bettermentTotal = lineItems.reduce((sum, item) => sum + (item.betterment_total || 0), 0);
+	const markupTotal = partsMarkup + outworkMarkup;
+	const subtotal = partsTotal + saTotal + labourTotal + paintTotal + outworkTotal + markupTotal - bettermentTotal;
+	const vatAmount = calculateVAT(subtotal, vatPercentage);
+	const total = calculateTotal(subtotal, vatAmount);
+
+	return {
+		subtotal,
+		vatAmount,
+		total
+	};
+}
 
 export class PreIncidentEstimateService {
 	/**
@@ -73,10 +132,17 @@ export class PreIncidentEstimateService {
 		const lineItems = input.line_items || [];
 		const labourRate = input.labour_rate || 500.0;
 		const paintRate = input.paint_rate || 2000.0;
-		const subtotal = calculateSubtotal(lineItems);
 		const vatPercentage = input.vat_percentage || 15.0;
-		const vatAmount = calculateVAT(subtotal, vatPercentage);
-		const total = calculateTotal(subtotal, vatAmount);
+		const totals = calculatePreIncidentTotals(
+			lineItems,
+			labourRate,
+			paintRate,
+			vatPercentage,
+			input.oem_markup_percentage || 25.0,
+			input.alt_markup_percentage || 25.0,
+			input.second_hand_markup_percentage || 25.0,
+			input.outwork_markup_percentage || 25.0
+		);
 
 		const { data, error} = await db
 			.from('pre_incident_estimates')
@@ -89,10 +155,10 @@ export class PreIncidentEstimateService {
 				second_hand_markup_percentage: input.second_hand_markup_percentage || 25.0,
 				outwork_markup_percentage: input.outwork_markup_percentage || 25.0,
 				line_items: lineItems as any,
-				subtotal,
+				subtotal: totals.subtotal,
 				vat_percentage: vatPercentage,
-				vat_amount: vatAmount,
-				total,
+				vat_amount: totals.vatAmount,
+				total: totals.total,
 				notes: input.notes || null,
 				currency: input.currency || 'ZAR'
 			})
@@ -112,7 +178,7 @@ export class PreIncidentEstimateService {
 				action: 'created',
 				metadata: {
 					estimate_id: data.id,
-					total: total
+					total: totals.total
 				}
 			});
 		} catch (auditError) {
@@ -132,31 +198,54 @@ export class PreIncidentEstimateService {
 			throw new Error('Pre-incident estimate not found');
 		}
 
-		// If line_items or rates are being updated, recalculate totals
+		// Recalculate totals when any totals-affecting fields change
 		let updateData: any = { ...input };
 
-		if (input.line_items || input.labour_rate || input.paint_rate) {
-			const labourRate = input.labour_rate || currentEstimate.labour_rate;
-			const paintRate = input.paint_rate || currentEstimate.paint_rate;
-			const lineItems = input.line_items || currentEstimate.line_items;
+		const shouldRecalculateTotals =
+			input.line_items !== undefined ||
+			input.labour_rate !== undefined ||
+			input.paint_rate !== undefined ||
+			input.vat_percentage !== undefined ||
+			input.oem_markup_percentage !== undefined ||
+			input.alt_markup_percentage !== undefined ||
+			input.second_hand_markup_percentage !== undefined ||
+			input.outwork_markup_percentage !== undefined;
+
+		if (shouldRecalculateTotals) {
+			const labourRate = input.labour_rate ?? currentEstimate.labour_rate;
+			const paintRate = input.paint_rate ?? currentEstimate.paint_rate;
+			const lineItems = input.line_items ?? currentEstimate.line_items;
+			const oemMarkupPercentage = input.oem_markup_percentage ?? currentEstimate.oem_markup_percentage;
+			const altMarkupPercentage = input.alt_markup_percentage ?? currentEstimate.alt_markup_percentage;
+			const secondHandMarkupPercentage =
+				input.second_hand_markup_percentage ?? currentEstimate.second_hand_markup_percentage;
+			const outworkMarkupPercentage =
+				input.outwork_markup_percentage ?? currentEstimate.outwork_markup_percentage;
 
 			// Recalculate all line items if rates changed
 			const recalculatedItems =
-				input.labour_rate || input.paint_rate
+				input.labour_rate !== undefined || input.paint_rate !== undefined
 					? recalculateAllLineItems(lineItems, labourRate, paintRate)
 					: lineItems;
 
-			const subtotal = calculateSubtotal(recalculatedItems);
-			const vatPercentage = input.vat_percentage || currentEstimate.vat_percentage;
-			const vatAmount = calculateVAT(subtotal, vatPercentage);
-			const total = calculateTotal(subtotal, vatAmount);
+			const vatPercentage = input.vat_percentage ?? currentEstimate.vat_percentage;
+			const totals = calculatePreIncidentTotals(
+				recalculatedItems,
+				labourRate,
+				paintRate,
+				vatPercentage,
+				oemMarkupPercentage,
+				altMarkupPercentage,
+				secondHandMarkupPercentage,
+				outworkMarkupPercentage
+			);
 
 			updateData = {
 				...updateData,
 				line_items: recalculatedItems,
-				subtotal,
-				vat_amount: vatAmount,
-				total
+				subtotal: totals.subtotal,
+				vat_amount: totals.vatAmount,
+				total: totals.total
 			};
 		}
 
@@ -395,17 +484,24 @@ export class PreIncidentEstimateService {
 		);
 
 		// Recalculate estimate totals
-		const subtotal = calculateSubtotal(updatedLineItems);
-		const vatAmount = calculateVAT(subtotal, estimate.vat_percentage);
-		const total = calculateTotal(subtotal, vatAmount);
+		const totals = calculatePreIncidentTotals(
+			updatedLineItems,
+			estimate.labour_rate,
+			estimate.paint_rate,
+			estimate.vat_percentage,
+			estimate.oem_markup_percentage,
+			estimate.alt_markup_percentage,
+			estimate.second_hand_markup_percentage,
+			estimate.outwork_markup_percentage
+		);
 
 		const { data, error } = await supabase
 			.from('pre_incident_estimates')
 			.update({
 				line_items: updatedLineItems as any,
-				subtotal,
-				vat_amount: vatAmount,
-				total
+				subtotal: totals.subtotal,
+				vat_amount: totals.vatAmount,
+				total: totals.total
 			})
 			.eq('id', id)
 			.select()
@@ -421,4 +517,3 @@ export class PreIncidentEstimateService {
 }
 
 export const preIncidentEstimateService = new PreIncidentEstimateService();
-
