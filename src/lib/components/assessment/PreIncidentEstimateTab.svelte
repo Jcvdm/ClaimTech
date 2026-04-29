@@ -966,7 +966,7 @@
 								</div>
 								<div class="rounded-sm border border-border bg-background p-1.5">
 									<div class="mb-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-										Labour
+										Lab
 									</div>
 									<Input
 										type="text"
@@ -999,7 +999,7 @@
 							{#if skeletonProcessType === 'O'}
 								<div class="rounded-sm border border-border bg-background p-1.5 xl:col-span-4">
 									<div class="mb-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-										Outwork
+										Out
 									</div>
 									<Input
 										type="text"
@@ -1154,7 +1154,7 @@
 
 										<div class="rounded-sm border bg-background px-1.5 py-1 text-right">
 											<div class="text-[10px] uppercase tracking-wide text-muted-foreground">
-												Labour
+												Lab
 											</div>
 											<CostCell
 												editing={editingLabour === item.id}
@@ -1184,7 +1184,7 @@
 
 										<div class="rounded-sm border bg-background px-1.5 py-1 text-right">
 											<div class="text-[10px] uppercase tracking-wide text-muted-foreground">
-												Outwork
+												Out
 											</div>
 											<CostCell
 												editing={editingOutwork === item.id}
@@ -1310,7 +1310,7 @@
 											</div>
 											<div class="rounded-sm border border-border bg-background p-1.5">
 												<div class="mb-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-													Labour
+													Lab
 												</div>
 												<Input
 													type="text"
@@ -1341,7 +1341,7 @@
 										{#if skeletonProcessType === 'O'}
 											<div class="space-y-1 xl:col-span-4">
 												<label class="block text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-													Outwork
+													Out
 												</label>
 												<Input
 													type="text"
