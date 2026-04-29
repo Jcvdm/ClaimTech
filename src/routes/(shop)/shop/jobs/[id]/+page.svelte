@@ -1713,7 +1713,7 @@
 												</Table.Cell>
 
 												<!-- Total -->
-												<Table.Cell class="px-3 py-2 text-right font-bold">
+												<Table.Cell class="px-3 py-2 text-right font-bold font-mono-tabular">
 													{formatCurrency(item.total)}
 												</Table.Cell>
 
