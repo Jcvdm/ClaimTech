@@ -1241,155 +1241,191 @@
 							</Table.Row>
 						{/each}
 
-						<Table.Row>
-							<Table.Cell colspan={6} class="bg-muted/20 p-3">
-								<div class="rounded-sm border border-dashed border-border bg-background/70 p-3">
-									<div class="flex items-center justify-between gap-3 pb-3">
-										<div>
-											<h4 class="text-[11.5px] font-semibold uppercase tracking-wide text-muted-foreground">
-												Add line item
-											</h4>
-											<p class="text-xs text-muted-foreground">Persistent inline entry row.</p>
-										</div>
-										<Button variant="ghost" size="sm" onclick={resetSkeleton}>
-											<span class="text-xs">Clear</span>
-										</Button>
+						<!-- Skeleton row — persistent inline add row -->
+						<Table.Row class="bg-muted/20 hover:bg-muted/20">
+							<Table.Cell class="px-2 py-2">
+								<input
+									type="checkbox"
+									disabled
+									class="cursor-not-allowed rounded border-gray-300 opacity-50"
+									aria-label="Skeleton row (not selectable)"
+									tabindex={-1}
+								/>
+							</Table.Cell>
+							<Table.Cell class="px-2 py-2 align-top">
+								<div class="flex flex-col gap-1.5">
+									<div class="group relative w-fit">
+										<select
+											value={skeletonProcessType}
+											onchange={(e) =>
+												handleSkeletonProcessTypeChange(e.currentTarget.value as ProcessType)}
+											class="absolute inset-0 z-10 h-full w-full cursor-pointer opacity-0"
+											aria-label="New line process type"
+										>
+											{#each processTypeOptions as option}
+												<option value={option.value}>{option.value} - {option.label}</option>
+											{/each}
+										</select>
+										<span
+											class="inline-flex min-w-8 justify-center rounded px-2 py-1 text-xs font-semibold {getProcessTypeBadgeColor(
+												skeletonProcessType
+											)}"
+										>{skeletonProcessType}</span>
 									</div>
-
-									<div class="grid gap-3 xl:grid-cols-[150px_110px_minmax(0,1fr)_minmax(0,1.2fr)_auto]">
-										<div class="space-y-1">
-											<label class="block text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-												Process
-											</label>
+									{#if skeletonProcessType === 'N'}
+										<div class="group relative w-fit">
 											<select
-												value={skeletonProcessType}
-												onchange={(e) =>
-													handleSkeletonProcessTypeChange(e.currentTarget.value as ProcessType)}
-												class="w-full rounded-md border border-border bg-background px-2 py-2 text-sm"
+												value={skeletonPartType}
+												onchange={(e) => (skeletonPartType = e.currentTarget.value as PartType)}
+												class="absolute inset-0 z-10 h-full w-full cursor-pointer opacity-0"
+												aria-label="New line part type"
 											>
-												{#each processTypeOptions as option}
-													<option value={option.value}>
-														{option.value} - {option.label}
-													</option>
-												{/each}
+												<option value="OEM">OEM</option>
+												<option value="ALT">ALT</option>
+												<option value="2ND">2ND</option>
 											</select>
+											<div
+												class="pointer-events-none inline-flex items-center gap-1 rounded-sm border px-1.5 py-0.5 text-[11px] font-semibold {skeletonPartType ===
+												'ALT'
+													? 'border-success-border bg-success-soft text-success'
+													: skeletonPartType === '2ND'
+														? 'border-warning-border bg-warning-soft text-warning'
+														: 'border-border bg-muted text-muted-foreground'}"
+											>
+												{#if skeletonPartType === 'ALT'}
+													<Package class="h-3 w-3" />
+												{:else if skeletonPartType === '2ND'}
+													<Recycle class="h-3 w-3" />
+												{:else}
+													<ShieldCheck class="h-3 w-3" />
+												{/if}
+												{skeletonPartType}
+											</div>
 										</div>
-
+									{:else}
+										<span class="text-xs text-muted-foreground">No part</span>
+									{/if}
+								</div>
+							</Table.Cell>
+							<Table.Cell class="px-3 py-2 align-top">
+								<textarea
+									placeholder="Description - type to add"
+									aria-label="New line description"
+									rows={2}
+									bind:value={skeletonDescription}
+									onkeydown={(e: KeyboardEvent) => {
+										if (e.key === 'Enter') (e.currentTarget as HTMLTextAreaElement)?.blur();
+									}}
+									class="flex w-full resize-none rounded-md border-0 bg-background px-0 py-0 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0 whitespace-pre-wrap break-words disabled:cursor-not-allowed disabled:opacity-50"
+								></textarea>
+							</Table.Cell>
+							<Table.Cell class="px-2 py-2 align-top">
+								<div class="grid grid-cols-[112px_66px_66px_82px_98px] gap-1">
+									<div class="rounded-sm border bg-background px-1.5 py-1 text-right">
+										<div class="text-[10px] tracking-wide text-muted-foreground uppercase">Part</div>
 										{#if skeletonProcessType === 'N'}
-											<div class="space-y-1">
-												<label class="block text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-													Part
-												</label>
-												<select
-													value={skeletonPartType}
-													onchange={(e) => (skeletonPartType = e.currentTarget.value as PartType)}
-													class="w-full rounded-md border border-border bg-background px-2 py-2 text-sm"
-												>
-													<option value="OEM">OEM</option>
-													<option value="ALT">ALT</option>
-													<option value="2ND">2ND</option>
-												</select>
-											</div>
+											<Input
+												type="text"
+												inputmode="decimal"
+												bind:value={skeletonPartPriceNett}
+												onblur={(e) => (skeletonPartPriceNett = normalizeMoneyInput(e.currentTarget.value))}
+												onkeydown={(e) => {
+													if (e.key === 'Enter') (e.currentTarget as HTMLInputElement).blur();
+												}}
+												placeholder="0,00"
+												class="font-mono-tabular h-7 border-0 p-0 text-right text-xs focus-visible:ring-0 focus-visible:ring-offset-0"
+											/>
+										{:else}
+											<span class="text-muted-foreground text-xs">-</span>
 										{/if}
-
-										<div class="space-y-1">
-											<label class="block text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-												Description
-											</label>
-											<textarea
-												bind:value={skeletonDescription}
-												rows="2"
-												class="flex w-full resize-none rounded-md border-0 bg-background px-0 py-0 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0 whitespace-pre-wrap break-words disabled:cursor-not-allowed disabled:opacity-50"
-												placeholder="Description"
-											></textarea>
-										</div>
-
-										<div class="grid grid-cols-2 gap-1.5 xl:grid-cols-4">
-											<div class="rounded-sm border border-border bg-background p-1.5">
-												<div class="mb-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-													Part
-												</div>
-												<Input
-													type="text"
-													inputmode="decimal"
-													bind:value={skeletonPartPriceNett}
-													onblur={(e) => (skeletonPartPriceNett = normalizeMoneyInput(e.currentTarget.value))}
-													class="h-8 text-right text-sm font-mono-tabular"
-													placeholder="0.00"
-													disabled={skeletonProcessType !== 'N'}
-												/>
-											</div>
-											<div class="rounded-sm border border-border bg-background p-1.5">
-												<div class="mb-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-													S&A
-												</div>
-												<Input
-													type="text"
-													inputmode="decimal"
-													bind:value={skeletonSAHours}
-													onblur={(e) => (skeletonSAHours = normalizeNumericInput(e.currentTarget.value))}
-													class="h-8 text-right text-sm font-mono-tabular"
-													placeholder="0"
-													disabled={!['N', 'R', 'P', 'B'].includes(skeletonProcessType)}
-												/>
-											</div>
-											<div class="rounded-sm border border-border bg-background p-1.5">
-												<div class="mb-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-													Lab
-												</div>
-												<Input
-													type="text"
-													inputmode="decimal"
-													bind:value={skeletonLabourHours}
-													onblur={(e) => (skeletonLabourHours = normalizeNumericInput(e.currentTarget.value))}
-													class="h-8 text-right text-sm font-mono-tabular"
-													placeholder="0"
-													disabled={!['N', 'R', 'A'].includes(skeletonProcessType)}
-												/>
-											</div>
-											<div class="rounded-sm border border-border bg-background p-1.5">
-												<div class="mb-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-													Paint
-												</div>
-												<Input
-													type="text"
-													inputmode="decimal"
-													bind:value={skeletonPaintPanels}
-													onblur={(e) => (skeletonPaintPanels = normalizeNumericInput(e.currentTarget.value))}
-													class="h-8 text-right text-sm font-mono-tabular"
-													placeholder="0"
-													disabled={!['N', 'R', 'P', 'B'].includes(skeletonProcessType)}
-												/>
-											</div>
-										</div>
-
+									</div>
+									<div class="rounded-sm border bg-background px-1.5 py-1 text-right">
+										<div class="text-[10px] tracking-wide text-muted-foreground uppercase">S&A</div>
+										{#if ['N', 'R', 'P', 'B'].includes(skeletonProcessType)}
+											<Input
+												type="text"
+												inputmode="decimal"
+												bind:value={skeletonSAHours}
+												onblur={(e) => (skeletonSAHours = normalizeNumericInput(e.currentTarget.value))}
+												onkeydown={(e) => {
+													if (e.key === 'Enter') (e.currentTarget as HTMLInputElement).blur();
+												}}
+												placeholder="0"
+												class="font-mono-tabular h-7 border-0 p-0 text-right text-xs focus-visible:ring-0 focus-visible:ring-offset-0"
+											/>
+										{:else}
+											<span class="text-muted-foreground text-xs">-</span>
+										{/if}
+									</div>
+									<div class="rounded-sm border bg-background px-1.5 py-1 text-right">
+										<div class="text-[10px] tracking-wide text-muted-foreground uppercase">Lab</div>
+										{#if ['N', 'R', 'A'].includes(skeletonProcessType)}
+											<Input
+												type="text"
+												inputmode="decimal"
+												bind:value={skeletonLabourHours}
+												onblur={(e) => (skeletonLabourHours = normalizeNumericInput(e.currentTarget.value))}
+												onkeydown={(e) => {
+													if (e.key === 'Enter') (e.currentTarget as HTMLInputElement).blur();
+												}}
+												placeholder="0"
+												class="font-mono-tabular h-7 border-0 p-0 text-right text-xs focus-visible:ring-0 focus-visible:ring-offset-0"
+											/>
+										{:else}
+											<span class="text-muted-foreground text-xs">-</span>
+										{/if}
+									</div>
+									<div class="rounded-sm border bg-background px-1.5 py-1 text-right">
+										<div class="text-[10px] tracking-wide text-muted-foreground uppercase">Paint</div>
+										{#if ['N', 'R', 'P', 'B'].includes(skeletonProcessType)}
+											<Input
+												type="text"
+												inputmode="decimal"
+												bind:value={skeletonPaintPanels}
+												onblur={(e) => (skeletonPaintPanels = normalizeNumericInput(e.currentTarget.value))}
+												onkeydown={(e) => {
+													if (e.key === 'Enter') (e.currentTarget as HTMLInputElement).blur();
+												}}
+												placeholder="0"
+												class="font-mono-tabular h-7 border-0 p-0 text-right text-xs focus-visible:ring-0 focus-visible:ring-offset-0"
+											/>
+										{:else}
+											<span class="text-muted-foreground text-xs">-</span>
+										{/if}
+									</div>
+									<div class="rounded-sm border bg-background px-1.5 py-1 text-right">
+										<div class="text-[10px] tracking-wide text-muted-foreground uppercase">Out</div>
 										{#if skeletonProcessType === 'O'}
-											<div class="space-y-1 xl:col-span-4">
-												<label class="block text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-													Out
-												</label>
-												<Input
-													type="text"
-													inputmode="decimal"
-													bind:value={skeletonOutworkNett}
-													onblur={(e) => (skeletonOutworkNett = normalizeMoneyInput(e.currentTarget.value))}
-													class="h-8 text-right text-sm font-mono-tabular"
-													placeholder="0.00"
-												/>
-											</div>
+											<Input
+												type="text"
+												inputmode="decimal"
+												bind:value={skeletonOutworkNett}
+												onblur={(e) => (skeletonOutworkNett = normalizeMoneyInput(e.currentTarget.value))}
+												onkeydown={(e) => {
+													if (e.key === 'Enter') (e.currentTarget as HTMLInputElement).blur();
+												}}
+												placeholder="0,00"
+												class="font-mono-tabular h-7 border-0 p-0 text-right text-xs focus-visible:ring-0 focus-visible:ring-offset-0"
+											/>
+										{:else}
+											<span class="text-muted-foreground text-xs">-</span>
 										{/if}
-
-										<div class="flex items-center justify-between gap-3">
-											<div class="text-sm font-mono-tabular text-muted-foreground">
-												{formatCurrencyValue(categoryTotals()?.subtotalExVat ?? 0)}
-											</div>
-											<Button onclick={handleAddSkeletonLine} size="sm">
-												<Plus class="mr-2 h-4 w-4" />
-												Add line
-											</Button>
-										</div>
 									</div>
 								</div>
+							</Table.Cell>
+							<Table.Cell class="font-mono-tabular px-3 py-2 text-right text-muted-foreground">
+								<span class="text-muted-foreground">—</span>
+							</Table.Cell>
+							<Table.Cell class="px-2 py-2">
+								<Button
+									onclick={handleAddSkeletonLine}
+									size="sm"
+									variant="ghost"
+									class="h-8 w-8 p-0"
+									aria-label="Add line"
+								>
+									<Plus class="h-4 w-4" />
+								</Button>
 							</Table.Cell>
 						</Table.Row>
 					</Table.Body>
