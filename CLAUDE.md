@@ -103,9 +103,47 @@ Multiple attempts (Apr 2026) to use Haiku as a research/synthesis agent failed a
 | "Find all callsites of pattern X" | **Orchestrator's `Grep` tool directly** | 1 tool call, 100% accurate, no agent overhead |
 | "Read file Y and tell me about function Z" | **Orchestrator's `Read` tool directly** | If you know the file, just read it |
 | "Find candidate files for unfamiliar feature/concern" | **Context Engine query** | Tiered XML pack with primary/secondary/outline; semantic + lexical + graph signals |
+| "Audit codebase + write planning docs" | **Orchestrator (Opus 4.7) does grep + writes docs directly** | Demonstrated: matches paid third-party tool output. See "Orchestrator-as-Planner" below |
 | "Catalog X across many files" (compressible to clusters) | **Haiku Explore agent** with strict output-format rails (clusters, not enumerations) | Works ~50% of the time; verify file claims before trusting |
-| "Synthesize findings into long-form doc" | **Sonnet**, not Haiku | Haiku hallucinates content at this length |
-| "Multi-step research crossing 10+ files" | **Sonnet** | Haiku autocompacts on intermediate state |
+| "Synthesize findings into long-form doc" | **Orchestrator (Opus 4.7)**, not Haiku, not even Sonnet sub-agent unless context budget pressures | Synthesis is the orchestrator's job; sub-agents add input-tokens overhead |
+| "Multi-step research crossing 10+ files" | **Orchestrator with explicit step plan** OR Sonnet sub-agent if context-budget-pressured | Haiku autocompacts on intermediate state |
+
+### Orchestrator-as-Planner: the right default for audit/plan tasks
+
+**Empirical finding (Apr 2026)**: Opus 4.7 (the orchestrator) produces better audit + planning deliverables doing the work directly than dispatching to sub-agents. Multiple v3/v4 finance-map experiments confirmed this:
+
+- Sub-agent synthesis hallucinates content (Haiku especially) or imposes word caps that constrain output
+- Sub-agent dispatch ADDS input-tokens (the agent's response becomes my input)
+- Orchestrator can do `Grep` + `Read` faster than dispatching an agent to do the same
+
+**The pattern that works** (demonstrated producing 3 linked planning docs in `.agent/Tasks/active/` for a styling refactor):
+
+```
+Step 1: Orchestrator runs 5-10 targeted greps directly (verifiable ground truth)
+Step 2: Orchestrator aggregates findings into structured data IN ITS OWN CONTEXT
+Step 3: Orchestrator writes 3 linked .md files directly using Write tool:
+        - <TOPIC>_DISCREPANCIES_AND_REFACTORING_OPPORTUNITIES.md (the audit)
+        - <TOPIC>_ACTION_ROADMAP.md (per-task effort/risk/files/acceptance)
+        - <TOPIC>_REFACTORING_EFFICIENCY_PLAN.md (executive view, do/don't-touch)
+Step 4: Output goes to .agent/Tasks/active/ (allowed coordination artifacts per orchestrator policy)
+```
+
+This pattern delivers Augment-quality output using only Opus 4.7's own tools. **No external paid services needed for audit/plan tasks**.
+
+### When NOT to use external paid context tools (e.g., Augment)
+
+For THIS workflow (Claude Code + Opus 4.7 orchestrator), paid upstream context-gathering services are usually counterproductive:
+
+- They cost out-of-pocket
+- Their output becomes input-tokens to me (no token saving — net token COST is higher)
+- I can match their deliverable shape directly (proven this session)
+
+External paid tools may pay off in narrow cases:
+- Genuinely unfamiliar 100K+ line codebase you've never touched, where pre-digestion helps
+- Customer-facing tech-debt audit docs for non-technical stakeholders who won't read grep output
+- Polished templated outputs for compliance/handoff scenarios
+
+For day-to-day refactor planning on a codebase you're actively working in: **just use the orchestrator**. The local Context Engine handles the "find unfamiliar candidates" gap for free.
 
 ### When to use the Context Engine
 
