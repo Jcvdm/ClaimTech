@@ -148,10 +148,10 @@
 				}
 
 				invoiceAgeBands = [
-					{ color: 'bg-green-600', count: c30 },
-					{ color: 'bg-yellow-500', count: c60 },
-					{ color: 'bg-orange-500', count: c90 },
-					{ color: 'bg-red-600', count: c120 },
+					{ color: 'bg-success', count: c30 },
+					{ color: 'bg-warning', count: c60 },
+					{ color: 'bg-warning', count: c90 },
+					{ color: 'bg-destructive', count: c120 },
 				].filter(b => b.count > 0);
 			}
 		} catch (error) {

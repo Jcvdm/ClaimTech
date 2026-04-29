@@ -135,14 +135,14 @@ export function generateAdditionalsLetterHTML(data: AdditionalsLetterData): stri
       justify-content: space-between;
       align-items: flex-start;
       margin-bottom: 60px;
-      border-bottom: 4px solid #e11d48;
+      border-bottom: 4px solid #64748b;
       padding-bottom: 20px;
     }
 
     .logo-placeholder {
       font-size: 24pt;
       font-weight: bold;
-      color: #e11d48;
+      color: #64748b;
       letter-spacing: -1px;
       display: flex;
       align-items: center;
@@ -218,7 +218,7 @@ export function generateAdditionalsLetterHTML(data: AdditionalsLetterData): stri
       justify-content: space-between;
       align-items: center;
       padding-bottom: 15px;
-      border-bottom: 2px solid #e11d48;
+      border-bottom: 2px solid #64748b;
       margin-bottom: 30px;
     }
 
@@ -244,7 +244,7 @@ export function generateAdditionalsLetterHTML(data: AdditionalsLetterData): stri
       padding: 8px 0;
       font-weight: 700;
       font-size: 12pt;
-      border-bottom: 2px solid #e11d48;
+      border-bottom: 2px solid #64748b;
       margin-bottom: 20px;
       color: #111827;
       text-transform: uppercase;
@@ -310,11 +310,11 @@ export function generateAdditionalsLetterHTML(data: AdditionalsLetterData): stri
     }
 
     .grand-total td {
-      background-color: #e11d48;
+      background-color: #64748b;
       color: #fff;
       font-weight: bold;
       font-size: 11pt;
-      border-color: #e11d48;
+      border-color: #64748b;
     }
 
     .footer {
@@ -348,7 +348,7 @@ export function generateAdditionalsLetterHTML(data: AdditionalsLetterData): stri
         ${logoMarkup}
       </div>
       <div style="text-align: right;">
-        <div style="font-weight: bold; color: #e11d48;">${assessment.assessment_number}</div>
+        <div style="font-weight: bold; color: #64748b;">${assessment.assessment_number}</div>
         <div style="color: #6b7280; font-size: 9pt;">${formatDateNumeric(new Date().toISOString())}</div>
       </div>
     </div>

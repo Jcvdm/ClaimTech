@@ -15,6 +15,7 @@
 	} from 'lucide-svelte';
 	import type { ShopAdditionals, ShopAdditionalLineItem } from '$lib/types/shop-additionals';
 	import type { EstimateLineItem } from '$lib/types/assessment';
+	import { getProcessTypeBadgeColor } from '$lib/constants/processTypes';
 
 	interface Props {
 		jobId: string;
@@ -331,17 +332,7 @@
 							<div class="flex items-center justify-between py-2">
 								<div class="flex min-w-0 flex-1 items-center gap-2">
 									<Badge
-										class={item.process_type === 'N'
-											? 'bg-blue-500 text-white'
-											: item.process_type === 'R'
-												? 'bg-amber-500 text-white'
-												: item.process_type === 'P'
-													? 'bg-purple-500 text-white'
-													: item.process_type === 'O'
-														? 'bg-cyan-500 text-white'
-														: item.process_type === 'A'
-															? 'bg-slate-500 text-white'
-															: 'bg-muted text-muted-foreground'}
+										class={getProcessTypeBadgeColor(item.process_type)}
 									>
 										{item.process_type}
 									</Badge>

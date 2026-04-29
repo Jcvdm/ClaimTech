@@ -90,14 +90,14 @@ export function generatePhotosHTML(data: PhotosData): string {
 			justify-content: space-between;
 			align-items: flex-start;
 			margin-bottom: 60px;
-			border-bottom: 4px solid #e11d48;
+			border-bottom: 4px solid #64748b;
 			padding-bottom: 20px;
 		}
 
 		.logo-placeholder {
 			font-size: 24pt;
 			font-weight: bold;
-			color: #e11d48;
+			color: #64748b;
 			letter-spacing: -1px;
 			display: flex;
 			align-items: center;
@@ -173,7 +173,7 @@ export function generatePhotosHTML(data: PhotosData): string {
 			justify-content: space-between;
 			align-items: center;
 			padding-bottom: 15px;
-			border-bottom: 2px solid #e11d48;
+			border-bottom: 2px solid #64748b;
 			margin-bottom: 30px;
 		}
 
@@ -199,7 +199,7 @@ export function generatePhotosHTML(data: PhotosData): string {
 			padding: 8px 0;
 			font-weight: 700;
 			font-size: 12pt;
-			border-bottom: 2px solid #e11d48;
+			border-bottom: 2px solid #64748b;
 			margin-bottom: 20px;
 			color: #111827;
 			text-transform: uppercase;
@@ -274,7 +274,7 @@ export function generatePhotosHTML(data: PhotosData): string {
 				${logoMarkup}
 			</div>
 			<div style="text-align: right;">
-				<div style="font-weight: bold; color: #e11d48;">${assessment.assessment_number}</div>
+				<div style="font-weight: bold; color: #64748b;">${assessment.assessment_number}</div>
 				<div style="color: #6b7280; font-size: 9pt;">${formatDateNumeric(assessment.created_at)}</div>
 			</div>
 		</div>
@@ -298,7 +298,7 @@ export function generatePhotosHTML(data: PhotosData): string {
 
 			<div class="summary-card">
 				<div class="summary-card-title">Total Photos</div>
-				<div class="summary-card-value" style="color: #e11d48;">
+				<div class="summary-card-value" style="color: #64748b;">
 					${totalPhotos}
 				</div>
 				<div style="margin-top: 5px; color: #6b7280; font-size: 9pt;">Images Captured</div>

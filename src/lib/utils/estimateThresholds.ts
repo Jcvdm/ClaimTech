@@ -86,33 +86,33 @@ export function getThresholdColorClasses(color: ThresholdColor): {
 	switch (color) {
 		case 'red':
 			return {
-				text: 'text-red-700',
-				bg: 'bg-red-50',
-				border: 'border-red-300'
+				text: 'text-destructive',
+				bg: 'bg-destructive-soft',
+				border: 'border-destructive-border'
 			};
 		case 'orange':
 			return {
-				text: 'text-orange-700',
-				bg: 'bg-orange-50',
-				border: 'border-orange-300'
+				text: 'text-warning',
+				bg: 'bg-warning-soft',
+				border: 'border-warning-border'
 			};
 		case 'yellow':
 			return {
-				text: 'text-yellow-700',
-				bg: 'bg-yellow-50',
-				border: 'border-yellow-300'
+				text: 'text-warning',
+				bg: 'bg-warning-soft',
+				border: 'border-warning-border'
 			};
 		case 'green':
 			return {
-				text: 'text-green-700',
-				bg: 'bg-green-50',
-				border: 'border-green-300'
+				text: 'text-success',
+				bg: 'bg-success-soft',
+				border: 'border-success-border'
 			};
 		default:
 			return {
-				text: 'text-gray-700',
-				bg: 'bg-gray-50',
-				border: 'border-gray-300'
+				text: 'text-muted-foreground',
+				bg: 'bg-muted',
+				border: 'border-border'
 			};
 	}
 }

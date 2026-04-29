@@ -137,7 +137,7 @@ export function generateEstimateHTML(data: EstimateData): string {
 		const groups = groupLineItemsByCategory(items);
 		let html = '';
 
-		const headerStyle = "font-weight: bold !important; font-size: 10pt !important; padding: 12px 8px !important; border-bottom: 2px solid #e11d48 !important; background-color: #fff !important; color: #111827 !important; text-transform: uppercase !important; letter-spacing: 0.5px !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important;";
+		const headerStyle = "font-weight: bold !important; font-size: 10pt !important; padding: 12px 8px !important; border-bottom: 2px solid #64748b !important; background-color: #fff !important; color: #111827 !important; text-transform: uppercase !important; letter-spacing: 0.5px !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important;";
 
 		// NEW PARTS
 		if (groups.newParts.length > 0) {
@@ -245,14 +245,14 @@ export function generateEstimateHTML(data: EstimateData): string {
 			justify-content: space-between;
 			align-items: flex-start;
 			margin-bottom: 60px;
-			border-bottom: 4px solid #e11d48;
+			border-bottom: 4px solid #64748b;
 			padding-bottom: 20px;
 		}
 
 		.logo-placeholder {
 			font-size: 24pt;
 			font-weight: bold;
-			color: #e11d48;
+			color: #64748b;
 			letter-spacing: -1px;
 			display: flex;
 			align-items: center;
@@ -328,7 +328,7 @@ export function generateEstimateHTML(data: EstimateData): string {
 			justify-content: space-between;
 			align-items: center;
 			padding-bottom: 15px;
-			border-bottom: 2px solid #e11d48;
+			border-bottom: 2px solid #64748b;
 			margin-bottom: 30px;
 		}
 
@@ -443,12 +443,12 @@ export function generateEstimateHTML(data: EstimateData): string {
 		}
 
 		.grand-total td {
-			border-top: 2px solid #e11d48;
+			border-top: 2px solid #64748b;
 			border-bottom: none;
 			padding-top: 15px;
 			font-size: 12pt;
 			font-weight: 700;
-			color: #e11d48;
+			color: #64748b;
 		}
 
 		.notes-box {
@@ -504,7 +504,7 @@ export function generateEstimateHTML(data: EstimateData): string {
 				${logoMarkup}
 			</div>
 			<div style="text-align: right;">
-				<div style="font-weight: bold; color: #e11d48;">${assessment.assessment_number}</div>
+				<div style="font-weight: bold; color: #64748b;">${assessment.assessment_number}</div>
 				<div style="color: #6b7280; font-size: 9pt;">${formatDateNumeric(assessment.created_at)}</div>
 			</div>
 		</div>
@@ -545,7 +545,7 @@ export function generateEstimateHTML(data: EstimateData): string {
 
 			<div class="summary-card">
 				<div class="summary-card-title">Estimated Repair Cost</div>
-				<div class="summary-card-value" style="color: #e11d48;">
+				<div class="summary-card-value" style="color: #64748b;">
 					${estimate ? formatCurrency(estimate.total) : '-'}
 				</div>
 				<div style="margin-top: 5px; color: #6b7280; font-size: 9pt;">Incl. VAT</div>
@@ -561,7 +561,7 @@ export function generateEstimateHTML(data: EstimateData): string {
 		</div>
 
 		${estimate?.notes ? `
-		<div style="margin-top: 40px; padding: 20px; background: #fff1f2; border-left: 4px solid #e11d48; border-radius: 4px;">
+		<div style="margin-top: 40px; padding: 20px; background: #f8fafc; border-left: 4px solid #64748b; border-radius: 4px;">
 			<div style="font-weight: bold; color: #9f1239; margin-bottom: 5px;">Estimate Notes</div>
 			<div style="color: #881337;">
 				${estimate.notes.length > 300 ? estimate.notes.substring(0, 300) + '...' : estimate.notes}
@@ -714,7 +714,7 @@ export function generateEstimateHTML(data: EstimateData): string {
 						<td class="totals-value">${formatCurrency(vat)}</td>
 					</tr>
 					<tr class="grand-total">
-						<td class="totals-label" style="color: #e11d48;">GRAND TOTAL:</td>
+						<td class="totals-label" style="color: #64748b;">GRAND TOTAL:</td>
 						<td class="totals-value">${formatCurrency(grandTotal)}</td>
 					</tr>
 					${excess > 0 ? `
@@ -733,7 +733,7 @@ export function generateEstimateHTML(data: EstimateData): string {
 
 		<!-- Assessor & Instructions Section -->
 		<div style="margin-top: 30px;">
-			<div style="font-weight: bold; text-transform: uppercase; color: #111827; margin-bottom: 15px; padding-bottom: 5px; border-bottom: 2px solid #e11d48;">ASSESSOR INFORMATION</div>
+			<div style="font-weight: bold; text-transform: uppercase; color: #111827; margin-bottom: 15px; padding-bottom: 5px; border-bottom: 2px solid #64748b;">ASSESSOR INFORMATION</div>
 			<div class="info-grid">
 				${row('Assessor:', engineer?.name || '')}
 				${row('Company:', engineer?.company_name || '')}
@@ -747,7 +747,7 @@ export function generateEstimateHTML(data: EstimateData): string {
 				<div>• FRC documents & invoices: <strong>frc@claimtech.co.za</strong></div>
 			</div>
 
-			<div style="margin-top: 20px; padding: 15px; background: #fff1f2; border-left: 4px solid #e11d48; border-radius: 4px;">
+			<div style="margin-top: 20px; padding: 15px; background: #f8fafc; border-left: 4px solid #64748b; border-radius: 4px;">
 				<div style="font-weight: bold; color: #9f1239; text-transform: uppercase;">
 					ALL ADDITIONALS REQUIRE AN APPROVED AND AGREED LETTER BEFORE COMMENCING
 				</div>

@@ -131,9 +131,9 @@ export function generateReportHTML(data: ReportData): string {
 		}
 
 		/* Brand Colors */
-		.bg-rose { background-color: #e11d48; }
-		.text-rose { color: #e11d48; }
-		.border-rose { border-color: #e11d48; }
+		.bg-rose { background-color: #64748b; }
+		.text-rose { color: #64748b; }
+		.border-rose { border-color: #64748b; }
 
 		.bg-blue { background-color: #64748b; }
 		.text-blue { color: #64748b; }
@@ -154,14 +154,14 @@ export function generateReportHTML(data: ReportData): string {
 			justify-content: space-between;
 			align-items: flex-start;
 			margin-bottom: 60px;
-			border-bottom: 4px solid #e11d48;
+			border-bottom: 4px solid #64748b;
 			padding-bottom: 20px;
 		}
 
 		.logo-placeholder {
 			font-size: 24pt;
 			font-weight: bold;
-			color: #e11d48;
+			color: #64748b;
 			letter-spacing: -1px;
 			display: flex;
 			align-items: center;
@@ -242,7 +242,7 @@ export function generateReportHTML(data: ReportData): string {
 			padding: 8px 0;
 			font-weight: 700;
 			font-size: 12pt;
-			border-bottom: 2px solid #e11d48;
+			border-bottom: 2px solid #64748b;
 			margin-bottom: 20px;
 			color: #111827;
 			text-transform: uppercase;
@@ -340,7 +340,7 @@ export function generateReportHTML(data: ReportData): string {
 				${logoMarkup}
 			</div>
 			<div style="text-align: right;">
-				<div style="font-weight: bold; color: #e11d48;">${assessment.report_number || assessment.assessment_number}</div>
+				<div style="font-weight: bold; color: #64748b;">${assessment.report_number || assessment.assessment_number}</div>
 				<div style="color: #6b7280; font-size: 9pt;">${formatDateNumeric(assessment.created_at)}</div>
 			</div>
 		</div>
@@ -381,7 +381,7 @@ export function generateReportHTML(data: ReportData): string {
 
 			<div class="summary-card">
 				<div class="summary-card-title">Estimated Repair Cost</div>
-				<div class="summary-card-value" style="color: #e11d48;">
+				<div class="summary-card-value" style="color: #64748b;">
 					${estimate ? formatCurrency(estimate.total) : '-'}
 				</div>
 				<div style="margin-top: 5px; color: #6b7280; font-size: 9pt;">Incl. VAT</div>
@@ -396,7 +396,7 @@ export function generateReportHTML(data: ReportData): string {
 			</div>
 		</div>
 
-		<div style="margin-top: 40px; padding: 20px; background: #fff1f2; border-left: 4px solid #e11d48; border-radius: 4px;">
+		<div style="margin-top: 40px; padding: 20px; background: #f8fafc; border-left: 4px solid #64748b; border-radius: 4px;">
 			<div style="font-weight: bold; color: #9f1239; margin-bottom: 5px;">Assessor's Note</div>
 			<div style="color: #881337;">
 				${assessmentNotes ? (assessmentNotes.length > 300 ? assessmentNotes.substring(0, 300) + '...' : assessmentNotes) : 'No specific notes.'}
@@ -707,7 +707,7 @@ export function generateReportHTML(data: ReportData): string {
 				</div>
 				<div class="info-row">
 					<span class="info-label">Grand Total (incl VAT):</span>
-					<span class="info-value" style="font-weight: bold; font-size: 12pt; color: #e11d48;">${formatCurrency(estimate.total)}</span>
+					<span class="info-value" style="font-weight: bold; font-size: 12pt; color: #64748b;">${formatCurrency(estimate.total)}</span>
 				</div>
 				${excess > 0 ? `
 				<div class="info-row">
