@@ -11,7 +11,7 @@
 	import PreIncidentPhotosPanel from './PreIncidentPhotosPanel.svelte';
 	import RequiredFieldsWarning from './RequiredFieldsWarning.svelte';
 	import LineItemCard from './LineItemCard.svelte';
-	import { Plus, Trash2, Check, Camera, Settings } from 'lucide-svelte';
+	import { Plus, Trash2, Check, Camera, Settings, ShieldCheck, Package, Recycle } from 'lucide-svelte';
 	import type {
 		PreIncidentEstimate,
 		EstimateLineItem,
@@ -19,7 +19,7 @@
 		ProcessType,
 		PartType
 	} from '$lib/types/assessment';
-	import { getProcessTypeOptions } from '$lib/constants/processTypes';
+	import { getProcessTypeOptions, getProcessTypeBadgeColor } from '$lib/constants/processTypes';
 	import {
 		calculateLineItemTotal,
 		calculatePartSellingPrice,
@@ -828,6 +828,7 @@
 						<div class="flex items-center gap-2">
 							<h3 class="text-[11.5px] font-semibold uppercase tracking-wide text-muted-foreground">
 								Line Items
+								<span class="font-mono-tabular ml-2 text-xs text-muted-foreground">({localLineItems().length})</span>
 							</h3>
 							<SaveIndicator {saving} saved={justSaved} class="ml-1" />
 						</div>
@@ -1072,36 +1073,60 @@
 									/>
 								</Table.Cell>
 
-								<Table.Cell class="px-2 py-2">
-									<div class="space-y-2">
-										<select
-											value={item.process_type}
-											onchange={(e) =>
-												updateProcessType(item.id!, item, e.currentTarget.value as ProcessType)}
-											class="w-full rounded-md border border-border bg-background px-2 py-1.5 text-sm"
-										>
-											{#each processTypeOptions as option}
-												<option value={option.value}>
-													{option.value} - {option.label}
-												</option>
-											{/each}
-										</select>
+								<Table.Cell class="px-2 py-2 align-top">
+									<div class="flex flex-col gap-1.5">
+										<div class="group relative w-fit">
+											<select
+												value={item.process_type}
+												onchange={(e) =>
+													updateProcessType(item.id!, item, e.currentTarget.value as ProcessType)}
+												class="absolute inset-0 z-10 h-full w-full cursor-pointer opacity-0"
+											>
+												{#each processTypeOptions as option}
+													<option value={option.value}>{option.value} - {option.label}</option>
+												{/each}
+											</select>
+											<span
+												class="inline-flex min-w-8 justify-center rounded px-2 py-1 text-xs font-semibold {getProcessTypeBadgeColor(
+													item.process_type
+												)}"
+											>
+												{item.process_type}
+											</span>
+										</div>
 
 										{#if item.process_type === 'N'}
-											<select
-												value={item.part_type || 'OEM'}
-												onchange={(e) =>
-													updatePartType(item.id!, item, e.currentTarget.value as PartType)}
-												class="w-full rounded-md border border-border bg-background px-2 py-1.5 text-sm"
-											>
-												<option value="OEM">OEM</option>
-												<option value="ALT">ALT</option>
-												<option value="2ND">2ND</option>
-											</select>
-										{:else}
-											<div class="rounded-md border border-dashed border-border px-2 py-1.5 text-sm text-muted-foreground">
-												-
+											<div class="group relative w-fit">
+												<select
+													value={item.part_type || 'OEM'}
+													onchange={(e) =>
+														updatePartType(item.id!, item, e.currentTarget.value as PartType)}
+													class="absolute inset-0 z-10 h-full w-full cursor-pointer opacity-0"
+												>
+													<option value="OEM">OEM</option>
+													<option value="ALT">ALT</option>
+													<option value="2ND">2ND</option>
+												</select>
+												<div
+													class="pointer-events-none inline-flex items-center gap-1 rounded-sm border px-1.5 py-0.5 text-[11px] font-semibold {item.part_type ===
+													'ALT'
+														? 'border-success-border bg-success-soft text-success'
+														: item.part_type === '2ND'
+															? 'border-warning-border bg-warning-soft text-warning'
+															: 'border-border bg-muted text-muted-foreground'}"
+												>
+													{#if item.part_type === 'ALT'}
+														<Package class="h-3 w-3" />
+													{:else if item.part_type === '2ND'}
+														<Recycle class="h-3 w-3" />
+													{:else}
+														<ShieldCheck class="h-3 w-3" />
+													{/if}
+													{item.part_type || 'OEM'}
+												</div>
 											</div>
+										{:else}
+											<span class="text-xs text-muted-foreground">No part</span>
 										{/if}
 									</div>
 								</Table.Cell>
@@ -1208,7 +1233,7 @@
 										variant="ghost"
 										size="sm"
 										onclick={() => handleDeleteLineItem(item.id!)}
-										class="h-8 w-8 p-0 text-red-600 hover:bg-red-50 hover:text-red-700"
+										class="h-8 w-8 p-0 text-destructive hover:bg-destructive/10 hover:text-destructive"
 									>
 										<Trash2 class="h-4 w-4" />
 									</Button>
