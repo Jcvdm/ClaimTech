@@ -20,7 +20,8 @@
 		calculateTotal,
 		recalculateLineItem
 	} from '$lib/utils/estimateCalculations';
-	import { formatCurrency, formatDate } from '$lib/utils/formatters';
+	import { formatCurrency, formatCurrencyValue, formatDate } from '$lib/utils/formatters';
+	import CostCell from '$lib/components/assessment/CostCell.svelte';
 	import { generatePartsListText } from '$lib/utils/csv-generator';
 	import { Trash2, ShieldCheck, Package, Recycle, Percent, CheckCircle, ChevronDown, FileText, Download, Wrench, ClipboardList, Car, Receipt, DollarSign, ArrowRight, Printer } from 'lucide-svelte';
 	import { getProcessTypeBadgeColor, getProcessTypeConfig, getProcessTypeOptions } from '$lib/constants/processTypes';
@@ -1552,163 +1553,108 @@
 
 												<!-- Part Price (N only) -->
 												<Table.Cell class="px-3 py-2 text-right">
-													{#if item.process_type === 'N'}
-														{#if editingPartPrice === item.id}
-															<div class="space-y-1">
-																<Input
-																	type="number"
-																	min="0"
-																	step="0.01"
-																	bind:value={tempPartPriceNett}
-																	onkeydown={(e) => {
-																		if (e.key === 'Enter') handlePartPriceSave(item.id!, item);
-																		if (e.key === 'Escape') handlePartPriceCancel();
-																	}}
-																	onblur={() => handlePartPriceSave(item.id!, item)}
-																	class="border-0 text-right text-sm focus-visible:ring-0 focus-visible:ring-offset-0"
-																	autofocus
-																/>
-																<p class="text-xs italic text-gray-500">Only input nett price</p>
-															</div>
-														{:else}
-															<button
-																onclick={() => handlePartPriceClick(item.id!, item.part_price_nett || null)}
-																class="w-full cursor-pointer text-right text-sm font-medium text-blue-600 hover:text-blue-800"
-																title="Click to edit nett price (selling price includes markup)"
-															>
-																{formatCurrency(item.part_price_nett || 0)}
-															</button>
-														{/if}
-													{:else}
-														<span class="text-xs text-gray-400">-</span>
-													{/if}
+													<CostCell
+														editing={editingPartPrice === item.id}
+														display={formatCurrencyValue(item.part_price_nett ?? 0)}
+														inputValue={String(item.part_price_nett ?? '')}
+														visible={item.process_type === 'N'}
+														onEnterEdit={() => handlePartPriceClick(item.id!, item.part_price_nett ?? null)}
+														onCommit={(raw) => {
+															const nett = parseFloat(raw) || 0;
+															let markupPercentage = 0;
+															if (item.part_type === 'OEM') markupPercentage = oemMarkup;
+															else if (item.part_type === 'ALT') markupPercentage = altMarkup;
+															else if (item.part_type === '2ND') markupPercentage = secondHandMarkup;
+															const sellingPrice = nett * (1 + markupPercentage / 100);
+															updateEstimateFieldById(item.id!, {
+																part_price_nett: nett,
+																part_price: Number(sellingPrice.toFixed(2))
+															});
+															editingPartPrice = null;
+														}}
+														onCancel={() => handlePartPriceCancel()}
+													/>
 												</Table.Cell>
 
 												<!-- S&A (N,R,P,B) -->
 												<Table.Cell class="px-3 py-2 text-right">
-													{#if ['N', 'R', 'P', 'B'].includes(item.process_type)}
-														{#if editingSA === item.id}
-															<Input
-																type="number"
-																min="0"
-																step="0.25"
-																bind:value={tempSAHours}
-																onkeydown={(e) => {
-																	if (e.key === 'Enter') handleSASave(item.id!);
-																	if (e.key === 'Escape') handleSACancel();
-																}}
-																onblur={() => handleSASave(item.id!)}
-																class="border-0 text-right text-sm focus-visible:ring-0 focus-visible:ring-offset-0"
-																autofocus
-															/>
-														{:else}
-															<button
-																onclick={() => handleSAClick(item.id!, item.strip_assemble_hours || null)}
-																class="w-full cursor-pointer text-right text-sm font-medium text-blue-600 hover:text-blue-800"
-																title="Click to edit hours (S&A = hours x labour rate)"
-															>
-																{formatCurrency(item.strip_assemble || 0)}
-															</button>
-														{/if}
-													{:else}
-														<span class="text-xs text-gray-400">-</span>
-													{/if}
+													<CostCell
+														editing={editingSA === item.id}
+														display={formatCurrencyValue(item.strip_assemble ?? 0)}
+														inputValue={String(item.strip_assemble_hours ?? '')}
+														visible={['N', 'R', 'P', 'B'].includes(item.process_type)}
+														onEnterEdit={() => handleSAClick(item.id!, item.strip_assemble_hours ?? null)}
+														onCommit={(raw) => {
+															const hours = parseFloat(raw) || 0;
+															updateEstimateFieldById(item.id!, {
+																strip_assemble_hours: hours,
+																strip_assemble: hours * labourRate
+															});
+															editingSA = null;
+														}}
+														onCancel={() => handleSACancel()}
+													/>
 												</Table.Cell>
 
 												<!-- Labour (N,R,A) -->
 												<Table.Cell class="px-3 py-2 text-right">
-													{#if ['N', 'R', 'A'].includes(item.process_type)}
-														{#if editingLabour === item.id}
-															<Input
-																type="number"
-																min="0"
-																step="0.5"
-																bind:value={tempLabourHours}
-																onkeydown={(e) => {
-																	if (e.key === 'Enter') handleLabourSave(item.id!);
-																	if (e.key === 'Escape') handleLabourCancel();
-																}}
-																onblur={() => handleLabourSave(item.id!)}
-																class="border-0 text-right text-sm focus-visible:ring-0 focus-visible:ring-offset-0"
-																autofocus
-															/>
-														{:else}
-															<button
-																onclick={() => handleLabourClick(item.id!, item.labour_hours || null)}
-																class="w-full cursor-pointer text-right text-sm font-medium text-blue-600 hover:text-blue-800"
-																title="Click to edit hours (Labour = hours x labour rate)"
-															>
-																{formatCurrency(item.labour_cost || 0)}
-															</button>
-														{/if}
-													{:else}
-														<span class="text-xs text-gray-400">-</span>
-													{/if}
+													<CostCell
+														editing={editingLabour === item.id}
+														display={formatCurrencyValue(item.labour_cost ?? 0)}
+														inputValue={String(item.labour_hours ?? '')}
+														visible={['N', 'R', 'A'].includes(item.process_type)}
+														onEnterEdit={() => handleLabourClick(item.id!, item.labour_hours ?? null)}
+														onCommit={(raw) => {
+															const hours = parseFloat(raw) || 0;
+															updateEstimateFieldById(item.id!, {
+																labour_hours: hours,
+																labour_cost: hours * labourRate
+															});
+															editingLabour = null;
+														}}
+														onCancel={() => handleLabourCancel()}
+													/>
 												</Table.Cell>
 
 												<!-- Paint (N,R,P,B) -->
 												<Table.Cell class="px-3 py-2 text-right">
-													{#if ['N', 'R', 'P', 'B'].includes(item.process_type)}
-														{#if editingPaint === item.id}
-															<Input
-																type="number"
-																min="0"
-																step="0.5"
-																bind:value={tempPaintPanels}
-																onkeydown={(e) => {
-																	if (e.key === 'Enter') handlePaintSave(item.id!);
-																	if (e.key === 'Escape') handlePaintCancel();
-																}}
-																onblur={() => handlePaintSave(item.id!)}
-																class="border-0 text-right text-sm focus-visible:ring-0 focus-visible:ring-offset-0"
-																autofocus
-															/>
-														{:else}
-															<button
-																onclick={() => handlePaintClick(item.id!, item.paint_panels || null)}
-																class="w-full cursor-pointer text-right text-sm font-medium text-blue-600 hover:text-blue-800"
-																title="Click to edit panels (Paint = panels x paint rate)"
-															>
-																{formatCurrency(item.paint_cost || 0)}
-															</button>
-														{/if}
-													{:else}
-														<span class="text-xs text-gray-400">-</span>
-													{/if}
+													<CostCell
+														editing={editingPaint === item.id}
+														display={formatCurrencyValue(item.paint_cost ?? 0)}
+														inputValue={String(item.paint_panels ?? '')}
+														visible={['N', 'R', 'P', 'B'].includes(item.process_type)}
+														onEnterEdit={() => handlePaintClick(item.id!, item.paint_panels ?? null)}
+														onCommit={(raw) => {
+															const panels = parseFloat(raw) || 0;
+															updateEstimateFieldById(item.id!, {
+																paint_panels: panels,
+																paint_cost: panels * paintRate
+															});
+															editingPaint = null;
+														}}
+														onCancel={() => handlePaintCancel()}
+													/>
 												</Table.Cell>
 
 												<!-- Outwork (O only) -->
 												<Table.Cell class="px-3 py-2 text-right">
-													{#if item.process_type === 'O'}
-														{#if editingOutwork === item.id}
-															<div class="space-y-1">
-																<Input
-																	type="number"
-																	min="0"
-																	step="0.01"
-																	bind:value={tempOutworkNett}
-																	onkeydown={(e) => {
-																		if (e.key === 'Enter') handleOutworkSave(item.id!);
-																		if (e.key === 'Escape') handleOutworkCancel();
-																	}}
-																	onblur={() => handleOutworkSave(item.id!)}
-																	class="border-0 text-right text-sm focus-visible:ring-0 focus-visible:ring-offset-0"
-																	autofocus
-																/>
-																<p class="text-xs italic text-gray-500">Only input nett price</p>
-															</div>
-														{:else}
-															<button
-																onclick={() => handleOutworkClick(item.id!, item.outwork_charge_nett || null)}
-																class="w-full cursor-pointer text-right text-sm font-medium text-blue-600 hover:text-blue-800"
-																title="Click to edit nett price (selling price includes markup)"
-															>
-																{formatCurrency(item.outwork_charge_nett || 0)}
-															</button>
-														{/if}
-													{:else}
-														<span class="text-xs text-gray-400">-</span>
-													{/if}
+													<CostCell
+														editing={editingOutwork === item.id}
+														display={formatCurrencyValue(item.outwork_charge_nett ?? 0)}
+														inputValue={String(item.outwork_charge_nett ?? '')}
+														visible={item.process_type === 'O'}
+														onEnterEdit={() => handleOutworkClick(item.id!, item.outwork_charge_nett ?? null)}
+														onCommit={(raw) => {
+															const nett = parseFloat(raw) || 0;
+															const sellingPrice = nett * (1 + outworkMarkup / 100);
+															updateEstimateFieldById(item.id!, {
+																outwork_charge_nett: nett,
+																outwork_charge: Number(sellingPrice.toFixed(2))
+															});
+															editingOutwork = null;
+														}}
+														onCancel={() => handleOutworkCancel()}
+													/>
 												</Table.Cell>
 
 												<!-- Betterment (no-op in shop) -->
