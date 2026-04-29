@@ -1,32 +1,91 @@
 # CLAUDE.md - Project Configuration
 
-## Quick Reference: How Claude Works Here
+## ORCHESTRATOR POLICY — Hard Rules
 
 ```
 ┌────────────────────────────────────────────────────────────────────────┐
-│  YOU ARE THE ORCHESTRATOR - DELEGATE, DON'T IMPLEMENT DIRECTLY         │
+│  ORCHESTRATOR NEVER WRITES OR EDITS CODE                               │
 ├────────────────────────────────────────────────────────────────────────┤
 │                                                                        │
-│  1. ASSESS → Is this trivial (<10 lines, 1 file)? Execute directly.   │
-│              Otherwise, ALWAYS CREATE A TASK AND DELEGATE.             │
+│  FORBIDDEN in main thread:                                             │
+│  • Edit, Write, NotebookEdit on any source file                        │
+│  • sed/awk/perl/python in Bash that mutates source files               │
+│  • Applies to 1-line fixes, typos, and "trivial" edits too            │
 │                                                                        │
-│  2. TASK   → Create task in .agent/Tasks/active/TASK_NAME.md          │
-│              (Coder agent reads this for context)                      │
+│  ALLOWED in main thread:                                               │
+│  • Read, Grep, Glob (for verification only — not deep exploration)    │
+│  • Bash for git, npm/svelte-check, and other read-only ops            │
+│  • TodoWrite, ScheduleWakeup, Skill, and other non-code tools         │
+│  • Editing this CLAUDE.md, plan files in ~/.claude/plans/, and        │
+│    .agent/Tasks/ docs (these are coordination, not code)              │
 │                                                                        │
-│  3. DELEGATE → Coder Agent: "Implement .agent/Tasks/active/X.md"      │
-│                Context/Explore: For research, finding code            │
-│                Planner: For complex architectural decisions            │
+│  AGENT SELECTION (mandatory order):                                    │
+│  1. DEFAULT — Haiku coder-agent (fast, cheap, sufficient for most)    │
+│  2. FALLBACK — if Haiku fails (autocompact thrash, off-target,        │
+│     compile errors it can't fix), re-dispatch as Sonnet coder-agent   │
+│  3. REVIEW — after EVERY code change lands, dispatch a Sonnet         │
+│     reviewer to audit the diff before declaring the task done         │
 │                                                                        │
-│  4. TRACK  → Update task status, move to completed/ when done         │
+│  RESEARCH: dispatch Explore (Haiku). Never grep the whole codebase    │
+│  from the main thread.                                                 │
 │                                                                        │
-├────────────────────────────────────────────────────────────────────────┤
-│  ⚠️  CRITICAL: Even after planning, DELEGATE implementation to Coder! │
-│  Do NOT implement directly just because you have a detailed plan.     │
-│  The plan becomes the task document → Coder executes it.              │
-├────────────────────────────────────────────────────────────────────────┤
-│  CONTEXT EFFICIENCY: Don't read files to "understand" - use agents.   │
-│  Task documents ARE the context. Reference, don't repeat.             │
 └────────────────────────────────────────────────────────────────────────┘
+```
+
+### Why this policy exists
+
+- **Cost** — Haiku is roughly 10× cheaper than Sonnet, ~50× cheaper than Opus. Most edits don't need stronger reasoning.
+- **Context efficiency** — sub-agent reads/writes don't pollute the main thread's context window.
+- **Error isolation** — a sub-agent that goes off-track can be re-dispatched without contaminating the orchestrator's working memory.
+- **Independent review** — the Sonnet reviewer reads the diff fresh, with no anchoring bias from having written the code, and catches subtle bugs the implementer missed.
+
+### How to apply each rule
+
+**1. Always Haiku first** — Even a 2-line edit goes to a Haiku coder-agent. Dispatch overhead is small and avoids the orchestrator slipping into edit habits. If you find yourself thinking "this is faster to just do" — stop and dispatch.
+
+**2. Fall back to Sonnet on Haiku failure** — Triggers for falling back:
+- Haiku reports `autocompact thrashing` (file too large for its context)
+- Haiku produces broken code that fails svelte-check / build
+- Haiku misunderstands the task or edits the wrong location
+- Haiku makes the same mistake twice after correction
+
+Re-dispatch with `subagent_type: coder-agent, model: sonnet` and provide tighter context (file paths + line numbers + exact strings to change).
+
+**3. Sonnet review after every code change** — After the coder reports done and the orchestrator commits, dispatch a Sonnet reviewer BEFORE moving on:
+
+```
+Agent({
+  subagent_type: "general-purpose",
+  model: "sonnet",
+  description: "Review <task-name> diff",
+  prompt: "Review the diff in commit <SHA> on branch claude/<branch>.
+  Read the changed files end-to-end and audit:
+  1. Does the change match the task spec?
+  2. Any regressions in adjacent code paths?
+  3. Are types/imports/error-handling correct?
+  4. Any UX or behavioral drift vs the prior version?
+  Report findings in under 300 words. If clean, say 'no issues'."
+})
+```
+
+If the reviewer flags issues → re-dispatch a coder (Haiku first, Sonnet on second pass) to fix them, then re-review. Loop until clean.
+
+### Exceptions (very narrow)
+
+- Editing `CLAUDE.md`, plan files in `~/.claude/plans/`, or `.agent/Tasks/*.md` is allowed — these are coordination artifacts, not code.
+- Updating `.claude/settings.local.json` for permission changes is allowed.
+- Anything else — code, configs, schema, migrations — goes through a sub-agent.
+
+### Workflow at a glance
+
+```
+1. ASSESS → understand the task, identify files/lines to change
+2. DISPATCH (Haiku coder) → with tight, file-and-line-specific spec
+3. VERIFY → read the diff yourself; confirm svelte-check passes
+4. COMMIT + PUSH (orchestrator does git, never the coder)
+5. REVIEW (Sonnet reviewer) → audit the committed diff
+6. FIX (if reviewer flags issues) → loop back to step 2
+7. DONE → mark todo complete, summarize for user
 ```
 
 **Outstanding Tasks**: Check `.agent/Tasks/active/` for PRDs to continue
@@ -218,7 +277,9 @@ Claude uses a **multi-agent system** optimized for cost, capability, and **conte
 | **Explore** | Haiku | $ | Fast codebase exploration, file patterns, code search | "find", "where", "how does X work", "search" |
 | **Context** | Haiku | $ | Gather comprehensive context before planning | "understand", "research", "before implementing" |
 | **Planner** | Opus | $$$$ | Deep reasoning, complex plans | multi-file, architecture, ambiguous |
-| **Coder** | Sonnet | $$ | Execute code changes | "implement", "fix", "add feature" |
+| **Coder (Haiku)** | Haiku | $ | DEFAULT for code changes — fast, cheap, sufficient | "implement", "fix", "add feature" |
+| **Coder (Sonnet)** | Sonnet | $$ | FALLBACK when Haiku fails or task needs more reasoning | re-dispatch after Haiku fails |
+| **Reviewer (Sonnet)** | Sonnet | $$ | MANDATORY post-change diff review | after EVERY code commit |
 | **Docs** | Haiku | $ | Update documentation | "update docs", after implementations |
 
 ### Decision Matrix: When to Use Each Agent
@@ -242,24 +303,23 @@ Claude uses a **multi-agent system** optimized for cost, capability, and **conte
                     │ (Haiku)     │         │YES            │NO
                     └─────────────┘         ▼               ▼
                                     ┌─────────────┐  ┌────────────────┐
-                                    │ How complex?│  │ Simple Q&A     │
-                                    └─────────────┘  │ → Answer       │
-                                           │         │   directly     │
-                        ┌──────────────────┼─────────────────┐
-                        │                  │                 │
-                        ▼                  ▼                 ▼
-                 ┌─────────────┐   ┌─────────────┐   ┌─────────────┐
-                 │ SIMPLE      │   │ MODERATE    │   │ COMPLEX     │
-                 │ (1-2 files, │   │ (3-5 files, │   │ (5+ files,  │
-                 │  clear fix) │   │  patterns)  │   │  arch, new) │
-                 └─────────────┘   └─────────────┘   └─────────────┘
-                        │                  │                 │
-                        ▼                  ▼                 ▼
-                 ┌─────────────┐   ┌─────────────┐   ┌─────────────┐
-                 │ Execute     │   │ CODER       │   │ CONTEXT →   │
-                 │ directly    │   │ Agent       │   │ PLANNER →   │
-                 │ (Orch)      │   │ (Sonnet)    │   │ CODER       │
-                 └─────────────┘   └─────────────┘   └─────────────┘
+                                    │ ALWAYS      │  │ Q&A or         │
+                                    │ DELEGATE —  │  │ coordination   │
+                                    │ never edit  │  │ → answer       │
+                                    │ from main   │  │   directly     │
+                                    └─────────────┘  └────────────────┘
+                                           │
+                       ┌───────────────────┼─────────────────────┐
+                       │                   │                     │
+                       ▼                   ▼                     ▼
+                ┌─────────────┐    ┌─────────────┐      ┌─────────────────┐
+                │ Step 1:     │    │ Step 2:     │      │ Step 3:         │
+                │ HAIKU       │ →  │ SONNET      │  →   │ SONNET          │
+                │ coder-agent │    │ coder-agent │      │ reviewer        │
+                │ (default)   │    │ (fallback   │      │ (mandatory      │
+                │             │    │  on Haiku   │      │  post-change    │
+                │             │    │  failure)   │      │  diff audit)    │
+                └─────────────┘    └─────────────┘      └─────────────────┘
 ```
 
 ### Agent Usage Guidelines
@@ -315,24 +375,47 @@ Claude uses a **multi-agent system** optimized for cost, capability, and **conte
 - Simple CRUD operations
 ```
 
-#### 4. Coder Agent (Sonnet) - USE FOR IMPLEMENTATION
-**Cost**: Medium
-**When**: Executing plans or straightforward code changes
+#### 4. Coder Agent — USE FOR ALL IMPLEMENTATION
+
+**Default model: Haiku.** Sonnet is the fallback when Haiku fails.
+
+**Cost**: Haiku ~$0.001-0.01/dispatch; Sonnet ~10× higher
+**When**: ANY code change — including 1-line fixes, single-file edits, "trivial" tweaks
 **Purpose**: Write code, make changes, run builds
 
 ```
-✅ USE for:
-- Executing Planner's detailed plans
-- Changes to 3+ files
-- Features following existing patterns
-- Bug fixes requiring multiple file changes
+✅ USE Haiku coder-agent for:
+- ALL code changes (typos, 1-line fixes, refactors, features)
+- Single-file edits as well as multi-file
+- Even when "you could do it faster yourself" — dispatch anyway
 
-❌ DON'T use for:
-- Trivial 1-2 line fixes
-- Single file changes
+⬆️ ESCALATE to Sonnet coder-agent when Haiku:
+- Hits autocompact thrash on a large file
+- Produces output that fails svelte-check
+- Edits the wrong location or misreads the spec
+- Makes the same mistake twice after correction
+
+❌ NEVER do code edits from the main thread (orchestrator).
+   No Edit, Write, NotebookEdit, sed, awk, perl on source files.
 ```
 
-#### 5. Document Updater (Haiku) - USE AFTER CHANGES
+#### 5. Reviewer Agent (Sonnet) — MANDATORY POST-CHANGE
+**Cost**: ~$0.05-0.20 per review
+**When**: After EVERY committed code change, before marking the task done
+**Purpose**: Independent diff audit — catches what the implementer missed
+
+```
+✅ USE for:
+- Every commit that contains code changes
+- Re-review after fixes from a previous review pass
+
+❌ DON'T use for:
+- CLAUDE.md / plan / task-doc edits
+- Pure git operations (no source-code change)
+- Read-only investigations
+```
+
+#### 6. Document Updater (Haiku) - USE AFTER CHANGES
 **Cost**: Very low
 **When**: After implementing features, user request
 **Purpose**: Keep .agent/ docs current
@@ -425,11 +508,13 @@ Your job is to:
 **Step 0: Assess Complexity (ALWAYS DO THIS FIRST)**
 ```
 Is this task:
-□ TRIVIAL (1 file, <10 lines) → Execute directly
-□ SIMPLE (1-2 files, clear scope) → Create brief task note, execute
-□ MODERATE (3-5 files) → Create task in .agent/Tasks/active/, delegate to Coder
-□ COMPLEX (5+ files, architecture) → Create PRD, use Planner, delegate to Coder
+□ TRIVIAL (1 file, <10 lines) → Dispatch Haiku coder-agent (NEVER edit from main thread)
+□ SIMPLE (1-2 files, clear scope) → Dispatch Haiku coder-agent
+□ MODERATE (3-5 files) → Create task in .agent/Tasks/active/, dispatch Haiku coder-agent
+□ COMPLEX (5+ files, architecture) → Create PRD, use Planner (Opus), dispatch Sonnet coder-agent
 □ RESEARCH → Use Explore agent, document findings
+
+ALL code paths end with: dispatch Sonnet reviewer-agent post-commit.
 ```
 
 ### For MODERATE/COMPLEX Tasks: Create Task First
@@ -745,19 +830,24 @@ This table shows how Skills, Commands, and .agent Docs work together:
 
 **IMPORTANT**: Even after Plan Mode produces a detailed plan, you MUST still delegate to the Coder agent. The plan file becomes the task document - copy/move it to `.agent/Tasks/active/` and delegate. Do NOT implement directly just because you already understand what needs to be done.
 
-### 2. Delegate, Don't Execute Directly
+### 2. Always Delegate Code Changes — Never Execute From Main Thread
 
-**Before doing anything substantial, ask: "Should an agent do this?"**
+**Code-change rule: orchestrator NEVER edits source files. Period.**
 
 | Task Type | Action |
 |-----------|--------|
-| Research ("find X", "how does Y") | → Explore agent |
-| Need comprehensive context | → Context agent |
-| Complex feature (5+ files) | → Create task → Planner → Coder |
-| **Post-planning implementation** | → **Create task → Coder** |
-| Moderate change (3-5 files) | → Create task → Coder |
-| Simple fix (1-2 files) | → Execute directly |
-| Trivial (<10 lines) | → Execute directly |
+| Research ("find X", "how does Y") | → Explore agent (Haiku) |
+| Need comprehensive context | → Context agent (Haiku) |
+| Complex feature (5+ files) | → Create task → Planner (Opus) → Sonnet coder → Sonnet reviewer |
+| **Post-planning implementation** | → **Create task → Haiku coder → Sonnet reviewer** |
+| Moderate change (3-5 files) | → Create task → Haiku coder → Sonnet reviewer |
+| Simple fix (1-2 files) | → Haiku coder → Sonnet reviewer |
+| Trivial (<10 lines) | → Haiku coder → Sonnet reviewer |
+| Typo / 1-line fix | → Haiku coder → Sonnet reviewer (yes, even this) |
+| Q&A / Conversation | → Answer directly |
+| Coordination (CLAUDE.md, plan, task doc) | → Edit directly (not code) |
+
+**On Haiku failure** → re-dispatch as Sonnet coder. Never silently take over the edit yourself.
 
 ### 3. Context Efficiency
 
