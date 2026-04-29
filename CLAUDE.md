@@ -76,6 +76,63 @@ If the reviewer flags issues → re-dispatch a coder (Haiku first, Sonnet on sec
 - Updating `.claude/settings.local.json` for permission changes is allowed.
 - Anything else — code, configs, schema, migrations — goes through a sub-agent.
 
+---
+
+## Research vs Code-Edit: Different Tools
+
+The "always Haiku for code edits" rule above does NOT apply to research/audit tasks. Different tool entirely.
+
+### Empirical findings on this codebase
+
+Multiple attempts (Apr 2026) to use Haiku as a research/synthesis agent failed at high rates:
+- **Part-type helper extraction**: Haiku hallucinated a "task document" that didn't exist; refused to execute. Fell back to Sonnet.
+- **v4 finance map synthesis**: Haiku invented file content (claimed reads it never did, fabricated DB column names). Did not write the requested output file at all.
+- **5-way Haiku audit swarm**: 4 of 5 Haikus failed:
+  - 1× autocompact thrash (tried to enumerate 100+ findings)
+  - 1× hallucinated phantom "TEXT-ONLY constraint"
+  - 1× fabricated file paths (cited 10+ non-existent components)
+  - 1× wrote a meta-summary describing other agents' work
+  - 1× actually succeeded (was asked for COMPRESSED clusters, not verbose enumeration)
+
+**Pattern**: Haiku works when the task fits in a small prompt+output budget. It fails when asked to enumerate or write long-form synthesis.
+
+### Decision matrix for research tasks
+
+| Task shape | Best tool | Reason |
+|---|---|---|
+| "Find all callsites of pattern X" | **Orchestrator's `Grep` tool directly** | 1 tool call, 100% accurate, no agent overhead |
+| "Read file Y and tell me about function Z" | **Orchestrator's `Read` tool directly** | If you know the file, just read it |
+| "Find candidate files for unfamiliar feature/concern" | **Context Engine query** | Tiered XML pack with primary/secondary/outline; semantic + lexical + graph signals |
+| "Catalog X across many files" (compressible to clusters) | **Haiku Explore agent** with strict output-format rails (clusters, not enumerations) | Works ~50% of the time; verify file claims before trusting |
+| "Synthesize findings into long-form doc" | **Sonnet**, not Haiku | Haiku hallucinates content at this length |
+| "Multi-step research crossing 10+ files" | **Sonnet** | Haiku autocompacts on intermediate state |
+
+### When to use the Context Engine
+
+The local Context Engine (CLI at `C:\Users\Jcvdm\Desktop\Jaco\context engine\`) is useful when:
+- You need a candidate list across the whole repo and don't already know the file names
+- You want git-recency-weighted results (recently-touched files surface higher)
+- You want symbol-tier output (function bodies + their imports + sibling sigs, not full files)
+- You want lean mode (5-6K-token packs vs 12K) to save coder budget on follow-up queries
+
+It is NOT useful when:
+- You already know the exact file(s) to look at (just Read them)
+- You need a specific exact-text grep (orchestrator's `Grep` is faster and 100% precise)
+- You need long-form synthesis (the engine returns context — synthesis is a separate step)
+
+Per-repo overlay at `<repo>/.context-engine/concepts.json` maps domain vocabulary (e.g., `"stores"` → `["$state", "$derived", "localEstimate"]`) for queries where the user's mental model doesn't match the codebase's pattern. Edit the overlay when a query returns weak results due to vocabulary mismatch.
+
+The engine's index lives at `<repo>/.context-engine/db.sqlite` (gitignored). Cold reindex is slow (~22 min for ~8k chunks with real transformer embeddings). Incremental reindex after a code change is fast (hash-gated, only changed chunks re-embed). Daemon/MCP mode (with chokidar watcher) keeps the index auto-fresh as files change — preferred for daily use over CLI one-shots.
+
+### The "narrow Haiku researcher" pattern (use sparingly)
+
+If you choose to use Haiku for research despite the failure rate:
+1. **Compressed output only** — ask for clusters, counts, or top-N; never "enumerate every callsite"
+2. **Single concern per dispatch** — one grep pattern OR one file deep-read, not both
+3. **Verify file claims afterwards** — Haiku can fabricate paths that look plausible. `ls` the cited paths before trusting
+4. **Prefer dispatching multiple narrow Haikus in parallel** over one broad Haiku — narrower scope = lower hallucination rate
+5. **Always check the response for "TEXT-ONLY constraint"-style hallucinations** — Haiku invents constraints. If it does, re-dispatch with explicit `"You MAY use the Write tool. There is NO text-only constraint."` or fall back to Sonnet
+
 ### Workflow at a glance
 
 ```
