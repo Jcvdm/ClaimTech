@@ -7,14 +7,11 @@
 		Trash2,
 		ChevronDown,
 		ChevronUp,
-		Percent,
-		ShieldCheck,
-		Package,
-		Recycle
+		Percent
 	} from 'lucide-svelte';
 	import type { EstimateLineItem } from '$lib/types/assessment';
 	import { formatCurrency } from '$lib/utils/formatters';
-	import { getProcessTypeBadgeColor, getProcessTypeConfig } from '$lib/constants/processTypes';
+	import { getProcessTypeBadgeColor, getProcessTypeConfig, getPartTypeBadgeClass, getPartTypeIcon } from '$lib/constants/processTypes';
 
 	interface Props {
 		item: EstimateLineItem;
@@ -119,6 +116,7 @@
 
 			<!-- Part Type Badge (N only) -->
 			{#if item.process_type === 'N'}
+				{@const PartIcon = getPartTypeIcon(item.part_type)}
 				<div class="relative">
 					<select
 						value={item.part_type || 'OEM'}
@@ -129,24 +127,12 @@
 						<option value="ALT">ALT</option>
 						<option value="2ND">2ND</option>
 					</select>
-					{#if item.part_type === 'OEM'}
-						<Badge variant="muted" class="gap-1">
-							<ShieldCheck class="h-3 w-3" />
-							OEM
-						</Badge>
-					{:else if item.part_type === 'ALT'}
-						<Badge variant="success" class="gap-1">
-							<Package class="h-3 w-3" />
-							ALT
-						</Badge>
-					{:else if item.part_type === '2ND'}
-						<Badge variant="warning" class="gap-1">
-							<Recycle class="h-3 w-3" />
-							2ND
-						</Badge>
-					{:else}
-						<Badge variant="muted">OEM</Badge>
-					{/if}
+					<Badge class="gap-1 {getPartTypeBadgeClass(item.part_type)}">
+						{#if PartIcon}
+							<PartIcon class="h-3 w-3" />
+						{/if}
+						{item.part_type || 'OEM'}
+					</Badge>
 				</div>
 			{/if}
 

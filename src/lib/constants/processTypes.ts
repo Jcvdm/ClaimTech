@@ -1,4 +1,5 @@
 import type { ProcessType, ProcessTypeConfig } from '$lib/types/assessment';
+import { ShieldCheck, Package, Recycle } from 'lucide-svelte';
 
 /**
  * Process Type Configurations
@@ -136,5 +137,34 @@ export function getProcessTypeBadgeColor(processType: ProcessType): string {
 		O: 'bg-destructive-soft text-destructive border border-destructive-border'
 	};
 	return colors[processType] || 'bg-muted text-muted-foreground border border-border';
+}
+
+// ─── Part Type helpers ────────────────────────────────────────────────────────
+
+export type PartType = 'OEM' | 'ALT' | '2ND';
+
+/**
+ * Get badge class string for a part type.
+ * Canonical classes match the Badge component soft-tone variants used in LineItemCard.
+ */
+export function getPartTypeBadgeClass(partType: string | null | undefined): string {
+	switch (partType) {
+		case 'OEM': return 'bg-muted text-muted-foreground border-border';
+		case 'ALT': return 'bg-success-soft text-success border-success-border';
+		case '2ND': return 'bg-warning-soft text-warning border-warning-border';
+		default: return 'bg-muted text-muted-foreground border-border';
+	}
+}
+
+/**
+ * Get the Lucide icon component for a part type, or null for no icon.
+ */
+export function getPartTypeIcon(partType: string | null | undefined) {
+	switch (partType) {
+		case 'OEM': return ShieldCheck;
+		case 'ALT': return Package;
+		case '2ND': return Recycle;
+		default: return null;
+	}
 }
 

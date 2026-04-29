@@ -23,8 +23,8 @@
 	import { formatCurrency, formatCurrencyValue, formatDate } from '$lib/utils/formatters';
 	import CostCell from '$lib/components/assessment/CostCell.svelte';
 	import { generatePartsListText } from '$lib/utils/csv-generator';
-	import { Trash2, ShieldCheck, Package, Recycle, Percent, CheckCircle, ChevronDown, FileText, Download, Wrench, ClipboardList, Car, Receipt, DollarSign, ArrowRight, Printer } from 'lucide-svelte';
-	import { getProcessTypeBadgeColor, getProcessTypeConfig, getProcessTypeOptions } from '$lib/constants/processTypes';
+	import { Trash2, Package, Percent, CheckCircle, ChevronDown, FileText, Download, Wrench, ClipboardList, Car, Receipt, DollarSign, ArrowRight, Printer } from 'lucide-svelte';
+	import { getProcessTypeBadgeColor, getProcessTypeConfig, getProcessTypeOptions, getPartTypeBadgeClass, getPartTypeIcon } from '$lib/constants/processTypes';
 	import ShopJobCard from '$lib/components/shop/ShopJobCard.svelte';
 	import ShopAdditionalsTab from '$lib/components/shop/ShopAdditionalsTab.svelte';
 	import ShopJobNotes from '$lib/components/shop/ShopJobNotes.svelte';
@@ -1558,6 +1558,7 @@
 												<!-- Part Type (N only) -->
 												<Table.Cell class="px-3 py-2">
 													{#if item.process_type === 'N'}
+														{@const PartIcon = getPartTypeIcon(item.part_type)}
 														<div class="group relative">
 															<select
 																value={item.part_type || 'OEM'}
@@ -1570,24 +1571,12 @@
 																<option value="2ND">2ND</option>
 															</select>
 															<div class="pointer-events-none flex items-center justify-center">
-																{#if item.part_type === 'OEM'}
-																	<div class="flex items-center gap-1 rounded bg-blue-100 px-2 py-1 text-blue-800">
-																		<ShieldCheck class="h-3 w-3" />
-																		<span class="text-xs font-semibold">OEM</span>
-																	</div>
-																{:else if item.part_type === 'ALT'}
-																	<div class="flex items-center gap-1 rounded bg-green-100 px-2 py-1 text-green-800">
-																		<Package class="h-3 w-3" />
-																		<span class="text-xs font-semibold">ALT</span>
-																	</div>
-																{:else if item.part_type === '2ND'}
-																	<div class="flex items-center gap-1 rounded bg-amber-100 px-2 py-1 text-amber-800">
-																		<Recycle class="h-3 w-3" />
-																		<span class="text-xs font-semibold">2ND</span>
-																	</div>
-																{:else}
-																	<span class="text-xs text-gray-500">OEM</span>
-																{/if}
+																<div class="inline-flex items-center gap-1 rounded-sm border px-2 py-0.5 text-xs font-medium {getPartTypeBadgeClass(item.part_type)}">
+																	{#if PartIcon}
+																		<PartIcon class="h-3 w-3" />
+																	{/if}
+																	<span>{item.part_type || 'OEM'}</span>
+																</div>
 															</div>
 														</div>
 													{:else}
