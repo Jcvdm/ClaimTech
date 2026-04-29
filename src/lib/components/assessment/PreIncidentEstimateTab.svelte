@@ -1033,6 +1033,13 @@
 					<Table.Header class="sticky top-0 z-10 bg-background">
 						<Table.Row class="border-b border-border hover:bg-transparent">
 							<Table.Head class="w-14 px-2 text-[11.5px] font-medium uppercase tracking-wide text-muted-foreground">
+								<input
+									type="checkbox"
+									checked={selectAll}
+									onchange={handleSelectAll}
+									class="cursor-pointer rounded border-gray-300"
+									aria-label="Select all items"
+								/>
 							</Table.Head>
 							<Table.Head class="w-[112px] px-2 text-[11.5px] font-medium uppercase tracking-wide text-muted-foreground">
 								Type / Part
