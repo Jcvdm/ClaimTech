@@ -31,6 +31,10 @@
 	import * as Dialog from '$lib/components/ui/dialog';
 	import * as ResponsiveDialog from '$lib/components/ui/responsive-dialog';
 	import { Textarea } from '$lib/components/ui/textarea';
+	import TotalsStrip from '$lib/components/assessment/TotalsStrip.svelte';
+	import TotalsBreakdownDialog from '$lib/components/assessment/TotalsBreakdownDialog.svelte';
+	import type { StripField } from '$lib/components/assessment/TotalsStrip.svelte';
+	import type { BreakdownRow } from '$lib/components/assessment/TotalsBreakdownDialog.svelte';
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();
 
@@ -566,6 +570,58 @@
 	);
 	const estimateVatAmount = $derived(calculateVAT(estimateSubtotal, vatRate));
 	const estimateTotal = $derived(calculateTotal(estimateSubtotal, estimateVatAmount));
+
+	// Totals strip + breakdown dialog state
+	let detailsOpen = $state(false);
+
+	const stripFields = $derived<StripField[]>([
+		...(partsNett > 0 ? [{ label: 'Parts', value: partsNett }] : []),
+		...(markupTotal > 0 ? [{ label: 'Markup', value: markupTotal }] : []),
+		...(saTotal > 0 ? [{ label: 'S&A', value: saTotal }] : []),
+		...(labourTotalCalc > 0 ? [{ label: 'Labour', value: labourTotalCalc }] : []),
+		...(paintTotalCalc > 0 ? [{ label: 'Paint', value: paintTotalCalc }] : []),
+		...(outworkNett > 0 ? [{ label: 'Outwork', value: outworkNett }] : []),
+		{ label: 'VAT', value: estimateVatAmount }
+	]);
+
+	const breakdownRows = $derived.by<BreakdownRow[]>(() => {
+		const rows: BreakdownRow[] = [
+			...(partsNett > 0 ? [{ label: 'Parts Total (nett)', value: partsNett, border: 'bottom' as const }] : []),
+			...(markupTotal > 0 ? [{ label: 'Markup Total', value: markupTotal, color: 'success' as const, border: 'bottom' as const }] : []),
+			...(saTotal > 0 ? [{ label: 'S&A Total', value: saTotal, border: 'bottom' as const }] : []),
+			...(labourTotalCalc > 0 ? [{ label: 'Labour Total', value: labourTotalCalc, border: 'bottom' as const }] : []),
+			...(paintTotalCalc > 0 ? [{ label: 'Paint Total', value: paintTotalCalc, border: 'bottom' as const }] : []),
+			...(outworkNett > 0 ? [{ label: 'Outwork Total (nett)', value: outworkNett, border: 'bottom' as const }] : []),
+			{ label: 'Subtotal (Ex VAT)', value: estimateSubtotal, emphasis: 'subtotal' as const, border: 'top' as const },
+			{ label: `VAT (${vatRate}%)`, value: estimateVatAmount, border: 'bottom' as const },
+			{ label: 'Grand Total', value: estimateTotal, emphasis: 'total' as const, border: 'none' as const }
+		];
+
+		if (data.shopAdditionals && data.shopAdditionals.total_approved !== 0) {
+			const combinedTotal = estimateTotal + data.shopAdditionals.total_approved;
+			rows.push(
+				{ label: 'Additional Work (Approved)', value: data.shopAdditionals.total_approved, color: 'success' as const, border: 'top' as const },
+				{ label: 'Combined Total', value: combinedTotal, emphasis: 'total' as const, border: 'none' as const }
+			);
+		}
+
+		if (data.shopAdditionals?.original_total != null) {
+			const currentCombined = estimateTotal + (data.shopAdditionals?.total_approved || 0);
+			const delta = currentCombined - (data.shopAdditionals.original_total || 0);
+			const deltaStr = `${delta > 0 ? '+' : ''}${formatCurrency(delta)}`;
+			rows.push(
+				{ label: 'Original Estimate (at work start)', value: data.shopAdditionals.original_total, border: 'top' as const },
+				{
+					label: 'Change from Original',
+					value: deltaStr,
+					color: delta > 0 ? ('destructive' as const) : delta < 0 ? ('success' as const) : ('default' as const),
+					border: 'none' as const
+				}
+			);
+		}
+
+		return rows;
+	});
 
 	let estimateNotes = $state<string>(
 		(data.estimate as { notes?: string } | null)?.notes ?? ''
@@ -1705,91 +1761,6 @@
 						{/if}
 					</div>
 
-					<!-- Totals Card -->
-					<Card.Root>
-						<Card.Header>
-							<Card.Title>Totals</Card.Title>
-						</Card.Header>
-						<Card.Content>
-							<div class="space-y-2 text-sm">
-								{#if partsNett > 0}
-									<div class="flex justify-between text-gray-600">
-										<span>Parts Total (nett)</span>
-										<span>{formatCurrency(partsNett)}</span>
-									</div>
-								{/if}
-								{#if markupTotal > 0}
-									<div class="flex justify-between text-green-600">
-										<span>Markup Total</span>
-										<span>{formatCurrency(markupTotal)}</span>
-									</div>
-								{/if}
-								{#if saTotal > 0}
-									<div class="flex justify-between text-gray-600">
-										<span>S&amp;A Total</span>
-										<span>{formatCurrency(saTotal)}</span>
-									</div>
-								{/if}
-								{#if labourTotalCalc > 0}
-									<div class="flex justify-between text-gray-600">
-										<span>Labour Total</span>
-										<span>{formatCurrency(labourTotalCalc)}</span>
-									</div>
-								{/if}
-								{#if paintTotalCalc > 0}
-									<div class="flex justify-between text-gray-600">
-										<span>Paint Total</span>
-										<span>{formatCurrency(paintTotalCalc)}</span>
-									</div>
-								{/if}
-								{#if outworkNett > 0}
-									<div class="flex justify-between text-gray-600">
-										<span>Outwork Total (nett)</span>
-										<span>{formatCurrency(outworkNett)}</span>
-									</div>
-								{/if}
-								<Separator class="my-2" />
-								<div class="flex justify-between font-medium text-gray-900">
-									<span>Subtotal (Ex VAT)</span>
-									<span>{formatCurrency(estimateSubtotal)}</span>
-								</div>
-								<div class="flex justify-between text-gray-600">
-									<span>VAT ({vatRate}%)</span>
-									<span>{formatCurrency(estimateVatAmount)}</span>
-								</div>
-								<Separator class="my-2" />
-								<div class="flex justify-between text-base font-bold text-gray-900">
-									<span>Grand Total</span>
-									<span>{formatCurrency(estimateTotal)}</span>
-								</div>
-								{#if data.shopAdditionals && data.shopAdditionals.total_approved !== 0}
-									<Separator class="my-2" />
-									<div class="flex items-center justify-between text-sm">
-										<span class="text-gray-600">Additional Work (Approved)</span>
-										<span class="font-medium text-green-600">{formatCurrency(data.shopAdditionals.total_approved)}</span>
-									</div>
-									<div class="flex items-center justify-between text-sm font-bold">
-										<span>Combined Total</span>
-										<span>{formatCurrency(estimateTotal + data.shopAdditionals.total_approved)}</span>
-									</div>
-								{/if}
-								{#if data.shopAdditionals?.original_total != null}
-									<Separator class="my-2" />
-									<div class="flex justify-between text-xs text-gray-500">
-										<span>Original Estimate (at work start)</span>
-										<span>{formatCurrency(data.shopAdditionals.original_total)}</span>
-									</div>
-									{@const currentCombined = estimateTotal + (data.shopAdditionals?.total_approved || 0)}
-									{@const delta = currentCombined - (data.shopAdditionals.original_total || 0)}
-									<div class="flex justify-between text-xs font-medium {delta > 0 ? 'text-red-500' : delta < 0 ? 'text-green-500' : 'text-gray-500'}">
-										<span>Change from Original</span>
-										<span>{delta > 0 ? '+' : ''}{formatCurrency(delta)}</span>
-									</div>
-								{/if}
-							</div>
-						</Card.Content>
-					</Card.Root>
-
 					<!-- Estimate Notes -->
 					<Card.Root>
 						<Card.Header>
@@ -1939,6 +1910,22 @@
 				</Card.Root>
 			{/if}
 			</div>
+
+			<!-- Totals Strip (sticky bottom bar — estimate tab) -->
+			<TotalsStrip
+				fields={stripFields}
+				totalLabel="Total (incl. VAT)"
+				totalValue={estimateTotal}
+				onDetailsClick={() => (detailsOpen = true)}
+			/>
+
+			<!-- Totals Breakdown Dialog -->
+			<TotalsBreakdownDialog
+				rows={breakdownRows}
+				title="Estimate Totals"
+				open={detailsOpen}
+				onOpenChange={(open) => (detailsOpen = open)}
+			/>
 		</Tabs.Content>
 
 		<!-- WORK TAB -->
