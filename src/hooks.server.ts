@@ -120,9 +120,12 @@ const authGuard: Handle = async ({ event, resolve }) => {
 		// unauthenticated → fall through, render the landing page
 	}
 
-	// Public routes that don't require authentication
-	const publicRoutes = ['/', '/auth/login', '/auth/shop-login', '/auth/callback', '/auth/confirm', '/auth/forgot-password']
-	const isPublicRoute = publicRoutes.some(route => event.url.pathname.startsWith(route))
+	// Public routes that don't require authentication.
+	// `/` is handled with exact match — it's the landing page and we don't want
+	// every pathname matching the `/` startsWith check (that would mark every
+	// route public and trigger the auth-user-on-public-page guard below).
+	const publicPrefixes = ['/auth/login', '/auth/shop-login', '/auth/callback', '/auth/confirm', '/auth/forgot-password']
+	const isPublicRoute = event.url.pathname === '/' || publicPrefixes.some(route => event.url.pathname.startsWith(route))
 
 	// If not authenticated and trying to access protected route, redirect to login
 	if (!session && !isPublicRoute) {
