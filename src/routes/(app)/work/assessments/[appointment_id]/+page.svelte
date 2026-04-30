@@ -100,6 +100,8 @@
 	let preIncidentEstimateTabSaveFn: (() => Promise<void>) | null = null;
 	let tyresTabSaveFn: (() => Promise<void>) | null = null;
 	let damageTabSaveFn: (() => Promise<void>) | null = null;
+	let valuesTabSaveFn: (() => Promise<void>) | null = null;
+	let vehicleIdentTabSaveFn: (() => Promise<void>) | null = null;
 
 	// Handle validation updates from child tabs (for immediate badge updates)
 	function handleValidationUpdate(tabId: string, validation: TabValidation) {
@@ -134,6 +136,10 @@
 				await tyresTabSaveFn();
 			} else if (currentTab === 'damage' && damageTabSaveFn) {
 				await damageTabSaveFn();
+			} else if (currentTab === 'values' && valuesTabSaveFn) {
+				await valuesTabSaveFn();
+			} else if (currentTab === 'identification' && vehicleIdentTabSaveFn) {
+				await vehicleIdentTabSaveFn();
 			}
 
 			// Auto-save before switching tabs
@@ -913,6 +919,7 @@
 			onUpdate={handleUpdateVehicleIdentification}
 			vehicleDetails={data.vehicleDetails}
 			onValidationUpdate={(v) => handleValidationUpdate('identification', v)}
+			onRegisterSave={(saveFn) => { vehicleIdentTabSaveFn = saveFn; }}
 		/>
 	{:else if currentTab === '360'}
 		<Exterior360Tab
@@ -1005,6 +1012,7 @@
 			onUpdate={handleUpdateVehicleValues}
 			vehicleDetails={data.vehicleDetails}
 			onValidationUpdate={(v) => handleValidationUpdate('values', v)}
+			onRegisterSave={(saveFn) => { valuesTabSaveFn = saveFn; }}
 		/>
 	{:else if currentTab === 'pre-incident'}
 		<PreIncidentEstimateTab

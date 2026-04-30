@@ -24,6 +24,7 @@ interface Props {
 	onUpdate: (data: Partial<VehicleIdentification>) => void;
 	vehicleDetails?: VehicleDetails | null;
 	onValidationUpdate?: (validation: TabValidation) => void;
+	onRegisterSave?: (saveFn: () => Promise<void>) => void;
 }
 
 	// Make props reactive using $derived pattern
@@ -209,7 +210,22 @@ interface Props {
 		}
 	});
 
-	// Load draft values on mount if available
+	// saveNow — cancel any pending debounce then flush immediately
+	async function saveNow() {
+		if (typeof (debouncedSave as any).cancel === 'function') {
+			(debouncedSave as any).cancel();
+		}
+		handleSave();
+		// Clear drafts after flush
+		registrationDraft.clear();
+		vinDraft.clear();
+		engineDraft.clear();
+		makeDraft.clear();
+		modelDraft.clear();
+		yearDraft.clear();
+	}
+
+	// Load draft values on mount if available, and register saveNow with parent
 	onMount(() => {
 		const regDraft = registrationDraft.get();
 		const vinDraftVal = vinDraft.get();
@@ -224,6 +240,9 @@ interface Props {
 		if (makeDraftVal && !data?.vehicle_make) vehicleMake = makeDraftVal;
 		if (modelDraftVal && !data?.vehicle_model) vehicleModel = modelDraftVal;
 		if (yearDraftVal && !data?.vehicle_year) vehicleYear = yearDraftVal;
+
+		// Register saveNow with parent so tab-change can flush pending saves
+		props.onRegisterSave?.(saveNow);
 	});
 
 	function handleSave() {
