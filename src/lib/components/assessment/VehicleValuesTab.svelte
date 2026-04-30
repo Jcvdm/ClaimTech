@@ -216,7 +216,7 @@ import type { VehicleDetails } from '$lib/utils/report-data-helpers';
 		if (typeof (debouncedSave as any).cancel === 'function') {
 			(debouncedSave as any).cancel();
 		}
-		handleSave();
+		await handleSave();
 		// Clear drafts (handleSave already clears them, but be explicit)
 		sourcedFromDraft.clear();
 		sourcedDateDraft.clear();
@@ -260,7 +260,7 @@ import type { VehicleDetails } from '$lib/utils/report-data-helpers';
 
 	// Bug 2 fix: numeric fields use explicit null-coercion so entering 0 is preserved;
 	// string/enum/date fields use ?? null so empty string clears the stored value.
-	function handleSave() {
+	async function handleSave() {
 		onUpdate({
 			sourced_from: sourcedFrom !== '' ? sourcedFrom : null,
 			sourced_code: sourcedCode !== '' ? sourcedCode : null,

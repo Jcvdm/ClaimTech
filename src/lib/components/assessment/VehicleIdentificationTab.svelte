@@ -215,7 +215,7 @@ interface Props {
 		if (typeof (debouncedSave as any).cancel === 'function') {
 			(debouncedSave as any).cancel();
 		}
-		handleSave();
+		await handleSave();
 		// Clear drafts after flush
 		registrationDraft.clear();
 		vinDraft.clear();
@@ -245,7 +245,7 @@ interface Props {
 		props.onRegisterSave?.(saveNow);
 	});
 
-	function handleSave() {
+	async function handleSave() {
 		onUpdate({
 			vehicle_make: vehicleMake || undefined,
 			vehicle_model: vehicleModel || undefined,

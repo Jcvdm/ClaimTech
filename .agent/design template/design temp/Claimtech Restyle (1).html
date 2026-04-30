@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>ClaimTech · Restyle exploration</title>
+<style>
+  html, body { margin: 0; padding: 0; background: #f0eee9; }
+  :root { --acc: #d4a574; }
+  .tweaks-panel {
+    position: fixed; bottom: 20px; right: 20px; z-index: 200;
+    background: #1a1714; color: #fff; padding: 14px 16px; border-radius: 4px;
+    font-family: ui-monospace, monospace; font-size: 11px;
+    box-shadow: 0 12px 40px rgba(0,0,0,.3); letter-spacing: 0.05em;
+    display: none;
+  }
+  .tweaks-panel.active { display: block; }
+  .tweaks-panel h4 { margin: 0 0 10px; font-size: 10px; letter-spacing: 0.2em; text-transform: uppercase; opacity: 0.6; font-weight: 500; }
+  .tweaks-panel .row { display: flex; gap: 6px; margin-bottom: 8px; }
+  .tweaks-panel button {
+    background: transparent; border: 1px solid rgba(255,255,255,0.15);
+    color: #fff; padding: 6px 10px; font-family: inherit; font-size: 10px;
+    letter-spacing: 0.1em; cursor: pointer; text-transform: uppercase;
+  }
+  .tweaks-panel button.active { background: var(--acc); color: #0a0a0a; border-color: var(--acc); }
+  .swatch { width: 20px; height: 20px; border: 1px solid rgba(255,255,255,0.15); cursor: pointer; padding: 0; }
+  .swatch.active { box-shadow: 0 0 0 2px #fff; }
+</style>
+</head>
+<body>
+
+<div id="tweaks" class="tweaks-panel">
+  <h4>Tweaks</h4>
+  <div style="opacity: 0.7; margin-bottom: 4px;">Accent</div>
+  <div class="row" id="acc-row">
+    <button class="swatch active" data-acc="#d4a574" style="background:#d4a574"></button>
+    <button class="swatch" data-acc="#c89666" style="background:#c89666"></button>
+    <button class="swatch" data-acc="#e8b872" style="background:#e8b872"></button>
+    <button class="swatch" data-acc="#9fb08a" style="background:#9fb08a"></button>
+    <button class="swatch" data-acc="#7dd3fc" style="background:#7dd3fc"></button>
+    <button class="swatch" data-acc="#f0f0f0" style="background:#f0f0f0"></button>
+  </div>
+</div>
+
+<div id="root"></div>
+
+<!-- React pinned -->
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+<script type="text/babel" src="design-canvas.jsx"></script>
+<script type="text/babel" src="wireframes/parts.jsx"></script>
+<script type="text/babel" src="wireframes/logins.jsx"></script>
+<script type="text/babel" src="wireframes/screens.jsx"></script>
+<script type="text/babel" src="wireframes/workflow-a.jsx"></script>
+<script type="text/babel" src="wireframes/workflow-b.jsx"></script>
+<script type="text/babel" src="wireframes/util-shell.jsx"></script>
+<script type="text/babel" src="wireframes/util-screens.jsx"></script>
+<script type="text/babel" src="wireframes/field.jsx"></script>
+
+<script type="text/babel">
+function App() {
+  return (
+    <DesignCanvas>
+      <DCSection id="directions" title="Login · Four directions" subtitle="Dark-first, premium. Same field/type/accent system — different compositions.">
+        <DCArtboard id="editorial" label="A · Editorial — big serif + credibility grid" width={1280} height={800}>
+          <LoginEditorial />
+        </DCArtboard>
+        <DCArtboard id="technical" label="B · Technical — schematic, engineer-tool" width={1280} height={800}>
+          <LoginTechnical />
+        </DCArtboard>
+        <DCArtboard id="minimal" label="C · Minimal — confident, no marketing" width={1280} height={800}>
+          <LoginMinimal />
+        </DCArtboard>
+        <DCArtboard id="narrative" label="D · Narrative — story · form · live stats" width={1280} height={800}>
+          <LoginNarrative />
+        </DCArtboard>
+      </DCSection>
+
+      <DCSection id="flow" title="Auth flow · Editorial direction extended" subtitle="Shop login, forgot password, activation — same shell, different copy.">
+        <DCArtboard id="shop" label="Shop login" width={1280} height={800}>
+          <ShopLoginEditorial />
+        </DCArtboard>
+        <DCArtboard id="forgot" label="Forgot password" width={1280} height={800}>
+          <ForgotEditorial />
+        </DCArtboard>
+        <DCArtboard id="setpw" label="Set password / activate" width={1280} height={800}>
+          <SetPasswordEditorial />
+        </DCArtboard>
+      </DCSection>
+
+      <DCSection id="app" title="Dashboard shell" subtitle="Same language applied to the signed-in app — sidebar, topbar, work queue.">
+        <DCArtboard id="dash" label="Dashboard · dark shell" width={1280} height={800}>
+          <DashboardShell />
+        </DCArtboard>
+      </DCSection>
+
+      <DCSection id="workflow" title="Assessment workflow · editorial (v1)" subtitle="Earlier direction — high-style, but heavy for 8hr/day use.">
+        <DCArtboard id="wq" label="Work queue · list" width={1440} height={900}>
+          <ScreenWorkQueue />
+        </DCArtboard>
+        <DCArtboard id="req" label="Request detail · stepper + timeline" width={1440} height={900}>
+          <ScreenRequestDetail />
+        </DCArtboard>
+        <DCArtboard id="dmg" label="Assessment · Damage capture" width={1440} height={900}>
+          <ScreenDamage />
+        </DCArtboard>
+        <DCArtboard id="est" label="Assessment · Estimate builder" width={1440} height={900}>
+          <ScreenEstimate />
+        </DCArtboard>
+      </DCSection>
+
+      <DCSection id="util" title="Assessment workflow · utilitarian (v2)" subtitle="Light, calm, dense, predictable. Designed for all-day use — clear separation, high-contrast text, no decorative type inside the app.">
+        <DCArtboard id="u-wq"  label="Work queue · dense table" width={1440} height={900}>
+          <UWorkQueue />
+        </DCArtboard>
+        <DCArtboard id="u-dmg" label="Assessment · Damage (light)" width={1440} height={900}>
+          <UDamage />
+        </DCArtboard>
+        <DCArtboard id="u-est" label="Assessment · Estimate (light)" width={1440} height={900}>
+          <UEstimate />
+        </DCArtboard>
+      </DCSection>
+
+      <DCSection id="field" title="Field kit · tablet + phone" subtitle="For engineers working on-site: large hit targets, offline-aware, camera-first. Tablet landscape (iPad Mini size) + phone screens for quick capture.">
+        <DCArtboard id="f-tab-dmg" label="Tablet · Damage capture" width={1180} height={820}>
+          <FieldTabletDamage />
+        </DCArtboard>
+        <DCArtboard id="f-tab-360" label="Tablet · Exterior 360° capture" width={1180} height={820}>
+          <FieldTablet360 />
+        </DCArtboard>
+        <DCArtboard id="f-tab-est" label="Tablet · Estimate (redesigned)" width={1180} height={820}>
+          <FieldTabletEstimate />
+        </DCArtboard>
+        <DCArtboard id="f-ph-today" label="Phone · Today / queue" width={390} height={780}>
+          <FieldPhoneToday />
+        </DCArtboard>
+        <DCArtboard id="f-ph-cap" label="Phone · Guided photo capture" width={390} height={780}>
+          <FieldPhoneCapture />
+        </DCArtboard>
+        <DCArtboard id="f-ph-zone" label="Phone · Quick damage zone" width={390} height={780}>
+          <FieldPhoneZone />
+        </DCArtboard>
+      </DCSection>
+
+      <DCPostIt top={40} left={60} rotate={-2}>
+        Current site: slate + rose · crammed marketing panel.
+        Goal: <b>dark-first, premium, confident</b>. Pick a direction
+        from A–D and I'll take it to hi-fi on every auth screen + the app shell.
+      </DCPostIt>
+
+      <DCPostIt top={1040} right={80} rotate={2}>
+        Accent: a warm tan/gold bypasses the default tech-blue
+        and signals craft + care. Swap it live in the Tweaks panel
+        (bottom-right) to audition alternatives.
+      </DCPostIt>
+    </DesignCanvas>
+  );
+}
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+
+<script>
+// Tweaks wiring — accent swap + persistence
+const DEFAULTS = /*EDITMODE-BEGIN*/{
+  "accent": "#f0f0f0"
+}/*EDITMODE-END*/;
+
+document.documentElement.style.setProperty('--acc', DEFAULTS.accent);
+
+const panel = document.getElementById('tweaks');
+const accRow = document.getElementById('acc-row');
+
+// Sync initial swatch
+for (const btn of accRow.querySelectorAll('button')) {
+  btn.classList.toggle('active', btn.dataset.acc === DEFAULTS.accent);
+  btn.addEventListener('click', () => {
+    const v = btn.dataset.acc;
+    document.documentElement.style.setProperty('--acc', v);
+    for (const b of accRow.querySelectorAll('button')) b.classList.toggle('active', b === btn);
+    window.parent.postMessage({ type: '__edit_mode_set_keys', edits: { accent: v } }, '*');
+  });
+}
+
+// Edit-mode protocol
+window.addEventListener('message', (e) => {
+  if (!e.data || !e.data.type) return;
+  if (e.data.type === '__activate_edit_mode') panel.classList.add('active');
+  if (e.data.type === '__deactivate_edit_mode') panel.classList.remove('active');
+});
+window.parent.postMessage({ type: '__edit_mode_available' }, '*');
+</script>
+</body>
+</html>

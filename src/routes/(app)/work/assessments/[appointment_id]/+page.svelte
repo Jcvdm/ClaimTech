@@ -196,6 +196,10 @@
 			await tyresTabSaveFn();
 		} else if (currentTab === 'damage' && damageTabSaveFn) {
 			await damageTabSaveFn();
+		} else if (currentTab === 'values' && valuesTabSaveFn) {
+			await valuesTabSaveFn();
+		} else if (currentTab === 'identification' && vehicleIdentTabSaveFn) {
+			await vehicleIdentTabSaveFn();
 		}
 		goto(`/work/appointments/${data.appointment.id}`);
 	}
