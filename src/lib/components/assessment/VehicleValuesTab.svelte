@@ -49,6 +49,7 @@ import type { VehicleDetails } from '$lib/utils/report-data-helpers';
 		onUpdate: (data: Partial<VehicleValues>) => void;
 		vehicleDetails?: VehicleDetails | null;
 		onValidationUpdate?: (validation: TabValidation) => void;
+		onRegisterSave?: (saveFn: () => Promise<void>) => void;
 	}
 
 	// Make props reactive using $derived pattern
@@ -170,46 +171,61 @@ import type { VehicleDetails } from '$lib/utils/report-data-helpers';
 	const salvageRetail = $derived(retailTotalAdjusted * (salvagePercentage / 100));
 
 	// Sync local state with data prop when it changes (after save)
+	// Bug 1 fix: use != null instead of truthiness check so that 0/"" values are preserved
 	$effect(() => {
 		if (data) {
 			// Only update if there's no draft (draft takes precedence)
-			if (!sourcedFromDraft.hasDraft() && data.sourced_from) {
+			if (!sourcedFromDraft.hasDraft() && data.sourced_from != null) {
 				sourcedFrom = data.sourced_from;
 			}
-			if (!sourcedDateDraft.hasDraft() && data.sourced_date) {
+			if (!sourcedDateDraft.hasDraft() && data.sourced_date != null) {
 				sourcedDate = data.sourced_date;
 			}
-			if (!tradeValueDraft.hasDraft() && data.trade_value) {
+			if (!tradeValueDraft.hasDraft() && data.trade_value != null) {
 				tradeValue = data.trade_value;
 			}
-			if (!marketValueDraft.hasDraft() && data.market_value) {
+			if (!marketValueDraft.hasDraft() && data.market_value != null) {
 				marketValue = data.market_value;
 			}
-			if (!retailValueDraft.hasDraft() && data.retail_value) {
+			if (!retailValueDraft.hasDraft() && data.retail_value != null) {
 				retailValue = data.retail_value;
 			}
 
 			// Always update other fields from data
-			if (data.sourced_code) sourcedCode = data.sourced_code;
-			if (data.warranty_status) warrantyStatus = data.warranty_status;
-			if (data.warranty_period_years) warrantyPeriodYears = data.warranty_period_years;
-			if (data.warranty_start_date) warrantyStartDate = data.warranty_start_date;
-			if (data.warranty_end_date) warrantyEndDate = data.warranty_end_date;
-			if (data.warranty_expiry_mileage) warrantyExpiryMileage = data.warranty_expiry_mileage;
-			if (data.service_history_status) serviceHistoryStatus = data.service_history_status;
-			if (data.warranty_notes) warrantyNotes = data.warranty_notes;
-			if (data.new_list_price) newListPrice = data.new_list_price;
-			if (data.depreciation_percentage) depreciationPercentage = data.depreciation_percentage;
-			if (data.valuation_adjustment) valuationAdjustment = data.valuation_adjustment;
-			if (data.valuation_adjustment_percentage) valuationAdjustmentPercentage = data.valuation_adjustment_percentage;
-			if (data.condition_adjustment_value) conditionAdjustmentValue = data.condition_adjustment_value;
-			if (data.valuation_pdf_url) valuationPdfUrl = data.valuation_pdf_url;
-			if (data.valuation_pdf_path) valuationPdfPath = data.valuation_pdf_path;
-			if (data.remarks) remarks = data.remarks;
+			if (data.sourced_code != null) sourcedCode = data.sourced_code;
+			if (data.warranty_status != null) warrantyStatus = data.warranty_status;
+			if (data.warranty_period_years != null) warrantyPeriodYears = data.warranty_period_years;
+			if (data.warranty_start_date != null) warrantyStartDate = data.warranty_start_date;
+			if (data.warranty_end_date != null) warrantyEndDate = data.warranty_end_date;
+			if (data.warranty_expiry_mileage != null) warrantyExpiryMileage = data.warranty_expiry_mileage;
+			if (data.service_history_status != null) serviceHistoryStatus = data.service_history_status;
+			if (data.warranty_notes != null) warrantyNotes = data.warranty_notes;
+			if (data.new_list_price != null) newListPrice = data.new_list_price;
+			if (data.depreciation_percentage != null) depreciationPercentage = data.depreciation_percentage;
+			if (data.valuation_adjustment != null) valuationAdjustment = data.valuation_adjustment;
+			if (data.valuation_adjustment_percentage != null) valuationAdjustmentPercentage = data.valuation_adjustment_percentage;
+			if (data.condition_adjustment_value != null) conditionAdjustmentValue = data.condition_adjustment_value;
+			if (data.valuation_pdf_url != null) valuationPdfUrl = data.valuation_pdf_url;
+			if (data.valuation_pdf_path != null) valuationPdfPath = data.valuation_pdf_path;
+			if (data.remarks != null) remarks = data.remarks;
 		}
 	});
 
-	// Load draft values on mount if available
+	// Bug 4: saveNow — cancel any pending debounce then flush immediately
+	async function saveNow() {
+		if (typeof (debouncedSave as any).cancel === 'function') {
+			(debouncedSave as any).cancel();
+		}
+		handleSave();
+		// Clear drafts (handleSave already clears them, but be explicit)
+		sourcedFromDraft.clear();
+		sourcedDateDraft.clear();
+		tradeValueDraft.clear();
+		marketValueDraft.clear();
+		retailValueDraft.clear();
+	}
+
+	// Load draft values on mount if available, and register saveNow with parent
 	onMount(() => {
 		const sourcedFromDraftVal = sourcedFromDraft.get();
 		const sourcedDateDraftVal = sourcedDateDraft.get();
@@ -222,6 +238,9 @@ import type { VehicleDetails } from '$lib/utils/report-data-helpers';
 		if (tradeValueDraftVal && !data?.trade_value) tradeValue = tradeValueDraftVal;
 		if (marketValueDraftVal && !data?.market_value) marketValue = marketValueDraftVal;
 		if (retailValueDraftVal && !data?.retail_value) retailValue = retailValueDraftVal;
+
+		// Bug 4: register saveNow with parent so tab-change can flush pending saves
+		props.onRegisterSave?.(saveNow);
 	});
 
 	function calculateAdjustedValue(
@@ -239,29 +258,31 @@ import type { VehicleDetails } from '$lib/utils/report-data-helpers';
 		return Math.round(adjusted * 100) / 100;
 	}
 
+	// Bug 2 fix: numeric fields use explicit null-coercion so entering 0 is preserved;
+	// string/enum/date fields use ?? null so empty string clears the stored value.
 	function handleSave() {
 		onUpdate({
-			sourced_from: sourcedFrom || undefined,
-			sourced_code: sourcedCode || undefined,
-			sourced_date: sourcedDate || undefined,
-			warranty_status: warrantyStatus || undefined,
-			warranty_period_years: warrantyPeriodYears || undefined,
-			warranty_start_date: warrantyStartDate || undefined,
-			warranty_end_date: warrantyEndDate || undefined,
-			warranty_expiry_mileage: warrantyExpiryMileage || undefined,
-			service_history_status: serviceHistoryStatus || undefined,
-			warranty_notes: warrantyNotes || undefined,
-			trade_value: tradeValue || undefined,
-			market_value: marketValue || undefined,
-			retail_value: retailValue || undefined,
-			new_list_price: newListPrice || undefined,
-			depreciation_percentage: depreciationPercentage || undefined,
-			valuation_adjustment: valuationAdjustment || undefined,
-			valuation_adjustment_percentage: valuationAdjustmentPercentage || undefined,
-			condition_adjustment_value: conditionAdjustmentValue || undefined,
-			valuation_pdf_url: valuationPdfUrl || undefined,
-			valuation_pdf_path: valuationPdfPath || undefined,
-			remarks: remarks || undefined
+			sourced_from: sourcedFrom !== '' ? sourcedFrom : null,
+			sourced_code: sourcedCode !== '' ? sourcedCode : null,
+			sourced_date: sourcedDate !== '' ? sourcedDate : null,
+			warranty_status: warrantyStatus !== '' ? (warrantyStatus as WarrantyStatus) : null,
+			warranty_period_years: warrantyPeriodYears ?? null,
+			warranty_start_date: warrantyStartDate !== '' ? warrantyStartDate : null,
+			warranty_end_date: warrantyEndDate !== '' ? warrantyEndDate : null,
+			warranty_expiry_mileage: warrantyExpiryMileage !== '' ? warrantyExpiryMileage : null,
+			service_history_status: serviceHistoryStatus !== '' ? (serviceHistoryStatus as ServiceHistoryStatus) : null,
+			warranty_notes: warrantyNotes !== '' ? warrantyNotes : null,
+			trade_value: tradeValue === 0 ? 0 : (tradeValue || null),
+			market_value: marketValue === 0 ? 0 : (marketValue || null),
+			retail_value: retailValue === 0 ? 0 : (retailValue || null),
+			new_list_price: newListPrice === 0 ? 0 : (newListPrice || null),
+			depreciation_percentage: depreciationPercentage === 0 ? 0 : (depreciationPercentage || null),
+			valuation_adjustment: valuationAdjustment === 0 ? 0 : (valuationAdjustment || null),
+			valuation_adjustment_percentage: valuationAdjustmentPercentage === 0 ? 0 : (valuationAdjustmentPercentage || null),
+			condition_adjustment_value: conditionAdjustmentValue === 0 ? 0 : (conditionAdjustmentValue || null),
+			valuation_pdf_url: valuationPdfUrl !== '' ? valuationPdfUrl : null,
+			valuation_pdf_path: valuationPdfPath !== '' ? valuationPdfPath : null,
+			remarks: remarks !== '' ? remarks : null
 		});
 
 		// Clear drafts after successful save
@@ -472,6 +493,7 @@ import type { VehicleDetails } from '$lib/utils/report-data-helpers';
 					id="warranty_period_years"
 					name="warranty_period_years"
 					bind:value={warrantyPeriodYears}
+					onchange={debouncedSave}
 					class="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
 				>
 					<option value={null}>Select period...</option>
@@ -494,12 +516,14 @@ import type { VehicleDetails } from '$lib/utils/report-data-helpers';
 						label="From"
 						type="date"
 						bind:value={warrantyStartDate}
+						onchange={debouncedSave}
 					/>
 					<FormField
 						name="warranty_end_date"
 						label="To"
 						type="date"
 						bind:value={warrantyEndDate}
+						onchange={debouncedSave}
 					/>
 				</div>
 			</fieldset>
@@ -511,6 +535,7 @@ import type { VehicleDetails } from '$lib/utils/report-data-helpers';
 				type="select"
 				bind:value={warrantyExpiryMileage}
 				placeholder="Select mileage..."
+				onchange={debouncedSave}
 				options={[
 					{ value: 'unlimited', label: 'Unlimited' },
 					{ value: '50000', label: '50,000 km' },
@@ -528,6 +553,7 @@ import type { VehicleDetails } from '$lib/utils/report-data-helpers';
 				type="select"
 				bind:value={serviceHistoryStatus}
 				placeholder="Select status..."
+				onchange={debouncedSave}
 				options={[
 					{ value: 'checked', label: 'Checked' },
 					{ value: 'not_checked', label: 'Not Checked' },
@@ -546,6 +572,7 @@ import type { VehicleDetails } from '$lib/utils/report-data-helpers';
 				bind:value={warrantyNotes}
 				placeholder="Additional warranty or service information..."
 				rows={3}
+				oninput={debouncedSave}
 			/>
 		</div>
 	</Card>
@@ -565,6 +592,7 @@ import type { VehicleDetails } from '$lib/utils/report-data-helpers';
 				bind:value={newListPrice}
 				placeholder="0.00"
 				step="0.01"
+				oninput={debouncedSave}
 			/>
 			<FormField
 				name="depreciation_percentage"
@@ -573,6 +601,7 @@ import type { VehicleDetails } from '$lib/utils/report-data-helpers';
 				bind:value={depreciationPercentage}
 				placeholder="0.00"
 				step="0.01"
+				oninput={debouncedSave}
 			/>
 		</div>
 
@@ -618,6 +647,7 @@ import type { VehicleDetails } from '$lib/utils/report-data-helpers';
 					bind:value={valuationAdjustment}
 					placeholder="0.00"
 					step="0.01"
+					oninput={debouncedSave}
 				/>
 				<FormField
 					name="valuation_adjustment_percentage"
@@ -626,6 +656,7 @@ import type { VehicleDetails } from '$lib/utils/report-data-helpers';
 					bind:value={valuationAdjustmentPercentage}
 					placeholder="0.00"
 					step="0.01"
+					oninput={debouncedSave}
 				/>
 			</div>
 			<div class="space-y-2">
@@ -636,6 +667,7 @@ import type { VehicleDetails } from '$lib/utils/report-data-helpers';
 					bind:value={conditionAdjustmentValue}
 					placeholder="0.00"
 					step="0.01"
+					oninput={debouncedSave}
 				/>
 				<!-- Display calculated percentages -->
 				<div class="rounded-md bg-blue-50 p-3">
@@ -788,7 +820,7 @@ import type { VehicleDetails } from '$lib/utils/report-data-helpers';
 			/>
 		</div>
 
-		<FormField name="remarks" label="Remarks" type="textarea" bind:value={remarks} rows={4} />
+		<FormField name="remarks" label="Remarks" type="textarea" bind:value={remarks} rows={4} oninput={debouncedSave} />
 	</Card>
 </div>
 
