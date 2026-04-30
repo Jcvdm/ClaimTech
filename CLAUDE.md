@@ -240,110 +240,14 @@ Claude Skills are **domain expertise modules** that auto-invoke based on keyword
 
 ### Active Skills
 
-#### 1. **supabase-development**
-**Purpose**: Supabase database operations, services, RLS policies, and storage
-**Auto-invokes on**: database, queries, RLS, storage, services, schema, migrations
-**Use when**:
-- Creating or modifying services
-- Writing database queries
-- Implementing RLS policies
-- Working with Supabase Storage
-- Extending database schema
+Four skills auto-invoke based on keywords in the conversation. Each skill's full guidance lives in its own file under `.claude/skills/`:
 
-**Key Patterns**:
-- ServiceClient injection pattern
-- Three Supabase clients (browser, SSR, service role)
-- Unique ID generation (CLM-2025-001, ASM-2025-001)
-- Audit logging conventions
-- Can leverage code execution for complex data transformations
+- **supabase-development** — DB operations, services, RLS, storage
+- **claimtech-development** — features, SvelteKit, migrations, auth, PDF, components, routes
+- **assessment-centric-specialist** — stage pipeline, workflow transitions, assessment lifecycle
+- **photo-component-development** — photo viewers, galleries, inline editing, optimistic updates
 
-**Resources**: `.claude/skills/supabase-development/`
-
----
-
-#### 2. **claimtech-development**
-**Purpose**: ClaimTech platform development workflows and patterns
-**Auto-invokes on**: features, SvelteKit, migrations, auth, PDF, components, routes
-**Use when**:
-- Implementing new features
-- Creating SvelteKit pages/routes
-- Working with authentication
-- Generating PDFs or reports
-- Following ClaimTech conventions
-
-**Key Workflows**:
-1. Database Migration (15-30 min)
-2. Service Layer Implementation (20-40 min)
-3. SvelteKit Page Route (30-60 min)
-4. Authentication & Authorization (20-40 min)
-5. PDF Generation (30-60 min)
-6. File Storage & Photos (20-40 min)
-
-**Resources**: `.claude/skills/claimtech-development/resources/`
-
----
-
-#### 3. **assessment-centric-specialist**
-**Purpose**: Assessment-centric architecture and stage-based workflow
-**Auto-invokes on**: assessment, stage, workflow, pipeline, transitions
-**Use when**:
-- Implementing stage-based features
-- Adding workflow stages
-- Working with assessment lifecycle
-- Fixing assessment-related bugs
-- Ensuring assessment-centric compliance
-
-**Key Concepts**:
-- Assessment created WITH request (not at "Start Assessment")
-- One assessment per request (unique constraint)
-- 10 pipeline stages (request_submitted → archived/cancelled)
-- Nullable foreign keys with check constraints
-- Idempotent operations
-- Complete audit trail
-
-**Resources**: `.claude/skills/assessment-centric-specialist/`
-
----
-
-#### 4. **photo-component-development**
-**Purpose**: Photo component patterns with inline editing, optimistic updates, and navigation tracking
-**Auto-invokes on**: photo, image, label, gallery, viewer, thumbnail, carousel, inline edit, navigation tracking
-**Use when**:
-- Implementing photo viewer components
-- Adding photo label editing
-- Working with photo galleries
-- Debugging photo navigation issues
-- Implementing optimistic updates for photos
-
-**Key Patterns**:
-- Fixed Bottom Bar pattern (fullscreen viewers)
-- Modal Footer pattern (dialog viewers)
-- Thumbnail Overlay pattern (inline galleries)
-- Optimistic update pattern (instant UI feedback)
-- Navigation tracking (prevents "wrong photo" bugs)
-
-**Resources**: `.claude/skills/photo-component-development/`
-
----
-
-### Skill Usage Guidelines
-
-**Skill Hierarchy**:
-1. **Start with claimtech-development** for general feature work
-2. **Invoke supabase-development** when working with database/services
-3. **Invoke assessment-centric-specialist** for assessment workflow features
-4. **Invoke photo-component-development** for photo viewer/editing features
-
-**Skills + .agent Documentation**:
-- **Skills provide HOW** - Patterns, workflows, conventions
-- **.agent docs provide WHAT** - Current state, architecture, schemas
-- **Use both together** - Skills for methodology, .agent for context
-
-**Best Practices**:
-- Skills auto-invoke based on keywords - use relevant terms in your requests
-- Reference skill patterns when implementing features
-- Update skills when establishing new patterns
-- Skills complement (not replace) .agent documentation
+The orchestrator does NOT need to manually invoke them — they fire on keyword match. To read the full pattern set for any skill, read its directory (e.g. `.claude/skills/photo-component-development/SKILL.md`).
 
 ---
 
