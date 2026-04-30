@@ -63,6 +63,8 @@
 		estimate?: any;
 		// Callback for child tabs to report their validation state
 		onValidationUpdate?: (tabId: string, validation: TabValidation) => void;
+		// Live validations forwarded from the page (react to user input immediately)
+		liveValidations?: Record<string, TabValidation>;
 		children?: any;
 	}
 
@@ -88,23 +90,12 @@
 		preIncidentEstimate = null,
 		estimate = null,
 		onValidationUpdate = undefined,
+		liveValidations = {},
 		children
 	}: Props = $props();
 
 	// Mobile drawer state
 	let drawerOpen = $state(false);
-
-	// Track child-reported validations (these are more current than prop-based validations)
-	let childValidations = $state<Record<string, TabValidation>>({});
-
-	// Handle validation updates from child tabs
-	function handleChildValidationUpdate(tabId: string, validation: TabValidation) {
-		childValidations[tabId] = validation;
-		// Also forward to parent if callback provided
-		if (onValidationUpdate) {
-			onValidationUpdate(tabId, validation);
-		}
-	}
 
 	// Build tabs array dynamically based on finalization status
 	const tabs = $derived(() => {
@@ -174,8 +165,8 @@
 			validations['estimate'] = validateEstimate(estimate);
 		}
 
-		// Override with child-reported validations (these react to local state immediately)
-		for (const [tabId, validation] of Object.entries(childValidations)) {
+		// Override with live validations from the page (react to user input immediately)
+		for (const [tabId, validation] of Object.entries(liveValidations)) {
 			validations[tabId] = validation;
 		}
 

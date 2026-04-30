@@ -103,10 +103,12 @@
 	let valuesTabSaveFn: (() => Promise<void>) | null = null;
 	let vehicleIdentTabSaveFn: (() => Promise<void>) | null = null;
 
+	// Live validation map — updated immediately as child tabs report their state
+	let liveValidations = $state<Record<string, TabValidation>>({});
+
 	// Handle validation updates from child tabs (for immediate badge updates)
 	function handleValidationUpdate(tabId: string, validation: TabValidation) {
-		// Validation is automatically tracked by AssessmentLayout via childValidations
-		// This handler exists for future extension if needed
+		liveValidations[tabId] = validation;
 	}
 
 	// Helper to set tab and update URL (for programmatic tab changes)
@@ -895,6 +897,7 @@
 	{preIncidentEstimate}
 	{estimate}
 	onValidationUpdate={handleValidationUpdate}
+	{liveValidations}
 >
 	{#if currentTab === 'summary'}
 		<SummaryTab
