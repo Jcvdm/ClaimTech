@@ -14,7 +14,7 @@
 
 <div class="flex min-h-dvh flex-col bg-background text-foreground">
 	<!-- Top nav -->
-	<header class="flex items-center justify-between px-14 py-9">
+	<header class="flex items-center justify-between px-6 sm:px-14 py-9">
 		<span class="text-sm font-medium tracking-wide">ClaimTech</span>
 		<a href="mailto:support@claimtech.co.za" class="text-sm text-brand hover:underline">
 			Request access →
@@ -80,17 +80,18 @@
 					{loading ? 'Signing in…' : 'Sign in'}
 				</Button>
 
-				<div class="flex justify-between text-xs text-muted-foreground">
+				<div class="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 text-xs text-muted-foreground">
 					<a href="/auth/forgot-password" class="hover:text-foreground">Forgot password?</a>
 					<!-- TODO: /auth/help route does not exist — using mailto fallback -->
 					<a href="mailto:support@claimtech.co.za" class="hover:text-foreground">Need help?</a>
+					<a href="/auth/shop-login" class="hover:text-foreground">Workshop login →</a>
 				</div>
 			</form>
 		</div>
 	</main>
 
 	<!-- Minimal footer -->
-	<footer class="border-t border-border/60 px-14 py-6 text-xs text-muted-foreground">
+	<footer class="border-t border-border/60 px-6 sm:px-14 py-6 text-xs text-muted-foreground">
 		© {new Date().getFullYear()} ClaimTech
 	</footer>
 </div>
