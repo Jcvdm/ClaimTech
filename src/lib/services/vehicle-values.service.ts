@@ -6,8 +6,22 @@ import type {
 	VehicleValueExtra
 } from '$lib/types/assessment';
 import type { ServiceClient } from '$lib/types/service';
+import type { Json } from '$lib/types/database';
 import { auditService } from './audit.service';
 import { calculateVehicleValues, type WriteOffPercentages } from '$lib/utils/vehicleValuesCalculations';
+
+function parseExtras(raw: unknown): VehicleValueExtra[] {
+	if (Array.isArray(raw)) return raw as VehicleValueExtra[];
+	if (typeof raw === 'string') {
+		try {
+			const parsed = JSON.parse(raw);
+			return Array.isArray(parsed) ? parsed as VehicleValueExtra[] : [];
+		} catch {
+			return [];
+		}
+	}
+	return [];
+}
 
 export class VehicleValuesService {
 	/**
@@ -74,7 +88,7 @@ export class VehicleValuesService {
 				valuation_adjustment: input.valuation_adjustment || null,
 				valuation_adjustment_percentage: input.valuation_adjustment_percentage || null,
 				condition_adjustment_value: input.condition_adjustment_value || null,
-				extras: JSON.stringify(extras),
+				extras: extras as unknown as Json,
 				trade_adjusted_value: 0,
 				market_adjusted_value: 0,
 				retail_adjusted_value: 0,
@@ -148,7 +162,7 @@ export class VehicleValuesService {
 		const valuation_adjustment = input.valuation_adjustment !== undefined ? input.valuation_adjustment : current.valuation_adjustment || 0;
 		const valuation_adjustment_percentage = input.valuation_adjustment_percentage !== undefined ? input.valuation_adjustment_percentage : current.valuation_adjustment_percentage || 0;
 		const condition_adjustment_value = input.condition_adjustment_value !== undefined ? input.condition_adjustment_value : current.condition_adjustment_value || 0;
-		const extras = input.extras !== undefined ? input.extras : (current.extras as unknown as VehicleValueExtra[]) || [];
+		const extras = input.extras !== undefined ? input.extras : parseExtras(current.extras);
 
 		// Calculate all values
 		const calculated = calculateVehicleValues({
@@ -167,7 +181,7 @@ export class VehicleValuesService {
 			.from('assessment_vehicle_values')
 			.update({
 				...input,
-				extras: input.extras !== undefined ? JSON.stringify(input.extras) : undefined,
+				extras: input.extras as unknown as Json,
 				...calculated
 			})
 			.eq('id', id)
@@ -211,7 +225,7 @@ export class VehicleValuesService {
 			throw new Error('Vehicle values record not found');
 		}
 
-		const extras = [...(current.extras || []), extra];
+		const extras = [...parseExtras(current.extras), extra];
 		return this.update(id, { extras }, writeOffPercentages, client);
 	}
 
@@ -230,7 +244,7 @@ export class VehicleValuesService {
 			throw new Error('Vehicle values record not found');
 		}
 
-		const extras = (current.extras || []).map((e) =>
+		const extras = parseExtras(current.extras).map((e) =>
 			e.id === extraId ? { ...e, ...updatedExtra } : e
 		);
 
@@ -251,7 +265,7 @@ export class VehicleValuesService {
 			throw new Error('Vehicle values record not found');
 		}
 
-		const extras = (current.extras || []).filter((e) => e.id !== extraId);
+		const extras = parseExtras(current.extras).filter((e) => e.id !== extraId);
 		return this.update(id, { extras }, writeOffPercentages, client);
 	}
 
