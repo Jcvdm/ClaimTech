@@ -1,35 +1,39 @@
 import { error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
+import sharp from 'sharp';
 import { generatePDF } from '$lib/utils/pdf-generator';
 import { generatePhotosHTML } from '$lib/templates/photos-template';
 import { createStreamingResponse } from '$lib/utils/streaming-response';
 import { normalizeAssessment, normalizeCompanySettings, normalizeVehicleIdentification } from '$lib/utils/type-normalizers';
 import { getBrandLogoBase64 } from '$lib/utils/branding';
 
+interface PhotoStats {
+	count: number;
+	skipped: number;
+	originalBytes: number;
+	optimizedBytes: number;
+}
+
 /**
  * Helper function to downscale image for faster PDF generation
- * Reduces image dimensions to save bandwidth and rendering time
+ * Uses sharp for real server-side image resizing and JPEG conversion
  */
 async function downscaleImage(blob: Blob, maxWidth: number = 800): Promise<Buffer> {
 	try {
-		// For now, we'll use a simpler approach: just limit the buffer size
-		// In a production setup, you'd use a library like sharp for actual resizing
 		const arrayBuffer = await blob.arrayBuffer();
-		const buffer = Buffer.from(arrayBuffer);
-		
-		// If image is already small, return as-is
-		if (buffer.length < 200 * 1024) { // Less than 200KB
-			return buffer;
-		}
-		
-		// For large images, we'll rely on CSS sizing in the template
-		// This is a placeholder for actual image processing
-		// TODO: Add sharp library for server-side image resizing
-		return buffer;
+		const inputBuffer = Buffer.from(arrayBuffer);
+
+		const optimized = await sharp(inputBuffer)
+			.rotate()                                    // honor EXIF orientation
+			.resize({ width: maxWidth, withoutEnlargement: true })
+			.jpeg({ quality: 80, mozjpeg: true })
+			.withMetadata({ exif: undefined })            // strip EXIF, keep ICC
+			.toBuffer();
+
+		return optimized;
 	} catch (err) {
-		console.error('Error downscaling image:', err);
-		// Return empty buffer on error to prevent crash
-		return Buffer.alloc(0);
+		console.error('Error downscaling image with sharp:', err);
+		return Buffer.alloc(0); // signal failure; caller treats empty as skip
 	}
 }
 
@@ -37,10 +41,12 @@ async function downscaleImage(blob: Blob, maxWidth: number = 800): Promise<Buffe
  * Helper function to convert proxy URL to data URL for Puppeteer
  * Puppeteer running on server cannot access browser-relative URLs like /api/photo/...
  * So we fetch directly from Supabase and convert to base64 data URL
- * Images are downscaled for faster PDF generation (Hobby plan optimization)
+ * Images are downscaled via sharp for faster PDF generation
  */
-async function convertProxyUrlToDataUrl(proxyUrl: string | null, locals: any): Promise<string> {
+async function convertProxyUrlToDataUrl(proxyUrl: string | null, locals: any, stats?: PhotoStats): Promise<string> {
 	if (!proxyUrl) return '';
+
+	if (stats) stats.count++;
 
 	try {
 		// Extract path from proxy URL
@@ -54,22 +60,31 @@ async function convertProxyUrlToDataUrl(proxyUrl: string | null, locals: any): P
 
 		if (downloadError || !photoBlob) {
 			console.warn(`Failed to fetch photo: ${path}`, downloadError);
+			if (stats) stats.skipped++;
 			return '';
 		}
+
+		if (stats) stats.originalBytes += photoBlob.size;
 
 		// Downscale image for faster rendering
 		const imageBuffer = await downscaleImage(photoBlob, 800);
 
+		if (imageBuffer.length === 0) {
+			console.warn(`Failed to optimize photo: ${path}`);
+			if (stats) stats.skipped++;
+			return '';
+		}
+
+		if (stats) stats.optimizedBytes += imageBuffer.length;
+
 		// Convert to base64
 		const base64 = imageBuffer.toString('base64');
 
-		// Determine content type from file extension
-		const extension = path.split('.').pop()?.toLowerCase() || 'jpg';
-		const contentType = extension === 'png' ? 'image/png' : 'image/jpeg';
-
-		return `data:${contentType};base64,${base64}`;
+		// sharp output is always JPEG
+		return `data:image/jpeg;base64,${base64}`;
 	} catch (err) {
 		console.error('Error converting proxy URL to data URL:', err);
+		if (stats) stats.skipped++;
 		return '';
 	}
 }
@@ -83,6 +98,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	}
 
 	return createStreamingResponse(async function* () {
+		const photoStats: PhotoStats = { count: 0, skipped: 0, originalBytes: 0, optimizedBytes: 0 };
 		try {
 			yield { status: 'processing', progress: 5, message: 'Fetching assessment data...' };
 
@@ -170,35 +186,35 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	const identificationPhotoPromises = [];
 	if (vehicleIdentification?.vin_photo_url) {
 		identificationPhotoPromises.push(
-			convertProxyUrlToDataUrl(vehicleIdentification.vin_photo_url, locals).then(dataUrl =>
+			convertProxyUrlToDataUrl(vehicleIdentification.vin_photo_url, locals, photoStats).then(dataUrl =>
 				dataUrl ? { url: dataUrl, caption: 'VIN Number' } : null
 			)
 		);
 	}
 	if (vehicleIdentification?.registration_photo_url) {
 		identificationPhotoPromises.push(
-			convertProxyUrlToDataUrl(vehicleIdentification.registration_photo_url, locals).then(dataUrl =>
+			convertProxyUrlToDataUrl(vehicleIdentification.registration_photo_url, locals, photoStats).then(dataUrl =>
 				dataUrl ? { url: dataUrl, caption: 'Registration Document' } : null
 			)
 		);
 	}
 	if (vehicleIdentification?.engine_number_photo_url) {
 		identificationPhotoPromises.push(
-			convertProxyUrlToDataUrl(vehicleIdentification.engine_number_photo_url, locals).then(dataUrl =>
+			convertProxyUrlToDataUrl(vehicleIdentification.engine_number_photo_url, locals, photoStats).then(dataUrl =>
 				dataUrl ? { url: dataUrl, caption: 'Engine Number' } : null
 			)
 		);
 	}
 	if (vehicleIdentification?.license_disc_photo_url) {
 		identificationPhotoPromises.push(
-			convertProxyUrlToDataUrl(vehicleIdentification.license_disc_photo_url, locals).then(dataUrl =>
+			convertProxyUrlToDataUrl(vehicleIdentification.license_disc_photo_url, locals, photoStats).then(dataUrl =>
 				dataUrl ? { url: dataUrl, caption: 'License Disc' } : null
 			)
 		);
 	}
 	if (vehicleIdentification?.driver_license_photo_url) {
 		identificationPhotoPromises.push(
-			convertProxyUrlToDataUrl(vehicleIdentification.driver_license_photo_url, locals).then(dataUrl =>
+			convertProxyUrlToDataUrl(vehicleIdentification.driver_license_photo_url, locals, photoStats).then(dataUrl =>
 				dataUrl ? { url: dataUrl, caption: 'Driver License' } : null
 			)
 		);
@@ -231,7 +247,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	for (const {url, caption} of exteriorPhotoMap) {
 		if (url) {
 			exteriorPhotoPromises.push(
-				convertProxyUrlToDataUrl(url, locals).then(dataUrl =>
+				convertProxyUrlToDataUrl(url, locals, photoStats).then(dataUrl =>
 					dataUrl ? { url: dataUrl, caption } : null
 				)
 			);
@@ -265,7 +281,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	for (const {url, caption} of interiorPhotoMap) {
 		if (url) {
 			interiorPhotoPromises.push(
-				convertProxyUrlToDataUrl(url, locals).then(dataUrl =>
+				convertProxyUrlToDataUrl(url, locals, photoStats).then(dataUrl =>
 					dataUrl ? { url: dataUrl, caption } : null
 				)
 			);
@@ -285,7 +301,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
 	if (interiorPhotos && interiorPhotos.length > 0) {
 		const additionalInteriorPhotoPromises = interiorPhotos.map(photo =>
-			convertProxyUrlToDataUrl(photo.photo_url, locals).then(dataUrl =>
+			convertProxyUrlToDataUrl(photo.photo_url, locals, photoStats).then(dataUrl =>
 				dataUrl ? {
 					url: dataUrl,
 					caption: photo.label || 'Additional Interior Photo'
@@ -325,7 +341,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 			const treadDepth = tyre.tread_depth_mm ? `${tyre.tread_depth_mm}mm` : '';
 			const label = photo.label || 'Photo';
 
-			const dataUrl = await convertProxyUrlToDataUrl(photo.photo_url, locals);
+			const dataUrl = await convertProxyUrlToDataUrl(photo.photo_url, locals, photoStats);
 			return dataUrl ? {
 				url: dataUrl,
 				caption: `${positionLabel} - ${label} - ${tyreInfo} - ${condition} ${treadDepth}`.trim()
@@ -351,7 +367,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	// Damage Photos (from estimate) - PARALLEL conversion
 	if (estimatePhotos && estimatePhotos.length > 0) {
 		const damagePhotoPromises = estimatePhotos.map(photo =>
-			convertProxyUrlToDataUrl(photo.photo_url as string, locals).then(dataUrl =>
+			convertProxyUrlToDataUrl(photo.photo_url as string, locals, photoStats).then(dataUrl =>
 				dataUrl ? {
 					url: dataUrl,
 					caption: (photo.label || 'Damage Photo') as string
@@ -371,7 +387,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	// Pre-Incident Photos - PARALLEL conversion
 	if (preIncidentPhotos && preIncidentPhotos.length > 0) {
 		const preIncidentPhotoPromises = preIncidentPhotos.map(photo =>
-			convertProxyUrlToDataUrl(photo.photo_url as string, locals).then(dataUrl =>
+			convertProxyUrlToDataUrl(photo.photo_url as string, locals, photoStats).then(dataUrl =>
 				dataUrl ? {
 					url: dataUrl,
 					caption: (photo.label || 'Pre-Incident Photo') as string
@@ -399,7 +415,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
 	if (additionalsPhotos && additionalsPhotos.length > 0) {
 		const additionalsPhotoPromises = additionalsPhotos.map(photo =>
-			convertProxyUrlToDataUrl(photo.photo_url, locals).then(dataUrl =>
+			convertProxyUrlToDataUrl(photo.photo_url, locals, photoStats).then(dataUrl =>
 				dataUrl ? {
 					url: dataUrl,
 					caption: photo.label || 'Additional Documentation'
@@ -428,7 +444,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
 	if (accessories && accessories.length > 0) {
 		const accessoriesPhotoPromises = accessories.map(accessory =>
-			convertProxyUrlToDataUrl(accessory.photo_url as string, locals).then(dataUrl =>
+			convertProxyUrlToDataUrl(accessory.photo_url as string, locals, photoStats).then(dataUrl =>
 				dataUrl ? {
 					url: dataUrl,
 					caption: accessory.custom_name || accessory.accessory_type || 'Vehicle Accessory'
@@ -457,20 +473,40 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 				logoBase64: getBrandLogoBase64()
 			});
 
-			yield { status: 'processing', progress: 60, message: 'Rendering PDF with photos (this may take 1-2 minutes)...' };
+			yield { status: 'processing', progress: 60, message: 'Rendering PDF (this may take up to 2 minutes)...' };
 
-			// Generate PDF - wrap in try-catch to handle Puppeteer errors
+			// Generate PDF with keep-alive pings to prevent timeout
 			let pdfBuffer: Buffer;
 			try {
-				pdfBuffer = await generatePDF(html, {
+				const pdfPromise = generatePDF(html, {
 					format: 'A4',
 					margin: {
 						top: '15mm',
 						right: '15mm',
 						bottom: '15mm',
 						left: '15mm'
-					}
+					},
+					timeout: 120000,
+					retries: 0
 				});
+
+				let currentProgress = 62;
+				const startTime = Date.now();
+
+				while (true) {
+					const tickPromise = new Promise(resolve => setTimeout(resolve, 2000));
+					const result = await Promise.race([pdfPromise, tickPromise]);
+
+					if (result instanceof Buffer) {
+						pdfBuffer = result;
+						break;
+					}
+
+					currentProgress = Math.min(currentProgress + 2, 80);
+					const elapsed = Math.round((Date.now() - startTime) / 1000);
+					console.log(`Photos PDF keep-alive: ${currentProgress}% (${elapsed}s elapsed)`);
+					yield { status: 'processing', progress: currentProgress, message: `Rendering PDF (${elapsed}s elapsed)...` };
+				}
 			} catch (pdfError) {
 				console.error('PDF generation error:', pdfError);
 				yield {
@@ -480,6 +516,8 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 				};
 				return;
 			}
+
+			console.log(`Photos PDF stats: ${photoStats.count} photos, ${photoStats.skipped} skipped, ${(photoStats.originalBytes / 1024 / 1024).toFixed(1)}MB → ${(photoStats.optimizedBytes / 1024 / 1024).toFixed(1)}MB`);
 
 			yield { status: 'processing', progress: 85, message: 'Uploading PDF to storage...' };
 
