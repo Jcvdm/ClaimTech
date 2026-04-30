@@ -109,13 +109,19 @@ const authGuard: Handle = async ({ event, resolve }) => {
 	event.locals.session = session
 	event.locals.user = user
 
-	// Explicit root route handling
+	// Explicit root route handling — landing is public, authed users go to their dashboard
 	if (event.url.pathname === '/') {
-		redirect(303, session ? '/dashboard' : '/auth/login')
+		if (session) {
+			// All authed users → /dashboard (same as pre-landing behavior).
+			// No clean session-time way to differentiate shop vs assessor;
+			// route layouts handle role-specific gating downstream.
+			redirect(303, '/dashboard')
+		}
+		// unauthenticated → fall through, render the landing page
 	}
 
 	// Public routes that don't require authentication
-	const publicRoutes = ['/auth/login', '/auth/shop-login', '/auth/callback', '/auth/confirm', '/auth/forgot-password']
+	const publicRoutes = ['/', '/auth/login', '/auth/shop-login', '/auth/callback', '/auth/confirm', '/auth/forgot-password']
 	const isPublicRoute = publicRoutes.some(route => event.url.pathname.startsWith(route))
 
 	// If not authenticated and trying to access protected route, redirect to login
