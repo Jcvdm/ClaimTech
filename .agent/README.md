@@ -1,126 +1,43 @@
 # ClaimTech Documentation
 
-**Project**: ClaimTech (SVA - SvelteKit Validation App)
-**Last Updated**: April 19, 2026 (Service + Component Consolidation Refactor ✅)
-**Status**: ✅ Service Consolidation Complete (3 factories, 1 composable, ~1,156 lines removed) | ✅ Shop Module Complete | ✅ PWA Complete | ✅ Svelte 5 Migration Complete | ✅ Photo Compression Live
+**Project**: ClaimTech (SVA — SvelteKit Validation App)
+**Stack**: SvelteKit 5 + TypeScript + Tailwind CSS 4 + Supabase (PostgreSQL + Auth + Storage)
+**Architecture**: Assessment-centric, 10-stage pipeline. Shop module is independent.
+**Deployment**: Vercel — https://claimtech.vercel.app
+**Supabase project ID**: `cfblmkzleqtvtfxujikf`
 
 ---
 
-## Project Overview
+## What's in `.agent/`
 
-- **Frontend**: SvelteKit 5 + TypeScript + Tailwind CSS 4
-- **Backend**: SvelteKit SSR + Supabase PostgreSQL
-- **Auth**: Supabase Auth with 100% RLS coverage
-- **Architecture**: Assessment-centric (10-stage pipeline)
-- **PWA**: ✅ Complete offline capability (IndexedDB caching, background sync, installable app)
-- **Documentation**: 43 System docs, 19 SOPs, 40 database tables (31 assessment + 9 shop)
-- **Deployment**: ✅ Live on Vercel (https://claimtech.vercel.app)
-- **Type Safety**: ✅ Full Supabase type generation with PostgrestFilterBuilder inference working
-
----
-
-## Quick Start
-
-- **New to project?** → [Getting Started Guide](./README/index.md#getting-started)
-- **Need specific info?** → [Master Index](./README/index.md)
-- **How do I...?** → [Task Guides](./README/task_guides.md)
-- **Architecture overview?** → [Architecture Quick Ref](./README/architecture_quick_ref.md)
-- **Database info?** → [Database Quick Ref](./README/database_quick_ref.md)
-- **What changed recently?** → [Changelog](./README/changelog.md)
+| Subtree | Purpose | Authority |
+|---|---|---|
+| `Tasks/active/` | Current planning docs and PRDs being worked on | Authoritative — read this first |
+| `Tasks/completed/` | Shipped work, kept as institutional memory ("why did we do X") | Reference — read for historical context |
+| `Tasks/historical/` | Older completed work, archived | Reference |
+| `Tasks/future/` | Wishlist / not yet started | Reference |
+| `historical/System/` | Previously-active architecture reference docs (71 files) | **May be stale** — verify against code before trusting |
+| `historical/SOP/` | Previously-active how-to guides (26 files) | **May be stale** — verify before trusting |
+| `historical/README/` | Old layered index files (counts no longer match reality) | **Stale** — kept only for git history |
+| `Design/`, `shadcn/`, `shadui/` | Design specs and shadcn primitive notes | Reference |
+| `bugs_and_concerns.md`, `shop-schema.md`, `shop.md`, `production_checklist.md` | Working notes | Reference |
 
 ---
 
-## Documentation Categories
+## How to use this directory
 
-### 🛒 [Shop Expansion](./shop.md)
-SaaS planning document for mechanical/autobody shop market expansion. Includes unified architecture, dev setup with Supabase branching, and implementation roadmap.
-
-### 📚 [System Documentation](./README/system_docs.md)
-Complete index of architecture, database, security, UI patterns, and bug postmortems (30 files).
-
-### 🌹 Shadcn UI Playbook (.agent/shadcn)
-- **pdr.md** – Project Development Report tracking Svelte 5 migration progress (449 → 0 errors ✅, Session 4: 24 → 9 warnings via accessibility/deprecation/reactivity fixes)
-- **svelte5-error-patterns.md** – Comprehensive guide to Svelte 5 error patterns and fixes
-- **sidebar-modernization.md** – notes on modernizing the dashboard sidebar with shadcn-svelte primitives and rose token theming.
-- **top-bar-research.md** – captures the comparison with shadcn/ui’s header and the rose gradient update we applied in the layout.
-- **login-modernization.md** – planning doc for the hero-driven login card and rose-accent form styles.
-- **date-picker.md** – explains why Incident date selection now uses `Popover` + `Calendar` for Svelte 5 compatibility.
-- **requests-flow-alignment.md** – records the tabs/alert/dialog alignment for the Requests list and New Request form.
-- **svelte5-upgrade-checklist.md** – end-to-end plan for moving from bits-ui v2 to Svelte 5-native shadcn components.
-
-### 🎨 Slate Theme Migration (.agent/System)
-- **slate_theme_migration_checklist.md** – Detailed checklist of all 40+ components updated
-- **slate_theme_detailed_components.md** – Component-by-component guide with line numbers
-- **slate_theme_implementation_summary.md** – Phase-by-phase implementation plan
-- **slate_theme_visual_reference.md** – Color palette reference and visual guide
-- **slate_theme_complete_file_list.md** – Complete file inventory organized by tier
-
-### 📝 [Standard Operating Procedures](./README/sops.md)
-Step-by-step guides for database operations, services, authentication, UI features, and debugging (19 files).
-
-### 🎯 [Task Guides](./README/task_guides.md)
-Use-case based navigation: "I want to add a feature", "I want to fix a bug", etc.
-
-### ❓ [FAQ](./README/faq.md)
-Common questions and troubleshooting.
+- **Need current planning context?** → `Tasks/active/`
+- **Implementing a new feature?** → Add a planning doc to `Tasks/active/<FEATURE_NAME>.md` first, then dispatch a coder
+- **Wondering how something used to work?** → Search `Tasks/completed/` or `historical/`
+- **Need authoritative current architecture?** → Read the source code; `.agent/historical/System/` may be out of date
 
 ---
 
-## For AI Agents
+## Maintenance policy
 
-### Quick Entry Points
-- **research-analyst** → Start with [system_docs.md](./README/system_docs.md)
-- **backend-api-dev** → Check [database_quick_ref.md](./README/database_quick_ref.md) + [Supabase MCP](#supabase-mcp-integration)
-- **system-architect** → Read [architecture_quick_ref.md](./README/architecture_quick_ref.md)
-- **implementation-coder** → Use [task_guides.md](./README/task_guides.md) + [sops.md](./README/sops.md)
-- **code-quality-analyzer** → Review [system_docs.md](./README/system_docs.md) for standards
-- **All agents** → See [Master Index](./README/index.md) for complete navigation
+- New planning docs → `Tasks/active/`
+- Once shipped → `git mv` to `Tasks/completed/`
+- Once superseded → `git mv` to `Tasks/historical/`
+- The `historical/` subtree is **archive only** — don't add new files there
 
-### Navigation Pattern (Context-Efficient)
-1. **Start here** - Read this file (87 lines, ~150 tokens)
-2. **Find category** - Read relevant index file (200-400 lines, ~600-800 tokens)
-3. **Read document** - Access specific System/ or SOP/ file
-
-**Context Savings**: 90-95% vs reading old 1,714-line README
-
----
-
-## Supabase Integration
-
-### Supabase CLI
-Command-line tool for managing database migrations, generating types, and working with branches.
-
-**Quick Start**:
-```bash
-npm run generate:types  # Generate TypeScript types from database
-supabase db diff -f migration_name  # Create migration
-supabase db push  # Apply migrations to remote
-```
-
-**Documentation**: [System/supabase_cli.md](./System/supabase_cli.md)
-**Workflow Guide**: [SOP/supabase_cli_workflow.md](./SOP/supabase_cli_workflow.md)
-
-### Supabase MCP Integration
-
-Supabase MCP server is configured for direct database access during development:
-
-**Capabilities**:
-- Query tables and schemas via MCP tools
-- Execute SQL directly for testing
-- List all tables and relationships
-- Apply migrations during development
-- Verify RLS policies
-
-**For backend-api-dev agent**: Use MCP for investigation and testing, not production code.
-
-**Setup Guide**: [System/mcp_setup.md](./System/mcp_setup.md)
-
----
-
-## Complete Navigation
-
-**→ [Master Index](./README/index.md)** - Comprehensive navigation hub
-
----
-
-*This README is intentionally lightweight (87 lines). For detailed information, navigate to specific documentation via the links above.*
+This README is intentionally short. The previous version maintained a layered index (`README/*.md`) with file counts that drifted out of sync with reality. That layered index is now in `historical/README/` for git history. If you need a current count, run `ls .agent/<subtree> | wc -l`.
