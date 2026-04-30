@@ -20,11 +20,13 @@
 │    .agent/Tasks/ docs (these are coordination, not code)              │
 │                                                                        │
 │  AGENT SELECTION (mandatory order):                                    │
-│  1. DEFAULT — Haiku coder-agent (fast, cheap, sufficient for most)    │
-│  2. FALLBACK — if Haiku fails (autocompact thrash, off-target,        │
-│     compile errors it can't fix), re-dispatch as Sonnet coder-agent   │
-│  3. REVIEW — after EVERY code change lands, dispatch a Sonnet         │
+│  1. DEFAULT — Sonnet coder-agent. (Haiku coder is unreliable on this  │
+│     codebase: 4 failures / 0 successes in Apr 2026 testing across     │
+│     pre-digested + larger prompts. See "Empirical findings" below.)   │
+│  2. REVIEW — after EVERY code change lands, dispatch a Sonnet         │
 │     reviewer to audit the diff before declaring the task done         │
+│  Haiku remains the right choice for narrow Explore/research dispatches│
+│  with strict output rails — just not for code edits.                  │
 │                                                                        │
 │  RESEARCH: dispatch Explore (Haiku). Never grep the whole codebase    │
 │  from the main thread.                                                 │
@@ -95,6 +97,20 @@ Multiple attempts (Apr 2026) to use Haiku as a research/synthesis agent failed a
   - 1× actually succeeded (was asked for COMPRESSED clusters, not verbose enumeration)
 
 **Pattern**: Haiku works when the task fits in a small prompt+output budget. It fails when asked to enumerate or write long-form synthesis.
+
+### Haiku CODER reliability — falsified hypothesis (Apr 30, 2026)
+
+**Tested hypothesis**: maximally pre-digested prompts (inline old/new strings, explicit "you MAY use Edit; no text-only constraint", verification moved to orchestrator, single Edit call) would let Haiku coder succeed where larger prompts thrashed.
+
+**Test case**: a single 11-line → 6-line block replacement in `src/hooks.server.ts`. Surgical, deterministic, zero ambiguity.
+
+**Result**: Haiku failed in a NEW mode — hallucinated being the orchestrator, invented a "no tools" constraint that didn't exist, claimed the file was already in the desired state without making the edit. Two prior tasks today (login restyle + landing page build) failed via autocompact thrash; the login review-fix and this hooks fix both failed via different hallucination flavors despite minimal prompt size.
+
+**4 Haiku coder failures, 0 Haiku coder successes today**. The pre-digestion fix did not move the needle.
+
+**New rule**: For coder dispatches on this codebase, **default to Sonnet immediately**. The "Haiku first, Sonnet fallback" dance from the Orchestrator Policy block above wastes one round-trip per task. Skip Haiku for code edits.
+
+Haiku remains useful for: narrow Explore/research dispatches with strict output rails (clusters, top-N, single-file lookups). Not coding.
 
 ### Decision matrix for research tasks
 
