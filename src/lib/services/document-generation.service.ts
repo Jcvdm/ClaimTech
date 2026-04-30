@@ -133,32 +133,51 @@ class DocumentGenerationService {
 			for (const message of messages) {
 				if (!message.trim() || !message.startsWith('data: ')) continue;
 
+				// Separate JSON parsing from event dispatch so intentional throws propagate
+				let data: any;
 				try {
-					// Parse SSE data
 					const jsonStr = message.replace(/^data: /, '');
-					const data = JSON.parse(jsonStr);
-
-					console.log(`Progress: ${data.progress}% - ${data.message || data.status}`);
-
-					// Call progress callback if provided
-					if (onProgress && typeof data.progress === 'number') {
-						onProgress(data.progress, data.message || data.status);
-					}
-
-					// Handle completion
-					if (data.status === 'complete' && data.url) {
-						finalUrl = data.url;
-						const totalTime = Date.now() - startTime;
-						console.log(`${documentType} generated successfully in ${totalTime}ms:`, finalUrl);
-					}
-
-					// Handle error
-					if (data.status === 'error') {
-						throw new Error(data.error || 'Unknown error occurred');
-					}
+					data = JSON.parse(jsonStr);
 				} catch (parseError) {
 					console.error('Error parsing SSE message:', message, parseError);
+					continue;
 				}
+
+				console.log(`Progress: ${data.progress}% - ${data.message || data.status}`);
+
+				// Call progress callback if provided
+				if (onProgress && typeof data.progress === 'number') {
+					onProgress(data.progress, data.message || data.status);
+				}
+
+				// Handle completion
+				if (data.status === 'complete' && data.url) {
+					finalUrl = data.url;
+					const totalTime = Date.now() - startTime;
+					console.log(`${documentType} generated successfully in ${totalTime}ms:`, finalUrl);
+				}
+
+				// Handle error — intentional throw, must NOT be inside the JSON parse try/catch
+				if (data.status === 'error') {
+					throw new Error(data.error || 'Unknown error occurred');
+				}
+			}
+		}
+
+		// Flush any final SSE message that wasn't \n\n-terminated before stream close
+		if (buffer.trim() && buffer.startsWith('data: ')) {
+			let data: any;
+			try {
+				data = JSON.parse(buffer.replace(/^data: /, ''));
+			} catch {
+				// ignore unparseable trailing fragment
+			}
+			if (data) {
+				if (onProgress && typeof data.progress === 'number') {
+					onProgress(data.progress, data.message || data.status);
+				}
+				if (data.status === 'complete' && data.url) finalUrl = data.url;
+				if (data.status === 'error') throw new Error(data.error || 'Unknown error occurred');
 			}
 		}
 
@@ -312,6 +331,9 @@ class DocumentGenerationService {
 						}
 
 						// Store final results
+						// Note: unlike generateDocument, this function does NOT throw on
+						// status === 'error' events — it accumulates errors into finalResults
+						// instead. Do not add a throw here or it will break the batch contract.
 						if (
 							data.status === 'complete' ||
 							data.status === 'partial' ||
@@ -321,6 +343,65 @@ class DocumentGenerationService {
 						}
 					} catch (parseError) {
 						console.error('Error parsing SSE message:', message, parseError);
+					}
+				}
+			}
+
+			// Flush any final SSE message that wasn't \n\n-terminated before stream close
+			if (buffer.trim() && buffer.startsWith('data: ')) {
+				let data: any;
+				try {
+					data = JSON.parse(buffer.replace(/^data: /, ''));
+				} catch {
+					// ignore unparseable trailing fragment
+				}
+				if (data) {
+					if (data.results && onProgress) {
+						const results = data.results;
+						if (results.report) {
+							onProgress(
+								'report',
+								results.report.success ? 100 : 0,
+								results.report.success ? 'Complete' : results.report.error || 'Pending',
+								results.report.url,
+								results.report.error
+							);
+						}
+						if (results.estimate) {
+							onProgress(
+								'estimate',
+								results.estimate.success ? 100 : 0,
+								results.estimate.success ? 'Complete' : results.estimate.error || 'Pending',
+								results.estimate.url,
+								results.estimate.error
+							);
+						}
+						if (results.photosPdf) {
+							onProgress(
+								'photosPdf',
+								results.photosPdf.success ? 100 : 0,
+								results.photosPdf.success ? 'Complete' : results.photosPdf.error || 'Pending',
+								results.photosPdf.url,
+								results.photosPdf.error
+							);
+						}
+						if (results.photosZip) {
+							onProgress(
+								'photosZip',
+								results.photosZip.success ? 100 : 0,
+								results.photosZip.success ? 'Complete' : results.photosZip.error || 'Pending',
+								results.photosZip.url,
+								results.photosZip.error
+							);
+						}
+					}
+					// Note: batch function accumulates into finalResults, never throws on 'error'
+					if (
+						data.status === 'complete' ||
+						data.status === 'partial' ||
+						data.status === 'error'
+					) {
+						finalResults = data.results;
 					}
 				}
 			}
