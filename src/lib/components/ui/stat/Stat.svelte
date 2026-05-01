@@ -38,8 +38,8 @@
 
   const sizeMap: Record<StatSize, string> = {
     sm: 'text-sm font-semibold',
-    md: 'text-base font-semibold',
-    lg: 'text-2xl font-bold'
+    md: 'text-sm sm:text-base font-semibold',
+    lg: 'text-base sm:text-lg lg:text-2xl font-bold'
   };
 </script>
 
