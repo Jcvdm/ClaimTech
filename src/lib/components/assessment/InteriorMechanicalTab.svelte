@@ -411,6 +411,7 @@
 				{assessmentId}
 				photos={interiorPhotos}
 				onUpdate={onPhotosUpdate}
+				inSidebar
 			/>
 		{/snippet}
 	</TabFormSplit>

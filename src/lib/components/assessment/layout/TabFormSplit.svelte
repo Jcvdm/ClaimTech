@@ -14,7 +14,7 @@
 	let {
 		form,
 		photos,
-		photosWidth = '380px',
+		photosWidth = '440px',
 		stickyPhotos = true,
 		splitFrom = 'lg',
 		stickyTop = 'top-4',

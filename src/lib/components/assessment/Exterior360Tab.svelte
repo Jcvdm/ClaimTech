@@ -352,6 +352,7 @@
 				{assessmentId}
 				photos={props.exterior360Photos}
 				onUpdate={onPhotosUpdate}
+				inSidebar
 			/>
 		{/snippet}
 	</TabFormSplit>

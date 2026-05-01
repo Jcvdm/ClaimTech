@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { Card } from '$lib/components/ui/card';
-	import { StickyNote, MessageSquare, ChevronDown, ChevronUp } from 'lucide-svelte';
+	import { StickyNote, MessageSquare, ChevronDown, ChevronUp, PanelLeftClose } from 'lucide-svelte';
 	import { assessmentNotesService } from '$lib/services/assessment-notes.service';
 	import type { AssessmentNote } from '$lib/types/assessment';
 	import NoteBubble from './NoteBubble.svelte';
@@ -15,9 +15,10 @@
 		onUpdate: () => void;
 		lastSaved?: string | null;
 		inSidebar?: boolean;
+		onCollapse?: () => void;
 	}
 
-	let { assessmentId, notes, currentTab, onUpdate, lastSaved = null, inSidebar = false }: Props = $props();
+	let { assessmentId, notes, currentTab, onUpdate, lastSaved = null, inSidebar = false, onCollapse }: Props = $props();
 
 	// Collapsible state - default to expanded, but collapse on mobile
 	let isExpanded = $state(true);
@@ -93,6 +94,16 @@
 			<StickyNote class="h-4 w-4 text-muted-foreground" />
 			<h3 class="text-sm font-semibold text-gray-900">Notes</h3>
 			<span class="text-xs text-gray-500">({notes.length})</span>
+			{#if onCollapse}
+				<button
+					type="button"
+					onclick={onCollapse}
+					aria-label="Collapse notes panel"
+					class="ml-auto p-1.5 rounded-md hover:bg-slate-100 text-slate-500 hover:text-slate-900"
+				>
+					<PanelLeftClose class="w-4 h-4" />
+				</button>
+			{/if}
 		</div>
 
 		<!-- Notes list (independent scroll) -->

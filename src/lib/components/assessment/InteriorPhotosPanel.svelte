@@ -14,6 +14,7 @@
 		assessmentId: string;
 		photos: InteriorPhoto[];
 		onUpdate: () => void;
+		inSidebar?: boolean;
 	}
 
 	// Make props reactive using $derived instead of destructuring
@@ -23,6 +24,7 @@
 	// Reactive derived props
 	const assessmentId = $derived(props.assessmentId);
 	const onUpdate = $derived(props.onUpdate);
+	const inSidebar = $derived(props.inSidebar ?? false);
 
 	// Use optimistic array for immediate UI updates
 	// Pass getter function to ensure reactivity when props.photos changes
@@ -258,7 +260,7 @@
 		</div>
 	{:else}
 		<!-- Grid with upload zone as first item -->
-		<div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 p-1">
+		<div class="grid {inSidebar ? 'grid-cols-2 gap-3' : 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4'} p-1">
 			<!-- Upload zone as first grid cell -->
 			<div
 				role="button"

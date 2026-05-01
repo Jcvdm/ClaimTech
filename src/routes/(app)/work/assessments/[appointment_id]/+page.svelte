@@ -96,6 +96,19 @@
 	let autoSaveInterval: ReturnType<typeof setInterval> | null = null;
 	let cancelPhotoPrefetch: (() => void) | null = null;
 
+	let notesCollapsed = $state(
+		typeof window !== 'undefined'
+			? window.localStorage.getItem('assessment.notesCollapsed') === 'true'
+			: false
+	);
+
+	function toggleNotesCollapsed() {
+		notesCollapsed = !notesCollapsed;
+		if (typeof window !== 'undefined') {
+			window.localStorage.setItem('assessment.notesCollapsed', String(notesCollapsed));
+		}
+	}
+
 	// Store reference to tab save functions for auto-save on tab change
 	let estimateTabSaveFn: (() => Promise<void>) | null = null;
 	let preIncidentEstimateTabSaveFn: (() => Promise<void>) | null = null;
@@ -883,7 +896,7 @@
 
 {#snippet rightPanel()}
 	{#if currentTab !== 'finalize'}
-		<AssessmentSidePanel>
+		<AssessmentSidePanel collapsed={notesCollapsed} onToggle={toggleNotesCollapsed}>
 			<AssessmentNotes
 				inSidebar
 				assessmentId={data.assessment.id}
@@ -891,6 +904,7 @@
 				{currentTab}
 				{lastSaved}
 				onUpdate={refreshNotes}
+				onCollapse={toggleNotesCollapsed}
 			/>
 		</AssessmentSidePanel>
 	{/if}
