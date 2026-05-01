@@ -7,6 +7,8 @@ export type ThresholdColor = 'green' | 'yellow' | 'orange' | 'red' | 'normal';
 export interface ThresholdResult {
 	color: ThresholdColor;
 	percentage: number;
+	/** Ratio of estimateTotal to retailBorderline expressed as a percentage (e.g. 10.1 = 10.1%). Omitted when no borderline is available. */
+	pct?: number;
 	message: string;
 	showWarning: boolean;
 }
@@ -48,6 +50,7 @@ export function calculateEstimateThreshold(
 		return {
 			color: 'red',
 			percentage,
+			pct: percentage,
 			message: `⚠️ Critical: Estimate is within 10% of borderline write-off (${percentage.toFixed(1)}%)`,
 			showWarning: true
 		};
@@ -55,6 +58,7 @@ export function calculateEstimateThreshold(
 		return {
 			color: 'orange',
 			percentage,
+			pct: percentage,
 			message: `⚠️ Warning: Estimate is ${percentage.toFixed(1)}% of borderline write-off`,
 			showWarning: true
 		};
@@ -62,6 +66,7 @@ export function calculateEstimateThreshold(
 		return {
 			color: 'yellow',
 			percentage,
+			pct: percentage,
 			message: `Estimate is ${percentage.toFixed(1)}% of borderline write-off`,
 			showWarning: false
 		};
@@ -69,6 +74,7 @@ export function calculateEstimateThreshold(
 		return {
 			color: 'green',
 			percentage,
+			pct: percentage,
 			message: `Estimate is ${percentage.toFixed(1)}% of borderline write-off`,
 			showWarning: false
 		};
