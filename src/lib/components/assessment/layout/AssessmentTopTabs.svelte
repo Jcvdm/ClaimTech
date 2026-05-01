@@ -39,7 +39,7 @@
 <nav
 	role="tablist"
 	aria-label="Assessment sections"
-	class="flex overflow-x-auto bg-white border-b shrink-0 px-4 {className}"
+	class="flex overflow-x-auto scrollbar-hide bg-white border-b shrink-0 px-4 {className}"
 	onkeydown={handleKeydown}
 >
 	{#each steps as step (step.id)}

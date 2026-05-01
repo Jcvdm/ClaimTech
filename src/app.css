@@ -238,4 +238,47 @@
   .tap-lg  { min-height: var(--touch-lg); }
   .tap-xl  { min-height: var(--touch-xl); }
   .field-row { min-height: var(--density-row-field); }
+
+  /* Hide scrollbar visually but keep scroll behaviour. */
+  .scrollbar-hide {
+    scrollbar-width: none;        /* Firefox */
+    -ms-overflow-style: none;     /* IE 10+ */
+  }
+  .scrollbar-hide::-webkit-scrollbar { display: none; }
+}
+
+/* Global scrollbar polish — slim, neutral, theme-aware.
+   Affects every scrollable element by default. Components that want the
+   browser default can opt out with .scrollbar-default. */
+@supports selector(::-webkit-scrollbar) {
+  *::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  *::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  *::-webkit-scrollbar-thumb {
+    background: var(--border-strong);
+    border-radius: 999px;
+    border: 2px solid transparent;
+    background-clip: padding-box;
+  }
+  *::-webkit-scrollbar-thumb:hover {
+    background: var(--muted-foreground);
+    background-clip: padding-box;
+    border: 2px solid transparent;
+  }
+  *::-webkit-scrollbar-corner { background: transparent; }
+}
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-strong) transparent;
+}
+.scrollbar-default {
+  scrollbar-width: auto;
+}
+.scrollbar-default::-webkit-scrollbar {
+  width: auto;
+  height: auto;
 }
