@@ -3,6 +3,7 @@
 	import { Button } from '$lib/components/ui/button';
 	import FormField from '$lib/components/forms/FormField.svelte';
 	import Exterior360PhotosPanel from './Exterior360PhotosPanel.svelte';
+	import TabFormSplit from './layout/TabFormSplit.svelte';
 	import RequiredFieldsWarning from './RequiredFieldsWarning.svelte';
 	import { Plus, Trash2, Loader2, AlertCircle } from 'lucide-svelte';
 	import { debounce } from '$lib/utils/useUnsavedChanges.svelte';
@@ -218,58 +219,55 @@
 <div class="space-y-6">
 	<!-- Warning Banner -->
 	<RequiredFieldsWarning missingFields={validation.missingFields} />
-	<!-- Vehicle Condition -->
-	<Card class="p-6">
-		<h3 class="mb-4 text-lg font-semibold text-gray-900">
-			Vehicle Condition <span class="text-red-500">*</span>
-		</h3>
-		<div class="grid gap-6 md:grid-cols-2">
-			<FormField
-				name="overall_condition"
-				label="Overall Condition"
-				type="select"
-				bind:value={overallCondition}
-				options={[
-					{ value: 'excellent', label: 'Excellent' },
-					{ value: 'very_good', label: 'Very Good' },
-					{ value: 'good', label: 'Good' },
-					{ value: 'fair', label: 'Fair' },
-					{ value: 'poor', label: 'Poor' },
-					{ value: 'very_poor', label: 'Very Poor' }
-				]}
-				required
-				onchange={(value: string) => {
-					overallCondition = value;
-					overallConditionDraft.save(value);
-					handleSave();
-				}}
-			/>
-			<FormField
-				name="vehicle_color"
-				label="Vehicle Color"
-				type="text"
-				value={vehicleColor}
-				placeholder="e.g., White, Black, Silver"
-				required
-				oninput={(e: Event) => {
-					const value = (e.target as HTMLInputElement).value;
-					vehicleColor = value;
-					vehicleColorDraft.save(value);
-					debouncedSave();
-				}}
-			/>
-		</div>
-	</Card>
 
-	<!-- Exterior Photos -->
-	<Exterior360PhotosPanel
-		{assessmentId}
-		photos={props.exterior360Photos}
-		onUpdate={onPhotosUpdate}
-	/>
+	<TabFormSplit photosWidth="380px">
+		{#snippet form()}
+			<div class="space-y-6">
+				<!-- Vehicle Condition -->
+				<Card class="p-6">
+					<h3 class="mb-4 text-lg font-semibold text-gray-900">
+						Vehicle Condition <span class="text-red-500">*</span>
+					</h3>
+					<div class="grid gap-6 md:grid-cols-2">
+						<FormField
+							name="overall_condition"
+							label="Overall Condition"
+							type="select"
+							bind:value={overallCondition}
+							options={[
+								{ value: 'excellent', label: 'Excellent' },
+								{ value: 'very_good', label: 'Very Good' },
+								{ value: 'good', label: 'Good' },
+								{ value: 'fair', label: 'Fair' },
+								{ value: 'poor', label: 'Poor' },
+								{ value: 'very_poor', label: 'Very Poor' }
+							]}
+							required
+							onchange={(value: string) => {
+								overallCondition = value;
+								overallConditionDraft.save(value);
+								handleSave();
+							}}
+						/>
+						<FormField
+							name="vehicle_color"
+							label="Vehicle Color"
+							type="text"
+							value={vehicleColor}
+							placeholder="e.g., White, Black, Silver"
+							required
+							oninput={(e: Event) => {
+								const value = (e.target as HTMLInputElement).value;
+								vehicleColor = value;
+								vehicleColorDraft.save(value);
+								debouncedSave();
+							}}
+						/>
+					</div>
+				</Card>
 
-	<!-- Accessories -->
-	<Card class="p-6">
+				<!-- Accessories -->
+				<Card class="p-6">
 		<div class="mb-4 flex items-center justify-between">
 			<h3 class="text-lg font-semibold text-gray-900">Vehicle Accessories</h3>
 			<Button size="sm" onclick={() => (showAccessoryModal = true)}>
@@ -345,7 +343,18 @@
 				{/each}
 			</div>
 		{/if}
-	</Card>
+			</Card>
+			</div>
+		{/snippet}
+
+		{#snippet photos()}
+			<Exterior360PhotosPanel
+				{assessmentId}
+				photos={props.exterior360Photos}
+				onUpdate={onPhotosUpdate}
+			/>
+		{/snippet}
+	</TabFormSplit>
 </div>
 
 <!-- Add Accessory Modal -->
