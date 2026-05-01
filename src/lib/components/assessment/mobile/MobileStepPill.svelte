@@ -19,20 +19,14 @@
 
 	let { steps, currentStep, onClick, class: className }: Props = $props();
 
-	const currentIndex = $derived(() => {
+	const currentIndex = $derived.by(() => {
 		const idx = steps.findIndex((s) => s.id === currentStep);
 		return idx === -1 ? 0 : idx;
 	});
 
-	const currentLabel = $derived(() => {
-		const step = steps.find((s) => s.id === currentStep);
-		return step?.label ?? (steps[0]?.label ?? '');
-	});
+	const currentLabel = $derived(steps.find((s) => s.id === currentStep)?.label ?? steps[0]?.label ?? '');
 
-	const progressPercent = $derived(() => {
-		const idx = currentIndex();
-		return (idx / Math.max(steps.length - 1, 1)) * 100;
-	});
+	const progressPercent = $derived((currentIndex / Math.max(steps.length - 1, 1)) * 100);
 </script>
 
 <button
@@ -47,10 +41,10 @@
 	<!-- Left: step counter + label -->
 	<div class="min-w-0 flex-1">
 		<span class="block text-[10px] font-semibold uppercase text-muted-foreground">
-			Step {currentIndex() + 1} of {steps.length}
+			Step {currentIndex + 1} of {steps.length}
 		</span>
 		<span class="block truncate text-sm font-semibold text-foreground">
-			{currentLabel()}
+			{currentLabel}
 		</span>
 	</div>
 
@@ -59,6 +53,6 @@
 
 	<!-- Bottom progress bar -->
 	<div class="absolute bottom-0 left-0 right-0 h-0.5 bg-muted">
-		<div class="h-full bg-primary" style="width: {progressPercent()}%"></div>
+		<div class="h-full bg-primary" style="width: {progressPercent}%"></div>
 	</div>
 </button>
