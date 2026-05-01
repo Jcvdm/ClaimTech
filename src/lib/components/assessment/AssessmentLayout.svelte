@@ -64,6 +64,7 @@
 		// Live validations forwarded from the page (react to user input immediately)
 		liveValidations?: Record<string, TabValidation>;
 		children?: any;
+		rightPanel?: import('svelte').Snippet;
 	}
 
 	let {
@@ -89,7 +90,8 @@
 		estimate = null,
 		onValidationUpdate = undefined,
 		liveValidations = {},
-		children
+		children,
+		rightPanel = undefined
 	}: Props = $props();
 
 	// Build tabs array dynamically based on finalization status
@@ -282,6 +284,7 @@
 				{/if}
 			</div>
 		</main>
+		{#if rightPanel}{@render rightPanel()}{/if}
 	</div>
 
 </div>
