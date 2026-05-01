@@ -54,6 +54,7 @@
 	} from '$lib/utils/estimateCalculations';
 	import TotalsBreakdownDialog, { type BreakdownRow } from '$lib/components/assessment/TotalsBreakdownDialog.svelte';
 	import TotalsStrip, { type StripField } from '$lib/components/assessment/TotalsStrip.svelte';
+	import EstimateStickyTotals from './EstimateStickyTotals.svelte';
 	import {
 		calculateEstimateThreshold,
 		getThresholdColorClasses,
@@ -1041,11 +1042,45 @@
 				<p class="text-center text-gray-600">Loading estimate...</p>
 			</Card>
 		{:else}
+			<!-- MOBILE: sticky totals card (Phase 3) -->
+			<div class="sticky top-0 z-10 -mx-2 mb-3 sm:-mx-3 md:hidden">
+				<EstimateStickyTotals
+					totalIncVat={categoryTotals()?.totalIncVat ?? 0}
+					thresholdPct={thresholdResult()?.pct ?? null}
+					thresholdColor={thresholdColorClass}
+					partsTotal={categoryTotals()?.partsTotal ?? 0}
+					labourTotal={categoryTotals()?.labourTotal ?? 0}
+					paintTotal={categoryTotals()?.paintTotal ?? 0}
+					vatAmount={categoryTotals()?.vatAmount ?? 0}
+				/>
+			</div>
+
 			<!-- Warranty Status Hint -->
 			{#if vehicleValues && warrantyInfo()}
 				{@const warranty = warrantyInfo()!}
 				{@const statusClasses = getWarrantyStatusClasses(warranty.color)}
-				<Card class="p-4 {statusClasses.bg} border {statusClasses.border}">
+
+				<!-- MOBILE compact warranty pill -->
+				<div class="md:hidden mb-3 flex items-center gap-2 rounded-md border px-3 py-1.5 text-xs {statusClasses.bg} {statusClasses.border}">
+					{#if warranty.icon === 'check'}
+						<CircleCheck class="h-3.5 w-3.5 shrink-0 {statusClasses.text}" />
+					{:else if warranty.icon === 'x'}
+						<CircleX class="h-3.5 w-3.5 shrink-0 {statusClasses.text}" />
+					{:else if warranty.icon === 'info'}
+						<Info class="h-3.5 w-3.5 shrink-0 {statusClasses.text}" />
+					{:else}
+						<CircleAlert class="h-3.5 w-3.5 shrink-0 {statusClasses.text}" />
+					{/if}
+					<span class="font-semibold {statusClasses.text}">{warranty.label}</span>
+					{#if vehicleValues.warranty_expiry_mileage && vehicleValues.warranty_expiry_mileage !== 'unlimited'}
+						<span class="opacity-70 {statusClasses.text}">
+							· {parseInt(vehicleValues.warranty_expiry_mileage).toLocaleString()} km limit
+						</span>
+					{/if}
+				</div>
+
+				<!-- DESKTOP full warranty card -->
+				<Card class="hidden md:block p-4 {statusClasses.bg} border {statusClasses.border}">
 					<div class="flex items-start gap-3">
 						<div class="mt-0.5">
 							{#if warranty.icon === 'check'}
@@ -1726,14 +1761,15 @@
 					</div>
 			</Card>
 
-			<!-- Bottom-sticky compact totals strip -->
-
-			<TotalsStrip
-				fields={stripFields}
-				totalValue={categoryTotals()?.totalIncVat}
-				totalColorClass={thresholdColorClass}
-				onDetailsClick={() => (totalsDetailsOpen = true)}
-			/>
+			<!-- Bottom-sticky compact totals strip (desktop only; mobile uses EstimateStickyTotals above) -->
+			<div class="hidden md:block">
+				<TotalsStrip
+					fields={stripFields}
+					totalValue={categoryTotals()?.totalIncVat}
+					totalColorClass={thresholdColorClass}
+					onDetailsClick={() => (totalsDetailsOpen = true)}
+				/>
+			</div>
 
 			<!-- Totals Details Dialog -->
 			<TotalsBreakdownDialog
