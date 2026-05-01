@@ -341,7 +341,8 @@
 								options={[
 									{ value: 'minor', label: 'Light' },
 									{ value: 'moderate', label: 'Moderate' },
-									{ value: 'severe', label: 'Heavy' }
+									{ value: 'severe', label: 'Heavy' },
+									{ value: 'total_loss', label: 'Total Loss' }
 								]}
 								onValueChange={(v) => {
 									severity = v;

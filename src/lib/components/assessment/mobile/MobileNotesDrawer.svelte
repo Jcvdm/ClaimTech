@@ -15,9 +15,10 @@
 		notes: AssessmentNote[];
 		currentTab: string;
 		onUpdate: () => void;
+		lastSaved?: string | null;
 	}
 
-	let { open, onOpenChange, assessmentId, notes, currentTab, onUpdate }: Props = $props();
+	let { open, onOpenChange, assessmentId, notes, currentTab, onUpdate, lastSaved = null }: Props = $props();
 </script>
 
 <Sheet {open} {onOpenChange}>
@@ -32,6 +33,7 @@
 					{notes}
 					{currentTab}
 					{onUpdate}
+					{lastSaved}
 				/>
 			</div>
 		</div>

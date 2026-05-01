@@ -287,6 +287,7 @@
 					{notes}
 					currentTab={currentTab}
 					onUpdate={onNotesUpdate}
+					{lastSaved}
 				/>
 			</aside>
 		{/if}
@@ -336,6 +337,7 @@
 			{notes}
 			currentTab={currentTab}
 			onUpdate={onNotesUpdate}
+			{lastSaved}
 		/>
 	{/if}
 </div>
