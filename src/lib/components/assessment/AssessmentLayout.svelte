@@ -3,23 +3,8 @@
 	import LoadingButton from '$lib/components/ui/button/LoadingButton.svelte';
 	import { Sheet, SheetContent } from '$lib/components/ui/sheet';
 	import { StepRail } from '$lib/components/ui/step-rail';
-	import {
-		Save,
-		X,
-		FileText,
-		Camera,
-		Car,
-		Gauge,
-		AlertTriangle,
-		DollarSign,
-		ClipboardList,
-		FileCheck,
-		Plus,
-		Trash2,
-		History,
-		Clock,
-		Menu
-	} from 'lucide-svelte';
+	import { Save, X, Trash2, Clock, Menu } from 'lucide-svelte';
+	import { buildAssessmentTabs } from '$lib/utils/assessmentTabs';
 	import type { Assessment } from '$lib/types/assessment';
 	import {
 		validateVehicleIdentification,
@@ -32,12 +17,6 @@
 		validateEstimate,
 		type TabValidation
 	} from '$lib/utils/validation';
-
-	interface Tab {
-		id: string;
-		label: string;
-		icon: any;
-	}
 
 	interface Props {
 		assessment: Assessment;
@@ -98,38 +77,7 @@
 	let drawerOpen = $state(false);
 
 	// Build tabs array dynamically based on finalization status
-	const tabs = $derived(() => {
-		const baseTabs: Tab[] = [
-			{ id: 'summary', label: 'Summary', icon: ClipboardList },
-			{ id: 'identification', label: 'Vehicle ID', icon: FileText },
-			{ id: '360', label: '360° Exterior', icon: Camera },
-			{ id: 'interior', label: 'Interior & Mechanical', icon: Car },
-			{ id: 'tyres', label: 'Tyres', icon: Gauge },
-			{ id: 'damage', label: 'Damage ID', icon: AlertTriangle },
-			{ id: 'values', label: 'Values', icon: DollarSign },
-			{ id: 'pre-incident', label: 'Pre-Incident', icon: DollarSign },
-			{ id: 'estimate', label: 'Estimate', icon: DollarSign },
-			{ id: 'finalize', label: 'Finalize', icon: FileCheck }
-		];
-
-		// Add Additionals tab if estimate is finalized
-		if (assessment?.estimate_finalized_at) {
-			baseTabs.push({ id: 'additionals', label: 'Additionals', icon: Plus });
-		}
-
-		// Add FRC tab if assessment is submitted or archived (FRC in progress or completed)
-		// Keep tab visible for archived assessments so completed FRCs can be viewed and reopened
-		if (assessment?.status === 'submitted' || assessment?.status === 'archived') {
-			baseTabs.push({ id: 'frc', label: 'FRC', icon: FileCheck });
-		}
-
-		// Add audit tab for admin users only
-		if (userRole === 'admin') {
-			baseTabs.push({ id: 'audit', label: 'Audit Trail', icon: History });
-		}
-
-		return baseTabs;
-	});
+	const tabs = $derived(buildAssessmentTabs({ assessment, userRole }));
 
 	// Validate tabs and get missing fields count
 	// Prefer child-reported validations (from local state) over prop-based validations
@@ -175,7 +123,7 @@
 
 	// Build steps array for StepRail from tabs + validations
 	const steps = $derived.by(() => {
-		return tabs().map((tab) => {
+		return tabs.map((tab) => {
 			const validation = tabValidations[tab.id];
 			if (!validation) {
 				return { id: tab.id, label: tab.label, status: 'not-started' as const };
