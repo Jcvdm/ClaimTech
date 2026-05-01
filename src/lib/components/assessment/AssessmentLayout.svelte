@@ -18,6 +18,8 @@
 		History,
 		Clock
 	} from 'lucide-svelte';
+	import CompactChip from './compact/CompactChip.svelte';
+	import CompactButton from './compact/CompactButton.svelte';
 	import type { Assessment } from '$lib/types/assessment';
 	import {
 		validateVehicleIdentification,
@@ -198,68 +200,91 @@
 			onTabChange(tabId);
 		}
 	}
+
+	const vehicleSubtitle = $derived.by(() => {
+		const v = vehicleIdentification;
+		if (!v) return '';
+		const parts: string[] = [];
+		const yearMakeModel = [v.year, v.make, v.model].filter(Boolean).join(' ');
+		if (yearMakeModel) parts.push(yearMakeModel);
+		if (v.registration_number) parts.push(v.registration_number);
+		return parts.join(' · ');
+	});
+
+	function relativeTime(iso: string | null): string {
+		if (!iso) return '';
+		const seconds = Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 1000));
+		if (seconds < 60) return 'just now';
+		const minutes = Math.floor(seconds / 60);
+		if (minutes < 60) return `${minutes}m ago`;
+		const hours = Math.floor(minutes / 60);
+		if (hours < 24) return `${hours}h ago`;
+		return new Date(iso).toLocaleDateString();
+	}
 </script>
 
 <div class="flex h-screen flex-col overflow-hidden bg-gray-50">
-	<!-- Sticky Header -->
-	<div class="relative z-30 bg-gray-50 shadow-sm">
-		<div class="border-b bg-white px-3 py-2 sm:px-6 sm:py-4 lg:px-8">
-			<div class="flex items-center justify-between gap-2 sm:gap-3">
-				<!-- Title Section -->
-				<div class="min-w-0 flex-1">
-					<h1 class="truncate text-base font-bold text-gray-900 sm:text-xl lg:text-2xl">
-						{assessment.assessment_number}
-					</h1>
-					<p class="mt-0.5 hidden text-xs text-gray-500 sm:block sm:text-sm">
-						Complete the vehicle assessment
-					</p>
-				</div>
-
-				<!-- Actions Section -->
-				<div class="flex items-center gap-1.5 sm:gap-2">
-					<!-- Last saved indicator -->
-					{#if lastSaved}
-						<div
-							class="hidden items-center gap-1 text-xs text-gray-500 sm:flex sm:text-sm"
-							title="Last saved: {new Date(lastSaved).toLocaleTimeString()}"
-						>
-							<Clock class="h-3.5 w-3.5" />
-							<span class="hidden md:inline">Saved {new Date(lastSaved).toLocaleTimeString()}</span>
-						</div>
-					{/if}
-
-					<!-- Save / Cancel / Exit — icon only on xs, with text on sm+ -->
-					<LoadingButton
-						variant="outline"
-						onclick={onSave}
-						loading={saving}
-						size="sm"
-						class="h-8 px-2 sm:h-9 sm:px-3"
-					>
-						{#if !saving}
-							<Save class="h-4 w-4 sm:mr-1.5" />
-						{/if}
-						<span class="hidden sm:inline">{saving ? 'Saving...' : 'Save'}</span>
-					</LoadingButton>
-
-					{#if onCancel && ['assessment_in_progress', 'estimate_review', 'estimate_sent'].includes(assessment.stage)}
-						<Button
-							variant="destructive"
-							onclick={onCancel}
-							size="sm"
-							class="h-8 px-2 sm:h-9 sm:px-3"
-						>
-							<Trash2 class="h-4 w-4 sm:mr-1.5" />
-							<span class="hidden sm:inline">Cancel</span>
-						</Button>
-					{/if}
-
-					<Button variant="outline" onclick={onExit} size="sm" class="h-8 px-2 sm:h-9 sm:px-3">
-						<X class="h-4 w-4 sm:mr-1.5" />
-						<span class="hidden sm:inline">Exit</span>
-					</Button>
-				</div>
+	<!-- Two-row chrome header -->
+	<div class="relative z-30 shrink-0">
+		<!-- Row 1: HeaderBar -->
+		<div class="flex items-center gap-3 border-b border-slate-200 bg-white px-5 py-2.5">
+			<!-- Brand mark -->
+			<div class="flex h-[26px] w-[26px] items-center justify-center rounded-[5px] bg-slate-900 text-[11px] font-extrabold text-white">
+				CT
 			</div>
+			<!-- Breadcrumb -->
+			<nav class="hidden truncate text-[12px] text-slate-400 sm:block">
+				Home <span class="px-1">›</span> Work <span class="px-1">›</span> Assessments <span class="px-1">›</span>
+				<span class="font-semibold text-slate-600">{assessment.assessment_number}</span>
+			</nav>
+			<!-- Spacer -->
+			<div class="flex-1"></div>
+			<!-- Sync chip -->
+			{#if lastSaved}
+				<CompactChip tone="green">
+					<span class="text-[10px]">●</span>
+					Synced {relativeTime(lastSaved)}
+				</CompactChip>
+			{:else}
+				<CompactChip tone="gray">Not saved</CompactChip>
+			{/if}
+			<!-- Save -->
+			<LoadingButton
+				variant="outline"
+				onclick={onSave}
+				loading={saving}
+				size="sm"
+				class="h-8 px-3"
+			>
+				{#if !saving}<Save class="mr-1.5 h-4 w-4" />{/if}
+				{saving ? 'Saving...' : 'Save'}
+			</LoadingButton>
+			<!-- Cancel (conditional) -->
+			{#if onCancel && ['assessment_in_progress', 'estimate_review', 'estimate_sent'].includes(assessment.stage)}
+				<CompactButton variant="danger" size="sm" onclick={onCancel}>
+					{#snippet icon()}<Trash2 class="h-4 w-4" />{/snippet}
+					Cancel
+				</CompactButton>
+			{/if}
+			<!-- Exit -->
+			<CompactButton variant="ghost" size="sm" onclick={onExit}>
+				{#snippet icon()}<X class="h-4 w-4" />{/snippet}
+				Exit
+			</CompactButton>
+		</div>
+
+		<!-- Row 2: TitleBar -->
+		<div class="flex items-baseline gap-3.5 border-b border-slate-200 bg-white px-5 py-3">
+			<h1 class="text-[20px] font-extrabold leading-none tracking-tight text-slate-900">
+				{assessment.assessment_number}
+			</h1>
+			{#if vehicleSubtitle}
+				<p class="truncate text-[13px] text-slate-600">{vehicleSubtitle}</p>
+			{:else}
+				<p class="truncate text-[13px] text-slate-400">Complete the vehicle assessment</p>
+			{/if}
+			<div class="flex-1"></div>
+			<!-- Right slot for future status chips -->
 		</div>
 	</div>
 
