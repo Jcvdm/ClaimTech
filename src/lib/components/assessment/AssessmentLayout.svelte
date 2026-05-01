@@ -1,8 +1,7 @@
 <script lang="ts">
 	import { Button } from '$lib/components/ui/button';
 	import LoadingButton from '$lib/components/ui/button/LoadingButton.svelte';
-	import { Sheet, SheetContent } from '$lib/components/ui/sheet';
-	import { StepRail } from '$lib/components/ui/step-rail';
+	import AssessmentTopTabs from './layout/AssessmentTopTabs.svelte';
 	import {
 		Save,
 		X,
@@ -17,8 +16,7 @@
 		Plus,
 		Trash2,
 		History,
-		Clock,
-		Menu
+		Clock
 	} from 'lucide-svelte';
 	import type { Assessment } from '$lib/types/assessment';
 	import {
@@ -93,9 +91,6 @@
 		liveValidations = {},
 		children
 	}: Props = $props();
-
-	// Mobile drawer state
-	let drawerOpen = $state(false);
 
 	// Build tabs array dynamically based on finalization status
 	const tabs = $derived(() => {
@@ -231,17 +226,6 @@
 						</div>
 					{/if}
 
-					<!-- Hamburger — mobile/tablet only (hidden on lg+) -->
-					<Button
-						variant="ghost"
-						size="icon"
-						class="h-8 w-8 lg:hidden"
-						onclick={() => (drawerOpen = true)}
-						aria-label="Open navigation"
-					>
-						<Menu class="h-4 w-4" />
-					</Button>
-
 					<!-- Save / Cancel / Exit — icon only on xs, with text on sm+ -->
 					<LoadingButton
 						variant="outline"
@@ -277,15 +261,10 @@
 		</div>
 	</div>
 
-	<!-- Body: aside rail + main content -->
-	<div class="flex min-h-0 flex-1">
-		<!-- Desktop step rail (lg+) -->
-		<aside
-			class="hidden w-[232px] shrink-0 flex-col overflow-y-auto border-r border-sidebar-border bg-sidebar lg:flex"
-		>
-			<StepRail {steps} currentStep={currentTab} onStepChange={handleTabClick} />
-		</aside>
+	<AssessmentTopTabs steps={steps} currentStep={currentTab} onStepChange={handleTabClick} />
 
+	<!-- Body: main content -->
+	<div class="flex min-h-0 flex-1">
 		<!-- Main content area -->
 		<main class={[
 				'flex-1 overflow-y-auto pt-2 sm:pt-3',
@@ -305,17 +284,4 @@
 		</main>
 	</div>
 
-	<!-- Mobile drawer (Sheet) -->
-	<Sheet bind:open={drawerOpen}>
-		<SheetContent side="left" class="scroll-isolate w-[280px] p-0">
-			<StepRail
-				{steps}
-				currentStep={currentTab}
-				onStepChange={(id) => {
-					handleTabClick(id);
-					drawerOpen = false;
-				}}
-			/>
-		</SheetContent>
-	</Sheet>
 </div>
