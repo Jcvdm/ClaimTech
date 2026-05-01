@@ -31,6 +31,7 @@ import type { VehicleDetails } from '$lib/utils/report-data-helpers';
 	import WriteOffBar from './values/WriteOffBar.svelte';
 	import ValuesCollapsible from './values/ValuesCollapsible.svelte';
 	import { IsMobile } from '$lib/hooks/is-mobile.svelte';
+	import { Car } from 'lucide-svelte';
 
 	interface Props {
 		data: VehicleValues | null;
@@ -395,7 +396,26 @@ import type { VehicleDetails } from '$lib/utils/report-data-helpers';
 
 	<!-- Vehicle context strip -->
 	{#if requestInfo}
-		<Card class="bg-muted p-3 sm:p-4 md:p-6">
+		<!-- Mobile: compact 1-row strip -->
+		<div class="md:hidden flex items-center gap-3 rounded-xl bg-muted px-3 py-2.5">
+			<div class="flex size-9 items-center justify-center rounded-lg bg-card">
+				<Car class="size-4 text-muted-foreground" />
+			</div>
+			<div class="min-w-0 flex-1">
+				<div class="truncate text-sm font-semibold text-foreground">
+					{vehicleDetails?.year || ''} {vehicleDetails?.make || ''} {vehicleDetails?.model || ''}
+				</div>
+				<div class="truncate text-[11px] text-muted-foreground font-mono-tabular">
+					{vehicleDetails?.registration || '–'}
+					{#if vehicleDetails?.mileage != null}
+						· {vehicleDetails.mileage.toLocaleString()} km
+					{/if}
+				</div>
+			</div>
+		</div>
+
+		<!-- Desktop: full info card (hidden on <md) -->
+		<Card class="hidden md:block bg-muted p-4 md:p-6">
 			<h3 class="mb-4 text-lg font-semibold text-foreground">Vehicle & Request Information</h3>
 			<div class="grid gap-4 md:grid-cols-3">
 				<div>
