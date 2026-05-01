@@ -3,6 +3,13 @@
 	import { Button } from '$lib/components/ui/button';
 	import FormField from '$lib/components/forms/FormField.svelte';
 	import RequiredFieldsWarning from './RequiredFieldsWarning.svelte';
+	import CompactCard from './compact/CompactCard.svelte';
+	import CompactCardHeader from './compact/CompactCardHeader.svelte';
+	import CompactField from './compact/CompactField.svelte';
+	import CompactInput from './compact/CompactInput.svelte';
+	import CompactSelect from './compact/CompactSelect.svelte';
+	import CompactTextarea from './compact/CompactTextarea.svelte';
+	import CompactSegmentedBordered from './compact/CompactSegmentedBordered.svelte';
 	import { CheckCircle2 } from 'lucide-svelte';
 	import { debounce } from '$lib/utils/useUnsavedChanges.svelte';
 	import { useDraft } from '$lib/utils/useDraft.svelte';
@@ -196,160 +203,137 @@
 			{#snippet form()}
 				<div class="space-y-6">
 					<!-- Damage Match Check -->
-					<Card class="p-6">
-						<h3 class="mb-4 text-lg font-semibold text-gray-900">
-							Damage Description Match <span class="text-red-500">*</span>
-						</h3>
-						<p class="mb-4 text-sm text-gray-600">
+					<CompactCard>
+						<CompactCardHeader title="Damage Description Match" required />
+						<p class="-mt-1 mb-3 text-[12px] text-slate-600">
 							Does the actual damage match the description provided in the initial request?
 						</p>
-						<div class="flex gap-4">
-							<Button
-								variant={matchesDescription === true ? 'default' : 'outline'}
-								onclick={() => {
-									matchesDescription = true;
-									handleUpdateDamageWithDirty({ matches_description: true });
-								}}
-							>
-								Yes, Matches
-							</Button>
-							<Button
-								variant={matchesDescription === false ? 'default' : 'outline'}
-								onclick={() => {
-									matchesDescription = false;
-									handleUpdateDamageWithDirty({ matches_description: false });
-								}}
-							>
-								No, Does Not Match
-							</Button>
-						</div>
+						<CompactSegmentedBordered
+							value={matchesDescription === true ? 'yes' : matchesDescription === false ? 'no' : ''}
+							options={[
+								{ value: 'yes', label: 'Yes, Matches', tone: 'green' },
+								{ value: 'no',  label: 'No, Does Not Match', tone: 'red' }
+							]}
+							onChange={(v) => {
+								const matches = v === 'yes';
+								matchesDescription = matches;
+								handleUpdateDamageWithDirty({ matches_description: matches });
+							}}
+						/>
 
 						{#if matchesDescription === false}
-							<div class="mt-4">
-								<FormField
-									name="mismatch_notes"
-									label="Explain Mismatch"
-									type="textarea"
-									value={mismatchNotes}
-									oninput={(e: Event) => {
-										const value = (e.target as HTMLTextAreaElement).value;
-										mismatchNotes = value;
-										debouncedSaveMismatch(value);
-									}}
-									placeholder="Describe how the actual damage differs from the reported description..."
-									rows={3}
-									required
-								/>
+							<div class="mt-3">
+								<CompactField label="Explain Mismatch" required htmlFor="mismatch_notes">
+									<CompactTextarea
+										id="mismatch_notes"
+										value={mismatchNotes}
+										rows={3}
+										placeholder="Describe how the actual damage differs from the reported description..."
+										oninput={(e) => {
+											const value = (e.target as HTMLTextAreaElement).value;
+											mismatchNotes = value;
+											debouncedSaveMismatch(value);
+										}}
+									/>
+								</CompactField>
 							</div>
 						{/if}
-					</Card>
+					</CompactCard>
 
-					<Card class="p-6">
-						<h3 class="mb-4 text-lg font-semibold text-gray-900">Damage Details</h3>
-
-						<div class="space-y-6">
-							<div class="grid gap-6 md:grid-cols-2">
-								<FormField
-									name="damage_area"
-									label="Damage Area"
-									type="select"
-									value={damageArea}
-									onchange={(value: string) => {
-										damageArea = value;
-										handleUpdateDamageWithDirty({
-											damage_area: (value || undefined) as DamageArea
-										});
-									}}
-									options={[
-										{ value: 'structural', label: 'Structural' },
-										{ value: 'non_structural', label: 'Non-Structural' }
-									]}
-									required
-								/>
-								<FormField
-									name="damage_type"
-									label="Damage Type"
-									type="select"
-									value={damageType}
-									onchange={(value: string) => {
-										damageType = value;
-										handleUpdateDamageWithDirty({
-											damage_type: (value || undefined) as DamageType
-										});
-									}}
-									options={damageTypeOptions}
-									required
-								/>
+					<CompactCard>
+						<CompactCardHeader title="Damage Details" />
+						<div class="space-y-3">
+							<div class="grid gap-3.5 md:grid-cols-2">
+								<CompactField label="Damage Area" required htmlFor="damage_area">
+									<CompactSelect
+										id="damage_area"
+										value={damageArea}
+										onchange={(value) => {
+											damageArea = value;
+											handleUpdateDamageWithDirty({ damage_area: (value || undefined) as DamageArea });
+										}}
+										options={[
+											{ value: 'structural', label: 'Structural' },
+											{ value: 'non_structural', label: 'Non-Structural' }
+										]}
+									/>
+								</CompactField>
+								<CompactField label="Damage Type" required htmlFor="damage_type">
+									<CompactSelect
+										id="damage_type"
+										value={damageType}
+										onchange={(value) => {
+											damageType = value;
+											handleUpdateDamageWithDirty({ damage_type: (value || undefined) as DamageType });
+										}}
+										options={damageTypeOptions}
+									/>
+								</CompactField>
 							</div>
 
-							<FormField
-								name="severity"
-								label="Severity"
-								type="select"
-								value={severity}
-								onchange={(value: string) => {
-									severity = value;
-									handleUpdateDamageWithDirty({
-										severity: (value || undefined) as DamageSeverity
-									});
-								}}
-								options={[
-									{ value: '', label: 'Select severity' },
-									{ value: 'minor', label: 'Minor' },
-									{ value: 'moderate', label: 'Moderate' },
-									{ value: 'severe', label: 'Severe' },
-									{ value: 'total_loss', label: 'Total Loss' }
-								]}
-								required
-							/>
+							<CompactField label="Severity" required htmlFor="severity">
+								<CompactSelect
+									id="severity"
+									value={severity}
+									onchange={(value) => {
+										severity = value;
+										handleUpdateDamageWithDirty({ severity: (value || undefined) as DamageSeverity });
+									}}
+									options={[
+										{ value: '', label: 'Select severity' },
+										{ value: 'minor', label: 'Minor' },
+										{ value: 'moderate', label: 'Moderate' },
+										{ value: 'severe', label: 'Severe' },
+										{ value: 'total_loss', label: 'Total Loss' }
+									]}
+								/>
+							</CompactField>
 
-							<FormField
-								name="estimated_repair_duration_days"
-								label="Estimated Repair Duration (days)"
-								type="number"
-								value={estimatedRepairDurationDays?.toString() || ''}
-								oninput={(e: Event) => {
-									const value = parseFloat((e.target as HTMLInputElement).value);
-									estimatedRepairDurationDays = value;
-									handleUpdateDamageWithDirty({
-										estimated_repair_duration_days: value
-									});
-								}}
-								placeholder="e.g., 1, 3, 7"
-								step="0.5"
-							/>
+							<CompactField label="Estimated Repair Duration (days)" htmlFor="estimated_repair_duration_days">
+								<CompactInput
+									id="estimated_repair_duration_days"
+									type="number"
+									mono
+									step="0.5"
+									value={estimatedRepairDurationDays?.toString() || ''}
+									placeholder="e.g., 1, 3, 7"
+									oninput={(e) => {
+										const value = parseFloat((e.target as HTMLInputElement).value);
+										estimatedRepairDurationDays = value;
+										handleUpdateDamageWithDirty({ estimated_repair_duration_days: value });
+									}}
+								/>
+							</CompactField>
 
-							<FormField
-								name="location_description"
-								label="Location Description"
-								type="textarea"
-								value={locationDescription}
-								oninput={(e: Event) => {
-									const value = (e.target as HTMLTextAreaElement).value;
-									locationDescription = value;
-									handleUpdateDamageWithDirty({
-										location_description: value
-									});
-								}}
-								placeholder="Describe the location of the damage on the vehicle..."
-								rows={2}
-							/>
+							<CompactField label="Location Description" htmlFor="location_description">
+								<CompactTextarea
+									id="location_description"
+									value={locationDescription}
+									rows={2}
+									placeholder="Describe the location of the damage on the vehicle..."
+									oninput={(e) => {
+										const value = (e.target as HTMLTextAreaElement).value;
+										locationDescription = value;
+										handleUpdateDamageWithDirty({ location_description: value });
+									}}
+								/>
+							</CompactField>
 
-							<FormField
-								name="damage_description"
-								label="Damage Description"
-								type="textarea"
-								value={damageDescription}
-								oninput={(e: Event) => {
-									const value = (e.target as HTMLTextAreaElement).value;
-									damageDescription = value;
-									debouncedSaveDamageDescription(value);
-								}}
-								placeholder="Detailed description of the damage..."
-								rows={3}
-							/>
+							<CompactField label="Damage Description" htmlFor="damage_description">
+								<CompactTextarea
+									id="damage_description"
+									value={damageDescription}
+									rows={3}
+									placeholder="Detailed description of the damage..."
+									oninput={(e) => {
+										const value = (e.target as HTMLTextAreaElement).value;
+										damageDescription = value;
+										debouncedSaveDamageDescription(value);
+									}}
+								/>
+							</CompactField>
 						</div>
-					</Card>
+					</CompactCard>
 				</div>
 			{/snippet}
 
