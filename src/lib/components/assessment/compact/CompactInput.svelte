@@ -12,7 +12,7 @@
     onblur
   }: {
     value: string | number;
-    type?: 'text' | 'number' | 'email' | 'tel';
+    type?: 'text' | 'number' | 'email' | 'tel' | 'date';
     placeholder?: string;
     mono?: boolean;
     disabled?: boolean;
