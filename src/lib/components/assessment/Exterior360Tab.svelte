@@ -2,6 +2,11 @@
 	import { Card } from '$lib/components/ui/card';
 	import { Button } from '$lib/components/ui/button';
 	import FormField from '$lib/components/forms/FormField.svelte';
+	import CompactCard from './compact/CompactCard.svelte';
+	import CompactCardHeader from './compact/CompactCardHeader.svelte';
+	import CompactField from './compact/CompactField.svelte';
+	import CompactInput from './compact/CompactInput.svelte';
+	import CompactSelect from './compact/CompactSelect.svelte';
 	import Exterior360PhotosPanel from './Exterior360PhotosPanel.svelte';
 	import TabFormSplit from './layout/TabFormSplit.svelte';
 	import RequiredFieldsWarning from './RequiredFieldsWarning.svelte';
@@ -224,126 +229,123 @@
 		{#snippet form()}
 			<div class="space-y-6">
 				<!-- Vehicle Condition -->
-				<Card class="p-6">
-					<h3 class="mb-4 text-lg font-semibold text-gray-900">
-						Vehicle Condition <span class="text-red-500">*</span>
-					</h3>
-					<div class="grid gap-6 md:grid-cols-2">
-						<FormField
-							name="overall_condition"
-							label="Overall Condition"
-							type="select"
-							bind:value={overallCondition}
-							options={[
-								{ value: 'excellent', label: 'Excellent' },
-								{ value: 'very_good', label: 'Very Good' },
-								{ value: 'good', label: 'Good' },
-								{ value: 'fair', label: 'Fair' },
-								{ value: 'poor', label: 'Poor' },
-								{ value: 'very_poor', label: 'Very Poor' }
-							]}
-							required
-							onchange={(value: string) => {
-								overallCondition = value;
-								overallConditionDraft.save(value);
-								handleSave();
-							}}
-						/>
-						<FormField
-							name="vehicle_color"
-							label="Vehicle Color"
-							type="text"
-							value={vehicleColor}
-							placeholder="e.g., White, Black, Silver"
-							required
-							oninput={(e: Event) => {
-								const value = (e.target as HTMLInputElement).value;
-								vehicleColor = value;
-								vehicleColorDraft.save(value);
-								debouncedSave();
-							}}
-						/>
+				<CompactCard>
+					<CompactCardHeader title="Vehicle Condition" required />
+					<div class="grid gap-3.5 md:grid-cols-2">
+						<CompactField label="Overall Condition" required htmlFor="overall_condition">
+							<CompactSelect
+								id="overall_condition"
+								bind:value={overallCondition}
+								options={[
+									{ value: 'excellent', label: 'Excellent' },
+									{ value: 'very_good', label: 'Very Good' },
+									{ value: 'good', label: 'Good' },
+									{ value: 'fair', label: 'Fair' },
+									{ value: 'poor', label: 'Poor' },
+									{ value: 'very_poor', label: 'Very Poor' }
+								]}
+								onchange={(value) => {
+									overallCondition = value;
+									overallConditionDraft.save(value);
+									handleSave();
+								}}
+							/>
+						</CompactField>
+						<CompactField label="Vehicle Color" required htmlFor="vehicle_color">
+							<CompactInput
+								id="vehicle_color"
+								bind:value={vehicleColor}
+								placeholder="e.g., White, Black, Silver"
+								oninput={(e) => {
+									const value = (e.target as HTMLInputElement).value;
+									vehicleColor = value;
+									vehicleColorDraft.save(value);
+									debouncedSave();
+								}}
+							/>
+						</CompactField>
 					</div>
-				</Card>
+				</CompactCard>
 
 				<!-- Accessories -->
-				<Card class="p-6">
-		<div class="mb-4 flex items-center justify-between">
-			<h3 class="text-lg font-semibold text-gray-900">Vehicle Accessories</h3>
-			<Button size="sm" onclick={() => (showAccessoryModal = true)}>
-				<Plus class="mr-2 h-4 w-4" />
-				Add Accessory
-			</Button>
-		</div>
+				<CompactCard>
+					<CompactCardHeader title="Vehicle Accessories">
+						{#snippet right()}
+							<Button size="sm" onclick={() => (showAccessoryModal = true)}>
+								<Plus class="mr-2 h-4 w-4" />
+								Add Accessory
+							</Button>
+						{/snippet}
+					</CompactCardHeader>
 
-		{#if accessories.value.length === 0}
-			<p class="text-center text-sm text-gray-500">
-				No accessories added yet. Click "Add Accessory" to add aftermarket additions.
-			</p>
-		{:else}
-			<div class="space-y-2">
-				{#each accessories.value as accessory}
-					<div class="flex items-center justify-between rounded-lg border p-3">
-						<div class="flex items-center gap-3 flex-1">
-							<div class="flex-1">
-								<p class="font-medium text-gray-900">
-									{accessory.accessory_type === 'custom'
-										? accessory.custom_name
-										: accessoryOptions.find((opt) => opt.value === accessory.accessory_type)?.label}
-								</p>
-								{#if accessory.condition}
-									<p class="text-sm text-gray-600">Condition: {accessory.condition}</p>
-								{/if}
-							</div>
+					{#if accessories.value.length === 0}
+						<p class="text-center text-sm text-gray-500">
+							No accessories added yet. Click "Add Accessory" to add aftermarket additions.
+						</p>
+					{:else}
+						<div class="space-y-2">
+							{#each accessories.value as accessory}
+								<div class="flex items-center justify-between rounded-lg border p-3">
+									<div class="flex items-center gap-3 flex-1">
+										<div class="flex-1">
+											<p class="font-medium text-gray-900">
+												{accessory.accessory_type === 'custom'
+													? accessory.custom_name
+													: accessoryOptions.find((opt) => opt.value === accessory.accessory_type)?.label}
+											</p>
+											{#if accessory.condition}
+												<p class="text-sm text-gray-600">Condition: {accessory.condition}</p>
+											{/if}
+										</div>
 
-							<!-- Value input -->
-							<div class="w-32">
-								<input
-									type="number"
-									value={accessory.value || 0}
-									oninput={(e) => {
-										const value = parseFloat((e.target as HTMLInputElement).value) || 0;
-										props.onUpdateAccessoryValue(accessory.id!, value);
-									}}
-									placeholder="Value"
-									class="w-full rounded-md border border-gray-300 px-2 py-1 text-sm text-right"
-									step="0.01"
-									min="0"
-									disabled={isSaving(accessory.id)}
-								/>
-							</div>
+										<!-- Value input -->
+										<div class="w-32">
+											<input
+												type="number"
+												value={accessory.value || 0}
+												oninput={(e) => {
+													const value = parseFloat((e.target as HTMLInputElement).value) || 0;
+													props.onUpdateAccessoryValue(accessory.id!, value);
+												}}
+												placeholder="Value"
+												class="w-full rounded-md border border-gray-300 px-2 py-1 text-sm text-right"
+												step="0.01"
+												min="0"
+												disabled={isSaving(accessory.id)}
+											/>
+										</div>
 
-							<!-- Status indicators -->
-							{#if isSaving(accessory.id)}
-								<Loader2 class="h-4 w-4 animate-spin text-blue-500" />
-							{:else if hasError(accessory.id)}
-								<div class="flex items-center gap-1">
-									<AlertCircle class="h-4 w-4 text-red-500" />
+										<!-- Status indicators -->
+										{#if isSaving(accessory.id)}
+											<Loader2 class="h-4 w-4 animate-spin text-blue-500" />
+										{:else if hasError(accessory.id)}
+											<div class="flex items-center gap-1">
+												<AlertCircle class="h-4 w-4 text-red-500" />
+												<Button
+													size="sm"
+													variant="ghost"
+													onclick={() => accessories.retry(accessory.id!)}
+													class="text-xs text-red-600 hover:text-red-700"
+												>
+													Retry
+												</Button>
+											</div>
+										{/if}
+									</div>
+
 									<Button
 										size="sm"
-										variant="ghost"
-										onclick={() => accessories.retry(accessory.id!)}
-										class="text-xs text-red-600 hover:text-red-700"
+										variant="outline"
+										onclick={() => handleDeleteAccessory(accessory.id!)}
+										disabled={isSaving(accessory.id)}
 									>
-										Retry
+										<Trash2 class="h-4 w-4 text-red-600" />
 									</Button>
 								</div>
-							{/if}
+							{/each}
 						</div>
-
-						<Button
-							size="sm"
-							variant="outline"
-							onclick={() => handleDeleteAccessory(accessory.id!)}
-							disabled={isSaving(accessory.id)}
-						>
-							<Trash2 class="h-4 w-4 text-red-600" />
-						</Button>
-					</div>
-				{/each}
-			</div>
-		{/if}
-			</Card>
+					{/if}
+				</CompactCard>
 			</div>
 		{/snippet}
 
