@@ -3,6 +3,7 @@
 	import FormField from '$lib/components/forms/FormField.svelte';
 	import PhotoUpload from '$lib/components/forms/PhotoUpload.svelte';
 	import InteriorPhotosPanel from './InteriorPhotosPanel.svelte';
+	import TabFormSplit from './layout/TabFormSplit.svelte';
 	import RequiredFieldsWarning from './RequiredFieldsWarning.svelte';
 	import FormFieldPhotoViewer, { type FieldConfig } from '$lib/components/photo-viewer/FormFieldPhotoViewer.svelte';
 	import { debounce } from '$lib/utils/useUnsavedChanges.svelte';
@@ -193,218 +194,226 @@
 <div class="space-y-6">
 	<!-- Warning Banner -->
 	<RequiredFieldsWarning missingFields={validation.missingFields} />
-	<!-- Engine Bay -->
-	<Card class="p-6">
-		<h3 class="mb-4 text-lg font-semibold text-gray-900">Engine Bay</h3>
-		<div class="grid gap-4 md:grid-cols-4">
-			<PhotoUpload
-				value={engineBayPhotoUrl}
-				label="Engine Bay"
-				{assessmentId}
-				category="interior"
-				subcategory="engine_bay"
-				onUpload={(url) => { engineBayPhotoUrl = url; handleSave(); }}
-				onRemove={() => { engineBayPhotoUrl = ''; handleSave(); }}
-				height="h-32"
-			/>
-			<PhotoUpload
-				value={batteryPhotoUrl}
-				label="Battery"
-				{assessmentId}
-				category="interior"
-				subcategory="battery"
-				onUpload={(url) => { batteryPhotoUrl = url; handleSave(); }}
-				onRemove={() => { batteryPhotoUrl = ''; handleSave(); }}
-				height="h-32"
-			/>
-			<PhotoUpload
-				value={oilLevelPhotoUrl}
-				label="Oil Level"
-				{assessmentId}
-				category="interior"
-				subcategory="oil"
-				onUpload={(url) => { oilLevelPhotoUrl = url; handleSave(); }}
-				onRemove={() => { oilLevelPhotoUrl = ''; handleSave(); }}
-				height="h-32"
-			/>
-			<PhotoUpload
-				value={coolantPhotoUrl}
-				label="Coolant"
-				{assessmentId}
-				category="interior"
-				subcategory="coolant"
-				onUpload={(url) => { coolantPhotoUrl = url; handleSave(); }}
-				onRemove={() => { coolantPhotoUrl = ''; handleSave(); }}
-				height="h-32"
-			/>
-		</div>
-	</Card>
 
-	<!-- Mileage -->
-	<Card class="p-6">
-		<h3 class="mb-4 text-lg font-semibold text-gray-900">
-			Mileage <span class="text-red-500">*</span>
-		</h3>
-		<div class="grid gap-6 md:grid-cols-2">
-			<FormField
-				name="mileage_reading"
-				label="Mileage Reading (km)"
-				type="number"
-				bind:value={mileageReading}
-				placeholder="e.g., 125000"
-				required
-				oninput={debouncedSave}
-			/>
-			<PhotoUpload
-				value={mileagePhotoUrl}
-				label="Mileage Photo"
+	<TabFormSplit photosWidth="380px">
+		{#snippet form()}
+			<div class="space-y-6">
+				<!-- Engine Bay -->
+				<Card class="p-6">
+					<h3 class="mb-4 text-lg font-semibold text-gray-900">Engine Bay</h3>
+					<div class="grid gap-4 md:grid-cols-4">
+						<PhotoUpload
+							value={engineBayPhotoUrl}
+							label="Engine Bay"
+							{assessmentId}
+							category="interior"
+							subcategory="engine_bay"
+							onUpload={(url) => { engineBayPhotoUrl = url; handleSave(); }}
+							onRemove={() => { engineBayPhotoUrl = ''; handleSave(); }}
+							height="h-32"
+						/>
+						<PhotoUpload
+							value={batteryPhotoUrl}
+							label="Battery"
+							{assessmentId}
+							category="interior"
+							subcategory="battery"
+							onUpload={(url) => { batteryPhotoUrl = url; handleSave(); }}
+							onRemove={() => { batteryPhotoUrl = ''; handleSave(); }}
+							height="h-32"
+						/>
+						<PhotoUpload
+							value={oilLevelPhotoUrl}
+							label="Oil Level"
+							{assessmentId}
+							category="interior"
+							subcategory="oil"
+							onUpload={(url) => { oilLevelPhotoUrl = url; handleSave(); }}
+							onRemove={() => { oilLevelPhotoUrl = ''; handleSave(); }}
+							height="h-32"
+						/>
+						<PhotoUpload
+							value={coolantPhotoUrl}
+							label="Coolant"
+							{assessmentId}
+							category="interior"
+							subcategory="coolant"
+							onUpload={(url) => { coolantPhotoUrl = url; handleSave(); }}
+							onRemove={() => { coolantPhotoUrl = ''; handleSave(); }}
+							height="h-32"
+						/>
+					</div>
+				</Card>
+
+				<!-- Mileage -->
+				<Card class="p-6">
+					<h3 class="mb-4 text-lg font-semibold text-gray-900">
+						Mileage <span class="text-red-500">*</span>
+					</h3>
+					<div class="grid gap-6 md:grid-cols-2">
+						<FormField
+							name="mileage_reading"
+							label="Mileage Reading (km)"
+							type="number"
+							bind:value={mileageReading}
+							placeholder="e.g., 125000"
+							required
+							oninput={debouncedSave}
+						/>
+						<PhotoUpload
+							value={mileagePhotoUrl}
+							label="Mileage Photo"
+							{assessmentId}
+							category="interior"
+							subcategory="mileage"
+							onUpload={(url) => { mileagePhotoUrl = url; handleSave(); }}
+							onRemove={() => { mileagePhotoUrl = ''; handleSave(); }}
+							onView={() => { viewingMileagePhoto = true; }}
+						/>
+					</div>
+				</Card>
+
+				<!-- Transmission & Power -->
+				<Card class="p-6">
+					<h3 class="mb-4 text-lg font-semibold text-gray-900">Transmission & Power</h3>
+					<div class="grid gap-6 md:grid-cols-3">
+						<FormField
+							name="transmission_type"
+							label="Transmission Type"
+							type="select"
+							bind:value={transmissionType}
+							options={[
+								{ value: 'automatic', label: 'Automatic' },
+								{ value: 'manual', label: 'Manual' }
+							]}
+							onchange={(value: string) => {
+								transmissionType = value;
+								transmissionDraft.save(value);
+								handleSave(); // Save immediately for select fields
+							}}
+						/>
+						<FormField
+							name="vehicle_has_power"
+							label="Battery Charged?"
+							type="select"
+							bind:value={vehicleHasPower}
+							options={[
+								{ value: 'true', label: 'Yes' },
+								{ value: 'false', label: 'No' }
+							]}
+							onchange={() => handleSave()}
+						/>
+						<PhotoUpload
+							value={gearLeverPhotoUrl}
+							label="Gear Lever Photo"
+							{assessmentId}
+							category="interior"
+							subcategory="gear_lever"
+							onUpload={(url) => { gearLeverPhotoUrl = url; handleSave(); }}
+							onRemove={() => { gearLeverPhotoUrl = ''; handleSave(); }}
+						/>
+					</div>
+				</Card>
+
+				<!-- Interior Condition -->
+				<Card class="p-6">
+					<h3 class="mb-4 text-lg font-semibold text-gray-900">
+						Interior Condition <span class="text-red-500">*</span>
+					</h3>
+					<FormField
+						name="interior_condition"
+						label="Overall Interior Condition"
+						type="select"
+						bind:value={interiorCondition}
+						options={[
+							{ value: 'excellent', label: 'Excellent' },
+							{ value: 'very_good', label: 'Very Good' },
+							{ value: 'good', label: 'Good' },
+							{ value: 'fair', label: 'Fair' },
+							{ value: 'poor', label: 'Poor' },
+							{ value: 'very_poor', label: 'Very Poor' }
+						]}
+						required
+						onchange={(value: string) => {
+							interiorCondition = value;
+							interiorConditionDraft.save(value);
+							handleSave(); // Save immediately for select fields
+						}}
+					/>
+				</Card>
+
+				<!-- Systems Check -->
+				<Card class="p-6">
+					<h3 class="mb-4 text-lg font-semibold text-gray-900">
+						Systems Check <span class="text-red-500">*</span>
+					</h3>
+					<div class="grid gap-6 md:grid-cols-2">
+						<FormField
+							name="srs_system"
+							label="SRS System (Airbags/Seatbelts)"
+							type="select"
+							bind:value={srsSystem}
+							options={[
+								{ value: 'operational', label: 'Operational' },
+								{ value: 'warning_light', label: 'Warning Light On' },
+								{ value: 'not_working', label: 'Not Working' },
+								{ value: 'deployed', label: 'Deployed' }
+							]}
+							required
+							onchange={() => handleSave()}
+						/>
+						<FormField
+							name="steering"
+							label="Steering"
+							type="select"
+							bind:value={steering}
+							options={[
+								{ value: 'working', label: 'Working' },
+								{ value: 'not_working', label: 'Not Working' },
+								{ value: 'issues', label: 'Has Issues' }
+							]}
+							required
+							onchange={() => handleSave()}
+						/>
+						<FormField
+							name="brakes"
+							label="Brakes"
+							type="select"
+							bind:value={brakes}
+							options={[
+								{ value: 'working', label: 'Working' },
+								{ value: 'not_working', label: 'Not Working' },
+								{ value: 'issues', label: 'Has Issues' }
+							]}
+							required
+							onchange={() => handleSave()}
+						/>
+						<FormField
+							name="handbrake"
+							label="Handbrake"
+							type="select"
+							bind:value={handbrake}
+							options={[
+								{ value: 'working', label: 'Working' },
+								{ value: 'not_working', label: 'Not Working' },
+								{ value: 'issues', label: 'Has Issues' }
+							]}
+							required
+							onchange={() => handleSave()}
+						/>
+					</div>
+				</Card>
+			</div>
+		{/snippet}
+
+		{#snippet photos()}
+			<InteriorPhotosPanel
 				{assessmentId}
-				category="interior"
-				subcategory="mileage"
-				onUpload={(url) => { mileagePhotoUrl = url; handleSave(); }}
-				onRemove={() => { mileagePhotoUrl = ''; handleSave(); }}
-				onView={() => { viewingMileagePhoto = true; }}
+				photos={interiorPhotos}
+				onUpdate={onPhotosUpdate}
 			/>
-		</div>
-	</Card>
-
-	<!-- Transmission & Power -->
-	<Card class="p-6">
-		<h3 class="mb-4 text-lg font-semibold text-gray-900">Transmission & Power</h3>
-		<div class="grid gap-6 md:grid-cols-3">
-			<FormField
-				name="transmission_type"
-				label="Transmission Type"
-				type="select"
-				bind:value={transmissionType}
-				options={[
-					{ value: 'automatic', label: 'Automatic' },
-					{ value: 'manual', label: 'Manual' }
-				]}
-				onchange={(value: string) => {
-					transmissionType = value;
-					transmissionDraft.save(value);
-					handleSave(); // Save immediately for select fields
-				}}
-			/>
-			<FormField
-				name="vehicle_has_power"
-				label="Battery Charged?"
-				type="select"
-				bind:value={vehicleHasPower}
-				options={[
-					{ value: 'true', label: 'Yes' },
-					{ value: 'false', label: 'No' }
-				]}
-				onchange={() => handleSave()}
-			/>
-			<PhotoUpload
-				value={gearLeverPhotoUrl}
-				label="Gear Lever Photo"
-				{assessmentId}
-				category="interior"
-				subcategory="gear_lever"
-				onUpload={(url) => { gearLeverPhotoUrl = url; handleSave(); }}
-				onRemove={() => { gearLeverPhotoUrl = ''; handleSave(); }}
-			/>
-		</div>
-	</Card>
-
-	<!-- Interior Photos -->
-	<InteriorPhotosPanel
-		{assessmentId}
-		photos={interiorPhotos}
-		onUpdate={onPhotosUpdate}
-	/>
-
-	<!-- Interior Condition -->
-	<Card class="p-6">
-		<h3 class="mb-4 text-lg font-semibold text-gray-900">
-			Interior Condition <span class="text-red-500">*</span>
-		</h3>
-		<FormField
-			name="interior_condition"
-			label="Overall Interior Condition"
-			type="select"
-			bind:value={interiorCondition}
-			options={[
-				{ value: 'excellent', label: 'Excellent' },
-				{ value: 'very_good', label: 'Very Good' },
-				{ value: 'good', label: 'Good' },
-				{ value: 'fair', label: 'Fair' },
-				{ value: 'poor', label: 'Poor' },
-				{ value: 'very_poor', label: 'Very Poor' }
-			]}
-			required
-			onchange={(value: string) => {
-				interiorCondition = value;
-				interiorConditionDraft.save(value);
-				handleSave(); // Save immediately for select fields
-			}}
-		/>
-	</Card>
-
-	<!-- Systems Check -->
-	<Card class="p-6">
-		<h3 class="mb-4 text-lg font-semibold text-gray-900">
-			Systems Check <span class="text-red-500">*</span>
-		</h3>
-		<div class="grid gap-6 md:grid-cols-2">
-			<FormField
-				name="srs_system"
-				label="SRS System (Airbags/Seatbelts)"
-				type="select"
-				bind:value={srsSystem}
-				options={[
-					{ value: 'operational', label: 'Operational' },
-					{ value: 'warning_light', label: 'Warning Light On' },
-					{ value: 'not_working', label: 'Not Working' },
-					{ value: 'deployed', label: 'Deployed' }
-				]}
-				required
-				onchange={() => handleSave()}
-			/>
-			<FormField
-				name="steering"
-				label="Steering"
-				type="select"
-				bind:value={steering}
-				options={[
-					{ value: 'working', label: 'Working' },
-					{ value: 'not_working', label: 'Not Working' },
-					{ value: 'issues', label: 'Has Issues' }
-				]}
-				required
-				onchange={() => handleSave()}
-			/>
-			<FormField
-				name="brakes"
-				label="Brakes"
-				type="select"
-				bind:value={brakes}
-				options={[
-					{ value: 'working', label: 'Working' },
-					{ value: 'not_working', label: 'Not Working' },
-					{ value: 'issues', label: 'Has Issues' }
-				]}
-				required
-				onchange={() => handleSave()}
-			/>
-			<FormField
-				name="handbrake"
-				label="Handbrake"
-				type="select"
-				bind:value={handbrake}
-				options={[
-					{ value: 'working', label: 'Working' },
-					{ value: 'not_working', label: 'Not Working' },
-					{ value: 'issues', label: 'Has Issues' }
-				]}
-				required
-				onchange={() => handleSave()}
-			/>
-		</div>
-	</Card>
+		{/snippet}
+	</TabFormSplit>
 </div>
 
 <!-- Mileage Photo Field Viewer -->

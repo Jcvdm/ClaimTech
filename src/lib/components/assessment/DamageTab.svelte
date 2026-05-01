@@ -9,6 +9,7 @@
 	import { onMount } from 'svelte';
 	import type { DamageRecord, DamageType, DamageArea, DamageSeverity } from '$lib/types/assessment';
 	import DamageSummaryCard from './DamageSummaryCard.svelte';
+	import TabFormSplit from './layout/TabFormSplit.svelte';
 	import { validateDamage, type TabValidation } from '$lib/utils/validation';
 
 	interface Props {
@@ -191,168 +192,168 @@
 			<p class="text-center text-gray-600">Loading damage record...</p>
 		</Card>
 	{:else}
-		<div class="lg:grid lg:grid-cols-[minmax(0,1fr)_340px] lg:gap-6 lg:items-start">
-			<!-- Left: editable forms -->
-			<div class="space-y-6">
-				<!-- Damage Match Check -->
-				<Card class="p-6">
-					<h3 class="mb-4 text-lg font-semibold text-gray-900">
-						Damage Description Match <span class="text-red-500">*</span>
-					</h3>
-					<p class="mb-4 text-sm text-gray-600">
-						Does the actual damage match the description provided in the initial request?
-					</p>
-					<div class="flex gap-4">
-						<Button
-							variant={matchesDescription === true ? 'default' : 'outline'}
-							onclick={() => {
-								matchesDescription = true;
-								handleUpdateDamageWithDirty({ matches_description: true });
-							}}
-						>
-							Yes, Matches
-						</Button>
-						<Button
-							variant={matchesDescription === false ? 'default' : 'outline'}
-							onclick={() => {
-								matchesDescription = false;
-								handleUpdateDamageWithDirty({ matches_description: false });
-							}}
-						>
-							No, Does Not Match
-						</Button>
-					</div>
-
-					{#if matchesDescription === false}
-						<div class="mt-4">
-							<FormField
-								name="mismatch_notes"
-								label="Explain Mismatch"
-								type="textarea"
-								value={mismatchNotes}
-								oninput={(e: Event) => {
-									const value = (e.target as HTMLTextAreaElement).value;
-									mismatchNotes = value;
-									debouncedSaveMismatch(value);
+		<TabFormSplit photosWidth="340px" stickyTop="top-24">
+			{#snippet form()}
+				<div class="space-y-6">
+					<!-- Damage Match Check -->
+					<Card class="p-6">
+						<h3 class="mb-4 text-lg font-semibold text-gray-900">
+							Damage Description Match <span class="text-red-500">*</span>
+						</h3>
+						<p class="mb-4 text-sm text-gray-600">
+							Does the actual damage match the description provided in the initial request?
+						</p>
+						<div class="flex gap-4">
+							<Button
+								variant={matchesDescription === true ? 'default' : 'outline'}
+								onclick={() => {
+									matchesDescription = true;
+									handleUpdateDamageWithDirty({ matches_description: true });
 								}}
-								placeholder="Describe how the actual damage differs from the reported description..."
-								rows={3}
-								required
-							/>
+							>
+								Yes, Matches
+							</Button>
+							<Button
+								variant={matchesDescription === false ? 'default' : 'outline'}
+								onclick={() => {
+									matchesDescription = false;
+									handleUpdateDamageWithDirty({ matches_description: false });
+								}}
+							>
+								No, Does Not Match
+							</Button>
 						</div>
-					{/if}
-				</Card>
 
-				<Card class="p-6">
-					<h3 class="mb-4 text-lg font-semibold text-gray-900">Damage Details</h3>
+						{#if matchesDescription === false}
+							<div class="mt-4">
+								<FormField
+									name="mismatch_notes"
+									label="Explain Mismatch"
+									type="textarea"
+									value={mismatchNotes}
+									oninput={(e: Event) => {
+										const value = (e.target as HTMLTextAreaElement).value;
+										mismatchNotes = value;
+										debouncedSaveMismatch(value);
+									}}
+									placeholder="Describe how the actual damage differs from the reported description..."
+									rows={3}
+									required
+								/>
+							</div>
+						{/if}
+					</Card>
 
-					<div class="space-y-6">
-						<div class="grid gap-6 md:grid-cols-2">
+					<Card class="p-6">
+						<h3 class="mb-4 text-lg font-semibold text-gray-900">Damage Details</h3>
+
+						<div class="space-y-6">
+							<div class="grid gap-6 md:grid-cols-2">
+								<FormField
+									name="damage_area"
+									label="Damage Area"
+									type="select"
+									value={damageArea}
+									onchange={(value: string) => {
+										damageArea = value;
+										handleUpdateDamageWithDirty({
+											damage_area: (value || undefined) as DamageArea
+										});
+									}}
+									options={[
+										{ value: 'structural', label: 'Structural' },
+										{ value: 'non_structural', label: 'Non-Structural' }
+									]}
+									required
+								/>
+								<FormField
+									name="damage_type"
+									label="Damage Type"
+									type="select"
+									value={damageType}
+									onchange={(value: string) => {
+										damageType = value;
+										handleUpdateDamageWithDirty({
+											damage_type: (value || undefined) as DamageType
+										});
+									}}
+									options={damageTypeOptions}
+									required
+								/>
+							</div>
+
 							<FormField
-								name="damage_area"
-								label="Damage Area"
+								name="severity"
+								label="Severity"
 								type="select"
-								value={damageArea}
+								value={severity}
 								onchange={(value: string) => {
-									damageArea = value;
+									severity = value;
 									handleUpdateDamageWithDirty({
-										damage_area: (value || undefined) as DamageArea
+										severity: (value || undefined) as DamageSeverity
 									});
 								}}
 								options={[
-									{ value: 'structural', label: 'Structural' },
-									{ value: 'non_structural', label: 'Non-Structural' }
+									{ value: '', label: 'Select severity' },
+									{ value: 'minor', label: 'Minor' },
+									{ value: 'moderate', label: 'Moderate' },
+									{ value: 'severe', label: 'Severe' },
+									{ value: 'total_loss', label: 'Total Loss' }
 								]}
 								required
 							/>
+
 							<FormField
-								name="damage_type"
-								label="Damage Type"
-								type="select"
-								value={damageType}
-								onchange={(value: string) => {
-									damageType = value;
+								name="estimated_repair_duration_days"
+								label="Estimated Repair Duration (days)"
+								type="number"
+								value={estimatedRepairDurationDays?.toString() || ''}
+								oninput={(e: Event) => {
+									const value = parseFloat((e.target as HTMLInputElement).value);
+									estimatedRepairDurationDays = value;
 									handleUpdateDamageWithDirty({
-										damage_type: (value || undefined) as DamageType
+										estimated_repair_duration_days: value
 									});
 								}}
-								options={damageTypeOptions}
-								required
+								placeholder="e.g., 1, 3, 7"
+								step="0.5"
+							/>
+
+							<FormField
+								name="location_description"
+								label="Location Description"
+								type="textarea"
+								value={locationDescription}
+								oninput={(e: Event) => {
+									const value = (e.target as HTMLTextAreaElement).value;
+									locationDescription = value;
+									handleUpdateDamageWithDirty({
+										location_description: value
+									});
+								}}
+								placeholder="Describe the location of the damage on the vehicle..."
+								rows={2}
+							/>
+
+							<FormField
+								name="damage_description"
+								label="Damage Description"
+								type="textarea"
+								value={damageDescription}
+								oninput={(e: Event) => {
+									const value = (e.target as HTMLTextAreaElement).value;
+									damageDescription = value;
+									debouncedSaveDamageDescription(value);
+								}}
+								placeholder="Detailed description of the damage..."
+								rows={3}
 							/>
 						</div>
+					</Card>
+				</div>
+			{/snippet}
 
-						<FormField
-							name="severity"
-							label="Severity"
-							type="select"
-							value={severity}
-							onchange={(value: string) => {
-								severity = value;
-								handleUpdateDamageWithDirty({
-									severity: (value || undefined) as DamageSeverity
-								});
-							}}
-							options={[
-								{ value: '', label: 'Select severity' },
-								{ value: 'minor', label: 'Minor' },
-								{ value: 'moderate', label: 'Moderate' },
-								{ value: 'severe', label: 'Severe' },
-								{ value: 'total_loss', label: 'Total Loss' }
-							]}
-							required
-						/>
-
-						<FormField
-							name="estimated_repair_duration_days"
-							label="Estimated Repair Duration (days)"
-							type="number"
-							value={estimatedRepairDurationDays?.toString() || ''}
-							oninput={(e: Event) => {
-								const value = parseFloat((e.target as HTMLInputElement).value);
-								estimatedRepairDurationDays = value;
-								handleUpdateDamageWithDirty({
-									estimated_repair_duration_days: value
-								});
-							}}
-							placeholder="e.g., 1, 3, 7"
-							step="0.5"
-						/>
-
-						<FormField
-							name="location_description"
-							label="Location Description"
-							type="textarea"
-							value={locationDescription}
-							oninput={(e: Event) => {
-								const value = (e.target as HTMLTextAreaElement).value;
-								locationDescription = value;
-								handleUpdateDamageWithDirty({
-									location_description: value
-								});
-							}}
-							placeholder="Describe the location of the damage on the vehicle..."
-							rows={2}
-						/>
-
-						<FormField
-							name="damage_description"
-							label="Damage Description"
-							type="textarea"
-							value={damageDescription}
-							oninput={(e: Event) => {
-								const value = (e.target as HTMLTextAreaElement).value;
-								damageDescription = value;
-								debouncedSaveDamageDescription(value);
-							}}
-							placeholder="Detailed description of the damage..."
-							rows={3}
-						/>
-					</div>
-				</Card>
-			</div>
-
-			<!-- Right: sticky summary -->
-			<div class="lg:sticky lg:top-24 lg:self-start mt-6 lg:mt-0">
+			{#snippet photos()}
 				<DamageSummaryCard
 					{matchesDescription}
 					severity={severity as DamageSeverity | ''}
@@ -361,8 +362,8 @@
 					{estimatedRepairDurationDays}
 					{mismatchNotes}
 				/>
-			</div>
-		</div>
+			{/snippet}
+		</TabFormSplit>
 	{/if}
 </div>
 

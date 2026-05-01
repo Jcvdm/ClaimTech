@@ -7,6 +7,7 @@
 		photosWidth?: string;
 		stickyPhotos?: boolean;
 		splitFrom?: 'md' | 'lg';
+		stickyTop?: string;
 		class?: string;
 	}
 
@@ -16,6 +17,7 @@
 		photosWidth = '380px',
 		stickyPhotos = true,
 		splitFrom = 'lg',
+		stickyTop = 'top-4',
 		class: className = ''
 	}: Props = $props();
 
@@ -30,8 +32,8 @@
 	let stickyClass = $derived(
 		stickyPhotos
 			? splitFrom === 'md'
-				? 'md:sticky md:top-4 md:self-start md:max-h-[calc(100vh-7rem)] md:overflow-y-auto'
-				: 'lg:sticky lg:top-4 lg:self-start lg:max-h-[calc(100vh-7rem)] lg:overflow-y-auto'
+				? `md:sticky md:${stickyTop} md:self-start md:max-h-[calc(100vh-7rem)] md:overflow-y-auto`
+				: `lg:sticky lg:${stickyTop} lg:self-start lg:max-h-[calc(100vh-7rem)] lg:overflow-y-auto`
 			: ''
 	);
 </script>
@@ -50,3 +52,9 @@
 		</div>
 	{/if}
 </div>
+
+<!--
+  Tailwind safelist (kept by JIT scanning this file):
+  lg:top-2 lg:top-4 lg:top-6 lg:top-16 lg:top-20 lg:top-24
+  md:top-2 md:top-4 md:top-6 md:top-16 md:top-20 md:top-24
+-->
