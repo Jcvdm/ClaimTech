@@ -84,6 +84,14 @@
 		const completedTabs = assessment.tabs_completed?.length || 0;
 		const progressPercentage = Math.round((completedTabs / totalTabs) * 100);
 
+		const isDueToday = (() => {
+			const apptDate = appointment?.scheduled_at;
+			if (!apptDate) return false;
+			const today = new Date();
+			const appt = new Date(apptDate);
+			return today.toDateString() === appt.toDateString();
+		})();
+
 		return {
 			...assessment,
 			request_number: request?.request_number || '-',
@@ -92,6 +100,8 @@
 			engineer_name: engineer?.name || 'Unassigned',
 			progress_percentage: progressPercentage,
 			progress_display: `${completedTabs}/${totalTabs} tabs`,
+			progress_tone: isDueToday ? 'warning' : 'default',
+			is_due_today: isDueToday,
 			formatted_updated: formatDateTime(assessment.updated_at)
 		};
 	});
@@ -152,7 +162,9 @@
 		primaryField: 'assessment_number',
 		secondaryField: 'progress_display',
 		bodyFields: ['vehicle_display', 'vehicle_registration', 'engineer_name'],
-		footerField: 'formatted_updated'
+		footerField: 'formatted_updated',
+		progressPctField: 'progress_percentage',
+		progressToneField: 'progress_tone'
 	};
 
 	function handleRowClick(assessment: (typeof assessmentsWithDetails)[0]) {
@@ -270,7 +282,10 @@
 			{/snippet}
 			{#snippet mobileCardContent(field, row)}
 				{#if field === 'assessment_number'}
-					<span class="font-semibold text-gray-900">{row.assessment_number}</span>
+					<span class="font-semibold text-foreground">{row.assessment_number}</span>
+					{#if row.is_due_today}
+						<Badge variant="warning" class="ml-2">DUE TODAY</Badge>
+					{/if}
 				{:else if field === 'progress_display'}
 					{@const percentage = row.progress_percentage}
 					{@const tone =
@@ -283,11 +298,11 @@
 									: 'muted'}
 					<Badge variant={tone}>{percentage}%</Badge>
 				{:else if field === 'vehicle_display'}
-					<span class="text-gray-600"><Car class="inline h-3.5 w-3.5 mr-1 text-gray-400" />{row.vehicle_display}</span>
+					<span class="text-muted-foreground"><Car class="inline h-3.5 w-3.5 mr-1 text-muted-foreground/60" />{row.vehicle_display}</span>
 				{:else if field === 'vehicle_registration'}
-					<span class="text-gray-500"><CreditCard class="inline h-3.5 w-3.5 mr-1 text-gray-400" />{row.vehicle_registration}</span>
+					<span class="font-mono text-muted-foreground"><CreditCard class="inline h-3.5 w-3.5 mr-1 text-muted-foreground/60" />{row.vehicle_registration}</span>
 				{:else if field === 'engineer_name'}
-					<span class="text-gray-600"><User class="inline h-3.5 w-3.5 mr-1 text-gray-400" />{row.engineer_name}</span>
+					<span class="text-muted-foreground"><User class="inline h-3.5 w-3.5 mr-1 text-muted-foreground/60" />{row.engineer_name}</span>
 				{:else}
 					{row[field]}
 				{/if}

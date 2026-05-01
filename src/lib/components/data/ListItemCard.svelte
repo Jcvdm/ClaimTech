@@ -25,6 +25,10 @@
 		bodyFields: (keyof T)[];
 		/** Field to show in footer (e.g., date) */
 		footerField?: keyof T;
+		/** Key of a numeric 0-100 field; when set, renders a 3px progress bar across the top */
+		progressPctField?: keyof T;
+		/** Key of a 'default' | 'warning' | 'destructive' field controlling bar color */
+		progressToneField?: keyof T;
 	};
 </script>
 
@@ -59,7 +63,7 @@
 </script>
 
 <Card
-	class="p-4 transition-all duration-200 {onclick
+	class="overflow-hidden transition-all duration-200 {onclick
 		? 'cursor-pointer hover:shadow-md hover:border-blue-200 active:scale-[0.99]'
 		: ''} {loading ? 'opacity-60 animate-pulse' : ''} {className}"
 	role={onclick ? 'button' : undefined}
@@ -67,6 +71,23 @@
 	onclick={() => !loading && onclick?.()}
 	onkeydown={(e) => e.key === 'Enter' && !loading && onclick?.()}
 >
+	<!-- Progress bar across the top edge (optional) -->
+	{#if config.progressPctField !== undefined}
+		{@const pct = Math.min(100, Math.max(0, Number(item[config.progressPctField]) || 0))}
+		{@const tone = config.progressToneField ? String(item[config.progressToneField]) : 'default'}
+		<div class="h-[3px] w-full bg-muted">
+			<div
+				class="h-full transition-all duration-300 {tone === 'warning'
+					? 'bg-warning'
+					: tone === 'destructive'
+						? 'bg-destructive'
+						: 'bg-success'}"
+				style="width: {pct}%"
+			></div>
+		</div>
+	{/if}
+
+	<div class="p-4">
 	<!-- Header: Primary field + Status/Secondary -->
 	<div class="flex items-start justify-between gap-3">
 		<div class="min-w-0 flex-1">
@@ -122,5 +143,6 @@
 		{#if onclick}
 			<ChevronRight class="h-4 w-4 text-gray-400" />
 		{/if}
+	</div>
 	</div>
 </Card>
