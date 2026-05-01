@@ -7,6 +7,7 @@
 	import RatesAndRepairerConfiguration from './RatesAndRepairerConfiguration.svelte';
 	import QuickAddLineItem from './QuickAddLineItem.svelte';
 	import EstimatePhotosPanel from './EstimatePhotosPanel.svelte';
+	import TabFormSplit from './layout/TabFormSplit.svelte';
 	import AssessmentResultSelector from './AssessmentResultSelector.svelte';
 	import RequiredFieldsWarning from './RequiredFieldsWarning.svelte';
 	import BettermentModal from './BettermentModal.svelte';
@@ -1151,8 +1152,10 @@
 				</ResponsiveDialog.Content>
 			</ResponsiveDialog.Root>
 
-			<!-- Line Items Section (full-width, single-column) -->
-			<Card class="p-0">
+			<!-- Line Items + Incident Photos side-by-side -->
+			<TabFormSplit photosWidth="360px">
+				{#snippet form()}
+				<Card class="p-0">
 					<!-- Header - Responsive -->
 					<div class="px-3 sm:px-4 py-3 border-b border-border mb-0 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
 						<h3 class="text-[11.5px] font-semibold tracking-wide text-muted-foreground uppercase">
@@ -1724,7 +1727,19 @@
 							</Table.Body>
 						</Table.Root>
 					</div>
-			</Card>
+				</Card>
+				{/snippet}
+
+				{#snippet photos()}
+				<EstimatePhotosPanel
+					inSidebar
+					estimateId={estimate.id}
+					{assessmentId}
+					photos={estimatePhotos}
+					onUpdate={onPhotosUpdate}
+				/>
+				{/snippet}
+			</TabFormSplit>
 
 			<!-- Bottom-sticky compact totals strip -->
 
@@ -1774,14 +1789,6 @@
 					: estimate.assessment_result}
 				onUpdate={handleUpdateAssessmentResult}
 				disabled={!localEstimate || localLineItems.length === 0}
-			/>
-
-			<!-- Incident Photos -->
-			<EstimatePhotosPanel
-				estimateId={estimate.id}
-				{assessmentId}
-				photos={estimatePhotos}
-				onUpdate={onPhotosUpdate}
 			/>
 
 			<!-- Actions -->
