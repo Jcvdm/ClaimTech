@@ -1252,7 +1252,7 @@
 								aria-label="Add line with photos"
 							>
 								<Camera class="h-4 w-4 sm:mr-1.5" />
-								<span class="hidden sm:inline">Add line</span>
+								<span>Add line</span>
 							</Button>
 						</div>
 					</div>
@@ -1278,6 +1278,7 @@
 								onEditOutwork={() => handleOutworkClick(item.id!, item.outwork_charge_nett || null)}
 								onEditBetterment={() => handleBettermentClick(item)}
 								onDelete={() => removeLocalLines([item.id!])}
+								compact={true}
 							/>
 						{/each}
 
