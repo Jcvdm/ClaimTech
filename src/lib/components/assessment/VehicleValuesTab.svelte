@@ -26,6 +26,11 @@ import type { VehicleDetails } from '$lib/utils/report-data-helpers';
 		createEmptyExtra,
 		calculateConditionAdjustmentPercentage
 	} from '$lib/utils/vehicleValuesCalculations';
+	import Stat from '$lib/components/ui/stat/Stat.svelte';
+	import TotalsCard from '$lib/components/ui/totals-card/TotalsCard.svelte';
+	import WriteOffBar from './values/WriteOffBar.svelte';
+	import ValuesCollapsible from './values/ValuesCollapsible.svelte';
+	import { IsMobile } from '$lib/hooks/is-mobile.svelte';
 
 	interface Props {
 		data: VehicleValues | null;
@@ -64,6 +69,10 @@ import type { VehicleDetails } from '$lib/utils/report-data-helpers';
 	const requestInfo = $derived(props.requestInfo);
 	const onUpdate = $derived(props.onUpdate);
 	const vehicleDetails = $derived(props.vehicleDetails);
+
+	// Responsive: desktop keeps all sections always open
+	const isMobile = new IsMobile();
+	const isDesktop = $derived(!isMobile.current);
 
 	// Initialize localStorage draft for critical fields
 	let sourcedFromDraft = useDraft('');
@@ -349,28 +358,57 @@ import type { VehicleDetails } from '$lib/utils/report-data-helpers';
 			props.onValidationUpdate(validation);
 		}
 	});
+
+	// Summary strings for collapsible headers
+	const valuationSourceSummary = $derived(
+		`${sourcedFrom || '–'} · ${sourcedDate ? new Date(sourcedDate).toLocaleDateString() : '–'}`
+	);
+
+	const warrantyServiceSummary = $derived(
+		warrantyStatus
+			? `${warrantyStatus.charAt(0).toUpperCase() + warrantyStatus.slice(1)}${warrantyExpiryMileage ? ' · ' + warrantyExpiryMileage + ' km limit' : ''}`
+			: 'Not set'
+	);
+
+	const rawValuesSummary = $derived(
+		`Trade ${formatCurrency(tradeValue)} · Market ${formatCurrency(marketValue)} · Retail ${formatCurrency(retailValue)}`
+	);
+
+	const accessoriesSummary = $derived(
+		props.accessories.length === 0
+			? 'None'
+			: `${props.accessories.length} item(s) · ${formatCurrency(accessoriesTotal)}`
+	);
+
+	const supportingDocsSummary = $derived(valuationPdfUrl ? '1 file uploaded' : 'No file uploaded');
+
+	const totalsTotalsFootnote = $derived(
+		accessoriesTotal > 0
+			? `+ ${formatCurrency(accessoriesTotal)} accessories applied to all three`
+			: undefined
+	);
 </script>
 
-<div class="space-y-6">
+<div class="space-y-4">
 	<!-- Warning Banner -->
 	<RequiredFieldsWarning missingFields={validation.missingFields} />
-	<!-- Section 1: Vehicle & Request Information -->
-	<!-- Shows current assessment data with fallback to original request data -->
+
+	<!-- Vehicle context strip -->
 	{#if requestInfo}
-		<Card class="bg-blue-50 p-6">
-			<h3 class="mb-4 text-lg font-semibold text-gray-900">Vehicle & Request Information</h3>
+		<Card class="bg-muted p-3 sm:p-4 md:p-6">
+			<h3 class="mb-4 text-lg font-semibold text-foreground">Vehicle & Request Information</h3>
 			<div class="grid gap-4 md:grid-cols-3">
 				<div>
-					<p class="text-sm text-gray-600">Report No.</p>
-					<p class="font-medium text-gray-900">{requestInfo.request_number || 'N/A'}</p>
+					<p class="text-sm text-muted-foreground">Report No.</p>
+					<p class="font-medium text-foreground">{requestInfo.request_number || 'N/A'}</p>
 				</div>
 				<div>
-					<p class="text-sm text-gray-600">Insurer</p>
-					<p class="font-medium text-gray-900">{client?.name || 'N/A'}</p>
+					<p class="text-sm text-muted-foreground">Insurer</p>
+					<p class="font-medium text-foreground">{client?.name || 'N/A'}</p>
 				</div>
 				<div>
-					<p class="text-sm text-gray-600">Date of Loss</p>
-					<p class="font-medium text-gray-900">
+					<p class="text-sm text-muted-foreground">Date of Loss</p>
+					<p class="font-medium text-foreground">
 						{requestInfo.date_of_loss
 							? formatDate(requestInfo.date_of_loss)
 							: 'N/A'}
@@ -379,24 +417,24 @@ import type { VehicleDetails } from '$lib/utils/report-data-helpers';
 			</div>
 			<div class="mt-4 grid gap-4 md:grid-cols-4">
 				<div>
-					<p class="text-sm text-gray-600">Make</p>
+					<p class="text-sm text-muted-foreground">Make</p>
 					<!-- Normalized from vehicleDetails -->
-					<p class="font-medium text-gray-900">{vehicleDetails?.make || 'N/A'}</p>
+					<p class="font-medium text-foreground">{vehicleDetails?.make || 'N/A'}</p>
 				</div>
 				<div>
-					<p class="text-sm text-gray-600">Model</p>
+					<p class="text-sm text-muted-foreground">Model</p>
 					<!-- Normalized from vehicleDetails -->
-					<p class="font-medium text-gray-900">{vehicleDetails?.model || 'N/A'}</p>
+					<p class="font-medium text-foreground">{vehicleDetails?.model || 'N/A'}</p>
 				</div>
 				<div>
-					<p class="text-sm text-gray-600">Year</p>
+					<p class="text-sm text-muted-foreground">Year</p>
 					<!-- Normalized from vehicleDetails -->
-					<p class="font-medium text-gray-900">{vehicleDetails?.year || 'N/A'}</p>
+					<p class="font-medium text-foreground">{vehicleDetails?.year || 'N/A'}</p>
 				</div>
 				<div>
-					<p class="text-sm text-gray-600">Mileage</p>
+					<p class="text-sm text-muted-foreground">Mileage</p>
 					<!-- Prefer interior mechanical data over vehicleDetails -->
-					<p class="font-medium text-gray-900">
+					<p class="font-medium text-foreground">
 						{interiorMechanical?.mileage_reading
 							? interiorMechanical.mileage_reading.toLocaleString() + ' km'
 							: vehicleDetails?.mileage
@@ -406,65 +444,150 @@ import type { VehicleDetails } from '$lib/utils/report-data-helpers';
 				</div>
 			</div>
 			<div class="mt-4">
-				<p class="text-sm text-gray-600">VIN</p>
+				<p class="text-sm text-muted-foreground">VIN</p>
 				<!-- Normalized from vehicleDetails -->
-				<p class="font-medium text-gray-900">{vehicleDetails?.vin || 'N/A'}</p>
+				<p class="font-medium text-foreground">{vehicleDetails?.vin || 'N/A'}</p>
 			</div>
 			<div class="mt-4">
-				<p class="text-sm text-gray-600">Registration</p>
+				<p class="text-sm text-muted-foreground">Registration</p>
 				<!-- Normalized from vehicleDetails -->
-				<p class="font-medium text-gray-900">{vehicleDetails?.registration || 'N/A'}</p>
+				<p class="font-medium text-foreground">{vehicleDetails?.registration || 'N/A'}</p>
 			</div>
 		</Card>
 	{/if}
 
-	<!-- Valuation Source -->
-	<Card class="p-6">
-		<h3 class="mb-4 text-lg font-semibold text-gray-900">
-			Valuation Source <span class="text-red-500">*</span>
-		</h3>
-		<div class="grid gap-4 md:grid-cols-2">
-			<FormField
-				name="sourced_from"
-				label="Sourced From"
-				type="text"
-				bind:value={sourcedFrom}
-				placeholder="e.g., TransUnion - iCheck, Lightstone Auto"
-				required
-				oninput={debouncedSave}
-			/>
-			<FormField
-				name="sourced_code"
-				label="Source Code"
-				type="text"
-				bind:value={sourcedCode}
-				placeholder="e.g., 22035630"
-				required
-				oninput={debouncedSave}
-			/>
+	<!-- Total Adjusted Values (dark card, pinned near top) -->
+	<TotalsCard label="TOTAL ADJUSTED VALUES" footnote={totalsTotalsFootnote}>
+		<Stat tone="inverse" mono label="Trade" value={formatCurrency(tradeTotalAdjusted)} size="lg" />
+		<Stat tone="inverse" mono label="Market" value={formatCurrency(marketTotalAdjusted)} size="lg" />
+		<Stat tone="inverse" mono label="Retail" value={formatCurrency(retailTotalAdjusted)} size="lg" />
+	</TotalsCard>
+
+	<!-- Write-off thresholds bar -->
+	<WriteOffBar
+		borderlinePct={borderlinePercentage}
+		writeoffPct={totalWriteoffPercentage}
+		salvagePct={salvagePercentage}
+	/>
+
+	<!-- Write-Off Calculations matrix -->
+	<Card class="p-4 md:p-6">
+		<h3 class="mb-4 text-base font-semibold text-foreground">Write-off matrix</h3>
+		<div class="mb-4 rounded-lg bg-muted p-3">
+			<p class="text-sm text-muted-foreground">
+				Using client's write-off percentages: Borderline ({borderlinePercentage}%), Total Write-Off
+				({totalWriteoffPercentage}%), Salvage ({salvagePercentage}%)
+			</p>
 		</div>
-		<div class="mt-4 grid gap-4 md:grid-cols-2">
-			<FormField
-				name="sourced_date"
-				label="Sourced Date"
-				type="date"
-				bind:value={sourcedDate}
-				required
-				onchange={debouncedSave}
-			/>
-			<div>
-				<div class="mb-2 block text-sm font-medium text-gray-700">Month (Auto-calculated)</div>
-				<div class="rounded-md border border-gray-300 bg-gray-50 px-3 py-2 text-sm text-gray-700">
-					{sourcedMonth || 'Select a date'}
+
+		<div class="overflow-x-auto">
+			<table class="w-full">
+				<thead>
+					<tr class="border-b border-border bg-muted">
+						<th class="px-4 py-3 text-left text-sm font-semibold text-foreground">Value Type</th>
+						<th class="px-4 py-3 text-right text-sm font-semibold text-foreground">
+							Borderline ({borderlinePercentage}%)
+						</th>
+						<th class="px-4 py-3 text-right text-sm font-semibold text-foreground">
+							Write-Off ({totalWriteoffPercentage}%)
+						</th>
+						<th class="px-4 py-3 text-right text-sm font-semibold text-foreground">
+							Salvage ({salvagePercentage}%)
+						</th>
+					</tr>
+				</thead>
+				<tbody>
+					<tr class="border-b border-border">
+						<td class="px-4 py-3 font-medium text-foreground">Trade</td>
+						<td class="px-4 py-3 text-right text-foreground font-mono-tabular">
+							{formatCurrency(borderlineWriteoffTrade)}
+						</td>
+						<td class="px-4 py-3 text-right text-foreground font-mono-tabular">
+							{formatCurrency(totalWriteoffTrade)}
+						</td>
+						<td class="px-4 py-3 text-right text-foreground font-mono-tabular">{formatCurrency(salvageTrade)}</td>
+					</tr>
+					<tr class="border-b border-border">
+						<td class="px-4 py-3 font-medium text-foreground">Market</td>
+						<td class="px-4 py-3 text-right text-foreground font-mono-tabular">
+							{formatCurrency(borderlineWriteoffMarket)}
+						</td>
+						<td class="px-4 py-3 text-right text-foreground font-mono-tabular">
+							{formatCurrency(totalWriteoffMarket)}
+						</td>
+						<td class="px-4 py-3 text-right text-foreground font-mono-tabular">{formatCurrency(salvageMarket)}</td>
+					</tr>
+					<tr class="border-b border-border">
+						<td class="px-4 py-3 font-medium text-foreground">Retail</td>
+						<td class="px-4 py-3 text-right text-foreground font-mono-tabular">
+							{formatCurrency(borderlineWriteoffRetail)}
+						</td>
+						<td class="px-4 py-3 text-right text-foreground font-mono-tabular">
+							{formatCurrency(totalWriteoffRetail)}
+						</td>
+						<td class="px-4 py-3 text-right text-foreground font-mono-tabular">{formatCurrency(salvageRetail)}</td>
+					</tr>
+				</tbody>
+			</table>
+		</div>
+		<p class="md:hidden text-[10px] text-muted-foreground text-center mt-1">← swipe →</p>
+	</Card>
+
+	<!-- Valuation Source (collapsible) -->
+	<ValuesCollapsible
+		title="Valuation Source"
+		summary={valuationSourceSummary}
+		forceOpen={isDesktop}
+	>
+		<div class="space-y-4">
+			<p class="text-sm font-medium text-foreground">
+				Valuation Source <span class="text-red-500">*</span>
+			</p>
+			<div class="grid gap-4 md:grid-cols-2">
+				<FormField
+					name="sourced_from"
+					label="Sourced From"
+					type="text"
+					bind:value={sourcedFrom}
+					placeholder="e.g., TransUnion - iCheck, Lightstone Auto"
+					required
+					oninput={debouncedSave}
+				/>
+				<FormField
+					name="sourced_code"
+					label="Source Code"
+					type="text"
+					bind:value={sourcedCode}
+					placeholder="e.g., 22035630"
+					required
+					oninput={debouncedSave}
+				/>
+			</div>
+			<div class="grid gap-4 md:grid-cols-2">
+				<FormField
+					name="sourced_date"
+					label="Sourced Date"
+					type="date"
+					bind:value={sourcedDate}
+					required
+					onchange={debouncedSave}
+				/>
+				<div>
+					<div class="mb-2 block text-sm font-medium text-foreground">Month (Auto-calculated)</div>
+					<div class="rounded-md border border-border bg-muted px-3 py-2 text-sm text-muted-foreground">
+						{sourcedMonth || 'Select a date'}
+					</div>
 				</div>
 			</div>
 		</div>
-	</Card>
+	</ValuesCollapsible>
 
-	<!-- Warranty / Service Details -->
-	<Card class="p-6">
-		<h3 class="mb-4 text-lg font-semibold text-gray-900">Warranty / Service Details</h3>
-
+	<!-- Warranty / Service Details (collapsible) -->
+	<ValuesCollapsible
+		title="Warranty / Service"
+		summary={warrantyServiceSummary}
+		forceOpen={isDesktop}
+	>
 		<div class="space-y-6">
 			<!-- Status -->
 			<FormField
@@ -486,7 +609,7 @@ import type { VehicleDetails } from '$lib/utils/report-data-helpers';
 
 			<!-- Period (Years) -->
 			<div class="space-y-2">
-				<label for="warranty_period_years" class="block text-sm font-medium text-gray-700">
+				<label for="warranty_period_years" class="block text-sm font-medium text-foreground">
 					Period (Years)
 				</label>
 				<select
@@ -509,7 +632,7 @@ import type { VehicleDetails } from '$lib/utils/report-data-helpers';
 
 			<!-- Date Range: From - To -->
 			<fieldset>
-				<legend class="mb-2 block text-sm font-medium text-gray-700">Date</legend>
+				<legend class="mb-2 block text-sm font-medium text-foreground">Date</legend>
 				<div class="grid gap-4 md:grid-cols-2">
 					<FormField
 						name="warranty_start_date"
@@ -575,14 +698,15 @@ import type { VehicleDetails } from '$lib/utils/report-data-helpers';
 				oninput={debouncedSave}
 			/>
 		</div>
-	</Card>
+	</ValuesCollapsible>
 
-	<!-- Section 2: Base Values & Adjustments -->
-	<Card class="p-6">
-		<h3 class="mb-4 text-lg font-semibold text-gray-900">
-			Vehicle Values <span class="text-red-500">*</span>
-		</h3>
-
+	<!-- Vehicle Values (raw) — collapsible; open by default when values are zero -->
+	<ValuesCollapsible
+		title="Vehicle Values (raw)"
+		summary={rawValuesSummary}
+		defaultOpen={tradeValue === 0 || marketValue === 0 || retailValue === 0}
+		forceOpen={isDesktop}
+	>
 		<!-- Optional fields -->
 		<div class="mb-6 grid gap-4 md:grid-cols-2">
 			<FormField
@@ -638,7 +762,7 @@ import type { VehicleDetails } from '$lib/utils/report-data-helpers';
 
 		<!-- Adjustments -->
 		<div class="mb-6 space-y-4">
-			<h4 class="text-sm font-semibold text-gray-700">Adjustments</h4>
+			<h4 class="text-sm font-semibold text-foreground">Adjustments</h4>
 			<div class="grid gap-4 md:grid-cols-2">
 				<FormField
 					name="valuation_adjustment"
@@ -670,9 +794,9 @@ import type { VehicleDetails } from '$lib/utils/report-data-helpers';
 					oninput={debouncedSave}
 				/>
 				<!-- Display calculated percentages -->
-				<div class="rounded-md bg-blue-50 p-3">
-					<p class="text-xs font-medium text-blue-900 mb-1">Calculated Percentages:</p>
-					<div class="grid grid-cols-3 gap-2 text-xs text-blue-700">
+				<div class="rounded-md bg-muted p-3">
+					<p class="text-xs font-medium text-foreground mb-1">Calculated Percentages:</p>
+					<div class="grid grid-cols-3 gap-2 text-xs text-muted-foreground">
 						<div>
 							<span class="font-medium">Trade:</span> {tradeConditionPercentage.toFixed(2)}%
 						</div>
@@ -688,128 +812,47 @@ import type { VehicleDetails } from '$lib/utils/report-data-helpers';
 		</div>
 
 		<!-- Adjusted Values Display -->
-		<div class="rounded-lg bg-gray-50 p-4">
-			<h4 class="mb-3 text-sm font-semibold text-gray-700">Adjusted Values</h4>
+		<div class="rounded-lg bg-muted p-4">
+			<h4 class="mb-3 text-sm font-semibold text-foreground">Adjusted Values</h4>
 			<div class="grid gap-4 md:grid-cols-3">
 				<div>
-					<p class="text-xs text-gray-600">Trade</p>
-					<p class="text-lg font-semibold text-gray-900 font-mono-tabular">{formatCurrency(tradeAdjusted)}</p>
+					<p class="text-xs text-muted-foreground">Trade</p>
+					<p class="text-lg font-semibold text-foreground font-mono-tabular">{formatCurrency(tradeAdjusted)}</p>
 				</div>
 				<div>
-					<p class="text-xs text-gray-600">Market</p>
-					<p class="text-lg font-semibold text-gray-900 font-mono-tabular">{formatCurrency(marketAdjusted)}</p>
+					<p class="text-xs text-muted-foreground">Market</p>
+					<p class="text-lg font-semibold text-foreground font-mono-tabular">{formatCurrency(marketAdjusted)}</p>
 				</div>
 				<div>
-					<p class="text-xs text-gray-600">Retail</p>
-					<p class="text-lg font-semibold text-gray-900 font-mono-tabular">{formatCurrency(retailAdjusted)}</p>
+					<p class="text-xs text-muted-foreground">Retail</p>
+					<p class="text-lg font-semibold text-foreground font-mono-tabular">{formatCurrency(retailAdjusted)}</p>
 				</div>
 			</div>
 		</div>
-	</Card>
+	</ValuesCollapsible>
 
-	<!-- Section 3: Accessories -->
-	<VehicleValueExtrasTable
-		accessories={props.accessories}
-		onUpdateAccessoryValue={props.onUpdateAccessoryValue}
-	/>
+	<!-- Accessories (collapsible) -->
+	<ValuesCollapsible
+		title="Accessories"
+		summary={accessoriesSummary}
+		forceOpen={isDesktop}
+	>
+		<VehicleValueExtrasTable
+			accessories={props.accessories}
+			onUpdateAccessoryValue={props.onUpdateAccessoryValue}
+		/>
+	</ValuesCollapsible>
 
-	<!-- Section 4: Total Adjusted Values -->
-	<Card class="p-6">
-		<h3 class="mb-4 text-lg font-semibold text-gray-900">Total Adjusted Values</h3>
-		<div class="grid gap-4 md:grid-cols-3">
-			<div class="rounded-lg bg-blue-50 p-4">
-				<p class="text-sm text-gray-600">Trade Total</p>
-				<p class="text-xl font-bold text-blue-900 font-mono-tabular">{formatCurrency(tradeTotalAdjusted)}</p>
-				<p class="mt-1 text-xs text-gray-500">
-					Adjusted: <span class="font-mono-tabular">{formatCurrency(tradeAdjusted)}</span> + Accessories: <span class="font-mono-tabular">{formatCurrency(accessoriesTotal)}</span>
-				</p>
-			</div>
-			<div class="rounded-lg bg-blue-50 p-4">
-				<p class="text-sm text-gray-600">Market Total</p>
-				<p class="text-xl font-bold text-blue-900 font-mono-tabular">{formatCurrency(marketTotalAdjusted)}</p>
-				<p class="mt-1 text-xs text-gray-500">
-					Adjusted: <span class="font-mono-tabular">{formatCurrency(marketAdjusted)}</span> + Accessories: <span class="font-mono-tabular">{formatCurrency(accessoriesTotal)}</span>
-				</p>
-			</div>
-			<div class="rounded-lg bg-blue-50 p-4">
-				<p class="text-sm text-gray-600">Retail Total</p>
-				<p class="text-xl font-bold text-blue-900 font-mono-tabular">{formatCurrency(retailTotalAdjusted)}</p>
-				<p class="mt-1 text-xs text-gray-500">
-					Adjusted: <span class="font-mono-tabular">{formatCurrency(retailAdjusted)}</span> + Accessories: <span class="font-mono-tabular">{formatCurrency(accessoriesTotal)}</span>
-				</p>
-			</div>
-		</div>
-	</Card>
-
-	<!-- Section 5: Write-Off Calculations -->
-	<Card class="p-6">
-		<h3 class="mb-4 text-lg font-semibold text-gray-900">Write-Off Calculations</h3>
-		<div class="mb-4 rounded-lg bg-yellow-50 p-3">
-			<p class="text-sm text-gray-700">
-				Using client's write-off percentages: Borderline ({borderlinePercentage}%), Total Write-Off
-				({totalWriteoffPercentage}%), Salvage ({salvagePercentage}%)
+	<!-- Supporting Documents (collapsible) -->
+	<ValuesCollapsible
+		title="Supporting Documents"
+		summary={supportingDocsSummary}
+		forceOpen={isDesktop}
+	>
+		<div class="space-y-6">
+			<p class="text-sm font-medium text-foreground">
+				Supporting Documents <span class="text-red-500">*</span>
 			</p>
-		</div>
-
-		<div class="overflow-x-auto">
-			<table class="w-full">
-				<thead>
-					<tr class="border-b border-gray-200 bg-gray-50">
-						<th class="px-4 py-3 text-left text-sm font-semibold text-gray-700">Value Type</th>
-						<th class="px-4 py-3 text-right text-sm font-semibold text-gray-700">
-							Borderline ({borderlinePercentage}%)
-						</th>
-						<th class="px-4 py-3 text-right text-sm font-semibold text-gray-700">
-							Write-Off ({totalWriteoffPercentage}%)
-						</th>
-						<th class="px-4 py-3 text-right text-sm font-semibold text-gray-700">
-							Salvage ({salvagePercentage}%)
-						</th>
-					</tr>
-				</thead>
-				<tbody>
-					<tr class="border-b border-gray-100">
-						<td class="px-4 py-3 font-medium text-gray-900">Trade</td>
-						<td class="px-4 py-3 text-right text-gray-900 font-mono-tabular">
-							{formatCurrency(borderlineWriteoffTrade)}
-						</td>
-						<td class="px-4 py-3 text-right text-gray-900 font-mono-tabular">
-							{formatCurrency(totalWriteoffTrade)}
-						</td>
-						<td class="px-4 py-3 text-right text-gray-900 font-mono-tabular">{formatCurrency(salvageTrade)}</td>
-					</tr>
-					<tr class="border-b border-gray-100">
-						<td class="px-4 py-3 font-medium text-gray-900">Market</td>
-						<td class="px-4 py-3 text-right text-gray-900 font-mono-tabular">
-							{formatCurrency(borderlineWriteoffMarket)}
-						</td>
-						<td class="px-4 py-3 text-right text-gray-900 font-mono-tabular">
-							{formatCurrency(totalWriteoffMarket)}
-						</td>
-						<td class="px-4 py-3 text-right text-gray-900 font-mono-tabular">{formatCurrency(salvageMarket)}</td>
-					</tr>
-					<tr class="border-b border-gray-100">
-						<td class="px-4 py-3 font-medium text-gray-900">Retail</td>
-						<td class="px-4 py-3 text-right text-gray-900 font-mono-tabular">
-							{formatCurrency(borderlineWriteoffRetail)}
-						</td>
-						<td class="px-4 py-3 text-right text-gray-900 font-mono-tabular">
-							{formatCurrency(totalWriteoffRetail)}
-						</td>
-						<td class="px-4 py-3 text-right text-gray-900 font-mono-tabular">{formatCurrency(salvageRetail)}</td>
-					</tr>
-				</tbody>
-			</table>
-		</div>
-	</Card>
-
-	<!-- Section 6: Supporting Documents -->
-	<Card class="p-6">
-		<h3 class="mb-4 text-lg font-semibold text-gray-900">
-			Supporting Documents <span class="text-red-500">*</span>
-		</h3>
-
-		<div class="mb-6">
 			<PdfUpload
 				value={valuationPdfUrl}
 				label="Valuation Report (PDF)"
@@ -818,9 +861,8 @@ import type { VehicleDetails } from '$lib/utils/report-data-helpers';
 				onUpload={handlePdfUpload}
 				onRemove={handlePdfRemove}
 			/>
+			<FormField name="remarks" label="Remarks" type="textarea" bind:value={remarks} rows={4} oninput={debouncedSave} />
 		</div>
-
-		<FormField name="remarks" label="Remarks" type="textarea" bind:value={remarks} rows={4} oninput={debouncedSave} />
-	</Card>
+	</ValuesCollapsible>
 </div>
 
