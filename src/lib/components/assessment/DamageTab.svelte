@@ -1,15 +1,17 @@
 <script lang="ts">
 	import { Card } from '$lib/components/ui/card';
-	import { Button } from '$lib/components/ui/button';
 	import FormField from '$lib/components/forms/FormField.svelte';
 	import RequiredFieldsWarning from './RequiredFieldsWarning.svelte';
-	import { CheckCircle2 } from 'lucide-svelte';
 	import { debounce } from '$lib/utils/useUnsavedChanges.svelte';
 	import { useDraft } from '$lib/utils/useDraft.svelte';
 	import { onMount } from 'svelte';
-	import type { DamageRecord, DamageType, DamageArea, DamageSeverity } from '$lib/types/assessment';
+	import type { DamageRecord, DamageType, DamageArea, DamageSeverity, DamagePhoto } from '$lib/types/assessment';
 	import DamageSummaryCard from './DamageSummaryCard.svelte';
+	import DamagePhotoGrid from './mobile/DamagePhotoGrid.svelte';
+	import SegmentedControl from '$lib/components/ui/segmented-control/SegmentedControl.svelte';
 	import { validateDamage, type TabValidation } from '$lib/utils/validation';
+	import { damagePhotosService } from '$lib/services/damage-photos.service';
+	import { storageService } from '$lib/services/storage.service';
 
 	interface Props {
 		damageRecord: DamageRecord | null;
@@ -44,6 +46,10 @@
 	let estimatedRepairDurationDays = $state(damageRecord?.estimated_repair_duration_days || null);
 	let locationDescription = $state(damageRecord?.location_description || '');
 	let affectedPanels = $state<string[]>(damageRecord?.affected_panels || []);
+
+	// Photos state — loaded client-side on mount
+	let photosLoaded = $state(false);
+	let damagePhotos = $state<DamagePhoto[]>([]);
 
 	// Sync local state with damageRecord prop when it changes (after save)
 	$effect(() => {
@@ -82,7 +88,44 @@
 		if (damageDescriptionDraftVal && !damageRecord?.damage_description) {
 			damageDescription = damageDescriptionDraftVal;
 		}
+
+		// Load photos
+		loadPhotos();
 	});
+
+	async function loadPhotos() {
+		try {
+			const loaded = await damagePhotosService.getPhotos(assessmentId);
+			damagePhotos = loaded;
+		} catch (err) {
+			console.error('[DamageTab] failed to load damage photos:', err);
+		} finally {
+			photosLoaded = true;
+		}
+	}
+
+	async function handlePhotoUpload(file: File) {
+		const result = await storageService.uploadAssessmentPhoto(file, assessmentId, 'damage');
+		const displayOrder = await damagePhotosService.getNextDisplayOrder(assessmentId);
+		const newPhoto = await damagePhotosService.createPhoto({
+			assessment_id: assessmentId,
+			photo_url: result.url,
+			photo_path: result.path,
+			display_order: displayOrder
+		});
+		// Optimistic add for instant UI feedback
+		damagePhotos = [...damagePhotos, newPhoto];
+	}
+
+	async function handlePhotoDelete(photoId: string) {
+		const photo = damagePhotos.find((p) => p.id === photoId);
+		// Optimistic remove for instant UI feedback
+		damagePhotos = damagePhotos.filter((p) => p.id !== photoId);
+		if (photo) {
+			await storageService.deletePhoto(photo.photo_path);
+		}
+		await damagePhotosService.deletePhoto(photoId);
+	}
 
 	// Save drafts on input (throttled)
 	function saveMismatchDrafts(notes: string) {
@@ -183,48 +226,54 @@
 	});
 </script>
 
-<div class="space-y-6">
+<div class="space-y-4">
 	<!-- Warning Banner -->
 	<RequiredFieldsWarning missingFields={validation.missingFields} />
+
 	{#if !damageRecord}
 		<Card class="p-6 border-2 border-dashed border-gray-300">
 			<p class="text-center text-gray-600">Loading damage record...</p>
 		</Card>
 	{:else}
+		<!-- Mobile: summary first; desktop: summary in right column (rendered twice, toggled via class) -->
+		<div class="lg:hidden">
+			<DamageSummaryCard
+				{matchesDescription}
+				severity={severity as DamageSeverity | ''}
+				damageArea={damageArea as DamageArea | ''}
+				damageType={damageType as DamageType | ''}
+				{estimatedRepairDurationDays}
+				{mismatchNotes}
+			/>
+		</div>
+
 		<div class="lg:grid lg:grid-cols-[minmax(0,1fr)_340px] lg:gap-6 lg:items-start">
-			<!-- Left: editable forms -->
-			<div class="space-y-6">
-				<!-- Damage Match Check -->
-				<Card class="p-6">
-					<h3 class="mb-4 text-lg font-semibold text-gray-900">
-						Damage Description Match <span class="text-red-500">*</span>
+			<!-- Left: editable form cards -->
+			<div class="space-y-4">
+
+				<!-- Card 1: Match Check -->
+				<Card class="p-3 sm:p-4">
+					<h3 class="mb-3 text-base font-semibold text-foreground">
+						Match Check <span class="text-destructive">*</span>
 					</h3>
-					<p class="mb-4 text-sm text-gray-600">
-						Does the actual damage match the description provided in the initial request?
+					<p class="mb-3 text-sm text-muted-foreground">
+						Does the actual damage match the description in the initial request?
 					</p>
-					<div class="flex gap-4">
-						<Button
-							variant={matchesDescription === true ? 'default' : 'outline'}
-							onclick={() => {
-								matchesDescription = true;
-								handleUpdateDamageWithDirty({ matches_description: true });
-							}}
-						>
-							Yes, Matches
-						</Button>
-						<Button
-							variant={matchesDescription === false ? 'default' : 'outline'}
-							onclick={() => {
-								matchesDescription = false;
-								handleUpdateDamageWithDirty({ matches_description: false });
-							}}
-						>
-							No, Does Not Match
-						</Button>
-					</div>
+					<SegmentedControl
+						value={matchesDescription === true ? 'yes' : matchesDescription === false ? 'no' : ''}
+						options={[
+							{ value: 'yes', label: 'Yes, matches' },
+							{ value: 'no', label: "Doesn't match" }
+						]}
+						onValueChange={(v) => {
+							matchesDescription = v === 'yes';
+							handleUpdateDamageWithDirty({ matches_description: matchesDescription });
+						}}
+						fullWidth
+					/>
 
 					{#if matchesDescription === false}
-						<div class="mt-4">
+						<div class="mt-3">
 							<FormField
 								name="mismatch_notes"
 								label="Explain Mismatch"
@@ -243,11 +292,12 @@
 					{/if}
 				</Card>
 
-				<Card class="p-6">
-					<h3 class="mb-4 text-lg font-semibold text-gray-900">Damage Details</h3>
-
-					<div class="space-y-6">
-						<div class="grid gap-6 md:grid-cols-2">
+				<!-- Card 2: Damage Details -->
+				<Card class="p-3 sm:p-4">
+					<h3 class="mb-3 text-base font-semibold text-foreground">Damage Details</h3>
+					<div class="space-y-3">
+						<!-- Area + Type side-by-side on sm+ -->
+						<div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
 							<FormField
 								name="damage_area"
 								label="Damage Area"
@@ -281,26 +331,25 @@
 							/>
 						</div>
 
-						<FormField
-							name="severity"
-							label="Severity"
-							type="select"
-							value={severity}
-							onchange={(value: string) => {
-								severity = value;
-								handleUpdateDamageWithDirty({
-									severity: (value || undefined) as DamageSeverity
-								});
-							}}
-							options={[
-								{ value: '', label: 'Select severity' },
-								{ value: 'minor', label: 'Minor' },
-								{ value: 'moderate', label: 'Moderate' },
-								{ value: 'severe', label: 'Severe' },
-								{ value: 'total_loss', label: 'Total Loss' }
-							]}
-							required
-						/>
+						<!-- Severity segmented control -->
+						<div>
+							<p class="mb-1.5 text-sm font-medium text-foreground">
+								Severity <span class="text-destructive">*</span>
+							</p>
+							<SegmentedControl
+								value={severity}
+								options={[
+									{ value: 'minor', label: 'Light' },
+									{ value: 'moderate', label: 'Moderate' },
+									{ value: 'severe', label: 'Heavy' }
+								]}
+								onValueChange={(v) => {
+									severity = v;
+									handleUpdateDamageWithDirty({ severity: v as DamageSeverity });
+								}}
+								fullWidth
+							/>
+						</div>
 
 						<FormField
 							name="estimated_repair_duration_days"
@@ -317,7 +366,13 @@
 							placeholder="e.g., 1, 3, 7"
 							step="0.5"
 						/>
+					</div>
+				</Card>
 
+				<!-- Card 3: Description & Notes -->
+				<Card class="p-3 sm:p-4">
+					<h3 class="mb-3 text-base font-semibold text-foreground">Description & Notes</h3>
+					<div class="space-y-3">
 						<FormField
 							name="location_description"
 							label="Location Description"
@@ -349,10 +404,29 @@
 						/>
 					</div>
 				</Card>
+
+				<!-- Card 4: Photos -->
+				<Card class="p-3 sm:p-4">
+					<h3 class="mb-3 text-base font-semibold text-foreground">
+						{damagePhotos.length === 0 ? 'Damage Photos' : `Damage Photos (${damagePhotos.length})`}
+					</h3>
+					{#if photosLoaded}
+						<DamagePhotoGrid
+							{assessmentId}
+							photos={damagePhotos}
+							onUpload={handlePhotoUpload}
+							onDelete={handlePhotoDelete}
+							minTiles={2}
+						/>
+					{:else}
+						<p class="text-sm text-muted-foreground">Loading photos...</p>
+					{/if}
+				</Card>
+
 			</div>
 
-			<!-- Right: sticky summary -->
-			<div class="lg:sticky lg:top-24 lg:self-start mt-6 lg:mt-0">
+			<!-- Right: sticky summary (desktop only) -->
+			<div class="hidden lg:block lg:sticky lg:top-24 lg:self-start">
 				<DamageSummaryCard
 					{matchesDescription}
 					severity={severity as DamageSeverity | ''}
@@ -365,4 +439,3 @@
 		</div>
 	{/if}
 </div>
-
