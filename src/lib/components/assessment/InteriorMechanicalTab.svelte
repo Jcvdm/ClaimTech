@@ -1,6 +1,11 @@
 <script lang="ts">
 	import { Card } from '$lib/components/ui/card';
 	import FormField from '$lib/components/forms/FormField.svelte';
+	import CompactCard from './compact/CompactCard.svelte';
+	import CompactCardHeader from './compact/CompactCardHeader.svelte';
+	import CompactField from './compact/CompactField.svelte';
+	import CompactInput from './compact/CompactInput.svelte';
+	import CompactSelect from './compact/CompactSelect.svelte';
 	import PhotoUpload from '$lib/components/forms/PhotoUpload.svelte';
 	import InteriorPhotosPanel from './InteriorPhotosPanel.svelte';
 	import TabFormSplit from './layout/TabFormSplit.svelte';
@@ -199,9 +204,9 @@
 		{#snippet form()}
 			<div class="space-y-6">
 				<!-- Engine Bay -->
-				<Card class="p-6">
-					<h3 class="mb-4 text-lg font-semibold text-gray-900">Engine Bay</h3>
-					<div class="grid gap-4 md:grid-cols-4">
+				<CompactCard>
+					<CompactCardHeader title="Engine Bay" />
+					<div class="grid gap-3.5 md:grid-cols-4">
 						<PhotoUpload
 							value={engineBayPhotoUrl}
 							label="Engine Bay"
@@ -243,23 +248,22 @@
 							height="h-32"
 						/>
 					</div>
-				</Card>
+				</CompactCard>
 
 				<!-- Mileage -->
-				<Card class="p-6">
-					<h3 class="mb-4 text-lg font-semibold text-gray-900">
-						Mileage <span class="text-red-500">*</span>
-					</h3>
-					<div class="grid gap-6 md:grid-cols-2">
-						<FormField
-							name="mileage_reading"
-							label="Mileage Reading (km)"
-							type="number"
-							bind:value={mileageReading}
-							placeholder="e.g., 125000"
-							required
-							oninput={debouncedSave}
-						/>
+				<CompactCard>
+					<CompactCardHeader title="Mileage" required />
+					<div class="grid gap-3.5 md:grid-cols-2">
+						<CompactField label="Mileage Reading (km)" required htmlFor="mileage_reading">
+							<CompactInput
+								id="mileage_reading"
+								type="number"
+								bind:value={mileageReading}
+								placeholder="e.g., 125000"
+								mono
+								oninput={debouncedSave}
+							/>
+						</CompactField>
 						<PhotoUpload
 							value={mileagePhotoUrl}
 							label="Mileage Photo"
@@ -271,38 +275,38 @@
 							onView={() => { viewingMileagePhoto = true; }}
 						/>
 					</div>
-				</Card>
+				</CompactCard>
 
 				<!-- Transmission & Power -->
-				<Card class="p-6">
-					<h3 class="mb-4 text-lg font-semibold text-gray-900">Transmission & Power</h3>
-					<div class="grid gap-6 md:grid-cols-3">
-						<FormField
-							name="transmission_type"
-							label="Transmission Type"
-							type="select"
-							bind:value={transmissionType}
-							options={[
-								{ value: 'automatic', label: 'Automatic' },
-								{ value: 'manual', label: 'Manual' }
-							]}
-							onchange={(value: string) => {
-								transmissionType = value;
-								transmissionDraft.save(value);
-								handleSave(); // Save immediately for select fields
-							}}
-						/>
-						<FormField
-							name="vehicle_has_power"
-							label="Battery Charged?"
-							type="select"
-							bind:value={vehicleHasPower}
-							options={[
-								{ value: 'true', label: 'Yes' },
-								{ value: 'false', label: 'No' }
-							]}
-							onchange={() => handleSave()}
-						/>
+				<CompactCard>
+					<CompactCardHeader title="Transmission & Power" />
+					<div class="grid gap-3.5 md:grid-cols-3">
+						<CompactField label="Transmission Type" htmlFor="transmission_type">
+							<CompactSelect
+								id="transmission_type"
+								bind:value={transmissionType}
+								options={[
+									{ value: 'automatic', label: 'Automatic' },
+									{ value: 'manual', label: 'Manual' }
+								]}
+								onchange={(value) => {
+									transmissionType = value;
+									transmissionDraft.save(value);
+									handleSave(); // Save immediately for select fields
+								}}
+							/>
+						</CompactField>
+						<CompactField label="Battery Charged?" htmlFor="vehicle_has_power">
+							<CompactSelect
+								id="vehicle_has_power"
+								bind:value={vehicleHasPower}
+								options={[
+									{ value: 'true', label: 'Yes' },
+									{ value: 'false', label: 'No' }
+								]}
+								onchange={() => handleSave()}
+							/>
+						</CompactField>
 						<PhotoUpload
 							value={gearLeverPhotoUrl}
 							label="Gear Lever Photo"
@@ -313,96 +317,87 @@
 							onRemove={() => { gearLeverPhotoUrl = ''; handleSave(); }}
 						/>
 					</div>
-				</Card>
+				</CompactCard>
 
 				<!-- Interior Condition -->
-				<Card class="p-6">
-					<h3 class="mb-4 text-lg font-semibold text-gray-900">
-						Interior Condition <span class="text-red-500">*</span>
-					</h3>
-					<FormField
-						name="interior_condition"
-						label="Overall Interior Condition"
-						type="select"
-						bind:value={interiorCondition}
-						options={[
-							{ value: 'excellent', label: 'Excellent' },
-							{ value: 'very_good', label: 'Very Good' },
-							{ value: 'good', label: 'Good' },
-							{ value: 'fair', label: 'Fair' },
-							{ value: 'poor', label: 'Poor' },
-							{ value: 'very_poor', label: 'Very Poor' }
-						]}
-						required
-						onchange={(value: string) => {
-							interiorCondition = value;
-							interiorConditionDraft.save(value);
-							handleSave(); // Save immediately for select fields
-						}}
-					/>
-				</Card>
+				<CompactCard>
+					<CompactCardHeader title="Interior Condition" required />
+					<CompactField label="Overall Interior Condition" required htmlFor="interior_condition">
+						<CompactSelect
+							id="interior_condition"
+							bind:value={interiorCondition}
+							options={[
+								{ value: 'excellent', label: 'Excellent' },
+								{ value: 'very_good', label: 'Very Good' },
+								{ value: 'good', label: 'Good' },
+								{ value: 'fair', label: 'Fair' },
+								{ value: 'poor', label: 'Poor' },
+								{ value: 'very_poor', label: 'Very Poor' }
+							]}
+							onchange={(value) => {
+								interiorCondition = value;
+								interiorConditionDraft.save(value);
+								handleSave(); // Save immediately for select fields
+							}}
+						/>
+					</CompactField>
+				</CompactCard>
 
 				<!-- Systems Check -->
-				<Card class="p-6">
-					<h3 class="mb-4 text-lg font-semibold text-gray-900">
-						Systems Check <span class="text-red-500">*</span>
-					</h3>
-					<div class="grid gap-6 md:grid-cols-2">
-						<FormField
-							name="srs_system"
-							label="SRS System (Airbags/Seatbelts)"
-							type="select"
-							bind:value={srsSystem}
-							options={[
-								{ value: 'operational', label: 'Operational' },
-								{ value: 'warning_light', label: 'Warning Light On' },
-								{ value: 'not_working', label: 'Not Working' },
-								{ value: 'deployed', label: 'Deployed' }
-							]}
-							required
-							onchange={() => handleSave()}
-						/>
-						<FormField
-							name="steering"
-							label="Steering"
-							type="select"
-							bind:value={steering}
-							options={[
-								{ value: 'working', label: 'Working' },
-								{ value: 'not_working', label: 'Not Working' },
-								{ value: 'issues', label: 'Has Issues' }
-							]}
-							required
-							onchange={() => handleSave()}
-						/>
-						<FormField
-							name="brakes"
-							label="Brakes"
-							type="select"
-							bind:value={brakes}
-							options={[
-								{ value: 'working', label: 'Working' },
-								{ value: 'not_working', label: 'Not Working' },
-								{ value: 'issues', label: 'Has Issues' }
-							]}
-							required
-							onchange={() => handleSave()}
-						/>
-						<FormField
-							name="handbrake"
-							label="Handbrake"
-							type="select"
-							bind:value={handbrake}
-							options={[
-								{ value: 'working', label: 'Working' },
-								{ value: 'not_working', label: 'Not Working' },
-								{ value: 'issues', label: 'Has Issues' }
-							]}
-							required
-							onchange={() => handleSave()}
-						/>
+				<CompactCard>
+					<CompactCardHeader title="Systems Check" required />
+					<div class="grid gap-3.5 md:grid-cols-2">
+						<CompactField label="SRS System (Airbags/Seatbelts)" required htmlFor="srs_system">
+							<CompactSelect
+								id="srs_system"
+								bind:value={srsSystem}
+								options={[
+									{ value: 'operational', label: 'Operational' },
+									{ value: 'warning_light', label: 'Warning Light On' },
+									{ value: 'not_working', label: 'Not Working' },
+									{ value: 'deployed', label: 'Deployed' }
+								]}
+								onchange={() => handleSave()}
+							/>
+						</CompactField>
+						<CompactField label="Steering" required htmlFor="steering">
+							<CompactSelect
+								id="steering"
+								bind:value={steering}
+								options={[
+									{ value: 'working', label: 'Working' },
+									{ value: 'not_working', label: 'Not Working' },
+									{ value: 'issues', label: 'Has Issues' }
+								]}
+								onchange={() => handleSave()}
+							/>
+						</CompactField>
+						<CompactField label="Brakes" required htmlFor="brakes">
+							<CompactSelect
+								id="brakes"
+								bind:value={brakes}
+								options={[
+									{ value: 'working', label: 'Working' },
+									{ value: 'not_working', label: 'Not Working' },
+									{ value: 'issues', label: 'Has Issues' }
+								]}
+								onchange={() => handleSave()}
+							/>
+						</CompactField>
+						<CompactField label="Handbrake" required htmlFor="handbrake">
+							<CompactSelect
+								id="handbrake"
+								bind:value={handbrake}
+								options={[
+									{ value: 'working', label: 'Working' },
+									{ value: 'not_working', label: 'Not Working' },
+									{ value: 'issues', label: 'Has Issues' }
+								]}
+								onchange={() => handleSave()}
+							/>
+						</CompactField>
 					</div>
-				</Card>
+				</CompactCard>
 			</div>
 		{/snippet}
 
