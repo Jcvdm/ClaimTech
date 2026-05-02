@@ -7,6 +7,7 @@
 	import CompactInput from './compact/CompactInput.svelte';
 	import CompactSelect from './compact/CompactSelect.svelte';
 	import CompactTextarea from './compact/CompactTextarea.svelte';
+	import CompactInfoCard from './compact/CompactInfoCard.svelte';
 	import PdfUpload from '$lib/components/forms/PdfUpload.svelte';
 	import VehicleValueExtrasTable from './VehicleValueExtrasTable.svelte';
 	import RequiredFieldsWarning from './RequiredFieldsWarning.svelte';
@@ -342,6 +343,26 @@ import type { VehicleDetails } from '$lib/utils/report-data-helpers';
 		});
 	});
 
+	// Vehicle & Request Information rows for CompactInfoCard
+	const vehicleRequestRows = $derived([
+		{ label: 'Report No.', value: requestInfo?.request_number },
+		{ label: 'Insurer', value: client?.name },
+		{ label: 'Date of Loss', value: requestInfo?.date_of_loss ? formatDate(requestInfo.date_of_loss) : null },
+		{ label: 'Make', value: vehicleDetails?.make },
+		{ label: 'Model', value: vehicleDetails?.model },
+		{ label: 'Year', value: vehicleDetails?.year },
+		{
+			label: 'Mileage',
+			value: interiorMechanical?.mileage_reading
+				? `${interiorMechanical.mileage_reading.toLocaleString()} km`
+				: vehicleDetails?.mileage
+					? `${vehicleDetails.mileage.toLocaleString()} km`
+					: null
+		},
+		{ label: 'VIN', value: vehicleDetails?.vin, mono: true },
+		{ label: 'Registration', value: vehicleDetails?.registration, mono: true }
+	]);
+
 	// Report validation to parent for immediate badge updates
 	let lastValidationKey = '';
 
@@ -363,65 +384,12 @@ import type { VehicleDetails } from '$lib/utils/report-data-helpers';
 	<!-- Section 1: Vehicle & Request Information -->
 	<!-- Shows current assessment data with fallback to original request data -->
 	{#if requestInfo}
-		<CompactCard class="bg-blue-50">
-			<CompactCardHeader title="Vehicle & Request Information" />
-			<div class="grid gap-3.5 md:grid-cols-3">
-				<div>
-					<p class="text-sm text-gray-600">Report No.</p>
-					<p class="font-medium text-gray-900">{requestInfo.request_number || 'N/A'}</p>
-				</div>
-				<div>
-					<p class="text-sm text-gray-600">Insurer</p>
-					<p class="font-medium text-gray-900">{client?.name || 'N/A'}</p>
-				</div>
-				<div>
-					<p class="text-sm text-gray-600">Date of Loss</p>
-					<p class="font-medium text-gray-900">
-						{requestInfo.date_of_loss
-							? formatDate(requestInfo.date_of_loss)
-							: 'N/A'}
-					</p>
-				</div>
-			</div>
-			<div class="mt-4 grid gap-3.5 md:grid-cols-4">
-				<div>
-					<p class="text-sm text-gray-600">Make</p>
-					<!-- Normalized from vehicleDetails -->
-					<p class="font-medium text-gray-900">{vehicleDetails?.make || 'N/A'}</p>
-				</div>
-				<div>
-					<p class="text-sm text-gray-600">Model</p>
-					<!-- Normalized from vehicleDetails -->
-					<p class="font-medium text-gray-900">{vehicleDetails?.model || 'N/A'}</p>
-				</div>
-				<div>
-					<p class="text-sm text-gray-600">Year</p>
-					<!-- Normalized from vehicleDetails -->
-					<p class="font-medium text-gray-900">{vehicleDetails?.year || 'N/A'}</p>
-				</div>
-				<div>
-					<p class="text-sm text-gray-600">Mileage</p>
-					<!-- Prefer interior mechanical data over vehicleDetails -->
-					<p class="font-medium text-gray-900">
-						{interiorMechanical?.mileage_reading
-							? interiorMechanical.mileage_reading.toLocaleString() + ' km'
-							: vehicleDetails?.mileage
-								? vehicleDetails.mileage.toLocaleString() + ' km'
-								: 'N/A'}
-					</p>
-				</div>
-			</div>
-			<div class="mt-4">
-				<p class="text-sm text-gray-600">VIN</p>
-				<!-- Normalized from vehicleDetails -->
-				<p class="font-medium text-gray-900">{vehicleDetails?.vin || 'N/A'}</p>
-			</div>
-			<div class="mt-4">
-				<p class="text-sm text-gray-600">Registration</p>
-				<!-- Normalized from vehicleDetails -->
-				<p class="font-medium text-gray-900">{vehicleDetails?.registration || 'N/A'}</p>
-			</div>
-		</CompactCard>
+		<CompactInfoCard
+			title="Vehicle & Request Information"
+			tone="info"
+			cols={3}
+			rows={vehicleRequestRows}
+		/>
 	{/if}
 
 	<!-- Valuation Source -->

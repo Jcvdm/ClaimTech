@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { Card } from '$lib/components/ui/card';
+	import CompactInfoCard from '$lib/components/assessment/compact/CompactInfoCard.svelte';
 	import { Badge } from '$lib/components/ui/badge';
 	import StatusBadge from '$lib/components/data/StatusBadge.svelte';
 	import { CircleCheck, CircleX, CircleAlert, Info, CircleOff } from 'lucide-svelte';
@@ -85,6 +86,26 @@ import type { VehicleDetails } from '$lib/utils/report-data-helpers';
 		if (!vehicleValues) return null;
 		return formatWarrantyStatus(vehicleValues.warranty_status);
 	});
+
+	// Vehicle & Request Information rows for CompactInfoCard
+	const vehicleRequestRows = $derived([
+		{ label: 'Report No.', value: derivedRequest?.request_number },
+		{ label: 'Insurer', value: derivedClient?.name },
+		{ label: 'Date of Loss', value: derivedRequest?.date_of_loss ? formatDate(derivedRequest.date_of_loss) : null },
+		{ label: 'Make', value: vehicleDetails?.make },
+		{ label: 'Model', value: vehicleDetails?.model },
+		{ label: 'Year', value: vehicleDetails?.year },
+		{
+			label: 'Mileage',
+			value: interiorMechanical?.mileage_reading
+				? `${interiorMechanical.mileage_reading.toLocaleString()} km`
+				: vehicleDetails?.mileage
+					? `${vehicleDetails.mileage.toLocaleString()} km`
+					: null
+		},
+		{ label: 'VIN', value: vehicleDetails?.vin, mono: true },
+		{ label: 'Registration', value: vehicleDetails?.registration, mono: true }
+	]);
 </script>
 
 <div class="space-y-4">
@@ -183,73 +204,12 @@ import type { VehicleDetails } from '$lib/utils/report-data-helpers';
 	</Card>
 
 	<!-- Vehicle & Request Information -->
-	<Card class="bg-blue-50 p-6">
-		<h3 class="mb-4 text-lg font-semibold text-gray-900">Vehicle & Request Information</h3>
-
-		<!-- Row 1: Report No., Insurer, Date of Loss -->
-		<div class="grid gap-4 md:grid-cols-3">
-			<div>
-				<p class="text-sm text-gray-600">Report No.</p>
-				<p class="font-medium text-gray-900">{derivedRequest?.request_number || 'N/A'}</p>
-			</div>
-			<div>
-				<p class="text-sm text-gray-600">Insurer</p>
-				<p class="font-medium text-gray-900">{derivedClient?.name || 'N/A'}</p>
-			</div>
-			<div>
-				<p class="text-sm text-gray-600">Date of Loss</p>
-				<p class="font-medium text-gray-900">
-					{derivedRequest?.date_of_loss
-						? formatDate(derivedRequest.date_of_loss)
-						: 'N/A'}
-				</p>
-			</div>
-		</div>
-
-		<!-- Row 2: Make, Model, Year, Mileage -->
-		<div class="mt-4 grid gap-4 md:grid-cols-4">
-			<div>
-				<p class="text-sm text-gray-600">Make</p>
-				<!-- Normalized from vehicleDetails -->
-				<p class="font-medium text-gray-900">{vehicleDetails?.make || 'N/A'}</p>
-			</div>
-			<div>
-				<p class="text-sm text-gray-600">Model</p>
-				<!-- Normalized from vehicleDetails -->
-				<p class="font-medium text-gray-900">{vehicleDetails?.model || 'N/A'}</p>
-			</div>
-			<div>
-				<p class="text-sm text-gray-600">Year</p>
-				<!-- Normalized from vehicleDetails -->
-				<p class="font-medium text-gray-900">{vehicleDetails?.year || 'N/A'}</p>
-			</div>
-			<div>
-				<p class="text-sm text-gray-600">Mileage</p>
-				<!-- Prefer interior mechanical data over vehicleDetails -->
-				<p class="font-medium text-gray-900">
-					{interiorMechanical?.mileage_reading
-						? interiorMechanical.mileage_reading.toLocaleString() + ' km'
-						: vehicleDetails?.mileage
-							? vehicleDetails.mileage.toLocaleString() + ' km'
-							: 'N/A'}
-				</p>
-			</div>
-		</div>
-
-		<!-- Row 3: VIN -->
-		<div class="mt-4">
-			<p class="text-sm text-gray-600">VIN</p>
-			<!-- Normalized from vehicleDetails -->
-			<p class="font-medium text-gray-900">{vehicleDetails?.vin || 'N/A'}</p>
-		</div>
-
-		<!-- Row 4: Registration -->
-		<div class="mt-4">
-			<p class="text-sm text-gray-600">Registration</p>
-			<!-- Normalized from vehicleDetails -->
-			<p class="font-medium text-gray-900">{vehicleDetails?.registration || 'N/A'}</p>
-		</div>
-	</Card>
+	<CompactInfoCard
+		title="Vehicle & Request Information"
+		tone="info"
+		cols={3}
+		rows={vehicleRequestRows}
+	/>
 
 	<!-- Assessment Data (only shown when showAssessmentData is true) -->
 	{#if showAssessmentData}
