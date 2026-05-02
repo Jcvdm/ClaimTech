@@ -11,6 +11,9 @@
 	import type { InteriorMechanical, InteriorPhoto } from '$lib/types/assessment';
 	import { validateInteriorMechanical, type TabValidation } from '$lib/utils/validation';
 	import { interiorPhotosService } from '$lib/services/interior-photos.service';
+	import EnginePhotoChecklist from '$lib/components/photos/EnginePhotoChecklist.svelte';
+	import { storageService } from '$lib/services/storage.service';
+	import type { RequiredPhotoPosition } from '$lib/constants/requiredPhotoPositions';
 
 	interface Props {
 		data: InteriorMechanical | null;
@@ -125,6 +128,25 @@
 		// Force save any pending changes
 		handleSave();
 	});
+
+	async function handleEngineBayUpload(file: File, position: RequiredPhotoPosition) {
+		const result = await storageService.uploadAssessmentPhoto(file, assessmentId, 'interior', position.subcategory);
+		const displayOrder = await interiorPhotosService.getNextDisplayOrder(assessmentId);
+		await interiorPhotosService.createPhoto({
+			assessment_id: assessmentId,
+			photo_url: result.url,
+			photo_path: result.path,
+			display_order: displayOrder
+		});
+		onPhotosUpdate();
+	}
+
+	async function handleEngineBayDelete(id: string) {
+		const photo = interiorPhotos?.find((p) => p.id === id);
+		if (photo) await storageService.deletePhoto(photo.photo_path);
+		await interiorPhotosService.deletePhoto(id);
+		onPhotosUpdate();
+	}
 
 	function handleSave() {
 		onUpdate({
@@ -309,6 +331,16 @@
 			/>
 		</div>
 	</Card>
+
+	<!-- Engine Bay Checklist -->
+	{#if interiorPhotos !== undefined}
+		<EnginePhotoChecklist
+			{assessmentId}
+			photos={interiorPhotos}
+			onUpload={handleEngineBayUpload}
+			onDelete={handleEngineBayDelete}
+		/>
+	{/if}
 
 	<!-- Interior Photos -->
 	<InteriorPhotosPanel
