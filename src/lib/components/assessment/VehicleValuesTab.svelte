@@ -28,10 +28,9 @@ import type { VehicleDetails } from '$lib/utils/report-data-helpers';
 	} from '$lib/utils/vehicleValuesCalculations';
 	import Stat from '$lib/components/ui/stat/Stat.svelte';
 	import TotalsCard from '$lib/components/ui/totals-card/TotalsCard.svelte';
-	import WriteOffBar from './values/WriteOffBar.svelte';
-	import ValuesCollapsible from './values/ValuesCollapsible.svelte';
+	import CollapsibleSection from '$lib/components/ui/collapsible-section/CollapsibleSection.svelte';
+	import VehicleContextStrip from './VehicleContextStrip.svelte';
 	import { IsMobile } from '$lib/hooks/is-mobile.svelte';
-	import { Car } from 'lucide-svelte';
 
 	interface Props {
 		data: VehicleValues | null;
@@ -397,22 +396,7 @@ import type { VehicleDetails } from '$lib/utils/report-data-helpers';
 	<!-- Vehicle context strip -->
 	{#if requestInfo}
 		<!-- Mobile: compact 1-row strip -->
-		<div class="md:hidden flex items-center gap-3 rounded-xl bg-muted px-3 py-2.5">
-			<div class="flex size-9 items-center justify-center rounded-lg bg-card">
-				<Car class="size-4 text-muted-foreground" />
-			</div>
-			<div class="min-w-0 flex-1">
-				<div class="truncate text-sm font-semibold text-foreground">
-					{vehicleDetails?.year || ''} {vehicleDetails?.make || ''} {vehicleDetails?.model || ''}
-				</div>
-				<div class="truncate text-[11px] text-muted-foreground font-mono-tabular">
-					{vehicleDetails?.registration || '–'}
-					{#if vehicleDetails?.mileage != null}
-						· {vehicleDetails.mileage.toLocaleString()} km
-					{/if}
-				</div>
-			</div>
-		</div>
+		<VehicleContextStrip {vehicleDetails} />
 
 		<!-- Desktop: full info card (hidden on <md) -->
 		<Card class="hidden md:block bg-muted p-4 md:p-6">
@@ -477,18 +461,11 @@ import type { VehicleDetails } from '$lib/utils/report-data-helpers';
 	{/if}
 
 	<!-- Total Adjusted Values (dark card, pinned near top) -->
-	<TotalsCard label="TOTAL ADJUSTED VALUES" footnote={totalsTotalsFootnote}>
+	<TotalsCard label="TOTAL ADJUSTED VALUES" footnote={totalsTotalsFootnote} tone="light">
 		<Stat tone="inverse" mono label="Trade" value={formatCurrency(tradeTotalAdjusted)} size="lg" />
 		<Stat tone="inverse" mono label="Market" value={formatCurrency(marketTotalAdjusted)} size="lg" />
 		<Stat tone="inverse" mono label="Retail" value={formatCurrency(retailTotalAdjusted)} size="lg" />
 	</TotalsCard>
-
-	<!-- Write-off thresholds bar -->
-	<WriteOffBar
-		borderlinePct={borderlinePercentage}
-		writeoffPct={totalWriteoffPercentage}
-		salvagePct={salvagePercentage}
-	/>
 
 	<!-- Write-Off Calculations matrix -->
 	<Card class="p-4 md:p-6">
@@ -554,7 +531,7 @@ import type { VehicleDetails } from '$lib/utils/report-data-helpers';
 	</Card>
 
 	<!-- Valuation Source (collapsible) -->
-	<ValuesCollapsible
+	<CollapsibleSection
 		title="Valuation Source"
 		summary={valuationSourceSummary}
 		forceOpen={isDesktop}
@@ -600,10 +577,10 @@ import type { VehicleDetails } from '$lib/utils/report-data-helpers';
 				</div>
 			</div>
 		</div>
-	</ValuesCollapsible>
+	</CollapsibleSection>
 
 	<!-- Warranty / Service Details (collapsible) -->
-	<ValuesCollapsible
+	<CollapsibleSection
 		title="Warranty / Service"
 		summary={warrantyServiceSummary}
 		forceOpen={isDesktop}
@@ -718,10 +695,10 @@ import type { VehicleDetails } from '$lib/utils/report-data-helpers';
 				oninput={debouncedSave}
 			/>
 		</div>
-	</ValuesCollapsible>
+	</CollapsibleSection>
 
 	<!-- Vehicle Values (raw) — collapsible; open by default when values are zero -->
-	<ValuesCollapsible
+	<CollapsibleSection
 		title="Vehicle Values (raw)"
 		summary={rawValuesSummary}
 		defaultOpen={tradeValue === 0 || marketValue === 0 || retailValue === 0}
@@ -849,10 +826,10 @@ import type { VehicleDetails } from '$lib/utils/report-data-helpers';
 				</div>
 			</div>
 		</div>
-	</ValuesCollapsible>
+	</CollapsibleSection>
 
 	<!-- Accessories (collapsible) -->
-	<ValuesCollapsible
+	<CollapsibleSection
 		title="Accessories"
 		summary={accessoriesSummary}
 		forceOpen={isDesktop}
@@ -861,10 +838,10 @@ import type { VehicleDetails } from '$lib/utils/report-data-helpers';
 			accessories={props.accessories}
 			onUpdateAccessoryValue={props.onUpdateAccessoryValue}
 		/>
-	</ValuesCollapsible>
+	</CollapsibleSection>
 
 	<!-- Supporting Documents (collapsible) -->
-	<ValuesCollapsible
+	<CollapsibleSection
 		title="Supporting Documents"
 		summary={supportingDocsSummary}
 		forceOpen={isDesktop}
@@ -883,6 +860,6 @@ import type { VehicleDetails } from '$lib/utils/report-data-helpers';
 			/>
 			<FormField name="remarks" label="Remarks" type="textarea" bind:value={remarks} rows={4} oninput={debouncedSave} />
 		</div>
-	</ValuesCollapsible>
+	</CollapsibleSection>
 </div>
 
