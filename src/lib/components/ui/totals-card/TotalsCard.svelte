@@ -12,20 +12,31 @@
   interface Props {
     label: string;
     footnote?: string;
+    tone?: 'dark' | 'light';
     class?: string;
     children: Snippet;
   }
 
-  let { label, footnote, class: className, children }: Props = $props();
+  let { label, footnote, tone = 'dark', class: className, children }: Props = $props();
 </script>
 
 <!-- TODO: dark-mode visual review when dark mode lands -->
-<div class={cn('rounded-xl bg-foreground text-background p-4 space-y-3', className)}>
-  <p class="text-[10px] font-semibold uppercase tracking-widest opacity-60">{label}</p>
+<div class={cn(
+  'rounded-xl p-4 space-y-3',
+  tone === 'dark' ? 'bg-foreground text-background' : 'bg-card text-foreground border',
+  className
+)}>
+  <p class={cn(
+    'text-[10px] font-semibold uppercase tracking-widest',
+    tone === 'dark' ? 'opacity-60' : 'text-muted-foreground'
+  )}>{label}</p>
   <div class="grid grid-cols-3 gap-3">
     {@render children()}
   </div>
   {#if footnote}
-    <p class="text-[11px] opacity-60 pt-1">{footnote}</p>
+    <p class={cn(
+      'text-[11px] pt-1',
+      tone === 'dark' ? 'opacity-60' : 'text-muted-foreground'
+    )}>{footnote}</p>
   {/if}
 </div>

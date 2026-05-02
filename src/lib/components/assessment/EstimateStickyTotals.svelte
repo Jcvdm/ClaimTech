@@ -30,6 +30,7 @@
     labourTotal: number;
     paintTotal: number;
     vatAmount: number;
+    tone?: 'dark' | 'light';
     class?: string;
   }
 
@@ -41,11 +42,12 @@
     labourTotal,
     paintTotal,
     vatAmount,
+    tone = 'dark',
     class: className
   }: Props = $props();
 </script>
 
-<TotalsCard label="TOTAL (incl. VAT)" class={cn(className)}>
+<TotalsCard label="TOTAL (incl. VAT)" {tone} class={cn(className)}>
   {#snippet children()}
     <div class="col-span-3 flex items-start justify-between gap-3">
       <span class="font-mono-tabular text-[22px] font-extrabold leading-tight {thresholdColor || 'text-success'}">
@@ -53,12 +55,12 @@
       </span>
       {#if thresholdPct != null}
         <div class="text-right">
-          <div class="text-[9px] font-bold uppercase tracking-wide opacity-60">Threshold</div>
+          <div class={cn('text-[9px] font-bold uppercase tracking-wide', tone === 'dark' ? 'opacity-60' : 'text-muted-foreground')}>Threshold</div>
           <div class="text-[11px] font-bold {thresholdColor}">{thresholdPct.toFixed(1)}%</div>
         </div>
       {/if}
     </div>
-    <div class="col-span-3 mt-2 flex flex-wrap gap-x-3 gap-y-0.5 font-mono-tabular text-[10px] opacity-70">
+    <div class={cn('col-span-3 mt-2 flex flex-wrap gap-x-3 gap-y-0.5 font-mono-tabular text-[10px]', tone === 'dark' ? 'opacity-70' : 'text-muted-foreground')}>
       <span>P {formatCurrency(partsTotal)}</span>
       <span>·</span>
       <span>L {formatCurrency(labourTotal)}</span>
