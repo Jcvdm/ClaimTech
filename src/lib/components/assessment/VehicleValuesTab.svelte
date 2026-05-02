@@ -462,9 +462,9 @@ import type { VehicleDetails } from '$lib/utils/report-data-helpers';
 
 	<!-- Total Adjusted Values (dark card, pinned near top) -->
 	<TotalsCard label="TOTAL ADJUSTED VALUES" footnote={totalsTotalsFootnote} tone="light">
-		<Stat tone="inverse" mono label="Trade" value={formatCurrency(tradeTotalAdjusted)} size="lg" />
-		<Stat tone="inverse" mono label="Market" value={formatCurrency(marketTotalAdjusted)} size="lg" />
-		<Stat tone="inverse" mono label="Retail" value={formatCurrency(retailTotalAdjusted)} size="lg" />
+		<Stat tone="default" mono label="Trade" value={formatCurrency(tradeTotalAdjusted)} size="lg" />
+		<Stat tone="default" mono label="Market" value={formatCurrency(marketTotalAdjusted)} size="lg" />
+		<Stat tone="default" mono label="Retail" value={formatCurrency(retailTotalAdjusted)} size="lg" />
 	</TotalsCard>
 
 	<!-- Write-Off Calculations matrix -->
