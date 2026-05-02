@@ -232,7 +232,7 @@
 	}
 </script>
 
-<div class="flex h-screen flex-col overflow-hidden bg-gray-50">
+<div class="flex min-h-0 flex-1 flex-col overflow-hidden bg-gray-50">
 	<!-- Two-row chrome header -->
 	<div class="relative z-30 shrink-0">
 		<!-- Row 1: HeaderBar -->
