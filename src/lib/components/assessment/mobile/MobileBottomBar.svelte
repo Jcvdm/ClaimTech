@@ -13,6 +13,7 @@
 		nextDisabled?: boolean;
 		saving?: boolean;
 		nextLabel?: string;
+		nextStepLabel?: string;
 		class?: string;
 	}
 
@@ -25,6 +26,7 @@
 		nextDisabled = false,
 		saving = false,
 		nextLabel = 'Save & Next',
+		nextStepLabel = undefined,
 		class: className
 	}: Props = $props();
 </script>
@@ -78,7 +80,7 @@
 			disabled={nextDisabled}
 			class="w-full justify-center"
 		>
-			{nextLabel}
+			{nextLabel}{#if nextStepLabel}: {nextStepLabel}{/if}
 			<ChevronRight class="ml-1.5 size-4" />
 		</LoadingButton>
 	</div>

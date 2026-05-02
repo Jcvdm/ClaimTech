@@ -165,6 +165,7 @@
 	const currentIndex = $derived(tabs.findIndex(t => t.id === currentTab));
 	const prevTabId = $derived(currentIndex > 0 ? tabs[currentIndex - 1].id : null);
 	const nextTabId = $derived(currentIndex < tabs.length - 1 ? tabs[currentIndex + 1].id : null);
+	const nextTabLabel = $derived(nextTabId ? tabs.find(t => t.id === nextTabId)?.label : undefined);
 	function handlePrev() { if (prevTabId) onTabChange(prevTabId); }
 	function handleNext() { if (nextTabId) onTabChange(nextTabId); }
 </script>
@@ -303,6 +304,7 @@
 		prevDisabled={prevTabId === null}
 		nextDisabled={nextTabId === null}
 		saving={saving}
+		nextStepLabel={nextTabLabel}
 	/>
 
 	<!-- Mobile drawer (Sheet) -->
