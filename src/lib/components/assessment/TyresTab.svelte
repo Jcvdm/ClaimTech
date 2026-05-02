@@ -235,7 +235,7 @@ Betterment to Charge: ${calculatedBetterment.betterment.toFixed(1)}%`;
 	</CompactCard>
 
 	<!-- Tyres List -->
-	<div class="space-y-4">
+	<div class="grid gap-3.5 md:grid-cols-2">
 		{#each tyres as tyre, index (tyre.id)}
 			<CompactCard>
 				<CompactCardHeader title={tyre.position_label || tyre.position}>
@@ -248,139 +248,137 @@ Betterment to Charge: ${calculatedBetterment.betterment.toFixed(1)}%`;
 					{/snippet}
 				</CompactCardHeader>
 
-				<div class="grid gap-3.5 md:grid-cols-2">
-					<!-- Left Column: Tyre Details -->
-					<div class="space-y-4">
-						<CompactField label="Tyre Make" htmlFor={`tyre_make_${tyre.id}`}>
+				<!-- Make + Size in 2-col -->
+				<div class="grid gap-2.5 grid-cols-2 mb-2.5">
+					<CompactField label="Make" htmlFor={`tyre_make_${tyre.id}`}>
+						<CompactInput
+							id={`tyre_make_${tyre.id}`}
+							value={tyre.tyre_make || ''}
+							placeholder="Michelin"
+							oninput={(e) => {
+								const v = (e.target as HTMLInputElement).value;
+								handleUpdateTyreWithDirty(tyre.id, { tyre_make: v || undefined });
+							}}
+						/>
+					</CompactField>
+					<CompactField label="Size" htmlFor={`tyre_size_${tyre.id}`}>
+						<CompactInput
+							id={`tyre_size_${tyre.id}`}
+							value={tyre.tyre_size || ''}
+							placeholder="205/55R16"
+							oninput={(e) => {
+								const v = (e.target as HTMLInputElement).value;
+								handleUpdateTyreWithDirty(tyre.id, { tyre_size: v || undefined });
+							}}
+						/>
+					</CompactField>
+				</div>
+
+				<!-- Load + Speed + Tread (3-col, calc button alongside tread) -->
+				<div class="grid gap-2.5 grid-cols-[1fr_1fr_1.4fr] mb-2.5">
+					<CompactField label="Load" htmlFor={`load_index_${tyre.id}`}>
+						<CompactInput
+							id={`load_index_${tyre.id}`}
+							value={tyre.load_index || ''}
+							placeholder="91"
+							oninput={(e) => {
+								const v = (e.target as HTMLInputElement).value;
+								handleUpdateTyreWithDirty(tyre.id, { load_index: v || undefined });
+							}}
+						/>
+					</CompactField>
+					<CompactField label="Speed" htmlFor={`speed_rating_${tyre.id}`}>
+						<CompactInput
+							id={`speed_rating_${tyre.id}`}
+							value={tyre.speed_rating || ''}
+							placeholder="V"
+							oninput={(e) => {
+								const v = (e.target as HTMLInputElement).value;
+								handleUpdateTyreWithDirty(tyre.id, { speed_rating: v || undefined });
+							}}
+						/>
+					</CompactField>
+					<CompactField label="Tread (mm)" htmlFor={`tread_depth_${tyre.id}`}>
+						<div class="flex gap-1.5">
 							<CompactInput
-								id={`tyre_make_${tyre.id}`}
-								value={tyre.tyre_make || ''}
-								placeholder="e.g., Michelin, Bridgestone"
+								id={`tread_depth_${tyre.id}`}
+								type="number"
+								mono
+								step="0.1"
+								placeholder="5.5"
+								value={tyre.tread_depth_mm?.toString() || ''}
 								oninput={(e) => {
-									const v = (e.target as HTMLInputElement).value;
-									handleUpdateTyreWithDirty(tyre.id, { tyre_make: v || undefined });
+									const v = parseFloat((e.target as HTMLInputElement).value);
+									handleUpdateTyreWithDirty(tyre.id, { tread_depth_mm: isNaN(v) ? 0 : v });
 								}}
 							/>
-						</CompactField>
-						<CompactField label="Tyre Size" htmlFor={`tyre_size_${tyre.id}`}>
-							<CompactInput
-								id={`tyre_size_${tyre.id}`}
-								value={tyre.tyre_size || ''}
-								placeholder="e.g., 205/55R16"
-								oninput={(e) => {
-									const v = (e.target as HTMLInputElement).value;
-									handleUpdateTyreWithDirty(tyre.id, { tyre_size: v || undefined });
-								}}
-							/>
-						</CompactField>
-						<div class="grid grid-cols-2 gap-3.5">
-							<CompactField label="Load Index" htmlFor={`load_index_${tyre.id}`}>
-								<CompactInput
-									id={`load_index_${tyre.id}`}
-									value={tyre.load_index || ''}
-									placeholder="e.g., 91"
-									oninput={(e) => {
-										const v = (e.target as HTMLInputElement).value;
-										handleUpdateTyreWithDirty(tyre.id, { load_index: v || undefined });
-									}}
-								/>
-							</CompactField>
-							<CompactField label="Speed Rating" htmlFor={`speed_rating_${tyre.id}`}>
-								<CompactInput
-									id={`speed_rating_${tyre.id}`}
-									value={tyre.speed_rating || ''}
-									placeholder="e.g., V"
-									oninput={(e) => {
-										const v = (e.target as HTMLInputElement).value;
-										handleUpdateTyreWithDirty(tyre.id, { speed_rating: v || undefined });
-									}}
-								/>
-							</CompactField>
-						</div>
-						<div class="flex gap-2 items-end">
-							<div class="flex-1">
-								<CompactField label="Tread Depth (mm)" htmlFor={`tread_depth_${tyre.id}`}>
-									<CompactInput
-										id={`tread_depth_${tyre.id}`}
-										type="number"
-										mono
-										value={tyre.tread_depth_mm?.toString() || ''}
-										placeholder="e.g., 5.5"
-										oninput={(e) => {
-											const v = (e.target as HTMLInputElement).value;
-											handleUpdateTyreWithDirty(tyre.id, { tread_depth_mm: parseFloat(v) || 0 });
-										}}
-									/>
-								</CompactField>
-							</div>
 							<Button
 								size="sm"
 								variant="outline"
 								onclick={() => handleOpenBettermentCalculator(tyre)}
 								disabled={!tyre.tread_depth_mm || tyre.tread_depth_mm <= 0}
 								title="Calculate Betterment"
-								class="mb-0.5"
+								class="shrink-0"
 							>
 								<Calculator class="h-4 w-4" />
 							</Button>
 						</div>
-						<CompactField label="Condition" htmlFor={`condition_${tyre.id}`}>
-							<CompactSelect
-								id={`condition_${tyre.id}`}
-								value={tyre.condition || ''}
-								options={[
-									{ value: '', label: 'Select condition' },
-									{ value: 'excellent', label: 'Excellent' },
-									{ value: 'good', label: 'Good' },
-									{ value: 'fair', label: 'Fair' },
-									{ value: 'poor', label: 'Poor' },
-									{ value: 'replace', label: 'Needs Replacement' }
-								]}
-								onchange={(value) => handleUpdateTyreWithDirty(tyre.id, { condition: (value || undefined) as any })}
-							/>
-						</CompactField>
-					</div>
+					</CompactField>
+				</div>
 
-					<!-- Right Column: Photos & Notes -->
-					<div class="space-y-4">
-						<!-- Tyre Photos Panel -->
-						<div>
-							<div class="mb-1 text-[10px] font-bold uppercase tracking-[0.04em] text-slate-600">Tyre Photos</div>
-							<TyrePhotosPanel
-								tyreId={tyre.id}
-								{assessmentId}
-								tyrePosition={tyre.position}
-								photos={tyrePhotosMap.get(tyre.id) || []}
-								onPhotosUpdate={(updatedPhotos) => handleTyrePhotosUpdate(tyre.id, updatedPhotos)}
-							/>
-						</div>
+				<!-- Condition -->
+				<CompactField label="Condition" htmlFor={`condition_${tyre.id}`} class="mb-2.5">
+					<CompactSelect
+						id={`condition_${tyre.id}`}
+						value={tyre.condition || ''}
+						options={[
+							{ value: '', label: 'Select condition' },
+							{ value: 'excellent', label: 'Excellent' },
+							{ value: 'good', label: 'Good' },
+							{ value: 'fair', label: 'Fair' },
+							{ value: 'poor', label: 'Poor' },
+							{ value: 'replace', label: 'Needs Replacement' }
+						]}
+						onchange={(value) => handleUpdateTyreWithDirty(tyre.id, { condition: (value || undefined) as any })}
+					/>
+				</CompactField>
 
-						<div class="space-y-2">
-							<CompactField label="Notes" htmlFor={`notes_${tyre.id}`}>
-								<CompactTextarea
-									id={`notes_${tyre.id}`}
-									value={tyre.notes || ''}
-									rows={3}
-									placeholder="Any damage, wear patterns, or observations..."
-									oninput={(e) => {
-										const v = (e.target as HTMLTextAreaElement).value;
-										handleUpdateTyreWithDirty(tyre.id, { notes: v || undefined });
-									}}
-								/>
-							</CompactField>
-							<div class="flex justify-end">
-								<Button
-									size="sm"
-									variant="outline"
-									onclick={() => handleSubmitTyreNote(tyre)}
-									disabled={!tyre.notes || tyre.notes.trim() === '' || submittingNote}
-								>
-									<Send class="mr-2 h-4 w-4" />
-									{submittingNote ? 'Submitting...' : 'Submit to Assessment Notes'}
-								</Button>
-							</div>
-						</div>
-					</div>
+				<!-- Photos (compact) -->
+				<div class="mb-2.5">
+					<div class="mb-1 text-[10px] font-bold uppercase tracking-[0.04em] text-slate-600">Photos</div>
+					<TyrePhotosPanel
+						compact
+						tyreId={tyre.id}
+						{assessmentId}
+						tyrePosition={tyre.position}
+						photos={tyrePhotosMap.get(tyre.id) || []}
+						onPhotosUpdate={(updatedPhotos) => handleTyrePhotosUpdate(tyre.id, updatedPhotos)}
+					/>
+				</div>
+
+				<!-- Notes + Send -->
+				<CompactField label="Notes" htmlFor={`notes_${tyre.id}`} class="mb-1.5">
+					<CompactTextarea
+						id={`notes_${tyre.id}`}
+						value={tyre.notes || ''}
+						rows={2}
+						placeholder="Damage, wear patterns, observations..."
+						oninput={(e) => {
+							const v = (e.target as HTMLTextAreaElement).value;
+							handleUpdateTyreWithDirty(tyre.id, { notes: v || undefined });
+						}}
+					/>
+				</CompactField>
+				<div class="flex justify-end">
+					<Button
+						size="sm"
+						variant="outline"
+						onclick={() => handleSubmitTyreNote(tyre)}
+						disabled={!tyre.notes || tyre.notes.trim() === '' || submittingNote}
+					>
+						<Send class="mr-1.5 h-3.5 w-3.5" />
+						{submittingNote ? 'Submitting...' : 'Submit to Notes'}
+					</Button>
 				</div>
 			</CompactCard>
 		{/each}
