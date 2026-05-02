@@ -302,7 +302,7 @@
 	<!-- Body: main content -->
 	<div class="flex min-h-0 flex-1">
 		<!-- Main content area + footer slot column -->
-		<div class="flex min-w-0 flex-1 flex-col">
+		<div class="flex min-h-0 min-w-0 flex-1 flex-col">
 			<main class={[
 					'flex-1 overflow-y-auto pt-2 sm:pt-3',
 					['estimate', 'additionals'].includes(currentTab)
