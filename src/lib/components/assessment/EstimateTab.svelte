@@ -1052,6 +1052,7 @@
 					labourTotal={categoryTotals()?.labourTotal ?? 0}
 					paintTotal={categoryTotals()?.paintTotal ?? 0}
 					vatAmount={categoryTotals()?.vatAmount ?? 0}
+					tone="light"
 				/>
 			</div>
 
