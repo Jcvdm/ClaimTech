@@ -1,14 +1,11 @@
 <script lang="ts">
 	import { Card } from '$lib/components/ui/card';
-	import { Button } from '$lib/components/ui/button';
-	import { Upload, Trash2, Camera } from 'lucide-svelte';
 	import type { InteriorPhoto } from '$lib/types/assessment';
 	import { storageService } from '$lib/services/storage.service';
 	import { interiorPhotosService } from '$lib/services/interior-photos.service';
 	import { useOptimisticArray } from '$lib/utils/useOptimisticArray.svelte';
 	import PhotoViewer from '$lib/components/photo-viewer/PhotoViewer.svelte';
-	import { FileUploadProgress } from '$lib/components/ui/progress';
-	import { usePhotoUpload } from '$lib/hooks/use-photo-upload.svelte';
+	import PhotoCaptureGrid from '$lib/components/photos/PhotoCaptureGrid.svelte';
 
 	interface Props {
 		assessmentId: string;
@@ -28,16 +25,9 @@
 	// Pass getter function to ensure reactivity when props.photos changes
 	const photos = useOptimisticArray(() => props.photos);
 
-	const upload = usePhotoUpload({ onFilesSelected: uploadFiles });
 	let selectedPhotoIndex = $state<number | null>(null);
 
 	async function uploadFiles(files: File[]) {
-		// NOTE: uploading = true init preserved intentionally (pre-existing behavior, flag for follow-up)
-		upload.uploading = true;
-		upload.compressing = true;
-		upload.uploadProgress = 0;
-		upload.compressionProgress = 0;
-
 		try {
 			const totalFiles = files.length;
 
@@ -55,19 +45,7 @@
 					file,
 					assessmentId,
 					'interior',
-					'additional',
-					{
-						onCompressionProgress: (progress: number) => {
-							upload.compressing = true;
-							upload.uploading = false;
-							upload.compressionProgress = progress;
-						},
-						onUploadProgress: (progress: number) => {
-							upload.compressing = false;
-							upload.uploading = true;
-							upload.uploadProgress = progress;
-						}
-					}
+					'additional'
 				);
 
 				// Get next display order
@@ -83,9 +61,6 @@
 
 				// Add to optimistic array immediately for instant UI feedback
 				photos.add(newPhoto);
-
-				// Update progress for multi-file uploads
-				upload.uploadProgress = Math.round(((i + 1) / totalFiles) * 100);
 			}
 
 			// Refresh photos from parent (will sync via $effect)
@@ -93,14 +68,6 @@
 		} catch (error) {
 			console.error('Error uploading photos:', error);
 			alert('Failed to upload photos. Please try again.');
-		} finally {
-			upload.uploading = false;
-			upload.compressing = false;
-			upload.uploadProgress = 0;
-			upload.compressionProgress = 0;
-			// Reset file input
-			if (upload.fileInput) upload.fileInput.value = '';
-			if (upload.cameraInput) upload.cameraInput.value = '';
 		}
 	}
 
@@ -158,26 +125,15 @@
 	}
 
 	async function handleLabelUpdate(photoId: string, label: string) {
-		console.log('[InteriorPhotosPanel] Label update requested:', {
-			photoId,
-			newLabel: label,
-			currentPhotos: photos.value.map((p) => ({ id: p.id, label: p.label }))
-		});
-
 		try {
 			// IMMEDIATE optimistic update for instant UI feedback
 			photos.update(photoId, { label });
-			console.log('[InteriorPhotosPanel] Optimistic update applied');
 
 			// Update label in database
 			await interiorPhotosService.updatePhotoLabel(photoId, label);
-			console.log('[InteriorPhotosPanel] Database updated');
 
 			// Refresh photos to get updated data (will sync via $effect)
 			await onUpdate();
-			console.log('[InteriorPhotosPanel] Photos refreshed from parent');
-
-			console.log('[InteriorPhotosPanel] Label update complete:', photoId);
 		} catch (error) {
 			console.error('[InteriorPhotosPanel] Error updating label:', error);
 
@@ -192,172 +148,18 @@
 <!-- Unified Photo Panel -->
 <Card class="p-6">
 	<h3 class="mb-4 text-lg font-semibold text-gray-900">
-		{photos.value.length === 0 ? 'Interior Photos' : `Interior Photos (${photos.value.length})`}
+		{photos.value.length === 0 ? 'Interior Photos' : `Interior Photos · ${photos.value.length}`}
 	</h3>
 
-	{#if photos.value.length === 0}
-		<!-- Empty state: Large centered upload zone -->
-		<div
-			role="button"
-			tabindex="0"
-			class="relative border-2 border-dashed rounded-lg p-8 text-center transition-colors {upload.isDragging
-				? 'border-primary bg-primary/5'
-				: 'border-gray-300 hover:border-gray-400'}"
-			ondragenter={upload.handleDragEnter}
-			ondragover={upload.handleDragOver}
-			ondragleave={upload.handleDragLeave}
-			ondrop={upload.handleDrop}
-			onkeydown={(e) => {
-				if (e.key === 'Enter' || e.key === ' ') {
-					e.preventDefault();
-					upload.triggerFileInput();
-				}
-			}}
-			aria-label="Upload photos - drag and drop or click to select"
-		>
-			{#if upload.uploading || upload.compressing}
-				<div class="space-y-3">
-					<FileUploadProgress
-						isCompressing={upload.compressing}
-						isUploading={upload.uploading}
-						compressionProgress={upload.compressionProgress}
-						uploadProgress={upload.uploadProgress}
-						fileName=""
-					/>
-				</div>
-			{:else if upload.isDragging}
-				<div>
-					<Upload class="mx-auto h-12 w-12 text-primary" />
-					<p class="mt-2 text-sm font-medium text-primary">Drop photos here to upload</p>
-				</div>
-			{:else}
-				<Upload class="mx-auto h-12 w-12 text-gray-400" />
-				<p class="mt-2 text-sm text-gray-600">
-					Drag & drop photos or <button
-						type="button"
-						onclick={upload.triggerFileInput}
-						class="font-medium text-primary hover:text-primary/80"
-					>
-						browse
-					</button>
-				</p>
-				<p class="mt-1 text-xs text-gray-500">
-					Supports: JPG, PNG, GIF • Multiple files supported
-				</p>
-				<div class="flex gap-2 justify-center mt-4">
-					<Button onclick={upload.triggerCameraInput} variant="outline">
-						<Camera class="mr-2 h-4 w-4" />
-						Camera
-					</Button>
-					<Button onclick={upload.triggerFileInput}>
-						<Upload class="mr-2 h-4 w-4" />
-						Upload Photos
-					</Button>
-				</div>
-			{/if}
-		</div>
-	{:else}
-		<!-- Grid with upload zone as first item -->
-		<div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 p-1">
-			<!-- Upload zone as first grid cell -->
-			<div
-				role="button"
-				tabindex="0"
-				class="relative w-full aspect-square border-2 border-dashed rounded-lg transition-colors cursor-pointer {upload.isDragging
-					? 'border-primary bg-primary/5'
-					: 'border-gray-300 hover:border-gray-400 bg-gray-50'}"
-				ondragenter={upload.handleDragEnter}
-				ondragover={upload.handleDragOver}
-				ondragleave={upload.handleDragLeave}
-				ondrop={upload.handleDrop}
-				onclick={upload.triggerFileInput}
-				onkeydown={(e) => {
-					if (e.key === 'Enter' || e.key === ' ') {
-						e.preventDefault();
-						upload.triggerFileInput();
-					}
-				}}
-				aria-label="Upload photos - drag and drop or click to select"
-			>
-				{#if upload.uploading || upload.compressing}
-					<div class="absolute inset-0 flex flex-col items-center justify-center p-4">
-						<FileUploadProgress
-							isCompressing={upload.compressing}
-							isUploading={upload.uploading}
-							compressionProgress={upload.compressionProgress}
-							uploadProgress={upload.uploadProgress}
-							fileName=""
-							class="w-full"
-						/>
-					</div>
-				{:else if upload.isDragging}
-					<div class="absolute inset-0 flex flex-col items-center justify-center p-4">
-						<Upload class="h-8 w-8 text-primary" />
-						<p class="mt-2 text-xs font-medium text-primary text-center">Drop here</p>
-					</div>
-				{:else}
-					<div class="absolute inset-0 flex flex-col items-center justify-center p-4">
-						<Upload class="h-8 w-8 text-gray-400" />
-						<p class="mt-2 text-xs text-gray-600 text-center font-medium">Add Photos</p>
-					</div>
-				{/if}
-			</div>
-
-			<!-- Photo thumbnails -->
-			{#each photos.value as photo, index (photo.id)}
-				<div class="w-full">
-					<button
-						onclick={() => openPhotoViewer(index)}
-						class="relative w-full aspect-square bg-gray-100 rounded-lg overflow-hidden group block"
-						type="button"
-					>
-						<!-- Photo Image -->
-						<div class="absolute inset-0">
-							<img
-								src={storageService.toPhotoProxyUrl(photo.photo_url)}
-								alt={photo.label || 'Interior photo'}
-								class="w-full h-full object-cover cursor-pointer"
-							/>
-						</div>
-
-						<!-- Hover overlay - excludes bottom area where label sits -->
-						<div class="absolute inset-x-0 top-0 {photo.label ? 'bottom-10' : 'bottom-0'} bg-black/0 group-hover:bg-black/60 transition-all duration-200 flex items-center justify-center pointer-events-none z-10">
-							<span class="text-white opacity-0 group-hover:opacity-100 transition-opacity text-sm font-semibold drop-shadow-lg">
-								Click to view
-							</span>
-						</div>
-
-						<!-- Label overlay - separate from hover overlay -->
-						{#if photo.label}
-							<div class="absolute bottom-0 left-0 right-0 bg-black/80 text-white text-xs p-2 truncate z-20">
-								{photo.label}
-							</div>
-						{/if}
-					</button>
-				</div>
-			{/each}
-		</div>
-	{/if}
-
-	<!-- Hidden file input -->
-	<input
-		bind:this={upload.fileInput}
-		type="file"
-		accept="image/*"
-		multiple
-		onchange={upload.handleFileSelect}
-		class="hidden"
-	/>
-
-	<!-- Hidden camera input -->
-	<input
-		bind:this={upload.cameraInput}
-		type="file"
-		accept="image/*"
-		capture="environment"
-		multiple
-		onchange={upload.handleFileSelect}
-		class="hidden"
+	<PhotoCaptureGrid
+		photos={photos.value}
+		onUpload={async (files) => await uploadFiles(files)}
+		onDelete={async (id) => {
+			const photo = photos.value.find((p) => p.id === id);
+			if (photo) await handleDeletePhoto(id, photo.photo_path);
+		}}
+		onTap={openPhotoViewer}
+		columns={2}
 	/>
 </Card>
 

@@ -11,6 +11,9 @@
 	import type { InteriorMechanical, InteriorPhoto } from '$lib/types/assessment';
 	import { validateInteriorMechanical, type TabValidation } from '$lib/utils/validation';
 	import { interiorPhotosService } from '$lib/services/interior-photos.service';
+	import EnginePhotoChecklist from '$lib/components/photos/EnginePhotoChecklist.svelte';
+	import { storageService } from '$lib/services/storage.service';
+	import type { RequiredPhotoPosition } from '$lib/constants/requiredPhotoPositions';
 
 	interface Props {
 		data: InteriorMechanical | null;
@@ -44,10 +47,6 @@
 	});
 
 	// Photos
-	let engineBayPhotoUrl = $state('');
-	let batteryPhotoUrl = $state('');
-	let oilLevelPhotoUrl = $state('');
-	let coolantPhotoUrl = $state('');
 	let mileagePhotoUrl = $state('');
 	let gearLeverPhotoUrl = $state('');
 
@@ -93,10 +92,6 @@
 			}
 
 			// Always update photo URLs and other fields from data
-			if (data.engine_bay_photo_url) engineBayPhotoUrl = data.engine_bay_photo_url;
-			if (data.battery_photo_url) batteryPhotoUrl = data.battery_photo_url;
-			if (data.oil_level_photo_url) oilLevelPhotoUrl = data.oil_level_photo_url;
-			if (data.coolant_photo_url) coolantPhotoUrl = data.coolant_photo_url;
 			if (data.mileage_photo_url) mileagePhotoUrl = data.mileage_photo_url;
 			if (data.gear_lever_photo_url) gearLeverPhotoUrl = data.gear_lever_photo_url;
 
@@ -126,12 +121,27 @@
 		handleSave();
 	});
 
+	async function handleEngineBayUpload(file: File, position: RequiredPhotoPosition) {
+		const result = await storageService.uploadAssessmentPhoto(file, assessmentId, 'interior', position.subcategory);
+		const displayOrder = await interiorPhotosService.getNextDisplayOrder(assessmentId);
+		await interiorPhotosService.createPhoto({
+			assessment_id: assessmentId,
+			photo_url: result.url,
+			photo_path: result.path,
+			display_order: displayOrder
+		});
+		onPhotosUpdate();
+	}
+
+	async function handleEngineBayDelete(id: string) {
+		const photo = interiorPhotos?.find((p) => p.id === id);
+		if (photo) await storageService.deletePhoto(photo.photo_path);
+		await interiorPhotosService.deletePhoto(id);
+		onPhotosUpdate();
+	}
+
 	function handleSave() {
 		onUpdate({
-			engine_bay_photo_url: engineBayPhotoUrl || undefined,
-			battery_photo_url: batteryPhotoUrl || undefined,
-			oil_level_photo_url: oilLevelPhotoUrl || undefined,
-			coolant_photo_url: coolantPhotoUrl || undefined,
 			mileage_photo_url: mileagePhotoUrl || undefined,
 			gear_lever_photo_url: gearLeverPhotoUrl || undefined,
 			mileage_reading: mileageReading ? parseInt(mileageReading) : undefined,
@@ -193,52 +203,15 @@
 <div class="space-y-6">
 	<!-- Warning Banner -->
 	<RequiredFieldsWarning missingFields={validation.missingFields} />
-	<!-- Engine Bay -->
-	<Card class="p-6">
-		<h3 class="mb-4 text-lg font-semibold text-gray-900">Engine Bay</h3>
-		<div class="grid gap-4 md:grid-cols-4">
-			<PhotoUpload
-				value={engineBayPhotoUrl}
-				label="Engine Bay"
-				{assessmentId}
-				category="interior"
-				subcategory="engine_bay"
-				onUpload={(url) => { engineBayPhotoUrl = url; handleSave(); }}
-				onRemove={() => { engineBayPhotoUrl = ''; handleSave(); }}
-				height="h-32"
-			/>
-			<PhotoUpload
-				value={batteryPhotoUrl}
-				label="Battery"
-				{assessmentId}
-				category="interior"
-				subcategory="battery"
-				onUpload={(url) => { batteryPhotoUrl = url; handleSave(); }}
-				onRemove={() => { batteryPhotoUrl = ''; handleSave(); }}
-				height="h-32"
-			/>
-			<PhotoUpload
-				value={oilLevelPhotoUrl}
-				label="Oil Level"
-				{assessmentId}
-				category="interior"
-				subcategory="oil"
-				onUpload={(url) => { oilLevelPhotoUrl = url; handleSave(); }}
-				onRemove={() => { oilLevelPhotoUrl = ''; handleSave(); }}
-				height="h-32"
-			/>
-			<PhotoUpload
-				value={coolantPhotoUrl}
-				label="Coolant"
-				{assessmentId}
-				category="interior"
-				subcategory="coolant"
-				onUpload={(url) => { coolantPhotoUrl = url; handleSave(); }}
-				onRemove={() => { coolantPhotoUrl = ''; handleSave(); }}
-				height="h-32"
-			/>
-		</div>
-	</Card>
+	<!-- Engine Bay Checklist -->
+	{#if interiorPhotos !== undefined}
+		<EnginePhotoChecklist
+			{assessmentId}
+			photos={interiorPhotos}
+			onUpload={handleEngineBayUpload}
+			onDelete={handleEngineBayDelete}
+		/>
+	{/if}
 
 	<!-- Mileage -->
 	<Card class="p-6">

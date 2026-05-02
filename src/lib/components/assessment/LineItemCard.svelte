@@ -30,6 +30,7 @@
 		selected?: boolean;
 		onToggleSelect?: () => void;
 		showBetterment?: boolean;
+		compact?: boolean;
 	}
 
 	let {
@@ -48,10 +49,11 @@
 		onDelete,
 		selected = false,
 		onToggleSelect,
-		showBetterment = true
+		showBetterment = true,
+		compact = false
 	}: Props = $props();
 
-	let isExpanded = $state(false);
+	let isExpanded = $state(compact ? true : false);
 	let localDescription = $state(item.description);
 
 	// Sync local description when item changes
@@ -166,18 +168,24 @@
 	</div>
 
 	<!-- Cost Breakdown (Collapsible) -->
-	<button
-		type="button"
-		onclick={() => (isExpanded = !isExpanded)}
-		class="flex w-full items-center justify-between px-3 py-2 text-sm text-gray-600 hover:bg-gray-50"
-	>
-		<span class="truncate text-xs">{costSummary()}</span>
-		{#if isExpanded}
-			<ChevronUp class="h-4 w-4 shrink-0" />
-		{:else}
-			<ChevronDown class="h-4 w-4 shrink-0" />
-		{/if}
-	</button>
+	{#if !compact}
+		<button
+			type="button"
+			onclick={() => (isExpanded = !isExpanded)}
+			class="flex w-full items-center justify-between px-3 py-2 text-sm text-gray-600 hover:bg-gray-50"
+		>
+			<span class="truncate text-xs">{costSummary()}</span>
+			{#if isExpanded}
+				<ChevronUp class="h-4 w-4 shrink-0" />
+			{:else}
+				<ChevronDown class="h-4 w-4 shrink-0" />
+			{/if}
+		</button>
+	{:else}
+		<div class="flex w-full items-center px-3 py-2 text-sm text-gray-600">
+			<span class="truncate text-xs">{costSummary()}</span>
+		</div>
+	{/if}
 
 	{#if isExpanded}
 		<div class="grid grid-cols-2 gap-2 border-t bg-gray-50 p-3 text-sm">

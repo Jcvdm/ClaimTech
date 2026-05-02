@@ -3,24 +3,14 @@
 	import LoadingButton from '$lib/components/ui/button/LoadingButton.svelte';
 	import { Sheet, SheetContent } from '$lib/components/ui/sheet';
 	import { StepRail } from '$lib/components/ui/step-rail';
-	import {
-		Save,
-		X,
-		FileText,
-		Camera,
-		Car,
-		Gauge,
-		AlertTriangle,
-		DollarSign,
-		ClipboardList,
-		FileCheck,
-		Plus,
-		Trash2,
-		History,
-		Clock,
-		Menu
-	} from 'lucide-svelte';
-	import type { Assessment } from '$lib/types/assessment';
+	import { Save, X, Trash2, Clock, Menu } from 'lucide-svelte';
+	import { buildAssessmentTabs } from '$lib/utils/assessmentTabs';
+	import type { Assessment, AssessmentNote } from '$lib/types/assessment';
+	import MobileStepPill from './mobile/MobileStepPill.svelte';
+	import MobileBottomBar from './mobile/MobileBottomBar.svelte';
+	import MobileStepsDrawer from './mobile/MobileStepsDrawer.svelte';
+	import MobileNotesDrawer from './mobile/MobileNotesDrawer.svelte';
+	import AssessmentNotes from './AssessmentNotes.svelte';
 	import {
 		validateVehicleIdentification,
 		validateExterior360,
@@ -32,12 +22,6 @@
 		validateEstimate,
 		type TabValidation
 	} from '$lib/utils/validation';
-
-	interface Tab {
-		id: string;
-		label: string;
-		icon: any;
-	}
 
 	interface Props {
 		assessment: Assessment;
@@ -65,6 +49,9 @@
 		onValidationUpdate?: (tabId: string, validation: TabValidation) => void;
 		// Live validations forwarded from the page (react to user input immediately)
 		liveValidations?: Record<string, TabValidation>;
+		// Notes for mobile/tablet drawers
+		notes?: AssessmentNote[];
+		onNotesUpdate?: () => void;
 		children?: any;
 	}
 
@@ -91,45 +78,18 @@
 		estimate = null,
 		onValidationUpdate = undefined,
 		liveValidations = {},
+		notes = [],
+		onNotesUpdate = () => {},
 		children
 	}: Props = $props();
 
 	// Mobile drawer state
 	let drawerOpen = $state(false);
+	let stepsDrawerOpen = $state(false);
+	let notesDrawerOpen = $state(false);
 
 	// Build tabs array dynamically based on finalization status
-	const tabs = $derived(() => {
-		const baseTabs: Tab[] = [
-			{ id: 'summary', label: 'Summary', icon: ClipboardList },
-			{ id: 'identification', label: 'Vehicle ID', icon: FileText },
-			{ id: '360', label: '360° Exterior', icon: Camera },
-			{ id: 'interior', label: 'Interior & Mechanical', icon: Car },
-			{ id: 'tyres', label: 'Tyres', icon: Gauge },
-			{ id: 'damage', label: 'Damage ID', icon: AlertTriangle },
-			{ id: 'values', label: 'Values', icon: DollarSign },
-			{ id: 'pre-incident', label: 'Pre-Incident', icon: DollarSign },
-			{ id: 'estimate', label: 'Estimate', icon: DollarSign },
-			{ id: 'finalize', label: 'Finalize', icon: FileCheck }
-		];
-
-		// Add Additionals tab if estimate is finalized
-		if (assessment?.estimate_finalized_at) {
-			baseTabs.push({ id: 'additionals', label: 'Additionals', icon: Plus });
-		}
-
-		// Add FRC tab if assessment is submitted or archived (FRC in progress or completed)
-		// Keep tab visible for archived assessments so completed FRCs can be viewed and reopened
-		if (assessment?.status === 'submitted' || assessment?.status === 'archived') {
-			baseTabs.push({ id: 'frc', label: 'FRC', icon: FileCheck });
-		}
-
-		// Add audit tab for admin users only
-		if (userRole === 'admin') {
-			baseTabs.push({ id: 'audit', label: 'Audit Trail', icon: History });
-		}
-
-		return baseTabs;
-	});
+	const tabs = $derived(buildAssessmentTabs({ assessment, userRole }));
 
 	// Validate tabs and get missing fields count
 	// Prefer child-reported validations (from local state) over prop-based validations
@@ -175,7 +135,7 @@
 
 	// Build steps array for StepRail from tabs + validations
 	const steps = $derived.by(() => {
-		return tabs().map((tab) => {
+		return tabs.map((tab) => {
 			const validation = tabValidations[tab.id];
 			if (!validation) {
 				return { id: tab.id, label: tab.label, status: 'not-started' as const };
@@ -201,6 +161,13 @@
 			onTabChange(tabId);
 		}
 	}
+
+	const currentIndex = $derived(tabs.findIndex(t => t.id === currentTab));
+	const prevTabId = $derived(currentIndex > 0 ? tabs[currentIndex - 1].id : null);
+	const nextTabId = $derived(currentIndex < tabs.length - 1 ? tabs[currentIndex + 1].id : null);
+	const nextTabLabel = $derived(nextTabId ? tabs.find(t => t.id === nextTabId)?.label : undefined);
+	function handlePrev() { if (prevTabId) onTabChange(prevTabId); }
+	function handleNext() { if (nextTabId) onTabChange(nextTabId); }
 </script>
 
 <div class="flex h-screen flex-col overflow-hidden bg-gray-50">
@@ -231,11 +198,11 @@
 						</div>
 					{/if}
 
-					<!-- Hamburger — mobile/tablet only (hidden on lg+) -->
+					<!-- Hamburger — tablet only (md to <lg); mobile uses step pill instead -->
 					<Button
 						variant="ghost"
 						size="icon"
-						class="h-8 w-8 lg:hidden"
+						class="hidden h-8 w-8 md:inline-flex lg:hidden"
 						onclick={() => (drawerOpen = true)}
 						aria-label="Open navigation"
 					>
@@ -277,6 +244,14 @@
 		</div>
 	</div>
 
+	<!-- Mobile step pill — shown only on <md, replaces hamburger -->
+	<MobileStepPill
+		class="md:hidden"
+		steps={steps}
+		currentStep={currentTab}
+		onClick={() => (stepsDrawerOpen = true)}
+	/>
+
 	<!-- Body: aside rail + main content -->
 	<div class="flex min-h-0 flex-1">
 		<!-- Desktop step rail (lg+) -->
@@ -291,7 +266,8 @@
 				'flex-1 overflow-y-auto pt-2 sm:pt-3',
 				['estimate', 'additionals'].includes(currentTab)
 					? 'px-1 sm:px-2 lg:px-3 pb-0'
-					: 'p-2 sm:p-3 md:p-4 lg:p-6'
+					: 'p-2 sm:p-3 md:p-4 lg:p-6',
+				'pb-20 md:pb-0'
 			].join(' ')}>
 			<div
 				class={['estimate', 'additionals'].includes(currentTab)
@@ -303,7 +279,33 @@
 				{/if}
 			</div>
 		</main>
+
+		<!-- Tablet-only Notes rail (md to <lg) -->
+		{#if notes && assessment?.id}
+			<aside class="hidden w-[280px] shrink-0 overflow-y-auto border-l border-border bg-card md:flex md:flex-col lg:hidden">
+				<AssessmentNotes
+					assessmentId={assessment.id}
+					{notes}
+					currentTab={currentTab}
+					onUpdate={onNotesUpdate}
+					{lastSaved}
+				/>
+			</aside>
+		{/if}
 	</div>
+
+	<!-- Mobile bottom bar -->
+	<MobileBottomBar
+		class="md:hidden"
+		onPrev={handlePrev}
+		onNext={handleNext}
+		onNotesClick={() => (notesDrawerOpen = true)}
+		notesCount={notes?.length ?? 0}
+		prevDisabled={prevTabId === null}
+		nextDisabled={nextTabId === null}
+		saving={saving}
+		nextStepLabel={nextTabLabel}
+	/>
 
 	<!-- Mobile drawer (Sheet) -->
 	<Sheet bind:open={drawerOpen}>
@@ -318,4 +320,26 @@
 			/>
 		</SheetContent>
 	</Sheet>
+
+	<!-- Mobile steps drawer -->
+	<MobileStepsDrawer
+		open={stepsDrawerOpen}
+		onOpenChange={(v) => (stepsDrawerOpen = v)}
+		steps={steps}
+		currentStep={currentTab}
+		onStepChange={(id) => { handleTabClick(id); stepsDrawerOpen = false; }}
+	/>
+
+	<!-- Mobile notes drawer -->
+	{#if notes && assessment?.id}
+		<MobileNotesDrawer
+			open={notesDrawerOpen}
+			onOpenChange={(v) => (notesDrawerOpen = v)}
+			assessmentId={assessment.id}
+			{notes}
+			currentTab={currentTab}
+			onUpdate={onNotesUpdate}
+			{lastSaved}
+		/>
+	{/if}
 </div>

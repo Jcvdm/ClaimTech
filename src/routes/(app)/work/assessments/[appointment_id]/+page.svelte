@@ -873,6 +873,12 @@
 			generatingDocument = false; // Resume auto-save
 		}
 	}
+
+	async function handleNotesUpdate() {
+		// Reload notes from database to update UI immediately
+		const updatedNotes = await assessmentNotesService.getNotesByAssessment(data.assessment.id);
+		notes = updatedNotes; // Update local state to trigger reactivity
+	}
 </script>
 
 <AssessmentLayout
@@ -898,6 +904,8 @@
 	{estimate}
 	onValidationUpdate={handleValidationUpdate}
 	{liveValidations}
+	{notes}
+	onNotesUpdate={handleNotesUpdate}
 >
 	{#if currentTab === 'summary'}
 		<SummaryTab
@@ -1134,22 +1142,18 @@
 		<AuditTab assessmentId={data.assessment.id} supabase={data.supabase} />
 	{/if}
 
-	<!-- Global Assessment Notes (visible on all tabs except finalize) -->
-	{#if currentTab !== 'finalize'}
-		<div class="mt-6">
-			<AssessmentNotes
-				assessmentId={data.assessment.id}
-				{notes}
-				{currentTab}
-				{lastSaved}
-				onUpdate={async () => {
-					// Reload notes from database to update UI immediately
-					const updatedNotes = await assessmentNotesService.getNotesByAssessment(
-						data.assessment.id
-					);
-					notes = updatedNotes; // Update local state to trigger reactivity
-				}}
-			/>
-		</div>
-	{/if}
+	<!-- Global Assessment Notes — desktop only (lg+); mobile/tablet handled by AssessmentLayout -->
+	<div class="hidden lg:block">
+		{#if currentTab !== 'finalize'}
+			<div class="mt-6">
+				<AssessmentNotes
+					assessmentId={data.assessment.id}
+					{notes}
+					{currentTab}
+					{lastSaved}
+					onUpdate={handleNotesUpdate}
+				/>
+			</div>
+		{/if}
+	</div>
 </AssessmentLayout>
