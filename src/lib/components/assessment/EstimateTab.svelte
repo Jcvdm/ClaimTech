@@ -55,6 +55,7 @@
 	} from '$lib/utils/estimateCalculations';
 	import TotalsBreakdownDialog, { type BreakdownRow } from '$lib/components/assessment/TotalsBreakdownDialog.svelte';
 	import TotalsStrip, { type StripField } from '$lib/components/assessment/TotalsStrip.svelte';
+	import BottomBarSlot from '$lib/components/assessment/layout/BottomBarSlot.svelte';
 	import {
 		calculateEstimateThreshold,
 		getThresholdColorClasses,
@@ -1743,12 +1744,16 @@
 
 			<!-- Bottom-sticky compact totals strip -->
 
-			<TotalsStrip
-				fields={stripFields}
-				totalValue={categoryTotals()?.totalIncVat}
-				totalColorClass={thresholdColorClass}
-				onDetailsClick={() => (totalsDetailsOpen = true)}
-			/>
+			<BottomBarSlot>
+				{#snippet children()}
+					<TotalsStrip
+						fields={stripFields}
+						totalValue={categoryTotals()?.totalIncVat}
+						totalColorClass={thresholdColorClass}
+						onDetailsClick={() => (totalsDetailsOpen = true)}
+					/>
+				{/snippet}
+			</BottomBarSlot>
 
 			<!-- Totals Details Dialog -->
 			<TotalsBreakdownDialog

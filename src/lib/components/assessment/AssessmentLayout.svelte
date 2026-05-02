@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { setContext } from 'svelte';
+	import type { Snippet as SvelteSnippet } from 'svelte';
 	import { Button } from '$lib/components/ui/button';
 	import LoadingButton from '$lib/components/ui/button/LoadingButton.svelte';
 	import AssessmentTopTabs from './layout/AssessmentTopTabs.svelte';
@@ -95,6 +97,13 @@
 		children,
 		rightPanel = undefined
 	}: Props = $props();
+
+	let bottomBarContent = $state<SvelteSnippet | null>(null);
+
+	setContext('assessment-bottom-bar', {
+		set: (s: SvelteSnippet | null) => { bottomBarContent = s; },
+		clear: () => { bottomBarContent = null; }
+	});
 
 	// Build tabs array dynamically based on finalization status
 	const tabs = $derived(() => {
@@ -292,23 +301,30 @@
 
 	<!-- Body: main content -->
 	<div class="flex min-h-0 flex-1">
-		<!-- Main content area -->
-		<main class={[
-				'flex-1 overflow-y-auto pt-2 sm:pt-3',
-				['estimate', 'additionals'].includes(currentTab)
-					? 'px-1 sm:px-2 lg:px-3 pb-0'
-					: 'p-2 sm:p-3 md:p-4 lg:p-6'
-			].join(' ')}>
-			<div
-				class={['estimate', 'additionals'].includes(currentTab)
-					? 'mx-auto w-full max-w-none'
-					: 'mx-auto w-[98%] max-w-[1600px] sm:w-[95%] md:w-[92%] lg:w-[90%]'}
-			>
-				{#if children}
-					{@render children()}
-				{/if}
-			</div>
-		</main>
+		<!-- Main content area + footer slot column -->
+		<div class="flex min-w-0 flex-1 flex-col">
+			<main class={[
+					'flex-1 overflow-y-auto pt-2 sm:pt-3',
+					['estimate', 'additionals'].includes(currentTab)
+						? 'px-1 sm:px-2 lg:px-3 pb-0'
+						: 'p-2 sm:p-3 md:p-4 lg:p-6'
+				].join(' ')}>
+				<div
+					class={['estimate', 'additionals'].includes(currentTab)
+						? 'mx-auto w-full max-w-none'
+						: 'mx-auto w-[98%] max-w-[1600px] sm:w-[95%] md:w-[92%] lg:w-[90%]'}
+				>
+					{#if children}
+						{@render children()}
+					{/if}
+				</div>
+			</main>
+			{#if bottomBarContent}
+				<div class="shrink-0 border-t border-slate-200 bg-white">
+					{@render bottomBarContent()}
+				</div>
+			{/if}
+		</div>
 		{#if rightPanel}{@render rightPanel()}{/if}
 	</div>
 

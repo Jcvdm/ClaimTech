@@ -33,6 +33,7 @@
 	} from '$lib/utils/estimateCalculations';
 	import TotalsBreakdownDialog, { type BreakdownRow } from '$lib/components/assessment/TotalsBreakdownDialog.svelte';
 	import TotalsStrip, { type StripField } from '$lib/components/assessment/TotalsStrip.svelte';
+	import BottomBarSlot from '$lib/components/assessment/layout/BottomBarSlot.svelte';
 	import {
 		formatCurrency,
 		formatCurrencyValue,
@@ -1456,18 +1457,22 @@
 			{/snippet}
 		</TabFormSplit>
 
-		<TotalsStrip
-			fields={stripFields}
-			totalValue={categoryTotals()?.totalIncVat}
-			onDetailsClick={() => (totalsDetailsOpen = true)}
-			{saving}
-			saved={justSaved}
-			onSaveClick={saveNow}
-			saveDisabled={!dirty || saving}
-			onCompleteClick={handleCompleteClick}
-			completeDisabled={!validation.isComplete || saving}
-			completeLabel="Complete Pre-Incident Estimate"
-		/>
+		<BottomBarSlot>
+			{#snippet children()}
+				<TotalsStrip
+					fields={stripFields}
+					totalValue={categoryTotals()?.totalIncVat}
+					onDetailsClick={() => (totalsDetailsOpen = true)}
+					{saving}
+					saved={justSaved}
+					onSaveClick={saveNow}
+					saveDisabled={!dirty || saving}
+					onCompleteClick={handleCompleteClick}
+					completeDisabled={!validation.isComplete || saving}
+					completeLabel="Complete Pre-Incident Estimate"
+				/>
+			{/snippet}
+		</BottomBarSlot>
 
 		<TotalsBreakdownDialog
 			rows={breakdownRows}

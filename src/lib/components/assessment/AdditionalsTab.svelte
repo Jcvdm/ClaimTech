@@ -12,6 +12,7 @@
 	import OriginalEstimateLinesPanel from './OriginalEstimateLinesPanel.svelte';
 	import AdditionalsPhotosPanel from './AdditionalsPhotosPanel.svelte';
 	import TabFormSplit from './layout/TabFormSplit.svelte';
+	import BottomBarSlot from './layout/BottomBarSlot.svelte';
 	import DocumentCard from './DocumentCard.svelte';
 	import AdditionalLineItemCard from './AdditionalLineItemCard.svelte';
 	import * as ResponsiveDialog from '$lib/components/ui/responsive-dialog';
@@ -1312,36 +1313,38 @@
 			{/snippet}
 		</TabFormSplit>
 
-		<!-- Bottom-sticky compact totals strip -->
-		<div class="sticky bottom-0 z-20 -mx-2 sm:-mx-3 mt-3 border-t border-border bg-card shadow-[0_-4px_12px_-6px_rgba(0,0,0,0.1)]">
-			<div class="px-3 sm:px-6 py-2.5">
-				<div class="flex flex-wrap items-center gap-x-5 gap-y-1.5 text-[13px]">
-					<span class="flex items-center gap-1.5">
-						<span class="text-muted-foreground uppercase text-[10.5px] font-semibold tracking-wide">Original</span>
-						<span class="font-mono-tabular">{formatCurrency(stripOriginalTotal())}</span>
-					</span>
-					<span class="flex items-center gap-1.5">
-						<span class="text-muted-foreground uppercase text-[10.5px] font-semibold tracking-wide">Removed</span>
-						<span class="font-mono-tabular text-destructive">−{formatCurrency(stripRemovedTotal())}</span>
-					</span>
-					<span class="flex items-center gap-1.5">
-						<span class="text-muted-foreground uppercase text-[10.5px] font-semibold tracking-wide">Added (Approved)</span>
-						<span class="font-mono-tabular text-success">+{formatCurrency(stripAddedItemsTotal())}</span>
-					</span>
-
-					<span class="ml-auto flex items-center gap-3">
-						<span class="flex items-center gap-2">
-							<span class="text-muted-foreground uppercase text-[10.5px] font-semibold tracking-wide">Combined</span>
-							<span class="font-mono-tabular text-base font-bold">{formatCurrency(stripCombinedTotal())}</span>
+		<!-- Bottom totals strip via layout footer slot -->
+		<BottomBarSlot>
+			{#snippet children()}
+				<div class="px-3 py-2.5 sm:px-6">
+					<div class="flex flex-wrap items-center gap-x-5 gap-y-1.5 text-[13px]">
+						<span class="flex items-center gap-1.5">
+							<span class="text-muted-foreground uppercase text-[10.5px] font-semibold tracking-wide">Original</span>
+							<span class="font-mono-tabular">{formatCurrency(stripOriginalTotal())}</span>
 						</span>
-						<Button size="sm" variant="outline" onclick={() => (totalsDetailsOpen = true)}>
-							<Info class="h-3.5 w-3.5 mr-1.5" />
-							Details
-						</Button>
-					</span>
+						<span class="flex items-center gap-1.5">
+							<span class="text-muted-foreground uppercase text-[10.5px] font-semibold tracking-wide">Removed</span>
+							<span class="font-mono-tabular text-destructive">−{formatCurrency(stripRemovedTotal())}</span>
+						</span>
+						<span class="flex items-center gap-1.5">
+							<span class="text-muted-foreground uppercase text-[10.5px] font-semibold tracking-wide">Added (Approved)</span>
+							<span class="font-mono-tabular text-success">+{formatCurrency(stripAddedItemsTotal())}</span>
+						</span>
+
+						<span class="ml-auto flex items-center gap-3">
+							<span class="flex items-center gap-2">
+								<span class="text-muted-foreground uppercase text-[10.5px] font-semibold tracking-wide">Combined</span>
+								<span class="font-mono-tabular text-base font-bold">{formatCurrency(stripCombinedTotal())}</span>
+							</span>
+							<Button size="sm" variant="outline" onclick={() => (totalsDetailsOpen = true)}>
+								<Info class="h-3.5 w-3.5 mr-1.5" />
+								Details
+							</Button>
+						</span>
+					</div>
 				</div>
-			</div>
-		</div>
+			{/snippet}
+		</BottomBarSlot>
 
 		<!-- Totals Details Dialog -->
 		<ResponsiveDialog.Root bind:open={totalsDetailsOpen}>
