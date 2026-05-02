@@ -4,7 +4,9 @@
 	import CompactCard from './compact/CompactCard.svelte';
 	import CompactCardHeader from './compact/CompactCardHeader.svelte';
 	import CompactField from './compact/CompactField.svelte';
+	import CompactFieldPhotoCard from './compact/CompactFieldPhotoCard.svelte';
 	import CompactInput from './compact/CompactInput.svelte';
+	import CompactPhotoCard from './compact/CompactPhotoCard.svelte';
 	import CompactSelect from './compact/CompactSelect.svelte';
 	import PhotoUpload from '$lib/components/forms/PhotoUpload.svelte';
 	import InteriorPhotosPanel from './InteriorPhotosPanel.svelte';
@@ -204,69 +206,82 @@
 		{#snippet form()}
 			<div class="space-y-6">
 				<!-- Engine Bay -->
-				<CompactCard>
-					<CompactCardHeader title="Engine Bay" />
-					<div class="grid gap-3.5 md:grid-cols-4">
-						<PhotoUpload
-							value={engineBayPhotoUrl}
-							label="Engine Bay"
-							{assessmentId}
-							category="interior"
-							subcategory="engine_bay"
-							onUpload={(url) => { engineBayPhotoUrl = url; handleSave(); }}
-							onRemove={() => { engineBayPhotoUrl = ''; handleSave(); }}
-							height="h-32"
-						/>
-						<PhotoUpload
-							value={batteryPhotoUrl}
-							label="Battery"
-							{assessmentId}
-							category="interior"
-							subcategory="battery"
-							onUpload={(url) => { batteryPhotoUrl = url; handleSave(); }}
-							onRemove={() => { batteryPhotoUrl = ''; handleSave(); }}
-							height="h-32"
-						/>
-						<PhotoUpload
-							value={oilLevelPhotoUrl}
-							label="Oil Level"
-							{assessmentId}
-							category="interior"
-							subcategory="oil"
-							onUpload={(url) => { oilLevelPhotoUrl = url; handleSave(); }}
-							onRemove={() => { oilLevelPhotoUrl = ''; handleSave(); }}
-							height="h-32"
-						/>
-						<PhotoUpload
-							value={coolantPhotoUrl}
-							label="Coolant"
-							{assessmentId}
-							category="interior"
-							subcategory="coolant"
-							onUpload={(url) => { coolantPhotoUrl = url; handleSave(); }}
-							onRemove={() => { coolantPhotoUrl = ''; handleSave(); }}
-							height="h-32"
-						/>
-					</div>
-				</CompactCard>
+				<div class="grid gap-3.5 md:grid-cols-4">
+					<CompactPhotoCard title="Engine Bay">
+						{#snippet photo()}
+							<PhotoUpload
+								value={engineBayPhotoUrl}
+								label=""
+								{assessmentId}
+								category="interior"
+								subcategory="engine_bay"
+								onUpload={(url) => { engineBayPhotoUrl = url; handleSave(); }}
+								onRemove={() => { engineBayPhotoUrl = ''; handleSave(); }}
+								height="h-32"
+							/>
+						{/snippet}
+					</CompactPhotoCard>
+					<CompactPhotoCard title="Battery">
+						{#snippet photo()}
+							<PhotoUpload
+								value={batteryPhotoUrl}
+								label=""
+								{assessmentId}
+								category="interior"
+								subcategory="battery"
+								onUpload={(url) => { batteryPhotoUrl = url; handleSave(); }}
+								onRemove={() => { batteryPhotoUrl = ''; handleSave(); }}
+								height="h-32"
+							/>
+						{/snippet}
+					</CompactPhotoCard>
+					<CompactPhotoCard title="Oil Level">
+						{#snippet photo()}
+							<PhotoUpload
+								value={oilLevelPhotoUrl}
+								label=""
+								{assessmentId}
+								category="interior"
+								subcategory="oil"
+								onUpload={(url) => { oilLevelPhotoUrl = url; handleSave(); }}
+								onRemove={() => { oilLevelPhotoUrl = ''; handleSave(); }}
+								height="h-32"
+							/>
+						{/snippet}
+					</CompactPhotoCard>
+					<CompactPhotoCard title="Coolant">
+						{#snippet photo()}
+							<PhotoUpload
+								value={coolantPhotoUrl}
+								label=""
+								{assessmentId}
+								category="interior"
+								subcategory="coolant"
+								onUpload={(url) => { coolantPhotoUrl = url; handleSave(); }}
+								onRemove={() => { coolantPhotoUrl = ''; handleSave(); }}
+								height="h-32"
+							/>
+						{/snippet}
+					</CompactPhotoCard>
+				</div>
 
 				<!-- Mileage -->
-				<CompactCard>
-					<CompactCardHeader title="Mileage" required />
-					<div class="grid gap-3.5 md:grid-cols-2">
-						<CompactField label="Mileage Reading (km)" required htmlFor="mileage_reading">
-							<CompactInput
-								id="mileage_reading"
-								type="number"
-								bind:value={mileageReading}
-								placeholder="e.g., 125000"
-								mono
-								oninput={debouncedSave}
-							/>
-						</CompactField>
+				<CompactFieldPhotoCard title="Mileage" required subtitle="Reading in km">
+					{#snippet field()}
+						<label for="mileage_reading" class="sr-only">Mileage Reading</label>
+						<CompactInput
+							id="mileage_reading"
+							type="number"
+							mono
+							bind:value={mileageReading}
+							placeholder="e.g., 125000"
+							oninput={debouncedSave}
+						/>
+					{/snippet}
+					{#snippet photo()}
 						<PhotoUpload
 							value={mileagePhotoUrl}
-							label="Mileage Photo"
+							label=""
 							{assessmentId}
 							category="interior"
 							subcategory="mileage"
@@ -274,50 +289,53 @@
 							onRemove={() => { mileagePhotoUrl = ''; handleSave(); }}
 							onView={() => { viewingMileagePhoto = true; }}
 						/>
-					</div>
-				</CompactCard>
+					{/snippet}
+				</CompactFieldPhotoCard>
 
 				<!-- Transmission & Power -->
-				<CompactCard>
-					<CompactCardHeader title="Transmission & Power" />
-					<div class="grid gap-3.5 md:grid-cols-3">
-						<CompactField label="Transmission Type" htmlFor="transmission_type">
-							<CompactSelect
-								id="transmission_type"
-								bind:value={transmissionType}
-								options={[
-									{ value: 'automatic', label: 'Automatic' },
-									{ value: 'manual', label: 'Manual' }
-								]}
-								onchange={(value) => {
-									transmissionType = value;
-									transmissionDraft.save(value);
-									handleSave(); // Save immediately for select fields
-								}}
-							/>
-						</CompactField>
-						<CompactField label="Battery Charged?" htmlFor="vehicle_has_power">
-							<CompactSelect
-								id="vehicle_has_power"
-								bind:value={vehicleHasPower}
-								options={[
-									{ value: 'true', label: 'Yes' },
-									{ value: 'false', label: 'No' }
-								]}
-								onchange={() => handleSave()}
-							/>
-						</CompactField>
+				<CompactFieldPhotoCard title="Transmission & Power">
+					{#snippet field()}
+						<div class="grid gap-3.5 sm:grid-cols-2">
+							<CompactField label="Transmission Type" htmlFor="transmission_type">
+								<CompactSelect
+									id="transmission_type"
+									bind:value={transmissionType}
+									options={[
+										{ value: 'automatic', label: 'Automatic' },
+										{ value: 'manual', label: 'Manual' }
+									]}
+									onchange={(value) => {
+										transmissionType = value;
+										transmissionDraft.save(value);
+										handleSave();
+									}}
+								/>
+							</CompactField>
+							<CompactField label="Battery Charged?" htmlFor="vehicle_has_power">
+								<CompactSelect
+									id="vehicle_has_power"
+									bind:value={vehicleHasPower}
+									options={[
+										{ value: 'true', label: 'Yes' },
+										{ value: 'false', label: 'No' }
+									]}
+									onchange={() => handleSave()}
+								/>
+							</CompactField>
+						</div>
+					{/snippet}
+					{#snippet photo()}
 						<PhotoUpload
 							value={gearLeverPhotoUrl}
-							label="Gear Lever Photo"
+							label=""
 							{assessmentId}
 							category="interior"
 							subcategory="gear_lever"
 							onUpload={(url) => { gearLeverPhotoUrl = url; handleSave(); }}
 							onRemove={() => { gearLeverPhotoUrl = ''; handleSave(); }}
 						/>
-					</div>
-				</CompactCard>
+					{/snippet}
+				</CompactFieldPhotoCard>
 
 				<!-- Interior Condition -->
 				<CompactCard>
