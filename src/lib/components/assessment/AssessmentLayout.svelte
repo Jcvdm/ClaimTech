@@ -301,31 +301,30 @@
 
 	<!-- Body: main content -->
 	<div class="flex min-h-0 flex-1">
-		<!-- Main content area + footer slot column -->
-		<div class="flex min-h-0 min-w-0 flex-1 flex-col">
-			<main class={[
-					'flex-1 overflow-y-auto pt-2 sm:pt-3',
-					['estimate', 'additionals'].includes(currentTab)
-						? 'px-1 sm:px-2 lg:px-3 pb-0'
-						: 'p-2 sm:p-3 md:p-4 lg:p-6'
-				].join(' ')}>
-				<div
-					class={['estimate', 'additionals'].includes(currentTab)
-						? 'mx-auto w-full max-w-none'
-						: 'mx-auto w-[98%] max-w-[1600px] sm:w-[95%] md:w-[92%] lg:w-[90%]'}
-				>
-					{#if children}
-						{@render children()}
-					{/if}
-				</div>
-			</main>
-			{#if bottomBarContent}
-				<div class="shrink-0 border-t border-slate-200 bg-white">
-					{@render bottomBarContent()}
-				</div>
-			{/if}
-		</div>
+		<main class={[
+				'flex-1 overflow-y-auto pt-2 sm:pt-3',
+				['estimate', 'additionals'].includes(currentTab)
+					? 'px-1 sm:px-2 lg:px-3 pb-0'
+					: 'p-2 sm:p-3 md:p-4 lg:p-6'
+			].join(' ')}>
+			<div
+				class={['estimate', 'additionals'].includes(currentTab)
+					? 'mx-auto w-full max-w-none'
+					: 'mx-auto w-[98%] max-w-[1600px] sm:w-[95%] md:w-[92%] lg:w-[90%]'}
+			>
+				{#if children}
+					{@render children()}
+				{/if}
+			</div>
+		</main>
 		{#if rightPanel}{@render rightPanel()}{/if}
 	</div>
+
+	<!-- Bottom bar slot — viewport-level footer, always visible when content registered -->
+	{#if bottomBarContent}
+		<div class="shrink-0 border-t border-slate-200 bg-white">
+			{@render bottomBarContent()}
+		</div>
+	{/if}
 
 </div>
