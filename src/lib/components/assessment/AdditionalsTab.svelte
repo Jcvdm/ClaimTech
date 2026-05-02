@@ -11,6 +11,7 @@
 	import CombinedTotalsSummary from './CombinedTotalsSummary.svelte';
 	import OriginalEstimateLinesPanel from './OriginalEstimateLinesPanel.svelte';
 	import AdditionalsPhotosPanel from './AdditionalsPhotosPanel.svelte';
+	import TabFormSplit from './layout/TabFormSplit.svelte';
 	import DocumentCard from './DocumentCard.svelte';
 	import AdditionalLineItemCard from './AdditionalLineItemCard.svelte';
 	import * as ResponsiveDialog from '$lib/components/ui/responsive-dialog';
@@ -898,6 +899,9 @@
 			</ResponsiveDialog.Content>
 		</ResponsiveDialog.Root>
 
+		<!-- Line Items + Photos side-by-side -->
+		<TabFormSplit photosWidth="360px">
+			{#snippet form()}
 		<!-- Line Items Table -->
 		<Card class="p-0">
 			<div class="px-3 sm:px-4 py-3 border-b border-border mb-0 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
@@ -941,7 +945,7 @@
 				</div>
 			</div>
 
-			{#if additionals.line_items.length === 0}
+			{#if additionals!.line_items.length === 0}
 				<div class="flex flex-col items-center justify-center py-12 text-center p-3">
 					<div class="mb-4 rounded-full bg-slate-100 p-4">
 						<Plus class="h-8 w-8 text-slate-400" />
@@ -959,7 +963,7 @@
 			{:else}
 				<!-- Mobile: Card Layout -->
 				<div class="space-y-3 md:hidden p-3">
-					{#each additionals.line_items as item (item.id)}
+					{#each additionals!.line_items as item (item.id)}
 						{@const isRemoved = item.action === 'removed'}
 						{@const isReversal = item.action === 'reversal'}
 						{@const isReversed = !!(item.id && reversedTargets().has(item.id))}
@@ -970,8 +974,8 @@
 							{isReversal}
 							{isReversed}
 							reversalReason={reversalEntry?.reversal_reason}
-							labourRate={additionals.labour_rate}
-							paintRate={additionals.paint_rate}
+							labourRate={additionals!.labour_rate}
+							paintRate={additionals!.paint_rate}
 							onUpdateDescription={(value) => {
 								updateLocalDescription(item.id!, value);
 								updatePending(item.id!, { description: value });
@@ -1026,7 +1030,7 @@
 							</Table.Row>
 						</Table.Header>
 						<Table.Body>
-							{#each additionals.line_items as item (item.id)}
+							{#each additionals!.line_items as item (item.id)}
 								{@const isRemoved = item.action === 'removed'}
 								{@const isReversal = item.action === 'reversal'}
 								{@const isReversed = item.id && reversedTargets().has(item.id)}
@@ -1295,6 +1299,18 @@
 				</div>
 			{/if}
 		</Card>
+			{/snippet}
+
+			{#snippet photos()}
+			<AdditionalsPhotosPanel
+				inSidebar
+				additionalsId={additionals!.id}
+				{assessmentId}
+				photos={additionalsPhotos}
+				onUpdate={handlePhotosUpdate}
+			/>
+			{/snippet}
+		</TabFormSplit>
 
 		<!-- Bottom-sticky compact totals strip -->
 		<div class="sticky bottom-0 z-20 -mx-2 sm:-mx-3 mt-3 border-t border-border bg-card shadow-[0_-4px_12px_-6px_rgba(0,0,0,0.1)]">
@@ -1356,13 +1372,6 @@
 			/>
 		</div>
 
-		<!-- Additional Photos -->
-		<AdditionalsPhotosPanel
-			additionalsId={additionals.id}
-			{assessmentId}
-			photos={additionalsPhotos}
-			onUpdate={handlePhotosUpdate}
-		/>
 	{/if}
 </div>
 

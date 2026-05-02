@@ -9,6 +9,7 @@
 	import RatesConfiguration from './RatesConfiguration.svelte';
 	import QuickAddLineItem from './QuickAddLineItem.svelte';
 	import PreIncidentPhotosPanel from './PreIncidentPhotosPanel.svelte';
+	import TabFormSplit from './layout/TabFormSplit.svelte';
 	import RequiredFieldsWarning from './RequiredFieldsWarning.svelte';
 	import LineItemCard from './LineItemCard.svelte';
 	import { Plus, Trash2, Check, Camera, Settings, ShieldCheck, Package, Recycle } from 'lucide-svelte';
@@ -822,6 +823,9 @@
 			</ResponsiveDialog.Content>
 		</ResponsiveDialog.Root>
 
+			<!-- Line Items + Photos side-by-side -->
+		<TabFormSplit photosWidth="360px">
+			{#snippet form()}
 			<Card class="p-0">
 				<div class="flex flex-col gap-3 border-b border-border px-3 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-4">
 					<div class="min-w-0">
@@ -865,8 +869,8 @@
 				{#each localLineItems() as item (item.id)}
 					<LineItemCard
 						{item}
-						labourRate={localEstimate.labour_rate}
-						paintRate={localEstimate.paint_rate}
+						labourRate={localEstimate!.labour_rate}
+						paintRate={localEstimate!.paint_rate}
 						selected={selectedItems.has(item.id!)}
 						onToggleSelect={() => handleToggleSelect(item.id!)}
 						onUpdateDescription={(value) => updateDescription(item.id!, value)}
@@ -1439,6 +1443,18 @@
 				</Table.Root>
 			</div>
 		</Card>
+		{/snippet}
+
+			{#snippet photos()}
+			<PreIncidentPhotosPanel
+				inSidebar
+				estimateId={localEstimate!.id}
+				{assessmentId}
+				photos={estimatePhotos}
+				onUpdate={onPhotosUpdate}
+			/>
+			{/snippet}
+		</TabFormSplit>
 
 		<TotalsStrip
 			fields={stripFields}
@@ -1459,13 +1475,6 @@
 			description="Derived from the local line items and rates."
 			bind:open={totalsDetailsOpen}
 			onOpenChange={(open) => (totalsDetailsOpen = open)}
-		/>
-
-		<PreIncidentPhotosPanel
-			estimateId={localEstimate.id}
-			{assessmentId}
-			photos={estimatePhotos}
-			onUpdate={onPhotosUpdate}
 		/>
 	{/if}
 </div>
