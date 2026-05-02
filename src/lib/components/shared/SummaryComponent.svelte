@@ -2,6 +2,7 @@
 	import { Card } from '$lib/components/ui/card';
 	import { Badge } from '$lib/components/ui/badge';
 	import StatusBadge from '$lib/components/data/StatusBadge.svelte';
+	import VehicleContextStrip from '$lib/components/assessment/VehicleContextStrip.svelte';
 	import { CircleCheck, CircleX, CircleAlert, Info, CircleOff } from 'lucide-svelte';
 import type { Inspection } from '$lib/types/inspection';
 import type { Request } from '$lib/types/request';
@@ -182,8 +183,13 @@ import type { VehicleDetails } from '$lib/utils/report-data-helpers';
 		{/if}
 	</Card>
 
-	<!-- Vehicle & Request Information -->
-	<Card class="bg-blue-50 p-6">
+	<!-- Vehicle & Request Information — compact strip on mobile -->
+	{#if vehicleDetails}
+		<VehicleContextStrip {vehicleDetails} />
+	{/if}
+
+	<!-- Vehicle & Request Information — full card on md+ -->
+	<Card class="hidden md:block bg-blue-50 p-6">
 		<h3 class="mb-4 text-lg font-semibold text-gray-900">Vehicle & Request Information</h3>
 
 		<!-- Row 1: Report No., Insurer, Date of Loss -->
