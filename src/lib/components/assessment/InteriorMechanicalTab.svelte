@@ -1,8 +1,16 @@
 <script lang="ts">
 	import { Card } from '$lib/components/ui/card';
 	import FormField from '$lib/components/forms/FormField.svelte';
+	import CompactCard from './compact/CompactCard.svelte';
+	import CompactCardHeader from './compact/CompactCardHeader.svelte';
+	import CompactField from './compact/CompactField.svelte';
+	import CompactFieldPhotoCard from './compact/CompactFieldPhotoCard.svelte';
+	import CompactInput from './compact/CompactInput.svelte';
+	import CompactPhotoCard from './compact/CompactPhotoCard.svelte';
+	import CompactSelect from './compact/CompactSelect.svelte';
 	import PhotoUpload from '$lib/components/forms/PhotoUpload.svelte';
 	import InteriorPhotosPanel from './InteriorPhotosPanel.svelte';
+	import TabFormSplit from './layout/TabFormSplit.svelte';
 	import RequiredFieldsWarning from './RequiredFieldsWarning.svelte';
 	import FormFieldPhotoViewer, { type FieldConfig } from '$lib/components/photo-viewer/FormFieldPhotoViewer.svelte';
 	import { debounce } from '$lib/utils/useUnsavedChanges.svelte';
@@ -193,218 +201,233 @@
 <div class="space-y-6">
 	<!-- Warning Banner -->
 	<RequiredFieldsWarning missingFields={validation.missingFields} />
-	<!-- Engine Bay -->
-	<Card class="p-6">
-		<h3 class="mb-4 text-lg font-semibold text-gray-900">Engine Bay</h3>
-		<div class="grid gap-4 md:grid-cols-4">
-			<PhotoUpload
-				value={engineBayPhotoUrl}
-				label="Engine Bay"
-				{assessmentId}
-				category="interior"
-				subcategory="engine_bay"
-				onUpload={(url) => { engineBayPhotoUrl = url; handleSave(); }}
-				onRemove={() => { engineBayPhotoUrl = ''; handleSave(); }}
-				height="h-32"
-			/>
-			<PhotoUpload
-				value={batteryPhotoUrl}
-				label="Battery"
-				{assessmentId}
-				category="interior"
-				subcategory="battery"
-				onUpload={(url) => { batteryPhotoUrl = url; handleSave(); }}
-				onRemove={() => { batteryPhotoUrl = ''; handleSave(); }}
-				height="h-32"
-			/>
-			<PhotoUpload
-				value={oilLevelPhotoUrl}
-				label="Oil Level"
-				{assessmentId}
-				category="interior"
-				subcategory="oil"
-				onUpload={(url) => { oilLevelPhotoUrl = url; handleSave(); }}
-				onRemove={() => { oilLevelPhotoUrl = ''; handleSave(); }}
-				height="h-32"
-			/>
-			<PhotoUpload
-				value={coolantPhotoUrl}
-				label="Coolant"
-				{assessmentId}
-				category="interior"
-				subcategory="coolant"
-				onUpload={(url) => { coolantPhotoUrl = url; handleSave(); }}
-				onRemove={() => { coolantPhotoUrl = ''; handleSave(); }}
-				height="h-32"
-			/>
-		</div>
-	</Card>
 
-	<!-- Mileage -->
-	<Card class="p-6">
-		<h3 class="mb-4 text-lg font-semibold text-gray-900">
-			Mileage <span class="text-red-500">*</span>
-		</h3>
-		<div class="grid gap-6 md:grid-cols-2">
-			<FormField
-				name="mileage_reading"
-				label="Mileage Reading (km)"
-				type="number"
-				bind:value={mileageReading}
-				placeholder="e.g., 125000"
-				required
-				oninput={debouncedSave}
-			/>
-			<PhotoUpload
-				value={mileagePhotoUrl}
-				label="Mileage Photo"
+	<TabFormSplit photosWidth="380px">
+		{#snippet form()}
+			<div class="space-y-6">
+				<!-- Engine Bay -->
+				<div class="grid gap-3.5 md:grid-cols-4">
+					<CompactPhotoCard title="Engine Bay">
+						{#snippet photo()}
+							<PhotoUpload
+								value={engineBayPhotoUrl}
+								label=""
+								{assessmentId}
+								category="interior"
+								subcategory="engine_bay"
+								onUpload={(url) => { engineBayPhotoUrl = url; handleSave(); }}
+								onRemove={() => { engineBayPhotoUrl = ''; handleSave(); }}
+								height="h-32"
+							/>
+						{/snippet}
+					</CompactPhotoCard>
+					<CompactPhotoCard title="Battery">
+						{#snippet photo()}
+							<PhotoUpload
+								value={batteryPhotoUrl}
+								label=""
+								{assessmentId}
+								category="interior"
+								subcategory="battery"
+								onUpload={(url) => { batteryPhotoUrl = url; handleSave(); }}
+								onRemove={() => { batteryPhotoUrl = ''; handleSave(); }}
+								height="h-32"
+							/>
+						{/snippet}
+					</CompactPhotoCard>
+					<CompactPhotoCard title="Oil Level">
+						{#snippet photo()}
+							<PhotoUpload
+								value={oilLevelPhotoUrl}
+								label=""
+								{assessmentId}
+								category="interior"
+								subcategory="oil"
+								onUpload={(url) => { oilLevelPhotoUrl = url; handleSave(); }}
+								onRemove={() => { oilLevelPhotoUrl = ''; handleSave(); }}
+								height="h-32"
+							/>
+						{/snippet}
+					</CompactPhotoCard>
+					<CompactPhotoCard title="Coolant">
+						{#snippet photo()}
+							<PhotoUpload
+								value={coolantPhotoUrl}
+								label=""
+								{assessmentId}
+								category="interior"
+								subcategory="coolant"
+								onUpload={(url) => { coolantPhotoUrl = url; handleSave(); }}
+								onRemove={() => { coolantPhotoUrl = ''; handleSave(); }}
+								height="h-32"
+							/>
+						{/snippet}
+					</CompactPhotoCard>
+				</div>
+
+				<!-- Mileage -->
+				<CompactFieldPhotoCard title="Mileage" required subtitle="Reading in km">
+					{#snippet field()}
+						<label for="mileage_reading" class="sr-only">Mileage Reading</label>
+						<CompactInput
+							id="mileage_reading"
+							type="number"
+							mono
+							bind:value={mileageReading}
+							placeholder="e.g., 125000"
+							oninput={debouncedSave}
+						/>
+					{/snippet}
+					{#snippet photo()}
+						<PhotoUpload
+							value={mileagePhotoUrl}
+							label=""
+							{assessmentId}
+							category="interior"
+							subcategory="mileage"
+							onUpload={(url) => { mileagePhotoUrl = url; handleSave(); }}
+							onRemove={() => { mileagePhotoUrl = ''; handleSave(); }}
+							onView={() => { viewingMileagePhoto = true; }}
+						/>
+					{/snippet}
+				</CompactFieldPhotoCard>
+
+				<!-- Transmission & Power -->
+				<CompactFieldPhotoCard title="Transmission & Power">
+					{#snippet field()}
+						<div class="grid gap-3.5 sm:grid-cols-2">
+							<CompactField label="Transmission Type" htmlFor="transmission_type">
+								<CompactSelect
+									id="transmission_type"
+									bind:value={transmissionType}
+									options={[
+										{ value: 'automatic', label: 'Automatic' },
+										{ value: 'manual', label: 'Manual' }
+									]}
+									onchange={(value) => {
+										transmissionType = value;
+										transmissionDraft.save(value);
+										handleSave();
+									}}
+								/>
+							</CompactField>
+							<CompactField label="Battery Charged?" htmlFor="vehicle_has_power">
+								<CompactSelect
+									id="vehicle_has_power"
+									bind:value={vehicleHasPower}
+									options={[
+										{ value: 'true', label: 'Yes' },
+										{ value: 'false', label: 'No' }
+									]}
+									onchange={() => handleSave()}
+								/>
+							</CompactField>
+						</div>
+					{/snippet}
+					{#snippet photo()}
+						<PhotoUpload
+							value={gearLeverPhotoUrl}
+							label=""
+							{assessmentId}
+							category="interior"
+							subcategory="gear_lever"
+							onUpload={(url) => { gearLeverPhotoUrl = url; handleSave(); }}
+							onRemove={() => { gearLeverPhotoUrl = ''; handleSave(); }}
+						/>
+					{/snippet}
+				</CompactFieldPhotoCard>
+
+				<!-- Interior Condition -->
+				<CompactCard>
+					<CompactCardHeader title="Interior Condition" required />
+					<CompactField label="Overall Interior Condition" required htmlFor="interior_condition">
+						<CompactSelect
+							id="interior_condition"
+							bind:value={interiorCondition}
+							options={[
+								{ value: 'excellent', label: 'Excellent' },
+								{ value: 'very_good', label: 'Very Good' },
+								{ value: 'good', label: 'Good' },
+								{ value: 'fair', label: 'Fair' },
+								{ value: 'poor', label: 'Poor' },
+								{ value: 'very_poor', label: 'Very Poor' }
+							]}
+							onchange={(value) => {
+								interiorCondition = value;
+								interiorConditionDraft.save(value);
+								handleSave(); // Save immediately for select fields
+							}}
+						/>
+					</CompactField>
+				</CompactCard>
+
+				<!-- Systems Check -->
+				<CompactCard>
+					<CompactCardHeader title="Systems Check" required />
+					<div class="grid gap-3.5 md:grid-cols-2">
+						<CompactField label="SRS System (Airbags/Seatbelts)" required htmlFor="srs_system">
+							<CompactSelect
+								id="srs_system"
+								bind:value={srsSystem}
+								options={[
+									{ value: 'operational', label: 'Operational' },
+									{ value: 'warning_light', label: 'Warning Light On' },
+									{ value: 'not_working', label: 'Not Working' },
+									{ value: 'deployed', label: 'Deployed' }
+								]}
+								onchange={() => handleSave()}
+							/>
+						</CompactField>
+						<CompactField label="Steering" required htmlFor="steering">
+							<CompactSelect
+								id="steering"
+								bind:value={steering}
+								options={[
+									{ value: 'working', label: 'Working' },
+									{ value: 'not_working', label: 'Not Working' },
+									{ value: 'issues', label: 'Has Issues' }
+								]}
+								onchange={() => handleSave()}
+							/>
+						</CompactField>
+						<CompactField label="Brakes" required htmlFor="brakes">
+							<CompactSelect
+								id="brakes"
+								bind:value={brakes}
+								options={[
+									{ value: 'working', label: 'Working' },
+									{ value: 'not_working', label: 'Not Working' },
+									{ value: 'issues', label: 'Has Issues' }
+								]}
+								onchange={() => handleSave()}
+							/>
+						</CompactField>
+						<CompactField label="Handbrake" required htmlFor="handbrake">
+							<CompactSelect
+								id="handbrake"
+								bind:value={handbrake}
+								options={[
+									{ value: 'working', label: 'Working' },
+									{ value: 'not_working', label: 'Not Working' },
+									{ value: 'issues', label: 'Has Issues' }
+								]}
+								onchange={() => handleSave()}
+							/>
+						</CompactField>
+					</div>
+				</CompactCard>
+			</div>
+		{/snippet}
+
+		{#snippet photos()}
+			<InteriorPhotosPanel
 				{assessmentId}
-				category="interior"
-				subcategory="mileage"
-				onUpload={(url) => { mileagePhotoUrl = url; handleSave(); }}
-				onRemove={() => { mileagePhotoUrl = ''; handleSave(); }}
-				onView={() => { viewingMileagePhoto = true; }}
+				photos={interiorPhotos}
+				onUpdate={onPhotosUpdate}
+				inSidebar
 			/>
-		</div>
-	</Card>
-
-	<!-- Transmission & Power -->
-	<Card class="p-6">
-		<h3 class="mb-4 text-lg font-semibold text-gray-900">Transmission & Power</h3>
-		<div class="grid gap-6 md:grid-cols-3">
-			<FormField
-				name="transmission_type"
-				label="Transmission Type"
-				type="select"
-				bind:value={transmissionType}
-				options={[
-					{ value: 'automatic', label: 'Automatic' },
-					{ value: 'manual', label: 'Manual' }
-				]}
-				onchange={(value: string) => {
-					transmissionType = value;
-					transmissionDraft.save(value);
-					handleSave(); // Save immediately for select fields
-				}}
-			/>
-			<FormField
-				name="vehicle_has_power"
-				label="Battery Charged?"
-				type="select"
-				bind:value={vehicleHasPower}
-				options={[
-					{ value: 'true', label: 'Yes' },
-					{ value: 'false', label: 'No' }
-				]}
-				onchange={() => handleSave()}
-			/>
-			<PhotoUpload
-				value={gearLeverPhotoUrl}
-				label="Gear Lever Photo"
-				{assessmentId}
-				category="interior"
-				subcategory="gear_lever"
-				onUpload={(url) => { gearLeverPhotoUrl = url; handleSave(); }}
-				onRemove={() => { gearLeverPhotoUrl = ''; handleSave(); }}
-			/>
-		</div>
-	</Card>
-
-	<!-- Interior Photos -->
-	<InteriorPhotosPanel
-		{assessmentId}
-		photos={interiorPhotos}
-		onUpdate={onPhotosUpdate}
-	/>
-
-	<!-- Interior Condition -->
-	<Card class="p-6">
-		<h3 class="mb-4 text-lg font-semibold text-gray-900">
-			Interior Condition <span class="text-red-500">*</span>
-		</h3>
-		<FormField
-			name="interior_condition"
-			label="Overall Interior Condition"
-			type="select"
-			bind:value={interiorCondition}
-			options={[
-				{ value: 'excellent', label: 'Excellent' },
-				{ value: 'very_good', label: 'Very Good' },
-				{ value: 'good', label: 'Good' },
-				{ value: 'fair', label: 'Fair' },
-				{ value: 'poor', label: 'Poor' },
-				{ value: 'very_poor', label: 'Very Poor' }
-			]}
-			required
-			onchange={(value: string) => {
-				interiorCondition = value;
-				interiorConditionDraft.save(value);
-				handleSave(); // Save immediately for select fields
-			}}
-		/>
-	</Card>
-
-	<!-- Systems Check -->
-	<Card class="p-6">
-		<h3 class="mb-4 text-lg font-semibold text-gray-900">
-			Systems Check <span class="text-red-500">*</span>
-		</h3>
-		<div class="grid gap-6 md:grid-cols-2">
-			<FormField
-				name="srs_system"
-				label="SRS System (Airbags/Seatbelts)"
-				type="select"
-				bind:value={srsSystem}
-				options={[
-					{ value: 'operational', label: 'Operational' },
-					{ value: 'warning_light', label: 'Warning Light On' },
-					{ value: 'not_working', label: 'Not Working' },
-					{ value: 'deployed', label: 'Deployed' }
-				]}
-				required
-				onchange={() => handleSave()}
-			/>
-			<FormField
-				name="steering"
-				label="Steering"
-				type="select"
-				bind:value={steering}
-				options={[
-					{ value: 'working', label: 'Working' },
-					{ value: 'not_working', label: 'Not Working' },
-					{ value: 'issues', label: 'Has Issues' }
-				]}
-				required
-				onchange={() => handleSave()}
-			/>
-			<FormField
-				name="brakes"
-				label="Brakes"
-				type="select"
-				bind:value={brakes}
-				options={[
-					{ value: 'working', label: 'Working' },
-					{ value: 'not_working', label: 'Not Working' },
-					{ value: 'issues', label: 'Has Issues' }
-				]}
-				required
-				onchange={() => handleSave()}
-			/>
-			<FormField
-				name="handbrake"
-				label="Handbrake"
-				type="select"
-				bind:value={handbrake}
-				options={[
-					{ value: 'working', label: 'Working' },
-					{ value: 'not_working', label: 'Not Working' },
-					{ value: 'issues', label: 'Has Issues' }
-				]}
-				required
-				onchange={() => handleSave()}
-			/>
-		</div>
-	</Card>
+		{/snippet}
+	</TabFormSplit>
 </div>
 
 <!-- Mileage Photo Field Viewer -->

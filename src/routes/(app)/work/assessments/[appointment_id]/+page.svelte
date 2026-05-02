@@ -18,6 +18,7 @@
 	import FRCTab from '$lib/components/assessment/FRCTab.svelte';
 	import AuditTab from '$lib/components/assessment/AuditTab.svelte';
 	import AssessmentNotes from '$lib/components/assessment/AssessmentNotes.svelte';
+	import AssessmentSidePanel from '$lib/components/assessment/layout/AssessmentSidePanel.svelte';
 	import { assessmentService } from '$lib/services/assessment.service';
 	import { vehicleIdentificationService } from '$lib/services/vehicle-identification.service';
 	import { exterior360Service } from '$lib/services/exterior-360.service';
@@ -95,6 +96,19 @@
 	let autoSaveInterval: ReturnType<typeof setInterval> | null = null;
 	let cancelPhotoPrefetch: (() => void) | null = null;
 
+	let notesCollapsed = $state(
+		typeof window !== 'undefined'
+			? window.localStorage.getItem('assessment.notesCollapsed') === 'true'
+			: false
+	);
+
+	function toggleNotesCollapsed() {
+		notesCollapsed = !notesCollapsed;
+		if (typeof window !== 'undefined') {
+			window.localStorage.setItem('assessment.notesCollapsed', String(notesCollapsed));
+		}
+	}
+
 	// Store reference to tab save functions for auto-save on tab change
 	let estimateTabSaveFn: (() => Promise<void>) | null = null;
 	let preIncidentEstimateTabSaveFn: (() => Promise<void>) | null = null;
@@ -117,6 +131,11 @@
 		const url = new URL($page.url);
 		url.searchParams.set('tab', tabId);
 		replaceState(url, {});
+	}
+
+	async function refreshNotes() {
+		const updatedNotes = await assessmentNotesService.getNotesByAssessment(data.assessment.id);
+		notes = updatedNotes;
 	}
 
 	async function handleTabChange(tabId: string) {
@@ -875,6 +894,22 @@
 	}
 </script>
 
+{#snippet rightPanel()}
+	{#if currentTab !== 'finalize'}
+		<AssessmentSidePanel collapsed={notesCollapsed} onToggle={toggleNotesCollapsed}>
+			<AssessmentNotes
+				inSidebar
+				assessmentId={data.assessment.id}
+				{notes}
+				{currentTab}
+				{lastSaved}
+				onUpdate={refreshNotes}
+				onCollapse={toggleNotesCollapsed}
+			/>
+		</AssessmentSidePanel>
+	{/if}
+{/snippet}
+
 <AssessmentLayout
 	assessment={data.assessment}
 	bind:currentTab
@@ -898,6 +933,7 @@
 	{estimate}
 	onValidationUpdate={handleValidationUpdate}
 	{liveValidations}
+	{rightPanel}
 >
 	{#if currentTab === 'summary'}
 		<SummaryTab
@@ -1134,9 +1170,9 @@
 		<AuditTab assessmentId={data.assessment.id} supabase={data.supabase} />
 	{/if}
 
-	<!-- Global Assessment Notes (visible on all tabs except finalize) -->
+	<!-- Global Assessment Notes (visible on all tabs except finalize, hidden at xl where sidebar takes over) -->
 	{#if currentTab !== 'finalize'}
-		<div class="mt-6">
+		<div class="xl:hidden mt-6">
 			<AssessmentNotes
 				assessmentId={data.assessment.id}
 				{notes}

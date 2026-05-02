@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { Card } from '$lib/components/ui/card';
-	import { StickyNote, MessageSquare, ChevronDown, ChevronUp } from 'lucide-svelte';
+	import { StickyNote, MessageSquare, ChevronDown, ChevronUp, PanelLeftClose } from 'lucide-svelte';
 	import { assessmentNotesService } from '$lib/services/assessment-notes.service';
 	import type { AssessmentNote } from '$lib/types/assessment';
 	import NoteBubble from './NoteBubble.svelte';
@@ -14,16 +14,18 @@
 		currentTab: string; // Current tab ID for tracking note source
 		onUpdate: () => void;
 		lastSaved?: string | null;
+		inSidebar?: boolean;
+		onCollapse?: () => void;
 	}
 
-	let { assessmentId, notes, currentTab, onUpdate, lastSaved = null }: Props = $props();
+	let { assessmentId, notes, currentTab, onUpdate, lastSaved = null, inSidebar = false, onCollapse }: Props = $props();
 
 	// Collapsible state - default to expanded, but collapse on mobile
 	let isExpanded = $state(true);
 
-	// On mount, collapse on small screens
+	// On mount, collapse on small screens (skip when in sidebar — parent panel handles visibility)
 	onMount(() => {
-		if (browser && window.innerWidth < 640) {
+		if (!inSidebar && browser && window.innerWidth < 640) {
 			isExpanded = false;
 		}
 	});
@@ -36,7 +38,7 @@
 	// Scroll to bottom when new notes are added
 	let notesContainer: HTMLDivElement;
 	$effect(() => {
-		if (notesContainer && notes.length > 0 && isExpanded) {
+		if (notesContainer && notes.length > 0 && (inSidebar || isExpanded)) {
 			// Small delay to ensure DOM is updated
 			setTimeout(() => {
 				notesContainer.scrollTop = notesContainer.scrollHeight;
@@ -84,40 +86,34 @@
 	}
 </script>
 
-<Card class="border-border bg-muted">
-	<!-- Header - Clickable to expand/collapse -->
-	<button
-		type="button"
-		onclick={() => (isExpanded = !isExpanded)}
-		class="flex w-full items-center justify-between border-b border-border p-3 transition-colors hover:bg-accent sm:p-4"
-		class:border-b-0={!isExpanded}
-	>
-		<div class="flex items-center gap-2">
-			<StickyNote class="h-4 w-4 text-muted-foreground sm:h-5 sm:w-5" />
-			<h3 class="text-base font-semibold text-gray-900 sm:text-lg">Notes</h3>
-			<span class="text-xs text-gray-500 sm:text-sm">({notes.length})</span>
-		</div>
-		<div class="flex items-center gap-2">
-			{#if !isExpanded && notes.length > 0}
-				<span class="text-xs text-gray-500">Tap to expand</span>
-			{/if}
-			{#if isExpanded}
-				<ChevronUp class="h-4 w-4 text-gray-500 sm:h-5 sm:w-5" />
-			{:else}
-				<ChevronDown class="h-4 w-4 text-gray-500 sm:h-5 sm:w-5" />
+{#if inSidebar}
+	<!-- Sidebar variant: fills parent column, no Card wrapper, no collapse toggle -->
+	<div class="flex flex-col h-full bg-white">
+		<!-- Static header strip -->
+		<div class="shrink-0 flex items-center gap-2 border-b border-slate-200 p-3">
+			<StickyNote class="h-4 w-4 text-muted-foreground" />
+			<h3 class="text-sm font-semibold text-gray-900">Notes</h3>
+			<span class="text-xs text-gray-500">({notes.length})</span>
+			{#if onCollapse}
+				<button
+					type="button"
+					onclick={onCollapse}
+					aria-label="Collapse notes panel"
+					class="ml-auto p-1.5 rounded-md hover:bg-slate-100 text-slate-500 hover:text-slate-900"
+				>
+					<PanelLeftClose class="w-4 h-4" />
+				</button>
 			{/if}
 		</div>
-	</button>
 
-	{#if isExpanded}
-		<!-- Notes List (scrollable) - responsive heights -->
+		<!-- Notes list (independent scroll) -->
 		<div
 			bind:this={notesContainer}
-			class="min-h-[100px] space-y-3 p-3 sm:min-h-[150px] sm:p-4"
+			class="flex-1 min-h-0 overflow-y-auto p-3 space-y-3"
 		>
 			{#if sortedNotes.length === 0}
-				<div class="flex h-[80px] flex-col items-center justify-center text-center text-gray-500 sm:h-[130px]">
-					<MessageSquare class="mb-2 h-8 w-8 opacity-30 sm:h-12 sm:w-12" />
+				<div class="flex h-[80px] flex-col items-center justify-center text-center text-gray-500">
+					<MessageSquare class="mb-2 h-8 w-8 opacity-30" />
 					<p class="text-sm font-medium">No notes yet</p>
 					<p class="text-xs">Add your first note below</p>
 				</div>
@@ -128,10 +124,61 @@
 			{/if}
 		</div>
 
-		<!-- Add Note Input (sticky at bottom) -->
-		<div class="border-t border-border bg-white p-3 sm:p-4">
+		<!-- Composer pinned at bottom -->
+		<div class="border-t border-slate-200 bg-white p-3 shrink-0">
 			<AddNoteInput onAdd={handleAddNote} />
 		</div>
-	{/if}
-</Card>
+	</div>
+{:else}
+	<Card class="border-border bg-muted">
+		<!-- Header - Clickable to expand/collapse -->
+		<button
+			type="button"
+			onclick={() => (isExpanded = !isExpanded)}
+			class="flex w-full items-center justify-between border-b border-border p-3 transition-colors hover:bg-accent sm:p-4"
+			class:border-b-0={!isExpanded}
+		>
+			<div class="flex items-center gap-2">
+				<StickyNote class="h-4 w-4 text-muted-foreground sm:h-5 sm:w-5" />
+				<h3 class="text-base font-semibold text-gray-900 sm:text-lg">Notes</h3>
+				<span class="text-xs text-gray-500 sm:text-sm">({notes.length})</span>
+			</div>
+			<div class="flex items-center gap-2">
+				{#if !isExpanded && notes.length > 0}
+					<span class="text-xs text-gray-500">Tap to expand</span>
+				{/if}
+				{#if isExpanded}
+					<ChevronUp class="h-4 w-4 text-gray-500 sm:h-5 sm:w-5" />
+				{:else}
+					<ChevronDown class="h-4 w-4 text-gray-500 sm:h-5 sm:w-5" />
+				{/if}
+			</div>
+		</button>
+
+		{#if isExpanded}
+			<!-- Notes List (scrollable) - responsive heights -->
+			<div
+				bind:this={notesContainer}
+				class="min-h-[100px] space-y-3 p-3 sm:min-h-[150px] sm:p-4"
+			>
+				{#if sortedNotes.length === 0}
+					<div class="flex h-[80px] flex-col items-center justify-center text-center text-gray-500 sm:h-[130px]">
+						<MessageSquare class="mb-2 h-8 w-8 opacity-30 sm:h-12 sm:w-12" />
+						<p class="text-sm font-medium">No notes yet</p>
+						<p class="text-xs">Add your first note below</p>
+					</div>
+				{:else}
+					{#each sortedNotes as note (note.id)}
+						<NoteBubble {note} onEdit={handleEditNote} onDelete={handleDeleteNote} />
+					{/each}
+				{/if}
+			</div>
+
+			<!-- Add Note Input (sticky at bottom) -->
+			<div class="border-t border-border bg-white p-3 sm:p-4">
+				<AddNoteInput onAdd={handleAddNote} />
+			</div>
+		{/if}
+	</Card>
+{/if}
 

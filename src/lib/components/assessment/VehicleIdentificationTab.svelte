@@ -2,6 +2,13 @@
 	import { Card } from '$lib/components/ui/card';
 	import FormField from '$lib/components/forms/FormField.svelte';
 	import PhotoUpload from '$lib/components/forms/PhotoUpload.svelte';
+	import CompactCard from './compact/CompactCard.svelte';
+	import CompactCardHeader from './compact/CompactCardHeader.svelte';
+	import CompactField from './compact/CompactField.svelte';
+	import CompactInput from './compact/CompactInput.svelte';
+	import CompactSelect from './compact/CompactSelect.svelte';
+	import CompactTextarea from './compact/CompactTextarea.svelte';
+	import CompactFieldPhotoCard from './compact/CompactFieldPhotoCard.svelte';
 	import RequiredFieldsWarning from './RequiredFieldsWarning.svelte';
 	import FormFieldPhotoViewer, { type FieldConfig } from '$lib/components/photo-viewer/FormFieldPhotoViewer.svelte';
 	import { debounce } from '$lib/utils/useUnsavedChanges.svelte';
@@ -313,68 +320,59 @@ interface Props {
 	});
 </script>
 
-<div class="space-y-6">
+<div class="space-y-3">
 	<!-- Warning Banner -->
 	<RequiredFieldsWarning missingFields={validation.missingFields} />
 	<!-- Vehicle Information (Editable) -->
-	<Card class="p-6">
-		<h3 class="mb-4 text-lg font-semibold text-gray-900">
-			Vehicle Information <span class="text-red-500">*</span>
-		</h3>
-		<p class="mb-4 text-sm text-gray-600">
+	<CompactCard>
+		<CompactCardHeader title="Vehicle Information" required />
+		<p class="mb-3 text-sm text-gray-600">
 			Confirm or update the vehicle details. These may differ from the original request if corrections are needed.
 		</p>
-		<div class="grid gap-6 md:grid-cols-3">
-			<FormField
-				name="vehicle_make"
-				label="Make"
-				type="text"
-				bind:value={vehicleMake}
-				placeholder={vehicleInfo?.make || 'e.g., Toyota, BMW'}
-				required
-				oninput={debouncedSave}
-			/>
-			<FormField
-				name="vehicle_model"
-				label="Model"
-				type="text"
-				bind:value={vehicleModel}
-				placeholder={vehicleInfo?.model || 'e.g., Corolla, 320i'}
-				required
-				oninput={debouncedSave}
-			/>
-			<FormField
-				name="vehicle_year"
-				label="Year"
-				type="number"
-				bind:value={vehicleYear}
-				placeholder={vehicleInfo?.year?.toString() || '2023'}
-				required
-				oninput={debouncedSave}
-			/>
-		</div>
-	</Card>
-
-	<!-- Registration Number -->
-	<Card class="p-6">
-		<h3 class="mb-4 text-lg font-semibold text-gray-900">
-			Registration Number <span class="text-red-500">*</span>
-		</h3>
-		<div class="grid gap-6 md:grid-cols-2">
-			<div>
-				<FormField
-					name="registration_number"
-					label="Registration Number"
-					type="text"
-					bind:value={registrationNumber}
-					placeholder="e.g., ABC123GP"
-					required
+		<div class="grid gap-3.5 md:grid-cols-3">
+			<CompactField label="Make" htmlFor="vehicle_make" required>
+				<CompactInput
+					id="vehicle_make"
+					bind:value={vehicleMake}
+					placeholder={vehicleInfo?.make || 'e.g., Toyota, BMW'}
 					oninput={debouncedSave}
 				/>
-			</div>
+			</CompactField>
+			<CompactField label="Model" htmlFor="vehicle_model" required>
+				<CompactInput
+					id="vehicle_model"
+					bind:value={vehicleModel}
+					placeholder={vehicleInfo?.model || 'e.g., Corolla, 320i'}
+					oninput={debouncedSave}
+				/>
+			</CompactField>
+			<CompactField label="Year" htmlFor="vehicle_year" required>
+				<CompactInput
+					id="vehicle_year"
+					type="number"
+					value={vehicleYear ?? ''}
+					oninput={(e) => { vehicleYear = (e.target as HTMLInputElement).valueAsNumber || undefined; debouncedSave(); }}
+					placeholder={vehicleInfo?.year?.toString() || '2023'}
+				/>
+			</CompactField>
+		</div>
+	</CompactCard>
+
+	<!-- Registration Number -->
+	<CompactFieldPhotoCard title="Registration Number" required>
+		{#snippet field()}
+			<label for="registration_number" class="sr-only">Registration Number</label>
+			<CompactInput
+				id="registration_number"
+				bind:value={registrationNumber}
+				placeholder="e.g., ABC123GP"
+				oninput={debouncedSave}
+			/>
+		{/snippet}
+		{#snippet photo()}
 			<PhotoUpload
 				value={registrationPhotoUrl}
-				label="Registration Photo"
+				label=""
 				required
 				{assessmentId}
 				category="identification"
@@ -389,29 +387,24 @@ interface Props {
 				}}
 				onView={() => { viewingPhotoField = 'registration'; }}
 			/>
-		</div>
-	</Card>
+		{/snippet}
+	</CompactFieldPhotoCard>
 
 	<!-- VIN Number -->
-	<Card class="p-6">
-		<h3 class="mb-4 text-lg font-semibold text-gray-900">
-			VIN Number <span class="text-red-500">*</span>
-		</h3>
-		<div class="grid gap-6 md:grid-cols-2">
-			<div>
-				<FormField
-					name="vin_number"
-					label="VIN Number"
-					type="text"
-					bind:value={vinNumber}
-					placeholder="17-character VIN"
-					required
-					oninput={debouncedSave}
-				/>
-			</div>
+	<CompactFieldPhotoCard title="VIN Number" required>
+		{#snippet field()}
+			<label for="vin_number" class="sr-only">VIN Number</label>
+			<CompactInput
+				id="vin_number"
+				bind:value={vinNumber}
+				placeholder="17-character VIN"
+				oninput={debouncedSave}
+			/>
+		{/snippet}
+		{#snippet photo()}
 			<PhotoUpload
 				value={vinPhotoUrl}
-				label="VIN Photo"
+				label=""
 				required
 				{assessmentId}
 				category="identification"
@@ -426,29 +419,24 @@ interface Props {
 				}}
 				onView={() => { viewingPhotoField = 'vin'; }}
 			/>
-		</div>
-	</Card>
+		{/snippet}
+	</CompactFieldPhotoCard>
 
 	<!-- Engine Number -->
-	<Card class="p-6">
-		<h3 class="mb-4 text-lg font-semibold text-gray-900">
-			Engine Number
-		</h3>
-		<p class="mb-4 text-sm text-gray-600">
-			Optional - only if visible on the vehicle
-		</p>
-		<div class="grid gap-6 md:grid-cols-2">
-			<FormField
-				name="engine_number"
-				label="Engine Number"
-				type="text"
+	<CompactFieldPhotoCard title="Engine Number" subtitle="Optional — only if visible on the vehicle">
+		{#snippet field()}
+			<label for="engine_number" class="sr-only">Engine Number</label>
+			<CompactInput
+				id="engine_number"
 				bind:value={engineNumber}
 				placeholder="Engine number (optional if not visible)"
 				oninput={debouncedSave}
 			/>
+		{/snippet}
+		{#snippet photo()}
 			<PhotoUpload
 				value={engineNumberPhotoUrl}
-				label="Engine Number Photo"
+				label=""
 				{assessmentId}
 				category="identification"
 				subcategory="engine"
@@ -462,24 +450,25 @@ interface Props {
 				}}
 				onView={() => { viewingPhotoField = 'engine'; }}
 			/>
-		</div>
-	</Card>
+		{/snippet}
+	</CompactFieldPhotoCard>
 
 	<!-- License Disc -->
-	<Card class="p-6">
-		<h3 class="mb-4 text-lg font-semibold text-gray-900">License Disc</h3>
-		<div class="grid gap-6 md:grid-cols-2">
-			<FormField
-				name="license_disc_expiry"
-				label="License Disc Expiry Date"
+	<CompactFieldPhotoCard title="License Disc">
+		{#snippet field()}
+			<label for="license_disc_expiry" class="sr-only">License Disc Expiry Date</label>
+			<CompactInput
+				id="license_disc_expiry"
 				type="date"
 				bind:value={licenseDiscExpiry}
 				placeholder="YYYY-MM-DD"
 				oninput={debouncedSave}
 			/>
+		{/snippet}
+		{#snippet photo()}
 			<PhotoUpload
 				value={licenseDiscPhotoUrl}
-				label="License Disc Photo"
+				label=""
 				{assessmentId}
 				category="identification"
 				subcategory="license_disc"
@@ -493,24 +482,24 @@ interface Props {
 				}}
 				onView={() => { viewingPhotoField = 'license_disc'; }}
 			/>
-		</div>
-	</Card>
+		{/snippet}
+	</CompactFieldPhotoCard>
 
 	<!-- Driver License -->
-	<Card class="p-6">
-		<h3 class="mb-4 text-lg font-semibold text-gray-900">Driver License (Optional)</h3>
-		<div class="grid gap-6 md:grid-cols-2">
-			<FormField
-				name="driver_license_number"
-				label="Driver License Number"
-				type="text"
+	<CompactFieldPhotoCard title="Driver License (Optional)">
+		{#snippet field()}
+			<label for="driver_license_number" class="sr-only">Driver License Number</label>
+			<CompactInput
+				id="driver_license_number"
 				bind:value={driverLicenseNumber}
 				placeholder="License number"
 				oninput={debouncedSave}
 			/>
+		{/snippet}
+		{#snippet photo()}
 			<PhotoUpload
 				value={driverLicensePhotoUrl}
-				label="Driver License Photo"
+				label=""
 				{assessmentId}
 				category="identification"
 				subcategory="driver_license"
@@ -523,8 +512,8 @@ interface Props {
 					handleSave();
 				}}
 			/>
-		</div>
-	</Card>
+		{/snippet}
+	</CompactFieldPhotoCard>
 </div>
 
 <!-- Photo Field Viewer -->

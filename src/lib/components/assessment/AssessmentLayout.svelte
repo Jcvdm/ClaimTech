@@ -1,8 +1,9 @@
 <script lang="ts">
+	import { setContext } from 'svelte';
+	import type { Snippet as SvelteSnippet } from 'svelte';
 	import { Button } from '$lib/components/ui/button';
 	import LoadingButton from '$lib/components/ui/button/LoadingButton.svelte';
-	import { Sheet, SheetContent } from '$lib/components/ui/sheet';
-	import { StepRail } from '$lib/components/ui/step-rail';
+	import AssessmentTopTabs from './layout/AssessmentTopTabs.svelte';
 	import {
 		Save,
 		X,
@@ -17,9 +18,10 @@
 		Plus,
 		Trash2,
 		History,
-		Clock,
-		Menu
+		Clock
 	} from 'lucide-svelte';
+	import CompactChip from './compact/CompactChip.svelte';
+	import CompactButton from './compact/CompactButton.svelte';
 	import type { Assessment } from '$lib/types/assessment';
 	import {
 		validateVehicleIdentification,
@@ -66,6 +68,7 @@
 		// Live validations forwarded from the page (react to user input immediately)
 		liveValidations?: Record<string, TabValidation>;
 		children?: any;
+		rightPanel?: import('svelte').Snippet;
 	}
 
 	let {
@@ -91,11 +94,16 @@
 		estimate = null,
 		onValidationUpdate = undefined,
 		liveValidations = {},
-		children
+		children,
+		rightPanel = undefined
 	}: Props = $props();
 
-	// Mobile drawer state
-	let drawerOpen = $state(false);
+	let bottomBarContent = $state<SvelteSnippet | null>(null);
+
+	setContext('assessment-bottom-bar', {
+		set: (s: SvelteSnippet | null) => { bottomBarContent = s; },
+		clear: () => { bottomBarContent = null; }
+	});
 
 	// Build tabs array dynamically based on finalization status
 	const tabs = $derived(() => {
@@ -201,92 +209,98 @@
 			onTabChange(tabId);
 		}
 	}
+
+	const vehicleSubtitle = $derived.by(() => {
+		const v = vehicleIdentification;
+		if (!v) return '';
+		const parts: string[] = [];
+		const yearMakeModel = [v.year, v.make, v.model].filter(Boolean).join(' ');
+		if (yearMakeModel) parts.push(yearMakeModel);
+		if (v.registration_number) parts.push(v.registration_number);
+		return parts.join(' · ');
+	});
+
+	function relativeTime(iso: string | null): string {
+		if (!iso) return '';
+		const seconds = Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 1000));
+		if (seconds < 60) return 'just now';
+		const minutes = Math.floor(seconds / 60);
+		if (minutes < 60) return `${minutes}m ago`;
+		const hours = Math.floor(minutes / 60);
+		if (hours < 24) return `${hours}h ago`;
+		return new Date(iso).toLocaleDateString();
+	}
 </script>
 
-<div class="flex h-screen flex-col overflow-hidden bg-gray-50">
-	<!-- Sticky Header -->
-	<div class="relative z-30 bg-gray-50 shadow-sm">
-		<div class="border-b bg-white px-3 py-2 sm:px-6 sm:py-4 lg:px-8">
-			<div class="flex items-center justify-between gap-2 sm:gap-3">
-				<!-- Title Section -->
-				<div class="min-w-0 flex-1">
-					<h1 class="truncate text-base font-bold text-gray-900 sm:text-xl lg:text-2xl">
-						{assessment.assessment_number}
-					</h1>
-					<p class="mt-0.5 hidden text-xs text-gray-500 sm:block sm:text-sm">
-						Complete the vehicle assessment
-					</p>
-				</div>
-
-				<!-- Actions Section -->
-				<div class="flex items-center gap-1.5 sm:gap-2">
-					<!-- Last saved indicator -->
-					{#if lastSaved}
-						<div
-							class="hidden items-center gap-1 text-xs text-gray-500 sm:flex sm:text-sm"
-							title="Last saved: {new Date(lastSaved).toLocaleTimeString()}"
-						>
-							<Clock class="h-3.5 w-3.5" />
-							<span class="hidden md:inline">Saved {new Date(lastSaved).toLocaleTimeString()}</span>
-						</div>
-					{/if}
-
-					<!-- Hamburger — mobile/tablet only (hidden on lg+) -->
-					<Button
-						variant="ghost"
-						size="icon"
-						class="h-8 w-8 lg:hidden"
-						onclick={() => (drawerOpen = true)}
-						aria-label="Open navigation"
-					>
-						<Menu class="h-4 w-4" />
-					</Button>
-
-					<!-- Save / Cancel / Exit — icon only on xs, with text on sm+ -->
-					<LoadingButton
-						variant="outline"
-						onclick={onSave}
-						loading={saving}
-						size="sm"
-						class="h-8 px-2 sm:h-9 sm:px-3"
-					>
-						{#if !saving}
-							<Save class="h-4 w-4 sm:mr-1.5" />
-						{/if}
-						<span class="hidden sm:inline">{saving ? 'Saving...' : 'Save'}</span>
-					</LoadingButton>
-
-					{#if onCancel && ['assessment_in_progress', 'estimate_review', 'estimate_sent'].includes(assessment.stage)}
-						<Button
-							variant="destructive"
-							onclick={onCancel}
-							size="sm"
-							class="h-8 px-2 sm:h-9 sm:px-3"
-						>
-							<Trash2 class="h-4 w-4 sm:mr-1.5" />
-							<span class="hidden sm:inline">Cancel</span>
-						</Button>
-					{/if}
-
-					<Button variant="outline" onclick={onExit} size="sm" class="h-8 px-2 sm:h-9 sm:px-3">
-						<X class="h-4 w-4 sm:mr-1.5" />
-						<span class="hidden sm:inline">Exit</span>
-					</Button>
-				</div>
+<div class="flex min-h-0 flex-1 flex-col overflow-hidden bg-gray-50">
+	<!-- Two-row chrome header -->
+	<div class="relative z-30 shrink-0">
+		<!-- Row 1: HeaderBar -->
+		<div class="flex items-center gap-3 border-b border-slate-200 bg-white px-5 py-2.5">
+			<!-- Brand mark -->
+			<div class="flex h-[26px] w-[26px] items-center justify-center rounded-[5px] bg-slate-900 text-[11px] font-extrabold text-white">
+				CT
 			</div>
+			<!-- Breadcrumb -->
+			<nav class="hidden truncate text-[12px] text-slate-400 sm:block">
+				Home <span class="px-1">›</span> Work <span class="px-1">›</span> Assessments <span class="px-1">›</span>
+				<span class="font-semibold text-slate-600">{assessment.assessment_number}</span>
+			</nav>
+			<!-- Spacer -->
+			<div class="flex-1"></div>
+			<!-- Sync chip -->
+			{#if lastSaved}
+				<CompactChip tone="green">
+					<span class="text-[10px]">●</span>
+					Synced {relativeTime(lastSaved)}
+				</CompactChip>
+			{:else}
+				<CompactChip tone="gray">Not saved</CompactChip>
+			{/if}
+			<!-- Save -->
+			<LoadingButton
+				variant="outline"
+				onclick={onSave}
+				loading={saving}
+				size="sm"
+				class="h-8 px-3"
+			>
+				{#if !saving}<Save class="mr-1.5 h-4 w-4" />{/if}
+				{saving ? 'Saving...' : 'Save'}
+			</LoadingButton>
+			<!-- Cancel (conditional) -->
+			{#if onCancel && ['assessment_in_progress', 'estimate_review', 'estimate_sent'].includes(assessment.stage)}
+				<CompactButton variant="danger" size="sm" onclick={onCancel}>
+					{#snippet icon()}<Trash2 class="h-4 w-4" />{/snippet}
+					Cancel
+				</CompactButton>
+			{/if}
+			<!-- Exit -->
+			<CompactButton variant="ghost" size="sm" onclick={onExit}>
+				{#snippet icon()}<X class="h-4 w-4" />{/snippet}
+				Exit
+			</CompactButton>
+		</div>
+
+		<!-- Row 2: TitleBar -->
+		<div class="flex items-baseline gap-3.5 border-b border-slate-200 bg-white px-5 py-3">
+			<h1 class="text-[20px] font-extrabold leading-none tracking-tight text-slate-900">
+				{assessment.assessment_number}
+			</h1>
+			{#if vehicleSubtitle}
+				<p class="truncate text-[13px] text-slate-600">{vehicleSubtitle}</p>
+			{:else}
+				<p class="truncate text-[13px] text-slate-400">Complete the vehicle assessment</p>
+			{/if}
+			<div class="flex-1"></div>
+			<!-- Right slot for future status chips -->
 		</div>
 	</div>
 
-	<!-- Body: aside rail + main content -->
-	<div class="flex min-h-0 flex-1">
-		<!-- Desktop step rail (lg+) -->
-		<aside
-			class="hidden w-[232px] shrink-0 flex-col overflow-y-auto border-r border-sidebar-border bg-sidebar lg:flex"
-		>
-			<StepRail {steps} currentStep={currentTab} onStepChange={handleTabClick} />
-		</aside>
+	<AssessmentTopTabs steps={steps} currentStep={currentTab} onStepChange={handleTabClick} />
 
-		<!-- Main content area -->
+	<!-- Body: main content -->
+	<div class="flex min-h-0 flex-1">
 		<main class={[
 				'flex-1 overflow-y-auto pt-2 sm:pt-3',
 				['estimate', 'additionals'].includes(currentTab)
@@ -303,19 +317,14 @@
 				{/if}
 			</div>
 		</main>
+		{#if rightPanel}{@render rightPanel()}{/if}
 	</div>
 
-	<!-- Mobile drawer (Sheet) -->
-	<Sheet bind:open={drawerOpen}>
-		<SheetContent side="left" class="scroll-isolate w-[280px] p-0">
-			<StepRail
-				{steps}
-				currentStep={currentTab}
-				onStepChange={(id) => {
-					handleTabClick(id);
-					drawerOpen = false;
-				}}
-			/>
-		</SheetContent>
-	</Sheet>
+	<!-- Bottom bar slot — viewport-level footer, always visible when content registered -->
+	{#if bottomBarContent}
+		<div class="shrink-0 border-t border-slate-200 bg-white">
+			{@render bottomBarContent()}
+		</div>
+	{/if}
+
 </div>

@@ -1,6 +1,13 @@
 <script lang="ts">
 	import { Card } from '$lib/components/ui/card';
 	import FormField from '$lib/components/forms/FormField.svelte';
+	import CompactCard from './compact/CompactCard.svelte';
+	import CompactCardHeader from './compact/CompactCardHeader.svelte';
+	import CompactField from './compact/CompactField.svelte';
+	import CompactInput from './compact/CompactInput.svelte';
+	import CompactSelect from './compact/CompactSelect.svelte';
+	import CompactTextarea from './compact/CompactTextarea.svelte';
+	import CompactInfoCard from './compact/CompactInfoCard.svelte';
 	import PdfUpload from '$lib/components/forms/PdfUpload.svelte';
 	import VehicleValueExtrasTable from './VehicleValueExtrasTable.svelte';
 	import RequiredFieldsWarning from './RequiredFieldsWarning.svelte';
@@ -336,6 +343,26 @@ import type { VehicleDetails } from '$lib/utils/report-data-helpers';
 		});
 	});
 
+	// Vehicle & Request Information rows for CompactInfoCard
+	const vehicleRequestRows = $derived([
+		{ label: 'Report No.', value: requestInfo?.request_number },
+		{ label: 'Insurer', value: client?.name },
+		{ label: 'Date of Loss', value: requestInfo?.date_of_loss ? formatDate(requestInfo.date_of_loss) : null },
+		{ label: 'Make', value: vehicleDetails?.make },
+		{ label: 'Model', value: vehicleDetails?.model },
+		{ label: 'Year', value: vehicleDetails?.year },
+		{
+			label: 'Mileage',
+			value: interiorMechanical?.mileage_reading
+				? `${interiorMechanical.mileage_reading.toLocaleString()} km`
+				: vehicleDetails?.mileage
+					? `${vehicleDetails.mileage.toLocaleString()} km`
+					: null
+		},
+		{ label: 'VIN', value: vehicleDetails?.vin, mono: true },
+		{ label: 'Registration', value: vehicleDetails?.registration, mono: true }
+	]);
+
 	// Report validation to parent for immediate badge updates
 	let lastValidationKey = '';
 
@@ -357,101 +384,45 @@ import type { VehicleDetails } from '$lib/utils/report-data-helpers';
 	<!-- Section 1: Vehicle & Request Information -->
 	<!-- Shows current assessment data with fallback to original request data -->
 	{#if requestInfo}
-		<Card class="bg-blue-50 p-6">
-			<h3 class="mb-4 text-lg font-semibold text-gray-900">Vehicle & Request Information</h3>
-			<div class="grid gap-4 md:grid-cols-3">
-				<div>
-					<p class="text-sm text-gray-600">Report No.</p>
-					<p class="font-medium text-gray-900">{requestInfo.request_number || 'N/A'}</p>
-				</div>
-				<div>
-					<p class="text-sm text-gray-600">Insurer</p>
-					<p class="font-medium text-gray-900">{client?.name || 'N/A'}</p>
-				</div>
-				<div>
-					<p class="text-sm text-gray-600">Date of Loss</p>
-					<p class="font-medium text-gray-900">
-						{requestInfo.date_of_loss
-							? formatDate(requestInfo.date_of_loss)
-							: 'N/A'}
-					</p>
-				</div>
-			</div>
-			<div class="mt-4 grid gap-4 md:grid-cols-4">
-				<div>
-					<p class="text-sm text-gray-600">Make</p>
-					<!-- Normalized from vehicleDetails -->
-					<p class="font-medium text-gray-900">{vehicleDetails?.make || 'N/A'}</p>
-				</div>
-				<div>
-					<p class="text-sm text-gray-600">Model</p>
-					<!-- Normalized from vehicleDetails -->
-					<p class="font-medium text-gray-900">{vehicleDetails?.model || 'N/A'}</p>
-				</div>
-				<div>
-					<p class="text-sm text-gray-600">Year</p>
-					<!-- Normalized from vehicleDetails -->
-					<p class="font-medium text-gray-900">{vehicleDetails?.year || 'N/A'}</p>
-				</div>
-				<div>
-					<p class="text-sm text-gray-600">Mileage</p>
-					<!-- Prefer interior mechanical data over vehicleDetails -->
-					<p class="font-medium text-gray-900">
-						{interiorMechanical?.mileage_reading
-							? interiorMechanical.mileage_reading.toLocaleString() + ' km'
-							: vehicleDetails?.mileage
-								? vehicleDetails.mileage.toLocaleString() + ' km'
-								: 'N/A'}
-					</p>
-				</div>
-			</div>
-			<div class="mt-4">
-				<p class="text-sm text-gray-600">VIN</p>
-				<!-- Normalized from vehicleDetails -->
-				<p class="font-medium text-gray-900">{vehicleDetails?.vin || 'N/A'}</p>
-			</div>
-			<div class="mt-4">
-				<p class="text-sm text-gray-600">Registration</p>
-				<!-- Normalized from vehicleDetails -->
-				<p class="font-medium text-gray-900">{vehicleDetails?.registration || 'N/A'}</p>
-			</div>
-		</Card>
+		<CompactInfoCard
+			title="Vehicle & Request Information"
+			tone="info"
+			cols={3}
+			rows={vehicleRequestRows}
+		/>
 	{/if}
 
 	<!-- Valuation Source -->
-	<Card class="p-6">
-		<h3 class="mb-4 text-lg font-semibold text-gray-900">
-			Valuation Source <span class="text-red-500">*</span>
-		</h3>
-		<div class="grid gap-4 md:grid-cols-2">
-			<FormField
-				name="sourced_from"
-				label="Sourced From"
-				type="text"
-				bind:value={sourcedFrom}
-				placeholder="e.g., TransUnion - iCheck, Lightstone Auto"
-				required
-				oninput={debouncedSave}
-			/>
-			<FormField
-				name="sourced_code"
-				label="Source Code"
-				type="text"
-				bind:value={sourcedCode}
-				placeholder="e.g., 22035630"
-				required
-				oninput={debouncedSave}
-			/>
+	<CompactCard>
+		<CompactCardHeader title="Valuation Source" required />
+		<div class="grid gap-3.5 md:grid-cols-2">
+			<CompactField label="Sourced From" htmlFor="sourced_from" required>
+				<CompactInput
+					id="sourced_from"
+					bind:value={sourcedFrom}
+					placeholder="e.g., TransUnion - iCheck, Lightstone Auto"
+					oninput={debouncedSave}
+				/>
+			</CompactField>
+			<CompactField label="Source Code" htmlFor="sourced_code" required>
+				<CompactInput
+					id="sourced_code"
+					bind:value={sourcedCode}
+					placeholder="e.g., 22035630"
+					oninput={debouncedSave}
+				/>
+			</CompactField>
 		</div>
-		<div class="mt-4 grid gap-4 md:grid-cols-2">
-			<FormField
-				name="sourced_date"
-				label="Sourced Date"
-				type="date"
-				bind:value={sourcedDate}
-				required
-				onchange={debouncedSave}
-			/>
+		<div class="mt-3 grid gap-3.5 md:grid-cols-2">
+			<CompactField label="Sourced Date" htmlFor="sourced_date" required>
+				<input
+					id="sourced_date"
+					type="date"
+					bind:value={sourcedDate}
+					oninput={debouncedSave}
+					class="w-full px-2.5 py-2 text-[13px] text-slate-900 bg-white border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-red-600 focus:border-transparent"
+				/>
+			</CompactField>
 			<div>
 				<div class="mb-2 block text-sm font-medium text-gray-700">Month (Auto-calculated)</div>
 				<div class="rounded-md border border-gray-300 bg-gray-50 px-3 py-2 text-sm text-gray-700">
@@ -459,42 +430,38 @@ import type { VehicleDetails } from '$lib/utils/report-data-helpers';
 				</div>
 			</div>
 		</div>
-	</Card>
+	</CompactCard>
 
 	<!-- Warranty / Service Details -->
-	<Card class="p-6">
-		<h3 class="mb-4 text-lg font-semibold text-gray-900">Warranty / Service Details</h3>
+	<CompactCard>
+		<CompactCardHeader title="Warranty / Service Details" />
 
-		<div class="space-y-6">
+		<div class="space-y-3">
 			<!-- Status -->
-			<FormField
-				name="warranty_status"
-				label="Status"
-				type="select"
-				bind:value={warrantyStatus}
-				placeholder="Select status..."
-				required
-				onchange={debouncedSave}
-				options={[
-					{ value: 'active', label: 'Active' },
-					{ value: 'expired', label: 'Expired' },
-					{ value: 'void', label: 'Void' },
-					{ value: 'transferred', label: 'Transferred' },
-					{ value: 'unknown', label: 'Unknown' }
-				]}
-			/>
+			<CompactField label="Status" htmlFor="warranty_status" required>
+				<CompactSelect
+					id="warranty_status"
+					bind:value={warrantyStatus}
+					onchange={debouncedSave}
+					options={[
+						{ value: '', label: 'Select status...' },
+						{ value: 'active', label: 'Active' },
+						{ value: 'expired', label: 'Expired' },
+						{ value: 'void', label: 'Void' },
+						{ value: 'transferred', label: 'Transferred' },
+						{ value: 'unknown', label: 'Unknown' }
+					]}
+				/>
+			</CompactField>
 
-			<!-- Period (Years) -->
-			<div class="space-y-2">
-				<label for="warranty_period_years" class="block text-sm font-medium text-gray-700">
-					Period (Years)
-				</label>
+			<!-- Period (Years) — raw select (bind:value with null option) -->
+			<CompactField label="Period (Years)" htmlFor="warranty_period_years">
 				<select
 					id="warranty_period_years"
 					name="warranty_period_years"
 					bind:value={warrantyPeriodYears}
 					onchange={debouncedSave}
-					class="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+					class="flex h-8 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-1.5 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
 				>
 					<option value={null}>Select period...</option>
 					<option value={1}>1 Year</option>
@@ -505,170 +472,188 @@ import type { VehicleDetails } from '$lib/utils/report-data-helpers';
 					<option value={6}>6 Years</option>
 					<option value={7}>7 Years</option>
 				</select>
-			</div>
+			</CompactField>
 
 			<!-- Date Range: From - To -->
 			<fieldset>
 				<legend class="mb-2 block text-sm font-medium text-gray-700">Date</legend>
-				<div class="grid gap-4 md:grid-cols-2">
-					<FormField
-						name="warranty_start_date"
-						label="From"
-						type="date"
-						bind:value={warrantyStartDate}
-						onchange={debouncedSave}
-					/>
-					<FormField
-						name="warranty_end_date"
-						label="To"
-						type="date"
-						bind:value={warrantyEndDate}
-						onchange={debouncedSave}
-					/>
+				<div class="grid gap-3.5 md:grid-cols-2">
+					<CompactField label="From" htmlFor="warranty_start_date">
+						<input
+							id="warranty_start_date"
+							type="date"
+							bind:value={warrantyStartDate}
+							oninput={debouncedSave}
+							class="w-full px-2.5 py-2 text-[13px] text-slate-900 bg-white border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-red-600 focus:border-transparent"
+						/>
+					</CompactField>
+					<CompactField label="To" htmlFor="warranty_end_date">
+						<input
+							id="warranty_end_date"
+							type="date"
+							bind:value={warrantyEndDate}
+							oninput={debouncedSave}
+							class="w-full px-2.5 py-2 text-[13px] text-slate-900 bg-white border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-red-600 focus:border-transparent"
+						/>
+					</CompactField>
 				</div>
 			</fieldset>
 
 			<!-- Expiry Mileage -->
-			<FormField
-				name="warranty_expiry_mileage"
-				label="Expiry Mileage"
-				type="select"
-				bind:value={warrantyExpiryMileage}
-				placeholder="Select mileage..."
-				onchange={debouncedSave}
-				options={[
-					{ value: 'unlimited', label: 'Unlimited' },
-					{ value: '50000', label: '50,000 km' },
-					{ value: '100000', label: '100,000 km' },
-					{ value: '120000', label: '120,000 km' },
-					{ value: '150000', label: '150,000 km' },
-					{ value: '200000', label: '200,000 km' }
-				]}
-			/>
+			<CompactField label="Expiry Mileage" htmlFor="warranty_expiry_mileage">
+				<CompactSelect
+					id="warranty_expiry_mileage"
+					bind:value={warrantyExpiryMileage}
+					onchange={debouncedSave}
+					options={[
+						{ value: '', label: 'Select mileage...' },
+						{ value: 'unlimited', label: 'Unlimited' },
+						{ value: '50000', label: '50,000 km' },
+						{ value: '100000', label: '100,000 km' },
+						{ value: '120000', label: '120,000 km' },
+						{ value: '150000', label: '150,000 km' },
+						{ value: '200000', label: '200,000 km' }
+					]}
+				/>
+			</CompactField>
 
 			<!-- Service History -->
-			<FormField
-				name="service_history_status"
-				label="Service History"
-				type="select"
-				bind:value={serviceHistoryStatus}
-				placeholder="Select status..."
-				onchange={debouncedSave}
-				options={[
-					{ value: 'checked', label: 'Checked' },
-					{ value: 'not_checked', label: 'Not Checked' },
-					{ value: 'incomplete', label: 'Incomplete' },
-					{ value: 'up_to_date', label: 'Up to Date' },
-					{ value: 'overdue', label: 'Overdue' },
-					{ value: 'unknown', label: 'Unknown' }
-				]}
-			/>
+			<CompactField label="Service History" htmlFor="service_history_status">
+				<CompactSelect
+					id="service_history_status"
+					bind:value={serviceHistoryStatus}
+					onchange={debouncedSave}
+					options={[
+						{ value: '', label: 'Select status...' },
+						{ value: 'checked', label: 'Checked' },
+						{ value: 'not_checked', label: 'Not Checked' },
+						{ value: 'incomplete', label: 'Incomplete' },
+						{ value: 'up_to_date', label: 'Up to Date' },
+						{ value: 'overdue', label: 'Overdue' },
+						{ value: 'unknown', label: 'Unknown' }
+					]}
+				/>
+			</CompactField>
 
 			<!-- Additional Notes -->
-			<FormField
-				name="warranty_notes"
-				label="Additional Notes"
-				type="textarea"
-				bind:value={warrantyNotes}
-				placeholder="Additional warranty or service information..."
-				rows={3}
-				oninput={debouncedSave}
-			/>
+			<CompactField label="Additional Notes" htmlFor="warranty_notes">
+				<CompactTextarea
+					id="warranty_notes"
+					bind:value={warrantyNotes}
+					placeholder="Additional warranty or service information..."
+					rows={3}
+					oninput={debouncedSave}
+				/>
+			</CompactField>
 		</div>
-	</Card>
+	</CompactCard>
 
 	<!-- Section 2: Base Values & Adjustments -->
-	<Card class="p-6">
-		<h3 class="mb-4 text-lg font-semibold text-gray-900">
-			Vehicle Values <span class="text-red-500">*</span>
-		</h3>
+	<CompactCard>
+		<CompactCardHeader title="Vehicle Values" required />
 
 		<!-- Optional fields -->
-		<div class="mb-6 grid gap-4 md:grid-cols-2">
-			<FormField
-				name="new_list_price"
-				label="New List Price"
-				type="number"
-				bind:value={newListPrice}
-				placeholder="0.00"
-				step="0.01"
-				oninput={debouncedSave}
-			/>
-			<FormField
-				name="depreciation_percentage"
-				label="Depreciation %"
-				type="number"
-				bind:value={depreciationPercentage}
-				placeholder="0.00"
-				step="0.01"
-				oninput={debouncedSave}
-			/>
+		<div class="mb-3.5 grid gap-3.5 md:grid-cols-2">
+			<CompactField label="New List Price" htmlFor="new_list_price">
+				<CompactInput
+					id="new_list_price"
+					type="number"
+					mono
+					bind:value={newListPrice}
+					placeholder="0.00"
+					step="0.01"
+					oninput={debouncedSave}
+				/>
+			</CompactField>
+			<CompactField label="Depreciation %" htmlFor="depreciation_percentage">
+				<CompactInput
+					id="depreciation_percentage"
+					type="number"
+					mono
+					bind:value={depreciationPercentage}
+					placeholder="0.00"
+					step="0.01"
+					oninput={debouncedSave}
+				/>
+			</CompactField>
 		</div>
 
 		<!-- Base values -->
-		<div class="mb-6 grid gap-4 md:grid-cols-3">
-			<FormField
-				name="trade_value"
-				label="Trade Value"
-				type="number"
-				bind:value={tradeValue}
-				placeholder="0.00"
-				step="0.01"
-				oninput={debouncedSave}
-			/>
-			<FormField
-				name="market_value"
-				label="Market Value"
-				type="number"
-				bind:value={marketValue}
-				placeholder="0.00"
-				step="0.01"
-				oninput={debouncedSave}
-			/>
-			<FormField
-				name="retail_value"
-				label="Retail Value"
-				type="number"
-				bind:value={retailValue}
-				placeholder="0.00"
-				step="0.01"
-				oninput={debouncedSave}
-			/>
+		<div class="mb-3.5 grid gap-3.5 md:grid-cols-3">
+			<CompactField label="Trade Value" htmlFor="trade_value">
+				<CompactInput
+					id="trade_value"
+					type="number"
+					mono
+					bind:value={tradeValue}
+					placeholder="0.00"
+					step="0.01"
+					oninput={debouncedSave}
+				/>
+			</CompactField>
+			<CompactField label="Market Value" htmlFor="market_value">
+				<CompactInput
+					id="market_value"
+					type="number"
+					mono
+					bind:value={marketValue}
+					placeholder="0.00"
+					step="0.01"
+					oninput={debouncedSave}
+				/>
+			</CompactField>
+			<CompactField label="Retail Value" htmlFor="retail_value">
+				<CompactInput
+					id="retail_value"
+					type="number"
+					mono
+					bind:value={retailValue}
+					placeholder="0.00"
+					step="0.01"
+					oninput={debouncedSave}
+				/>
+			</CompactField>
 		</div>
 
 		<!-- Adjustments -->
-		<div class="mb-6 space-y-4">
+		<div class="mb-3.5 space-y-3">
 			<h4 class="text-sm font-semibold text-gray-700">Adjustments</h4>
-			<div class="grid gap-4 md:grid-cols-2">
-				<FormField
-					name="valuation_adjustment"
-					label="Valuation Adjustment (Amount)"
-					type="number"
-					bind:value={valuationAdjustment}
-					placeholder="0.00"
-					step="0.01"
-					oninput={debouncedSave}
-				/>
-				<FormField
-					name="valuation_adjustment_percentage"
-					label="Valuation Adjustment %"
-					type="number"
-					bind:value={valuationAdjustmentPercentage}
-					placeholder="0.00"
-					step="0.01"
-					oninput={debouncedSave}
-				/>
+			<div class="grid gap-3.5 md:grid-cols-2">
+				<CompactField label="Valuation Adjustment (Amount)" htmlFor="valuation_adjustment">
+					<CompactInput
+						id="valuation_adjustment"
+						type="number"
+						mono
+						bind:value={valuationAdjustment}
+						placeholder="0.00"
+						step="0.01"
+						oninput={debouncedSave}
+					/>
+				</CompactField>
+				<CompactField label="Valuation Adjustment %" htmlFor="valuation_adjustment_percentage">
+					<CompactInput
+						id="valuation_adjustment_percentage"
+						type="number"
+						mono
+						bind:value={valuationAdjustmentPercentage}
+						placeholder="0.00"
+						step="0.01"
+						oninput={debouncedSave}
+					/>
+				</CompactField>
 			</div>
 			<div class="space-y-2">
-				<FormField
-					name="condition_adjustment_value"
-					label="Condition Adjustment Value"
-					type="number"
-					bind:value={conditionAdjustmentValue}
-					placeholder="0.00"
-					step="0.01"
-					oninput={debouncedSave}
-				/>
+				<CompactField label="Condition Adjustment Value" htmlFor="condition_adjustment_value">
+					<CompactInput
+						id="condition_adjustment_value"
+						type="number"
+						mono
+						bind:value={conditionAdjustmentValue}
+						placeholder="0.00"
+						step="0.01"
+						oninput={debouncedSave}
+					/>
+				</CompactField>
 				<!-- Display calculated percentages -->
 				<div class="rounded-md bg-blue-50 p-3">
 					<p class="text-xs font-medium text-blue-900 mb-1">Calculated Percentages:</p>
@@ -690,7 +675,7 @@ import type { VehicleDetails } from '$lib/utils/report-data-helpers';
 		<!-- Adjusted Values Display -->
 		<div class="rounded-lg bg-gray-50 p-4">
 			<h4 class="mb-3 text-sm font-semibold text-gray-700">Adjusted Values</h4>
-			<div class="grid gap-4 md:grid-cols-3">
+			<div class="grid gap-3.5 md:grid-cols-3">
 				<div>
 					<p class="text-xs text-gray-600">Trade</p>
 					<p class="text-lg font-semibold text-gray-900 font-mono-tabular">{formatCurrency(tradeAdjusted)}</p>
@@ -705,7 +690,7 @@ import type { VehicleDetails } from '$lib/utils/report-data-helpers';
 				</div>
 			</div>
 		</div>
-	</Card>
+	</CompactCard>
 
 	<!-- Section 3: Accessories -->
 	<VehicleValueExtrasTable
@@ -714,9 +699,9 @@ import type { VehicleDetails } from '$lib/utils/report-data-helpers';
 	/>
 
 	<!-- Section 4: Total Adjusted Values -->
-	<Card class="p-6">
-		<h3 class="mb-4 text-lg font-semibold text-gray-900">Total Adjusted Values</h3>
-		<div class="grid gap-4 md:grid-cols-3">
+	<CompactCard>
+		<CompactCardHeader title="Total Adjusted Values" />
+		<div class="grid gap-3.5 md:grid-cols-3">
 			<div class="rounded-lg bg-blue-50 p-4">
 				<p class="text-sm text-gray-600">Trade Total</p>
 				<p class="text-xl font-bold text-blue-900 font-mono-tabular">{formatCurrency(tradeTotalAdjusted)}</p>
@@ -739,11 +724,11 @@ import type { VehicleDetails } from '$lib/utils/report-data-helpers';
 				</p>
 			</div>
 		</div>
-	</Card>
+	</CompactCard>
 
 	<!-- Section 5: Write-Off Calculations -->
-	<Card class="p-6">
-		<h3 class="mb-4 text-lg font-semibold text-gray-900">Write-Off Calculations</h3>
+	<CompactCard>
+		<CompactCardHeader title="Write-Off Calculations" />
 		<div class="mb-4 rounded-lg bg-yellow-50 p-3">
 			<p class="text-sm text-gray-700">
 				Using client's write-off percentages: Borderline ({borderlinePercentage}%), Total Write-Off
@@ -801,15 +786,13 @@ import type { VehicleDetails } from '$lib/utils/report-data-helpers';
 				</tbody>
 			</table>
 		</div>
-	</Card>
+	</CompactCard>
 
 	<!-- Section 6: Supporting Documents -->
-	<Card class="p-6">
-		<h3 class="mb-4 text-lg font-semibold text-gray-900">
-			Supporting Documents <span class="text-red-500">*</span>
-		</h3>
+	<CompactCard>
+		<CompactCardHeader title="Supporting Documents" required />
 
-		<div class="mb-6">
+		<div class="mb-3.5">
 			<PdfUpload
 				value={valuationPdfUrl}
 				label="Valuation Report (PDF)"
@@ -820,7 +803,9 @@ import type { VehicleDetails } from '$lib/utils/report-data-helpers';
 			/>
 		</div>
 
-		<FormField name="remarks" label="Remarks" type="textarea" bind:value={remarks} rows={4} oninput={debouncedSave} />
-	</Card>
+		<CompactField label="Remarks" htmlFor="remarks">
+			<CompactTextarea id="remarks" bind:value={remarks} rows={4} oninput={debouncedSave} />
+		</CompactField>
+	</CompactCard>
 </div>
 

@@ -14,11 +14,14 @@
 		assessmentId: string;
 		photos: Exterior360Photo[];
 		onUpdate: () => void;
+		inSidebar?: boolean;
 	}
 
 	// Make props reactive using $derived instead of destructuring
 	// This ensures component reacts to parent prop updates without re-mount
 	let props: Props = $props();
+
+	const inSidebar = $derived(props.inSidebar ?? false);
 
 	// Reactive derived props
 	const assessmentId = $derived(props.assessmentId);
@@ -256,7 +259,7 @@
 		</div>
 	{:else}
 		<!-- Grid with upload zone as first item -->
-		<div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 p-1">
+		<div class="grid {inSidebar ? 'grid-cols-2 gap-3' : 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4'} p-1">
 			<!-- Upload zone as first grid cell -->
 			<div
 				class="relative w-full aspect-square border-2 border-dashed rounded-lg transition-colors cursor-pointer {upload.isDragging
